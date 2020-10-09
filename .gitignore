@@ -1,0 +1,13 @@
+*
+#Scan all the folders
+!/**/*/
+#Python inside Source
+!/src/**/*.py
+#Dokumentation Files
+!/*.md
+#setuptools
+/setup.py
+#License
+!/LICENSE
+#this file (in all subfolders)
+!.gitignore
