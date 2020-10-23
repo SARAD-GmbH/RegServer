@@ -3,11 +3,14 @@
 !/**/*/
 #Python inside Source
 !/src/**/*.py
-#Dokumentation Files
+#Dokumentation Files (README...)
 !/*.md
-#setuptools
-/setup.py
 #License
 !/LICENSE
 #this file (in all subfolders)
 !.gitignore
+!.git*
+#Pipenv
+!Pipfile
+!/.env
+
