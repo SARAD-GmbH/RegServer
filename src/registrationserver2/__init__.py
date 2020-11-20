@@ -12,15 +12,17 @@ import logging
 import re
 from registrationserver2.config import config 
 
+from thespian.actors import ActorSystem
+
 config.setdefault('FOLDER', f'{os.environ.get("HOME",None) or os.environ.get("LOCALAPPDATA",None)}{os.path.sep}SARAD{os.path.sep}devices')
 config.setdefault('LEVEL', logging.CRITICAL)
 config.setdefault('MDNS_TIMEOUT', 3000)	
 config.setdefault('TYPE', '_sarad-1688._rfc2217._tcp.local.')
 
-logging.basicConfig(level=logging.CRITICAL,format='[%(name)s]\t[%(levelname)s]:\t%(message)s')
+global 	actors 
+actors = ActorSystem()	
 global theLogger
 theLogger = logging.getLogger('Instrument Server V2')
-logging.root.setLevel(logging.CRITICAL)
 werklog = logging.getLogger('werkzeug')	
 formatter = logging.Formatter('[%(name)s]\t[%(levelname)s]:\t%(message)s')
 if werklog.handlers:
