@@ -50,6 +50,9 @@ class SaradMdnsListener(ServiceListener):
 	__folder_history : str
 	__folder_available : str
 	
+	'''
+		Hook, being called when a new service representing a device is being detected 
+	'''
 	def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
 		theLogger.info(f'[Add]:\tFound: Service of type {type_}. Name: {name}')
 		info = zc.get_service_info(type_, name, timeout=config['MDNS_TIMEOUT'])
@@ -67,6 +70,9 @@ class SaradMdnsListener(ServiceListener):
 		except:
 			theLogger.error(f'Could not write properties of device with Name: {name} and Type: {type_}')
 
+	'''
+		Hook, being called when a regular shutdown of a service representing a device is being detected 
+	'''
 	def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
 		theLogger.info(f'Removed: Service of type {type_}. Name: {name}')
 		info = zc.get_service_info(type_, name, timeout=config['MDNS_TIMEOUT'])
@@ -77,6 +83,9 @@ class SaradMdnsListener(ServiceListener):
 		if os.path.exists(link):
 			os.unlink(link)
 
+	'''
+		Hook, being called when a  service representing a device is being updated 
+	'''
 	def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
 		theLogger.info(f'[Update]:\tService of type {type_}. Name: {name}')
 		info = zc.get_service_info(type_, name, timeout=config['MDNS_TIMEOUT'])
@@ -95,7 +104,10 @@ class SaradMdnsListener(ServiceListener):
 			
 		except:
 			theLogger.error(f'Could not write properties of device with Name: {name} and Type: {type_}')
-			
+		
+	'''
+		Helper function to convert mdns service information to the desired yaml format 
+	'''	
 	def convertProperties(self, info = None, name = ""):
 		
 		if not info:
@@ -166,6 +178,9 @@ class SaradMdnsListener(ServiceListener):
 		#except ValueError as that:
 		#theLogger.error(that)
 
+	'''
+		Initialize a mdns Listener for a specific device group 
+	'''
 	def __init__(self,_type):
 		'''
 		Constructor

@@ -19,6 +19,63 @@ import socket
 import os
 import sys
 
+'''
+	Rest API 
+	delivers lists and info for devices 
+	relays reservation / free requests towards the instrument server 2 for the devices
+	information is taken from the device info folder defined in both config.py (settings) and __init__.py (defaults)
+	/*
+	@startuml
+	actor "Trucy" as user
+	control "Sarad App" as app
+	box "Registration Server 2" #pink
+		entity "rest api" as api
+		entity "device Actor" as deviceactor
+	end box	
+	entity "device with Instrument Server" as device
+	user->app:Changes Config /\n Requests Data
+	
+	group reservation
+		app->api:Attempts to Reserve Device
+		api->deviceactor:relays request
+		deviceactor->device:relays request
+		device->deviceactor:accepts request /\n relays port information
+		deviceactor->device:connects
+		deviceactor->deviceactor:opens port
+		deviceactor->api:accepts request /\n relays port information
+		api->app:relays port
+	end
+	note over deviceactor: start timeout
+	group Data - repeats on unexpected disconnect
+		app->deviceactor:connects
+		note over deviceactor: refresh timeout
+		group Commands without response
+			app->deviceactor:sends data
+			note over deviceactor: refresh timeout
+			deviceactor->device:relays data
+			app->user:"OK"
+		end
+		group Commands with response
+			app->deviceactor:sends data
+			note over deviceactor: refresh timeout
+			deviceactor->device:relays data
+			device->deviceactor:relays answer
+			deviceactor->app:relays answer
+		end
+		app->user:displays answer
+		app->deviceactor:disconnects
+	end
+	group free
+		app->api:frees device
+		api->deviceactor:relays free
+		deviceactor->device:relays free
+	end
+	group timeout reached
+		deviceactor->device:sends free
+	end
+	@enduml
+	*/
+'''
 class RestApi(Actor):
 	api = Flask(__name__)
 	
@@ -30,7 +87,9 @@ class RestApi(Actor):
 		@staticmethod
 		def flush(arg=None,**kwargs):
 			pass
-	
+	'''
+		Path for getting the list of active devices
+	'''
 	@staticmethod
 	@api.route('/list', methods=['GET'])
 	@api.route('/list/', methods=['GET'])
@@ -52,9 +111,14 @@ class RestApi(Actor):
 			mimetype="application/json")	    	
 		return resp
 	
+	'''
+		Path for getting Information for a single active device
+	'''	
 	@staticmethod
 	@api.route('/list/<did>', methods=['GET'])
+	@api.route('/list/<did>/', methods=['GET'])
 	@api.route(f'/{registrationserver2.path_available}/<did>', methods=['GET'])
+	@api.route(f'/{registrationserver2.path_available}/<did>/', methods=['GET'])
 	def getDevice(did):
 		if not registrationserver2.matchid.fullmatch(did):
 			return json.dumps({'Error': 'Wronly formated ID'})
@@ -72,6 +136,9 @@ class RestApi(Actor):
 			)	    	
 		return resp
 	
+	'''
+		Path for getting the list of all time detected devices
+	'''
 	@staticmethod
 	@api.route(f'/{registrationserver2.path_history}', methods=['GET'])
 	@api.route(f'/{registrationserver2.path_history}/', methods=['GET'])
@@ -88,9 +155,12 @@ class RestApi(Actor):
 			mimetype="application/json")	    	
 		return resp
 	
-	
+	'''
+		Path for getting information about a single previous or currently detected device 
+	'''	
 	@staticmethod
 	@api.route(f'/{registrationserver2.path_history}/<did>', methods=['GET'])
+	@api.route(f'/{registrationserver2.path_history}/<did>/', methods=['GET'])
 	def getDeviceOld(did):
 		if not registrationserver2.matchid.fullmatch(did):
 			return json.dumps({'Error': 'Wronly formated ID'})
@@ -105,6 +175,9 @@ class RestApi(Actor):
 			mimetype="application/json")	    	
 		return resp
 	
+	'''
+		Path for reserving a single active device
+	'''
 	@staticmethod
 	@api.route(f'/list/<did>/{registrationserver2.reserve_keyword}', methods=['GET'])
 	@api.route(f'/{registrationserver2.path_available}/<did>/{registrationserver2.reserve_keyword}', methods=['GET'])
@@ -118,6 +191,9 @@ class RestApi(Actor):
 	
 		#return json.dumps(vars(request))
 
+	'''
+		Path for freeing a single active device
+	'''
 	@staticmethod
 	@api.route(f'/list/<did>/{registrationserver2.free_keyword}', methods=['GET'])
 	@api.route(f'/{registrationserver2.path_available}/<did>/{registrationserver2.free_keyword}', methods=['GET'])
@@ -131,5 +207,3 @@ class RestApi(Actor):
 		sys.stdout = RestApi.dummy
 		self.api.run(host=host, port=port, debug=debug, load_dotenv=load_dotenv)
 		sys.stdout = std
-		
-
