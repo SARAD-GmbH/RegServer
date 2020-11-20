@@ -5,6 +5,7 @@ Created on 02.10.2020
 '''
 import registrationserver2
 from registrationserver2 import theLogger
+from thespian.actors import Actor
 
 
 
@@ -18,7 +19,7 @@ import socket
 import os
 import sys
 
-class RestApi():
+class RestApi(Actor):
 	api = Flask(__name__)
 	
 
@@ -43,7 +44,7 @@ class RestApi():
 				theLogger.debug(file)
 				if os.path.isfile(file):
 					theLogger.debug(file)
-					answer[dir_entry] =  json.load(open(file))
+					answer[dir_entry] = { 'Identification' : json.load(open(file)).get('Identification', None)}
 		except: 
 			theLogger.error('!!!')
 		resp = Response(response=json.dumps(answer),
@@ -60,7 +61,7 @@ class RestApi():
 		answer = {}
 		try:
 			if os.path.isfile(f'{registrationserver2.folder_available}{os.path.sep}{did}'):
-				answer[did] =  json.load(open(f'{registrationserver2.folder_available}{os.path.sep}{did}'))
+				answer[did] = { 'Identification' :  json.load(open(f'{registrationserver2.folder_available}{os.path.sep}{did}')).get('Identification', None)}
 		except: 
 			theLogger.error('!!!')
 		
@@ -79,7 +80,7 @@ class RestApi():
 		try:
 			for dir_entry in os.listdir(f'{registrationserver2.folder_history}'):
 				if os.path.isfile(f'{registrationserver2.folder_history}{os.path.sep}{dir_entry}'):
-					answer[dir_entry] =  json.load(open(f'{registrationserver2.folder_history}{os.path.sep}{dir_entry}'))
+					answer[dir_entry] =  { 'Identification' : json.load(open(f'{registrationserver2.folder_history}{os.path.sep}{dir_entry}')).get('Identification', None)}
 		except: 
 			theLogger.error('!!!')
 		resp = Response(response=json.dumps(answer),
@@ -91,12 +92,12 @@ class RestApi():
 	@staticmethod
 	@api.route(f'/{registrationserver2.path_history}/<did>', methods=['GET'])
 	def getDeviceOld(did):
-		if not registrationserver2.matchid.fullmatch(id):
+		if not registrationserver2.matchid.fullmatch(did):
 			return json.dumps({'Error': 'Wronly formated ID'})
 		answer = {}
 		try:
 			if os.path.isfile(f'{registrationserver2.folder_history}{os.path.sep}{did}'):
-				answer[id] =  json.load(open(f'{registrationserver2.folder_history}{os.path.sep}{did}'))
+				answer[did] =  { 'Identification' : json.load(open(f'{registrationserver2.folder_history}{os.path.sep}{did}')).get('Identification', None)}
 		except: 
 			theLogger.error('!!!')
 		resp = Response(response=json.dumps(answer),
@@ -129,6 +130,6 @@ class RestApi():
 		std = sys.stdout
 		sys.stdout = RestApi.dummy
 		self.api.run(host=host, port=port, debug=debug, load_dotenv=load_dotenv)
-		sys.stdout = std	
+		sys.stdout = std
 		
 
