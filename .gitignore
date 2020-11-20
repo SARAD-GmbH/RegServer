@@ -12,5 +12,8 @@
 !.git*
 #Pipenv
 !Pipfile
+!Pipfile.lock
 !/.env
+#Coding Style
+!pylintrc
 
