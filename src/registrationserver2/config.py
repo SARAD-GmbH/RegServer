@@ -14,7 +14,7 @@ from logging import DEBUG
 
 config = {
 		'MDNS_TIMEOUT':		3000,
-		'TYPE':				'_rfc2217._tcp.local.',
+		'TYPE':				['_sarad-1688._rfc2217._tcp.local.','_rfc2217._tcp.local.'],
 		#'FOLDER':			r'D:\test\rfc2217',
 		'LEVEL':			DEBUG,
 	}
