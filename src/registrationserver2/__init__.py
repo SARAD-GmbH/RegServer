@@ -14,13 +14,26 @@ from registrationserver2.config import config
 
 from thespian.actors import ActorSystem
 
+'''
+	Default values for configuration, is applied if a value is not set in config.py
+'''
 config.setdefault('FOLDER', f'{os.environ.get("HOME",None) or os.environ.get("LOCALAPPDATA",None)}{os.path.sep}SARAD{os.path.sep}devices')
 config.setdefault('LEVEL', logging.CRITICAL)
 config.setdefault('MDNS_TIMEOUT', 3000)	
 config.setdefault('TYPE', '_sarad-1688._rfc2217._tcp.local.')
 
+'''
+	Initialization of the actor system 
+	TODO: (WIP) 
+'''
 global 	actors 
-actors = ActorSystem()	
+actors = ActorSystem()
+
+
+'''
+	Logging configuration, 
+	TODO: configuration still gets overwritten but one of the imports
+'''	
 global theLogger
 theLogger = logging.getLogger('Instrument Server V2')
 werklog = logging.getLogger('werkzeug')	
@@ -42,11 +55,12 @@ werklog.addHandler(streamh)
 theLogger.setLevel(config['LEVEL'])
 werklog.setLevel(logging.CRITICAL) 
 
-
 theLogger.info("Test")
 
-#@TODO: move to config instead
-
+'''
+	Folders structure / APi names for devices and device history
+	TODO: move to configuration instead
+'''
 global matchid 
 matchid = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 
