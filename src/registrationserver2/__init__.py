@@ -51,7 +51,7 @@ werklog.addHandler(streamh)
 werklog.addHandler(streamh)
 
 theLogger.setLevel(config['LEVEL'])
-werklog.setLevel(logging.CRITICAL) 
+werklog.setLevel(logging.CRITICAL)
 
 theLogger.info("Test")
 
@@ -61,14 +61,14 @@ theLogger.info("Test")
 #==========================================
 matchid = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 
-file_path_available = 'available'
-file_path_history = 'history'
+FILE_PATH_AVAILABLE = 'available' # How the sub folder for available instruments description files is called
+FILE_PATH_HISTORY = 'history' # How the sub folder for all detected instruments description files is called
 
-path_available = file_path_available
-path_history = file_path_history
+PATH_AVAILABLE = FILE_PATH_AVAILABLE # How the API sub path for available instruments descriptions is called
+PATH_HISTORY = FILE_PATH_HISTORY # How the API sub path for all detected instruments descriptions is called
 
-folder_available = f'{config["FOLDER"]}{os.path.sep}{file_path_available}'
-folder_history = f'{config["FOLDER"]}{os.path.sep}{file_path_history}'
+FOLDER_AVAILABLE = f'{config["FOLDER"]}{os.path.sep}{FILE_PATH_AVAILABLE}'
+FOLDER_HISTORY = f'{config["FOLDER"]}{os.path.sep}{FILE_PATH_HISTORY}'
 
-reserve_keyword = 'reserve'
-free_keyword = 'free'
+RESERVE_KEYWORD = 'reserve'
+FREE_KEYWORD = 'free'

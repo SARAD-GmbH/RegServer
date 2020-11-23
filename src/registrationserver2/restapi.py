@@ -96,16 +96,16 @@ class RestApi(Actor):
 	@staticmethod
 	@api.route('/list', methods=['GET'])
 	@api.route('/list/', methods=['GET'])
-	@api.route(f'/{registrationserver2.path_available}', methods=['GET'])
-	@api.route(f'/{registrationserver2.path_available}/', methods=['GET'])
+	@api.route(f'/{registrationserver2.PATH_AVAILABLE}', methods=['GET'])
+	@api.route(f'/{registrationserver2.PATH_AVAILABLE}/', methods=['GET'])
 	def get_list():
 		'''
 			Path for getting the list of active devices
 		'''
 		answer = {}
 		try:
-			for dir_entry in os.listdir(registrationserver2.folder_available):
-				file = fr'{registrationserver2.folder_available}{os.path.sep}{dir_entry}'
+			for dir_entry in os.listdir(registrationserver2.FOLDER_AVAILABLE):
+				file = fr'{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}{dir_entry}'
 				theLogger.debug(file)
 				if os.path.isfile(file):
 					theLogger.debug(file)
@@ -120,8 +120,8 @@ class RestApi(Actor):
 	@staticmethod
 	@api.route('/list/<did>', methods=['GET'])
 	@api.route('/list/<did>/', methods=['GET'])
-	@api.route(f'/{registrationserver2.path_available}/<did>', methods=['GET'])
-	@api.route(f'/{registrationserver2.path_available}/<did>/', methods=['GET'])
+	@api.route(f'/{registrationserver2.PATH_AVAILABLE}/<did>', methods=['GET'])
+	@api.route(f'/{registrationserver2.PATH_AVAILABLE}/<did>/', methods=['GET'])
 	def get_device(did):
 		'''
 			Path for getting Information for a single active device
@@ -130,41 +130,40 @@ class RestApi(Actor):
 			return json.dumps({'Error': 'Wronly formated ID'})
 		answer = {}
 		try:
-			if os.path.isfile(f'{registrationserver2.folder_available}{os.path.sep}{did}'):
-				answer[did] = { 'Identification' :  json.load(open(f'{registrationserver2.folder_available}{os.path.sep}{did}')).get('Identification', None)}
+			if os.path.isfile(f'{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}{did}'):
+				answer[did] = { 'Identification' :  json.load(open(f'{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}{did}')).get('Identification', None)}
 		except: 
 			theLogger.error('!!!')
-		
+
 		resp = Response(
 			response=json.dumps(answer),
 			status=200,
 			mimetype="application/json"
-			)	    	
+			)
 		return resp
 
 	@staticmethod
-	@api.route(f'/{registrationserver2.path_history}', methods=['GET'])
-	@api.route(f'/{registrationserver2.path_history}/', methods=['GET'])
+	@api.route(f'/{registrationserver2.PATH_HISTORY}', methods=['GET'])
+	@api.route(f'/{registrationserver2.PATH_HISTORY}/', methods=['GET'])
 	def get_history():
 		'''
 			Path for getting the list of all time detected devices
 		'''
 		answer = {}
 		try:
-			for dir_entry in os.listdir(f'{registrationserver2.folder_history}'):
-				if os.path.isfile(f'{registrationserver2.folder_history}{os.path.sep}{dir_entry}'):
-					answer[dir_entry] =  { 'Identification' : json.load(open(f'{registrationserver2.folder_history}{os.path.sep}{dir_entry}')).get('Identification', None)}
+			for dir_entry in os.listdir(f'{registrationserver2.FOLDER_HISTORY}'):
+				if os.path.isfile(f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{dir_entry}'):
+					answer[dir_entry] =  { 'Identification' : json.load(open(f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{dir_entry}')).get('Identification', None)}
 		except: 
 			theLogger.error('!!!')
 		resp = Response(response=json.dumps(answer),
 			status=200,
 			mimetype="application/json")
 		return resp
-	
 
 	@staticmethod
-	@api.route(f'/{registrationserver2.path_history}/<did>', methods=['GET'])
-	@api.route(f'/{registrationserver2.path_history}/<did>/', methods=['GET'])
+	@api.route(f'/{registrationserver2.PATH_HISTORY}/<did>', methods=['GET'])
+	@api.route(f'/{registrationserver2.PATH_HISTORY}/<did>/', methods=['GET'])
 	def get_device_old(did):
 		'''
 		Path for getting information about a single previous or currently detected device
@@ -173,33 +172,32 @@ class RestApi(Actor):
 			return json.dumps({'Error': 'Wronly formated ID'})
 		answer = {}
 		try:
-			if os.path.isfile(f'{registrationserver2.folder_history}{os.path.sep}{did}'):
-				answer[did] =  { 'Identification' : json.load(open(f'{registrationserver2.folder_history}{os.path.sep}{did}')).get('Identification', None)}
+			if os.path.isfile(f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{did}'):
+				answer[did] =  { 'Identification' : json.load(open(f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{did}')).get('Identification', None)}
 		except: 
 			theLogger.error('!!!')
 		resp = Response(response=json.dumps(answer),
 			status=200,
-			mimetype="application/json")	    	
+			mimetype="application/json")
 		return resp
-	
 
 	@staticmethod
-	@api.route(f'/list/<did>/{registrationserver2.reserve_keyword}', methods=['GET'])
-	@api.route(f'/{registrationserver2.path_available}/<did>/{registrationserver2.reserve_keyword}', methods=['GET'])
+	@api.route(f'/list/<did>/{registrationserver2.RESERVE_KEYWORD}', methods=['GET'])
+	@api.route(f'/{registrationserver2.PATH_AVAILABLE}/<did>/{registrationserver2.RESERVE_KEYWORD}', methods=['GET'])
 	def reserve_device(did):
 		'''
 			Path for reserving a single active device
 		'''
-		whoname = request.args.get('who')
+		attribute_who = request.args.get('who')
 		try:
-			whohost = socket.gethostbyaddr(request.environ['REMOTE_ADDR'])[0]
+			request_host = socket.gethostbyaddr(request.environ['REMOTE_ADDR'])[0]
 		except:
-			whohost = request.environ['REMOTE_ADDR']
-		return json.dumps(f'{did}:{whoname} --> {whohost}')
+			request_host = request.environ['REMOTE_ADDR']
+		return json.dumps(f'{did}:{attribute_who} --> {request_host}')
 
 	@staticmethod
-	@api.route(f'/list/<did>/{registrationserver2.free_keyword}', methods=['GET'])
-	@api.route(f'/{registrationserver2.path_available}/<did>/{registrationserver2.free_keyword}', methods=['GET'])
+	@api.route(f'/list/<did>/{registrationserver2.FREE_KEYWORD}', methods=['GET'])
+	@api.route(f'/{registrationserver2.PATH_AVAILABLE}/<did>/{registrationserver2.FREE_KEYWORD}', methods=['GET'])
 	def free_device(did):
 		'''
 			Path for freeing a single active device
