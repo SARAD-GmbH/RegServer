@@ -3,23 +3,14 @@ Created on 30.09.2020
 
 @author: rfoerster
 '''
-
+import sys
+from logging import DEBUG
 import registrationserver2
 
-'''
-	Executes the main python file if this file is called directly
-'''
-
 if __name__ == '__main__':
-	exec(open(registrationserver2.mainpy).read())
-	exit
-	
-from logging import DEBUG
+	exec(open(registrationserver2.mainpy).read()) #Executes the main python file if this file is called directly
+	sys.exit()
 
-'''
-	Configuration Object
-	TODO: Load from yaml file instead of a 'executable' file format 
-'''
 
 config = {
 		'MDNS_TIMEOUT':		3000,
@@ -27,4 +18,8 @@ config = {
 		#'FOLDER':			r'D:\test\rfc2217',
 		'LEVEL':			DEBUG,
 	}
+'''
+	Configuration Object
+	TODO: Load from yaml file instead of a 'executable' file format 
+'''
 		

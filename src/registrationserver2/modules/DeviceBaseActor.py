@@ -3,6 +3,8 @@ Created on 13.10.2020
 
 @author: rfoerster
 '''
+from builtins import staticmethod
+
 from thespian.actors import Actor
 
 class DeviceBaseActor(Actor):
@@ -15,10 +17,10 @@ class DeviceBaseActor(Actor):
 	box "Registration Server 2" #pink
 		entity "rest api" as api
 		entity "device Actor" as deviceactor
-	end box	
+	end box
 	entity "device with Instrument Server" as device
 	user->app:Changes Config /\n Requests Data
-	
+
 	group reservation
 		app->api:Attempts to Reserve Device
 		api->deviceactor:relays request
@@ -58,21 +60,18 @@ class DeviceBaseActor(Actor):
 		deviceactor->device:sends free
 	end
 	collections cake
-	user->cake:has some 
+	user->cake:has some
 	@enduml
 	*/
 	'''
-	ILLEGAL_WRONGFORMAT = {"ERROR":"Misformatted or no message sent"}
-	ILLEGAL_NOTIMPLEMENTED = {"ERROR":"Not implemented"}
-	
-	
+	ILLEGAL_WRONGFORMAT = {"ERROR":"Misformatted or no message sent", "ERROR_CODE" : 1} # The message received by the actor was not in an expected format
+	ILLEGAL_NOTIMPLEMENTED = {"ERROR":"Not implemented", "ERROR_CODE" : 2} #The command received by the actor was not yet implemented by the implementing class
 
 	ACCEPTED_MESSAGES = {
-			"RESERVE" : "__reserve__",	# is being called when the end-user-application wants to reserve the directly or indirectly connected device for exclusive communication, should return if a reservation is currently possible 
+			"RESERVE" : "__reserve__",	# is being called when the end-user-application wants to reserve the directly or indirectly connected device for exclusive communication, should return if a reservation is currently possible
 			"FREE" : "__free__", # is being called when the end-user-application is done requesting / sending data, should return true as soon the freeing process has been initialized
-			"SEND" : "__send__", # is being called when the end-user-application wants to send data, should return the direct or indirect response from the device, None in case the device is not reachable (so the end application can set the timeout itself)  
+			"SEND" : "__send__", # is being called when the end-user-application wants to send data, should return the direct or indirect response from the device, None in case the device is not reachable (so the end application can set the timeout itself)
 			"ECHO" : "__echo__" # should returns what is send, main use is for testing purpose at this point
-			
 		}
 	'''
 	Defines magic methods that are called when the specific message is received by the actor
@@ -80,17 +79,21 @@ class DeviceBaseActor(Actor):
 
 
 	def receiveMessage(self, msg, sender):
-		
+		'''
+			Handles received Actor messages / verification of the message format
+		'''
 		cmd = self.ACCEPTED_MESSAGES.get(msg.get("CMD", None),None)
-		
+
 		if not cmd:
 			self.send(sender, self.ILLEGAL_WRONGFORMAT)
 
 		if not getattr(self,cmd,None):
 			self.send(sender, self.ILLEGAL_NOTIMPLEMENTED)
-			
+
 		else:
 			self.send(sender,getattr(self,cmd)(msg))
-			
-	def __echo__(self, msg):
+
+	@staticmethod
+	def __echo__(msg):
 		return msg
+	

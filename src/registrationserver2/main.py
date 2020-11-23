@@ -1,18 +1,8 @@
 '''
-Created on 30.09.2020
+	Created on 30.09.2020
 
-@author: rfoerster
-'''
+	@author: rfoerster
 
-from registrationserver2.mdnsListener import SaradMdnsListener
-from registrationserver2.restapi import RestApi
-
-import threading 
-import signal
-import os
-from registrationserver2.config import config
-
-'''
 	Main executable
 	TODO: Loads each module
 	Loads / Starts Rest API
@@ -34,6 +24,16 @@ from registrationserver2.config import config
 	*/
 '''
 
+import threading
+import signal
+import os
+
+from registrationserver2.mdnsListener import SaradMdnsListener
+from registrationserver2.restapi import RestApi
+from registrationserver2.config import config
+
+
+
 if __name__ == '__main__':
 	if isinstance(config['TYPE'], list):
 		Test = []
@@ -42,13 +42,11 @@ if __name__ == '__main__':
 	else:
 		Test = SaradMdnsListener(_type = config['TYPE'])
 	Test2 = RestApi()
-	#Test2.run(host='localhost',port="8000")
 	apithread = threading.Thread(target=Test2.run,args=('0.0.0.0', 8000,))
 	apithread.start()
-	try: 
+	try:
 		input('Press Enter to End\n')
 	finally:
-		del(Test)
-		'''Self kill, mostly to make sure all sub threads are stopped, including the rest API'''
-		os.kill(os.getpid(), signal.SIGTERM)
+		del Test
+		os.kill(os.getpid(), signal.SIGTERM) #Self kill, mostly to make sure all sub threads are stopped, including the rest API
 		
