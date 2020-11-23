@@ -106,7 +106,8 @@ class SaradMdnsListener(ServiceListener):
 		except:
 			theLogger.error(f'Could not write properties of device with Name: {name} and Type: {type_}')
 
-	def convert_properties(self, info = None, name = ""):
+	@staticmethod
+	def convert_properties(info = None, name = ""):
 		'''
 			Helper function to convert mdns service information to the desired yaml format
 		'''
@@ -119,23 +120,23 @@ class SaradMdnsListener(ServiceListener):
 			return None
 
 		_model = _model.decode('utf-8')
-		
+
 		if not (_serial_short := properties.get(b'SERIAL_SHORT',None)):
 			return None
-		
+
 		_serial_short = _serial_short.decode('utf-8')
 		hids = hashids.Hashids()
-		
+
 		if not (_ids := hids.decode(_serial_short)):
 			return None
-		
+
 		if not (len(_ids) == 3) or not info.port:
 			return None
 
 		_addr = ''
 		try: 
-			_addrIp = ipaddress.IPv4Address(info.addresses[0]).exploded
-			_addr = socket.gethostbyaddr(_addrIp)[0]
+			_addr_ip = ipaddress.IPv4Address(info.addresses[0]).exploded
+			_addr = socket.gethostbyaddr(_addr_ip)[0]
 		except:
 			pass
 
@@ -150,7 +151,7 @@ class SaradMdnsListener(ServiceListener):
 					},
 				'Remote' :
 					{
-						'Address':	_addrIp,
+						'Address':	_addr_ip,
 						'Port': info.port
 					}
 			}

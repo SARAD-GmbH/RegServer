@@ -10,7 +10,7 @@ import thespian
 
 from registrationserver2.modules.DeviceBaseActor import DeviceBaseActor
 
-class RFC2217Actor(DeviceBaseActor):
+class Rfc2217Actor(DeviceBaseActor):
 	'''
 		Actor for dealing with RFC2217 Connections, creates and maintains a RFC2217Protocol handler and relays messages towards it
 	https://pythonhosted.org/pyserial/pyserial_api.html#module-serial.aio
@@ -55,4 +55,4 @@ class RFC2217Protocol(asyncio.Protocol):
 
 if __name__ == '__main__':
 	sys = thespian.actors.ActorSystem()
-	sys.createActor(RFC2217Actor, globalName='rfc2217://serviri.hq.sarad.de:5580')
+	sys.createActor(Rfc2217Actor, globalName='rfc2217://serviri.hq.sarad.de:5580')
