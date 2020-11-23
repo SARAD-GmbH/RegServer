@@ -28,7 +28,7 @@ import threading
 import signal
 import os
 
-from registrationserver2.mdnsListener import SaradMdnsListener
+from registrationserver2.mdns_listener import SaradMdnsListener
 from registrationserver2.restapi import RestApi
 from registrationserver2.config import config
 
