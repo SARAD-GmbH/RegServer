@@ -66,6 +66,8 @@ class DeviceBaseActor(Actor):
 	'''
 	ILLEGAL_WRONGFORMAT = {"ERROR":"Misformatted or no message sent", "ERROR_CODE" : 1} # The message received by the actor was not in an expected format
 	ILLEGAL_NOTIMPLEMENTED = {"ERROR":"Not implemented", "ERROR_CODE" : 2} #The command received by the actor was not yet implemented by the implementing class
+	ILLEGAL_WRONGTYPE = {"ERROR":"Wrong Message Type, dictionary Expected", "ERROR_CODE" : 3} # The message received by the actor was not in an expected type
+	ILLEGAL_UNKNOWN_COMMAND = {"ERROR":"Unknown Command", "ERROR_CODE" : 4} # The message received by the actor was not in an expected type
 
 	ACCEPTED_MESSAGES = {
 			"RESERVE" : "__reserve__",	# is being called when the end-user-application wants to reserve the directly or indirectly connected device for exclusive communication, should return if a reservation is currently possible
@@ -82,16 +84,26 @@ class DeviceBaseActor(Actor):
 		'''
 			Handles received Actor messages / verification of the message format
 		'''
-		cmd = self.ACCEPTED_MESSAGES.get(msg.get("CMD", None),None)
+		if not isinstance(msg,dict):
+			self.send(sender, self.ILLEGAL_WRONGTYPE)
+			return
+		cmd_string= msg.get("CMD", None)
+
+		if not cmd_string:
+			self.send(sender, self.ILLEGAL_WRONGFORMAT)
+			return
+
+		cmd = self.ACCEPTED_MESSAGES.get(cmd_string,None)
 
 		if not cmd:
-			self.send(sender, self.ILLEGAL_WRONGFORMAT)
+			self.send(sender, self.ILLEGAL_UNKNOWN_COMMAND)
+			return
 
 		if not getattr(self,cmd,None):
 			self.send(sender, self.ILLEGAL_NOTIMPLEMENTED)
+			return
 
-		else:
-			self.send(sender,getattr(self,cmd)(msg))
+		self.send(sender,getattr(self,cmd)(msg))
 
 	@staticmethod
 	def __echo__(msg):
