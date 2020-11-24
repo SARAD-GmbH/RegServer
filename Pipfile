@@ -13,8 +13,8 @@ pyudev = "*"
 thespian = "*"
 flask = "*"
 pyserial = "*"
-pyserial-asyncio = {git = "https://github.com/pyserial/pyserial-asyncio"}
 hashids = "*"
+pyserial-asyncio = "*"
 
 [requires]
 python_version = "3.9"
