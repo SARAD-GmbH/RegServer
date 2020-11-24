@@ -1,4 +1,5 @@
 '''
+Module for handing the configuration
 Created on 30.09.2020
 
 @author: rfoerster
@@ -20,6 +21,6 @@ config = {
 	}
 '''
 	Configuration Object
-	TODO: Load from yaml file instead of a 'executable' file format 
+	TODO: Load from yaml file instead of a 'executable' file format
 '''
 		

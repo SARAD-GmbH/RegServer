@@ -6,7 +6,7 @@
 	Main executable
 	TODO: Loads each module
 	Loads / Starts Rest API
-	Starts mDNS Listener (TODO: move to module) 
+	Starts mDNS Listener (TODO: move to module)
 	/*
 	@startuml
 	box "RegistrationServer 2"

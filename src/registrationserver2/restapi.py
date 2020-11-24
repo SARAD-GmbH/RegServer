@@ -110,7 +110,7 @@ class RestApi(Actor):
 				if os.path.isfile(file):
 					theLogger.debug(file)
 					answer[dir_entry] = { 'Identification' : json.load(open(file)).get('Identification', None)}
-		except: 
+		except: #pylint: disable=W0702
 			theLogger.error('!!!')
 		resp = Response(response=json.dumps(answer),
 			status=200,
@@ -132,7 +132,7 @@ class RestApi(Actor):
 		try:
 			if os.path.isfile(f'{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}{did}'):
 				answer[did] = { 'Identification' :  json.load(open(f'{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}{did}')).get('Identification', None)}
-		except: 
+		except: #pylint: disable=W0702
 			theLogger.error('!!!')
 
 		resp = Response(
@@ -154,7 +154,7 @@ class RestApi(Actor):
 			for dir_entry in os.listdir(f'{registrationserver2.FOLDER_HISTORY}'):
 				if os.path.isfile(f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{dir_entry}'):
 					answer[dir_entry] =  { 'Identification' : json.load(open(f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{dir_entry}')).get('Identification', None)}
-		except: 
+		except: #pylint: disable=W0702
 			theLogger.error('!!!')
 		resp = Response(response=json.dumps(answer),
 			status=200,
@@ -174,7 +174,7 @@ class RestApi(Actor):
 		try:
 			if os.path.isfile(f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{did}'):
 				answer[did] =  { 'Identification' : json.load(open(f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{did}')).get('Identification', None)}
-		except: 
+		except: #pylint: disable=W0702
 			theLogger.error('!!!')
 		resp = Response(response=json.dumps(answer),
 			status=200,
@@ -191,7 +191,7 @@ class RestApi(Actor):
 		attribute_who = request.args.get('who')
 		try:
 			request_host = socket.gethostbyaddr(request.environ['REMOTE_ADDR'])[0]
-		except:
+		except: #pylint: disable=W0702
 			request_host = request.environ['REMOTE_ADDR']
 		return json.dumps(f'{did}:{attribute_who} --> {request_host}')
 

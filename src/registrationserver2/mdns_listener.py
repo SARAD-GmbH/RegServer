@@ -3,7 +3,6 @@ Created on 30.09.2020
 
 @author: rfoerster
 '''
-
 import os
 import sys
 import ipaddress
@@ -16,7 +15,6 @@ from zeroconf import Zeroconf, ServiceBrowser, ServiceListener
 import registrationserver2
 from registrationserver2.config import config
 from registrationserver2 import theLogger
-
 
 if __name__ == '__main__':
 	exec(open(registrationserver2.mainpy).read())
@@ -52,13 +50,13 @@ class SaradMdnsListener(ServiceListener):
 	__folder_history : str
 	__folder_available : str
 
-	'''
-		Hook, being called when a new service representing a device is being detected
-	'''
-	def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+	def add_service(self, zc: Zeroconf, type_: str, name: str) -> None: #pylint: disable=C0103
+		'''
+			Hook, being called when a new service representing a device is being detected
+		'''
 		theLogger.info(f'[Add]:\tFound: Service of type {type_}. Name: {name}')
 		info = zc.get_service_info(type_, name, timeout=config['MDNS_TIMEOUT'])
-		theLogger.debug(f'[Add]:\t{info.properties}')
+		theLogger.info(f'[Add]:\t{info.properties}')
 		#serial = info.properties.get(b'SERIAL', b'UNKNOWN').decode("utf-8")
 		filename= fr'{self.__folder_history}{name}'
 		link= fr'{self.__folder_available}{name}'
@@ -68,11 +66,11 @@ class SaradMdnsListener(ServiceListener):
 				file_stream.write(data)
 			if not os.path.exists(link):
 				os.link(filename, link)
-		except:
+		except: #pylint: disable=W0702
 			theLogger.error(f'Could not write properties of device with Name: {name} and Type: {type_}')
 
 
-	def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+	def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None: #pylint: disable=C0103
 		'''
 			Hook, being called when a regular shutdown of a service representing a device is being detected
 		'''
@@ -85,9 +83,9 @@ class SaradMdnsListener(ServiceListener):
 		if os.path.exists(link):
 			os.unlink(link)
 
-	def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+	def update_service(self, zc: Zeroconf, type_: str, name: str) -> None: #pylint: disable=C0103
 		'''
-			Hook, being called when a  service representing a device is being updated 
+			Hook, being called when a  service representing a device is being updated
 		'''
 		theLogger.info(f'[Update]:\tService of type {type_}. Name: {name}')
 		info = zc.get_service_info(type_, name, timeout=config['MDNS_TIMEOUT'])
@@ -98,12 +96,12 @@ class SaradMdnsListener(ServiceListener):
 		filename= fr'{self.__folder_history}{info.name}'
 		link= fr'{self.__folder_available}{info.name}'
 		try:
-			with open(filename, 'w+') as f:
+			with open(filename, 'w+') as file_stream:
 				data = self.convert_properties(name = name, info=info)
-				f.write(data)
+				file_stream.write(data)
 			if not os.path.exists(link):
 				os.link(filename, link)
-		except:
+		except: #pylint: disable=W0702
 			theLogger.error(f'Could not write properties of device with Name: {name} and Type: {type_}')
 
 	@staticmethod
@@ -134,14 +132,14 @@ class SaradMdnsListener(ServiceListener):
 			return None
 
 		_addr = ''
-		try: 
+		try:
 			_addr_ip = ipaddress.IPv4Address(info.addresses[0]).exploded
 			_addr = socket.gethostbyaddr(_addr_ip)[0]
-		except:
+		except: #pylint: disable=W0702
 			pass
 
 		out = {
-				'Identification' : 
+				'Identification' :
 					{
 						'Name' : properties[b'MODEL_ENC'].decode("utf-8"),
 						"Family": _ids[0],
@@ -160,10 +158,9 @@ class SaradMdnsListener(ServiceListener):
 
 		return json.dumps(out)
 
-
 	def __init__(self,_type):
 		'''
-			Initialize a mdns Listener for a specific device group 
+			Initialize a mdns Listener for a specific device group
 		'''
 		self.__zerconf = Zeroconf()
 		self.__browser = ServiceBrowser(self.__zerconf,_type, self)
