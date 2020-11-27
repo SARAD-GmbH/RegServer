@@ -68,17 +68,18 @@ class DeviceBaseActor(Actor):
 	ILLEGAL_NOTIMPLEMENTED = {"ERROR":"Not implemented", "ERROR_CODE" : 2} #The command received by the actor was not yet implemented by the implementing class
 	ILLEGAL_WRONGTYPE = {"ERROR":"Wrong Message Type, dictionary Expected", "ERROR_CODE" : 3} # The message received by the actor was not in an expected type
 	ILLEGAL_UNKNOWN_COMMAND = {"ERROR":"Unknown Command", "ERROR_CODE" : 4} # The message received by the actor was not in an expected type
+	OK = { "RETURN" : "OK"}
 
 	ACCEPTED_MESSAGES = {
-			"RESERVE" : "__reserve__",	# is being called when the end-user-application wants to reserve the directly or indirectly connected device for exclusive communication, should return if a reservation is currently possible
-			"FREE" : "__free__", # is being called when the end-user-application is done requesting / sending data, should return true as soon the freeing process has been initialized
-			"SEND" : "__send__", # is being called when the end-user-application wants to send data, should return the direct or indirect response from the device, None in case the device is not reachable (so the end application can set the timeout itself)
-			"ECHO" : "__echo__" # should returns what is send, main use is for testing purpose at this point
+			"RESERVE"	:	"__reserve__",	# is being called when the end-user-application wants to reserve the directly or indirectly connected device for exclusive communication, should return if a reservation is currently possible
+			"FREE"	:	"__free__", # is being called when the end-user-application is done requesting / sending data, should return true as soon the freeing process has been initialized
+			"SEND"	:	"__send__", # is being called when the end-user-application wants to send data, should return the direct or indirect response from the device, None in case the device is not reachable (so the end application can set the timeout itself)
+			"ECHO"	:	"__echo__", # should returns what is send, main use is for testing purpose at this point
+			"SETUP"	:	"__setup__"
 		}
 	'''
 	Defines magic methods that are called when the specific message is received by the actor
 	'''
-
 
 	def receiveMessage(self, msg, sender):
 		'''

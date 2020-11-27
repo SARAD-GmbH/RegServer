@@ -28,10 +28,9 @@ config.setdefault('TYPE', '_sarad-1688._rfc2217._tcp.local.')
 
 actors = ActorSystem() # Initialization of the actor system, can be changed to a distributed system here. TODO:  Setup ActorSystem with values from the configuration
 
-
 #==========================================
 #	Logging configuration,
-#	TODO: configuration still gets overwritten but one of the imports
+#	TODO: configuration still gets overwritten by one of the imports
 #==========================================
 theLogger = logging.getLogger('Instrument Server V2')
 #theLogger = logging.getLogger()

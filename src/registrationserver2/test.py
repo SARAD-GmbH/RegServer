@@ -1,9 +1,9 @@
 try:
-	raise "IOError('x')"
+	raise BaseException('x')
 except NameError as error:
 	print('!NE')
-except Exception as error:
-	print('!')
+except BaseException as error:
+	print(f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-" }')
 except:
 	print ('?!?')
 finally:

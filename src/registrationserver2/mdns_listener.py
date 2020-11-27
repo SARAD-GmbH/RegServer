@@ -8,6 +8,7 @@ import sys
 import ipaddress
 import socket
 import json
+import traceback
 
 import hashids
 from zeroconf import Zeroconf, ServiceBrowser, ServiceListener
@@ -63,18 +64,20 @@ class SaradMdnsListener(ServiceListener):
 		try:
 			with open(filename, 'w+') as file_stream:
 				data = self.convert_properties(name=name, info=info)
-				file_stream.write(data)
+				file_stream.write(data) if data else theLogger.error(f'[Add]:\tFailed to convert Properties from {type_}, {name}') #pylint: disable=W0106
 			if not os.path.exists(link):
 				os.link(filename, link)
+		except BaseException as error: #pylint: disable=W0703
+			theLogger.error(f'[Add]:\t {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
 		except: #pylint: disable=W0702
-			theLogger.error(f'Could not write properties of device with Name: {name} and Type: {type_}')
+			theLogger.error(f'[Add]:\tCould not write properties of device with Name: {name} and Type: {type_}')
 
 
 	def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None: #pylint: disable=C0103
 		'''
 			Hook, being called when a regular shutdown of a service representing a device is being detected
 		'''
-		theLogger.info(f'Removed: Service of type {type_}. Name: {name}')
+		theLogger.info(f'[Del]:\tRemoved: Service of type {type_}. Name: {name}')
 		info = zc.get_service_info(type_, name, timeout=config['MDNS_TIMEOUT'])
 		#serial = info.properties.get("SERIAL", "UNKNOWN")
 		#filename= fr'{self.__folder_history}{serial}'
@@ -98,11 +101,13 @@ class SaradMdnsListener(ServiceListener):
 		try:
 			with open(filename, 'w+') as file_stream:
 				data = self.convert_properties(name = name, info=info)
-				file_stream.write(data)
+				file_stream.write(data) if data else theLogger.error(f'[Update]:\tFailed to convert Properties from {type_}, {name}') #pylint: disable=W0106
 			if not os.path.exists(link):
 				os.link(filename, link)
+		except BaseException as error: #pylint: disable=W0703
+			theLogger.error(f'[Update]:\t{type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
 		except: #pylint: disable=W0702
-			theLogger.error(f'Could not write properties of device with Name: {name} and Type: {type_}')
+			theLogger.error(f'[Update]:\tCould not write properties of device with Name: {name} and Type: {type_}')
 
 	@staticmethod
 	def convert_properties(info = None, name = ""):
@@ -135,6 +140,8 @@ class SaradMdnsListener(ServiceListener):
 		try:
 			_addr_ip = ipaddress.IPv4Address(info.addresses[0]).exploded
 			_addr = socket.gethostbyaddr(_addr_ip)[0]
+		except BaseException as error: #pylint: disable=W0703
+			theLogger.error(f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
 		except: #pylint: disable=W0702
 			pass
 
