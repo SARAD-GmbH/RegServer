@@ -9,6 +9,6 @@ except:
 finally:
 	pass
 test = {"CMD":"Test"}
-print (test)
+print(test)
 print(isinstance(test,dict))
 print(test.get("CMD", None))

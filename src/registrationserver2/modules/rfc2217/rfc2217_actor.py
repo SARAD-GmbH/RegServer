@@ -19,46 +19,51 @@ class Rfc2217Actor(DeviceBaseActor):
 	https://pythonhosted.org/pyserial/pyserial_api.html#module-serial.aio
 	'''
 	__open = False
-	__port = None
+	__port_ident : str = ''
+	__port : serial.rfc2217.Serial  = None
+	
+	def __connect(self):
+		if  self._config and not self.__port_ident:
+			self.__port_ident=self._config.get('PORT', None)
 
-	def __setup__(self, msg:dict):
-		try:
-			DeviceBaseActor.__init__(self)
-			self.__port = serial.rfc2217.Serial(port=msg.get('PORT', None)) # move the send ( test if connection is up and if not create)
-		except BaseException as error: #pylint: disable=W0703
-			theLogger.error(f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
-
-		return self.OK
+		if self.__port_ident  and not (self.__port and self.__port.is_open):
+			try:
+				self.__port = serial.rfc2217.Serial(self.__port_ident) # move the send ( test if connection is up and if not create)
+			except BaseException as error: #pylint: disable=W0703
+				theLogger.info(self._config)
+				theLogger.error(f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
+		if self.__port and self.__port.is_open:
+			return self.OK
+		return self.ILLEGAL_STATE
 
 	def __send__(self, msg : dict):
-		theLogger.info(f"{msg.get('DATA')}")
-		self.__port.write(msg.get('DATA', b'\x42\x80\x7f\x0c\x00\x0c\x45'))
-		theLogger.info(f"{msg.get('DATA')}")
-		self.__port.timeout = 10
-		_return = b''
-		while True:
-			time.sleep(.5)
-			_return_part = self.__port.read_all() if self.__port.inWaiting() else ''
-			if _return_part == '':
-				break
-			_return = _return + _return_part
-		return _return
-
-		#return msg#self.ILLEGAL_NOTIMPLEMENTED
+		if self.__connect() is self.OK:
+			theLogger.info(f"{msg.get('DATA')}")
+			self.__port.write(msg.get('DATA', b'\x42\x80\x7f\x0c\x00\x0c\x45'))
+			theLogger.info(f"{msg.get('DATA')}")
+			self.__port.timeout = 10
+			_return = b''
+			while True:
+				time.sleep(.5)
+				_return_part = self.__port.read_all() if self.__port.inWaiting() else ''
+				if _return_part == '':
+					break
+				_return = _return + _return_part
+			return _return
+		return self.ILLEGAL_STATE
 
 	def __reserve__(self, msg):
 		return self.ILLEGAL_NOTIMPLEMENTED
 
 	def __free__(self, msg):
-		self.__port.close()
+		if self.__port and self.__port.isOpen():
+		 	self.__port.close()
 
 def __test__():
 	sys = thespian.actors.ActorSystem()
 	act = sys.createActor(Rfc2217Actor, globalName='rfc2217://serviri.hq.sarad.de:5581')
 	sys.ask(act, {'CMD':'SETUP', 'PORT': 'rfc2217://serviri.hq.sarad.de:5581'})
 	print(sys.ask(act, {"CMD":"SEND", "DATA":b'\x42\x80\x7f\x01\x01\x00\x45'}))
-	print(sys.ask(act, {"CMD":"SEND", "DATA":b'\x42\x80\x7f\x0c\x0c\x00\x45'}))
-	#print(sys.ask(act, {"CMD":"SEND", "DATA":b'\x42\x80\x7f\x0c\x00\x0c\x45'}))
 	print(sys.ask(act, {"CMD":"FREE", "DATA":b'\x42\x80\x7f\x0c\x00\x0c\x45'}))
 	input('Press Enter to End\n')
 	theLogger.info('!')

@@ -4,8 +4,13 @@ Created on 13.10.2020
 @author: rfoerster
 '''
 from builtins import staticmethod
+import os
+import traceback
 
 from thespian.actors import Actor
+from flask import json
+
+import registrationserver2
 
 class DeviceBaseActor(Actor):
 	'''
@@ -68,6 +73,7 @@ class DeviceBaseActor(Actor):
 	ILLEGAL_NOTIMPLEMENTED = {"ERROR":"Not implemented", "ERROR_CODE" : 2} #The command received by the actor was not yet implemented by the implementing class
 	ILLEGAL_WRONGTYPE = {"ERROR":"Wrong Message Type, dictionary Expected", "ERROR_CODE" : 3} # The message received by the actor was not in an expected type
 	ILLEGAL_UNKNOWN_COMMAND = {"ERROR":"Unknown Command", "ERROR_CODE" : 4} # The message received by the actor was not in an expected type
+	ILLEGAL_STATE = {"ERROR":"Actor not setup correctly, make sure to send SETUP message first", "ERROR_CODE" : 5} # The actor was in an wrong state
 	OK = { "RETURN" : "OK"}
 
 	ACCEPTED_MESSAGES = {
@@ -80,6 +86,9 @@ class DeviceBaseActor(Actor):
 	'''
 	Defines magic methods that are called when the specific message is received by the actor
 	'''
+
+	_config : dict
+	__file: json
 
 	def receiveMessage(self, msg, sender):
 		'''
@@ -109,4 +118,12 @@ class DeviceBaseActor(Actor):
 	@staticmethod
 	def __echo__(msg):
 		return msg
-	
+
+	def __setup__(self, msg:dict):
+		self._config = msg
+		if os.path.isfile(f'{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}{self.globalName}'):
+			try:
+				json.load(open(f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{self.globalName}'))
+			except BaseException as error: #pylint: disable=W0703
+				registrationserver2.theLogger.error(f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
+		

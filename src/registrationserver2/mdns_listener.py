@@ -171,8 +171,8 @@ class SaradMdnsListener(ServiceListener):
 		'''
 		self.__zerconf = Zeroconf()
 		self.__browser = ServiceBrowser(self.__zerconf,_type, self)
-		self.__folder_history = f'{config["FOLDER"]}{os.path.sep}history{os.path.sep}'
-		self.__folder_available = f'{config["FOLDER"]}{os.path.sep}available{os.path.sep}'
+		self.__folder_history = f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}'
+		self.__folder_available = f'{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}'
 		#self.__folder_history = config.get('FOLDER', f'{os.environ.get("HOME",None) or os.environ.get("LOCALAPPDATA",None)}{os.path.sep}SARAD{os.path.sep}devices') + f'{os.path.sep}'
 		if not os.path.exists(self.__folder_history):
 			os.makedirs(self.__folder_history)
