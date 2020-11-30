@@ -1,3 +1,4 @@
+# pylint: skip-file
 try:
 	raise BaseException('x')
 except NameError as error:

@@ -29,8 +29,7 @@ import signal
 import os
 
 from registrationserver2.restapi import RestApi
-from registrationserver2.config import config
-import registrationserver2.modules
+import registrationserver2.modules #pylint: disable=W0611 #@UnusedImport
 
 
 
