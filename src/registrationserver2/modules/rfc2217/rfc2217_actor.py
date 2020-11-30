@@ -21,7 +21,7 @@ class Rfc2217Actor(DeviceBaseActor):
 	__open = False
 	__port_ident : str = ''
 	__port : serial.rfc2217.Serial  = None
-	
+
 	def __connect(self):
 		if  self._config and not self.__port_ident:
 			self.__port_ident=self._config.get('PORT', None)
@@ -57,7 +57,7 @@ class Rfc2217Actor(DeviceBaseActor):
 
 	def __free__(self, msg):
 		if self.__port and self.__port.isOpen():
-		 	self.__port.close()
+			self.__port.close()
 
 def __test__():
 	sys = thespian.actors.ActorSystem()
