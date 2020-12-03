@@ -6,8 +6,10 @@ Created on 13.10.2020
 from builtins import staticmethod
 import os
 import traceback
+from json.decoder import JSONDecodeError
 
 from thespian.actors import Actor
+import thespian
 from flask import json
 
 import registrationserver2
@@ -74,6 +76,7 @@ class DeviceBaseActor(Actor):
 	ILLEGAL_WRONGTYPE = {"ERROR":"Wrong Message Type, dictionary Expected", "ERROR_CODE" : 3} # The message received by the actor was not in an expected type
 	ILLEGAL_UNKNOWN_COMMAND = {"ERROR":"Unknown Command", "ERROR_CODE" : 4} # The message received by the actor was not in an expected type
 	ILLEGAL_STATE = {"ERROR":"Actor not setup correctly, make sure to send SETUP message first", "ERROR_CODE" : 5} # The actor was in an wrong state
+	OK_SKIPPED = { "RERTURN" : "OK"}
 	OK = { "RETURN" : "OK"}
 
 	ACCEPTED_MESSAGES = {
@@ -81,14 +84,16 @@ class DeviceBaseActor(Actor):
 			"FREE"	:	"__free__", # is being called when the end-user-application is done requesting / sending data, should return true as soon the freeing process has been initialized
 			"SEND"	:	"__send__", # is being called when the end-user-application wants to send data, should return the direct or indirect response from the device, None in case the device is not reachable (so the end application can set the timeout itself)
 			"ECHO"	:	"__echo__", # should returns what is send, main use is for testing purpose at this point
-			"SETUP"	:	"__setup__"
+			"SETUP"	:	"__setup__",
+			"KILL" : "__kill__"
 		}
 	'''
 	Defines magic methods that are called when the specific message is received by the actor
 	'''
 
-	_config : dict
+	_config : dict = {}
 	__file: json
+	setup_done = False
 
 	def receiveMessage(self, msg, sender):
 		'''
@@ -120,10 +125,28 @@ class DeviceBaseActor(Actor):
 		return msg
 
 	def __setup__(self, msg:dict):
-		self._config = msg
-		if os.path.isfile(f'{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}{self.globalName}'):
-			try:
-				json.load(open(f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{self.globalName}'))
-			except BaseException as error: #pylint: disable=W0703
-				registrationserver2.theLogger.error(f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
+		if not self.setup_done:
+			self._config = msg
+			filename=f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{self.globalName}'
+			if os.path.isfile(filename):
+				try:
+					file = open(filename)
+					self.__file = json.load(file)
+					self.setup_done = True
+					return self.OK
+				except JSONDecodeError as error:
+					registrationserver2.theLogger.error(f' Failed to parse {filename}')
+					return self.ILLEGAL_STATE
+				except BaseException as error: #pylint: disable=W0703
+					registrationserver2.theLogger.error(f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
+					return self.ILLEGAL_STATE
+			else:
+				return self.ILLEGAL_STATE
+		else:
+			registrationserver2.theLogger.info(f'Actor already set up with {self._config}')
+			return self.OK_SKIPPED
+
+	def __kill__(self, msg:dict):
+		registrationserver2.theLogger.info(f'Shutting down actor {self.globalName}, Message : {msg}')
+		registrationserver2.actor_system.tell(self.myAddress, thespian.actors.ActorExitRequest )
 		

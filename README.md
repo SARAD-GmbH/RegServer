@@ -3,7 +3,7 @@ RegistrationServer2
 It's task is to connect the SARAD® App with the InstrumentServer2 ( and over it indirectly to the device).
 It unifies how devices are accesses, and makes it independent of the protocol used by the InstrumentServer2
 
-@startuml
+	@startuml
 	actor "Trucy" as user
 	control "Sarad App" as app
 	box "Registration Server 2" #pink
@@ -12,7 +12,6 @@ It unifies how devices are accesses, and makes it independent of the protocol us
 	end box
 	entity "device with Instrument Server" as device
 	user->app:Changes Config /\n Requests Data
-
 	group reservation
 		app->api:Attempts to Reserve Device
 		api->deviceactor:relays request
@@ -51,4 +50,12 @@ It unifies how devices are accesses, and makes it independent of the protocol us
 	group timeout reached
 		deviceactor->device:sends free
 	end
-@enduml
+	@enduml
+	
+TODO:
+- [ ] fix logging
+- [ ] create actors when device connection is detected
+- [ ] reservation / freeing of devices
+- [ ] automatic unit test cases
+	
+	

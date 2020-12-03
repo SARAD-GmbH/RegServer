@@ -12,6 +12,7 @@ from thespian.actors import ActorSystem
 
 #local
 from registrationserver2.config import config
+actor_system :ActorSystem = None
 
 mainpy = fr"{os.path.dirname(os.path.realpath(__file__))}{os.path.sep}main.py"
 if __name__ == '__main__':
@@ -26,7 +27,7 @@ config.setdefault('LEVEL', logging.CRITICAL)
 config.setdefault('MDNS_TIMEOUT', 3000)
 config.setdefault('TYPE', '_sarad-1688._rfc2217._tcp.local.')
 
-actors = ActorSystem() # Initialization of the actor system, can be changed to a distributed system here. TODO:  Setup ActorSystem with values from the configuration
+ # Initialization of the actor system, can be changed to a distributed system here. TODO:  Setup ActorSystem with values from the configuration
 
 #==========================================
 #	Logging configuration,
@@ -44,7 +45,7 @@ if theLogger.handlers:
 		theLogger.removeHandler(handler)
 
 streamh = logging.StreamHandler()
-logging.basicConfig(level=logging.CRITICAL, formatter=formatter)
+logging.basicConfig(level=logging.CRITICAL)#, format=registrationserver2.formatter)
 streamh.setFormatter(formatter)
 werklog.addHandler(streamh)
 werklog.addHandler(streamh)

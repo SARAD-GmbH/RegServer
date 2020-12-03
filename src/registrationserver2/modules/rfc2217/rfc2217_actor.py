@@ -40,7 +40,6 @@ class Rfc2217Actor(DeviceBaseActor):
 		if self.__connect() is self.OK:
 			theLogger.info(f"{msg.get('DATA')}")
 			self.__port.write(msg.get('DATA', b'\x42\x80\x7f\x0c\x00\x0c\x45'))
-			theLogger.info(f"{msg.get('DATA')}")
 			self.__port.timeout = 10
 			_return = b''
 			while True:
@@ -53,9 +52,11 @@ class Rfc2217Actor(DeviceBaseActor):
 		return self.ILLEGAL_STATE
 
 	def __reserve__(self, msg):
+		theLogger.info(msg)
 		return self.ILLEGAL_NOTIMPLEMENTED
 
 	def __free__(self, msg):
+		theLogger.info(msg)
 		if self.__port and self.__port.isOpen():
 			self.__port.close()
 
@@ -70,4 +71,3 @@ def __test__():
 
 if __name__ == '__main__':
 	__test__()
-

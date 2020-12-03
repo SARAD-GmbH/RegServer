@@ -4,7 +4,6 @@ Created on 30.09.2020
 @author: rfoerster
 '''
 import os
-import sys
 import ipaddress
 import socket
 import json
@@ -16,10 +15,7 @@ from zeroconf import Zeroconf, ServiceBrowser, ServiceListener
 import registrationserver2
 from registrationserver2.config import config
 from registrationserver2 import theLogger
-
-if __name__ == '__main__':
-	exec(open(registrationserver2.mainpy).read())
-	sys.exit()
+from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
 
 class SaradMdnsListener(ServiceListener):
 	'''
@@ -50,6 +46,7 @@ class SaradMdnsListener(ServiceListener):
 	__browser: ServiceBrowser
 	__folder_history : str
 	__folder_available : str
+	__type : str
 
 	def add_service(self, zc: Zeroconf, type_: str, name: str) -> None: #pylint: disable=C0103
 		'''
@@ -62,16 +59,25 @@ class SaradMdnsListener(ServiceListener):
 		filename= fr'{self.__folder_history}{name}'
 		link= fr'{self.__folder_available}{name}'
 		try:
-			with open(filename, 'w+') as file_stream:
-				data = self.convert_properties(name=name, info=info)
-				file_stream.write(data) if data else theLogger.error(f'[Add]:\tFailed to convert Properties from {type_}, {name}') #pylint: disable=W0106
-			if not os.path.exists(link):
-				os.link(filename, link)
+			data = self.convert_properties(name=name, info=info)
+			if data:
+				with open(filename, 'w+') as file_stream:
+					file_stream.write(data) if data else theLogger.error(f'[Add]:\tFailed to convert Properties from {type_}, {name}') #pylint: disable=W0106
+				if not os.path.exists(link):
+					os.link(filename, link)
 		except BaseException as error: #pylint: disable=W0703
 			theLogger.error(f'[Add]:\t {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
 		except: #pylint: disable=W0702
 			theLogger.error(f'[Add]:\tCould not write properties of device with Name: {name} and Type: {type_}')
 
+		#if an actor already exists this will return the address of the excisting one, else it creates a new
+		if data:
+			this_actor = registrationserver2.actor_system.createActor(Rfc2217Actor, globalName = name)
+			setup_return = registrationserver2.actor_system.ask(this_actor, {'CMD':'SETUP', 'PORT': 'rfc2217://serviri.hq.sarad.de:5580'})
+			if setup_return is Rfc2217Actor.OK:
+				theLogger.info(registrationserver2.actor_system.ask(this_actor, {"CMD":"SEND", "DATA":b'\x42\x80\x7f\x0c\x0c\x00\x45'}))
+			if not (setup_return is Rfc2217Actor.OK or setup_return is Rfc2217Actor.OK_SKIPPED):
+				registrationserver2.actor_system.ask(this_actor, {'CMD':'KILL'})
 
 	def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None: #pylint: disable=C0103
 		'''
@@ -99,11 +105,12 @@ class SaradMdnsListener(ServiceListener):
 		filename= fr'{self.__folder_history}{info.name}'
 		link= fr'{self.__folder_available}{info.name}'
 		try:
-			with open(filename, 'w+') as file_stream:
-				data = self.convert_properties(name = name, info=info)
-				file_stream.write(data) if data else theLogger.error(f'[Update]:\tFailed to convert Properties from {type_}, {name}') #pylint: disable=W0106
-			if not os.path.exists(link):
-				os.link(filename, link)
+			data = self.convert_properties(name = name, info=info)
+			if data:
+				with open(filename, 'w+') as file_stream:
+					file_stream.write(data) if data else theLogger.error(f'[Update]:\tFailed to convert Properties from {type_}, {name}') #pylint: disable=W0106
+				if not os.path.exists(link):
+					os.link(filename, link)
 		except BaseException as error: #pylint: disable=W0703
 			theLogger.error(f'[Update]:\t{type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
 		except: #pylint: disable=W0702
@@ -169,8 +176,9 @@ class SaradMdnsListener(ServiceListener):
 		'''
 			Initialize a mdns Listener for a specific device group
 		'''
-		self.__zerconf = Zeroconf()
-		self.__browser = ServiceBrowser(self.__zerconf,_type, self)
+		self.__type = type
+		self.__zeroconf = Zeroconf()
+		self.__browser = ServiceBrowser(self.__zeroconf,_type, self)
 		self.__folder_history = f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}'
 		self.__folder_available = f'{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}'
 		#self.__folder_history = config.get('FOLDER', f'{os.environ.get("HOME",None) or os.environ.get("LOCALAPPDATA",None)}{os.path.sep}SARAD{os.path.sep}devices') + f'{os.path.sep}'
@@ -180,6 +188,3 @@ class SaradMdnsListener(ServiceListener):
 			os.makedirs(self.__folder_available)
 
 		theLogger.debug(f'Output to: {self.__folder_history}')
-
-	def __del__(self):
-		self.__zerconf.close()

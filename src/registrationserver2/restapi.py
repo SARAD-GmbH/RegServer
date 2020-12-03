@@ -204,6 +204,7 @@ class RestApi(Actor):
 			theLogger.error(f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
 		except: #pylint: disable=W0702
 			request_host = request.environ['REMOTE_ADDR']
+		theLogger.info(f'{did}:{attribute_who} --> {request_host}')
 		return json.dumps(f'{did}:{attribute_who} --> {request_host}')
 
 	@staticmethod
