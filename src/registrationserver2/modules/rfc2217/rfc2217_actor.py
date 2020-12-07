@@ -67,8 +67,8 @@ class Rfc2217Actor(DeviceBaseActor):
 
 def __test__():
 	sys = thespian.actors.ActorSystem()
-	act = sys.createActor(Rfc2217Actor, globalName='rfc2217://serviri.hq.sarad.de:5581')
-	sys.ask(act, {'CMD':'SETUP', 'PORT': 'rfc2217://serviri.hq.sarad.de:5581'})
+	act = sys.createActor(Rfc2217Actor, globalName='SARAD_0ghMF8Y._sarad-1688._rfc2217._tcp')
+	sys.ask(act, {'CMD':'SETUP'})
 	print(sys.ask(act, {"CMD":"SEND", "DATA":b'\x42\x80\x7f\x01\x01\x00\x45'}))
 	print(sys.ask(act, {"CMD":"FREE", "DATA":b'\x42\x80\x7f\x0c\x00\x0c\x45'}))
 	input('Press Enter to End\n')
