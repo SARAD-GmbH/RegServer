@@ -43,17 +43,20 @@ class Rfc2217Actor(DeviceBaseActor):
 
 	def __send__(self, msg : dict):
 		if self.__connect() is self.OK:
-			theLogger.info(f"{msg.get('DATA')}")
-			self.__port.write(msg.get('DATA', b'\x42\x80\x7f\x0c\x00\x0c\x45'))
-			self.__port.timeout = 10
-			_return = b''
-			while True:
-				time.sleep(.5)
-				_return_part = self.__port.read_all() if self.__port.inWaiting() else ''
-				if _return_part == '':
-					break
-				_return = _return + _return_part
-			return {"RETURN" : "OK", 'DATA':_return}
+			theLogger.info(f"Actor {self.globalName} Received: {msg.get('DATA')}")
+			data = msg.get('DATA', None)
+			if data:
+				self.__port.write(data)
+				_return = b''
+				while True:
+					time.sleep(.5)
+					_return_part = self.__port.read_all() if self.__port.inWaiting() else ''
+					if _return_part == '':
+						break
+					_return = _return + _return_part
+				return {"RETURN" : "OK", 'DATA':_return}
+			
+			return self.ILLEGAL_WRONGFORMAT
 		return self.ILLEGAL_STATE
 
 	def __reserve__(self, msg):
@@ -64,6 +67,15 @@ class Rfc2217Actor(DeviceBaseActor):
 		theLogger.info(msg)
 		if self.__port and self.__port.isOpen():
 			self.__port.close()
+			
+	def __kill__(self, msg:dict):
+		super().__kill__(msg)
+		try:
+			self.__port.close()
+			self.__port = None
+		except:
+			pass
+			
 
 def __test__():
 	sys = thespian.actors.ActorSystem()

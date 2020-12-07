@@ -13,6 +13,7 @@ import thespian
 from flask import json
 
 import registrationserver2
+from registrationserver2 import theLogger
 
 class DeviceBaseActor(Actor):
 	'''
@@ -76,8 +77,8 @@ class DeviceBaseActor(Actor):
 	ILLEGAL_WRONGTYPE = {"ERROR":"Wrong Message Type, dictionary Expected", "ERROR_CODE" : 3} # The message received by the actor was not in an expected type
 	ILLEGAL_UNKNOWN_COMMAND = {"ERROR":"Unknown Command", "ERROR_CODE" : 4} # The message received by the actor was not in an expected type
 	ILLEGAL_STATE = {"ERROR":"Actor not setup correctly, make sure to send SETUP message first", "ERROR_CODE" : 5} # The actor was in an wrong state
-	OK_SKIPPED = { "RERTURN" : "OK"}
-	OK = { "RETURN" : "OK"}
+	OK_SKIPPED = { "RETURN" : "OK", "First": False }
+	OK = { "RETURN" : "OK", "First": True}
 
 	ACCEPTED_MESSAGES = {
 			"RESERVE"	:	"__reserve__",	# is being called when the end-user-application wants to reserve the directly or indirectly connected device for exclusive communication, should return if a reservation is currently possible
@@ -99,6 +100,9 @@ class DeviceBaseActor(Actor):
 		'''
 			Handles received Actor messages / verification of the message format
 		'''
+		if msg is thespian.actors.ActorExitRequest:
+			return self.OK
+
 		if not isinstance(msg,dict):
 			self.send(sender, self.ILLEGAL_WRONGTYPE)
 			return
@@ -149,5 +153,12 @@ class DeviceBaseActor(Actor):
 
 	def __kill__(self, msg:dict):
 		registrationserver2.theLogger.info(f'Shutting down actor {self.globalName}, Message : {msg}')
-		registrationserver2.actor_system.tell(self.myAddress, thespian.actors.ActorExitRequest )
+		theLogger.info( registrationserver2.actor_system.ask(self.myAddress, thespian.actors.ActorExitRequest ))
+		self.setup_done = False
+
+	def __init__(self):
+		super().__init__()
+		self._config : dict = {}
+		self._file: json
+		self.setup_done = False
 		
