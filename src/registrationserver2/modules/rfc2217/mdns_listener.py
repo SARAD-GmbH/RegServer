@@ -73,7 +73,7 @@ class SaradMdnsListener(ServiceListener):
 		#if an actor already exists this will return the address of the excisting one, else it creates a new
 		if data:
 			this_actor = registrationserver2.actor_system.createActor(Rfc2217Actor, globalName = name)
-			setup_return = registrationserver2.actor_system.ask(this_actor, {'CMD':'SETUP', 'PORT': 'rfc2217://serviri.hq.sarad.de:5580'})
+			setup_return = registrationserver2.actor_system.ask(this_actor, {'CMD':'SETUP'})
 			if setup_return is Rfc2217Actor.OK:
 				theLogger.info(registrationserver2.actor_system.ask(this_actor, {"CMD":"SEND", "DATA":b'\x42\x80\x7f\x0c\x0c\x00\x45'}))
 			if not (setup_return is Rfc2217Actor.OK or setup_return is Rfc2217Actor.OK_SKIPPED):
@@ -164,7 +164,8 @@ class SaradMdnsListener(ServiceListener):
 				'Remote' :
 					{
 						'Address':	_addr_ip,
-						'Port': info.port
+						'Port': info.port,
+						'Name' : name
 					}
 			}
 

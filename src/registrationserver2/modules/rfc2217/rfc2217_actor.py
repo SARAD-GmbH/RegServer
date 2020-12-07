@@ -19,12 +19,17 @@ class Rfc2217Actor(DeviceBaseActor):
 	https://pythonhosted.org/pyserial/pyserial_api.html#module-serial.aio
 	'''
 	__open = False
-	__port_ident : str = ''
+	__port_ident : str
 	__port : serial.rfc2217.Serial  = None
 
 	def __connect(self):
-		if  self._config and not self.__port_ident:
-			self.__port_ident=self._config.get('PORT', None)
+		''' internal Function to connect to instrument server 2 over rfc2217'''
+		if  self.__file and not self.__port_ident:
+			address = self.__file.get('Remote', {}).get('Address', None)
+			port = self.__file.get('Remote',{}).get('Port', None)
+			if not address or not port:
+				return self.ILLEGAL_STATE
+			self.__port_ident =  fr'rfc2217://{address}:{port}'
 
 		if self.__port_ident  and not (self.__port and self.__port.is_open):
 			try:
