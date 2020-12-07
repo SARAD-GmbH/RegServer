@@ -53,7 +53,7 @@ class Rfc2217Actor(DeviceBaseActor):
 				if _return_part == '':
 					break
 				_return = _return + _return_part
-			return _return
+			return {"RETURN" : "OK", 'DATA':_return}
 		return self.ILLEGAL_STATE
 
 	def __reserve__(self, msg):
