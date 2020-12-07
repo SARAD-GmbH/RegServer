@@ -24,9 +24,9 @@ class Rfc2217Actor(DeviceBaseActor):
 
 	def __connect(self):
 		''' internal Function to connect to instrument server 2 over rfc2217'''
-		if  self.__file and not self.__port_ident:
-			address = self.__file.get('Remote', {}).get('Address', None)
-			port = self.__file.get('Remote',{}).get('Port', None)
+		if  self._file:
+			address = self._file.get('Remote', {}).get('Address', None)
+			port = self._file.get('Remote',{}).get('Port', None)
 			if not address or not port:
 				return self.ILLEGAL_STATE
 			self.__port_ident =  fr'rfc2217://{address}:{port}'
@@ -67,7 +67,7 @@ class Rfc2217Actor(DeviceBaseActor):
 
 def __test__():
 	sys = thespian.actors.ActorSystem()
-	act = sys.createActor(Rfc2217Actor, globalName='SARAD_0ghMF8Y._sarad-1688._rfc2217._tcp')
+	act = sys.createActor(Rfc2217Actor, globalName='SARAD_0ghMF8Y._sarad-1688._rfc2217._tcp.local')
 	sys.ask(act, {'CMD':'SETUP'})
 	print(sys.ask(act, {"CMD":"SEND", "DATA":b'\x42\x80\x7f\x01\x01\x00\x45'}))
 	print(sys.ask(act, {"CMD":"FREE", "DATA":b'\x42\x80\x7f\x0c\x00\x0c\x45'}))

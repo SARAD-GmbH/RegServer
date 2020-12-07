@@ -92,7 +92,7 @@ class DeviceBaseActor(Actor):
 	'''
 
 	_config : dict = {}
-	__file: json
+	_file: json
 	setup_done = False
 
 	def receiveMessage(self, msg, sender):
@@ -127,11 +127,12 @@ class DeviceBaseActor(Actor):
 	def __setup__(self, msg:dict):
 		if not self.setup_done:
 			self._config = msg
-			filename=f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{self.globalName}'
+			filename=fr'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{self.globalName}'
+			registrationserver2.theLogger.info(f'Setting up Actor {self.globalName}')
 			if os.path.isfile(filename):
 				try:
 					file = open(filename)
-					self.__file = json.load(file)
+					self._file = json.load(file)
 					self.setup_done = True
 					return self.OK
 				except JSONDecodeError as error:
