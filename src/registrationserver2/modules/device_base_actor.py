@@ -100,12 +100,13 @@ class DeviceBaseActor(Actor):
 		'''
 			Handles received Actor messages / verification of the message format
 		'''
-		if msg == thespian.actors.ActorExitRequest():
-			return self.OK
+		if isinstance(msg, thespian.actors.ActorExitRequest):
+			return
 
 		if not isinstance(msg,dict):
 			self.send(sender, self.ILLEGAL_WRONGTYPE)
 			return
+
 		cmd_string= msg.get("CMD", None)
 
 		if not cmd_string:
