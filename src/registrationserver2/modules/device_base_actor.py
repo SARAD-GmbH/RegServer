@@ -100,7 +100,7 @@ class DeviceBaseActor(Actor):
 		'''
 			Handles received Actor messages / verification of the message format
 		'''
-		if msg is thespian.actors.ActorExitRequest:
+		if msg == thespian.actors.ActorExitRequest():
 			return self.OK
 
 		if not isinstance(msg,dict):
@@ -153,8 +153,8 @@ class DeviceBaseActor(Actor):
 
 	def __kill__(self, msg:dict):
 		registrationserver2.theLogger.info(f'Shutting down actor {self.globalName}, Message : {msg}')
-		theLogger.info( registrationserver2.actor_system.ask(self.myAddress, thespian.actors.ActorExitRequest ))
-		self.setup_done = False
+		theLogger.info( registrationserver2.actor_system.ask(self.myAddress, thespian.actors.ActorExitRequest() ))
+		#self.setup_done = False
 
 	def __init__(self):
 		super().__init__()
