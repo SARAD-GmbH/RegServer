@@ -205,7 +205,35 @@ class RestApi(Actor):
 		except: #pylint: disable=W0702
 			request_host = request.environ['REMOTE_ADDR']
 		theLogger.info(f'{did}:{attribute_who} --> {request_host}')
-		return json.dumps(f'{did}:{attribute_who} --> {request_host}')
+		
+		if not registrationserver2.matchid.fullmatch(did):
+			return json.dumps({'Error': 'Wronly formated ID'})
+		answer = {}
+		Reservation = {
+				"Active": True,
+				"Host": request_host,
+				"App": attribute_who,
+				"User": "rfoerster",
+				"Timestamp": "2020-10-09T08:22:43Z",
+				"IP": "123.123.123.123",
+				"Port": 2345
+			}
+		
+		try:
+			if os.path.isfile(f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{did}'):
+				answer[did] =  { 'Identification' : json.load(open(f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}{did}')).get('Identification', None)}
+		except BaseException as error: #pylint: disable=W0703
+			theLogger.error(f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
+		except: #pylint: disable=W0702
+			theLogger.error('!!!')
+		
+		answer[did]["Reservation"] = Reservation
+		resp = Response(response=json.dumps(answer),
+			status=200,
+			mimetype="application/json")
+		
+		return resp
+
 
 	@staticmethod
 	@api.route(f'/list/<did>/{registrationserver2.FREE_KEYWORD}', methods=['GET'])
