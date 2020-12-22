@@ -14,77 +14,93 @@ from registrationserver2 import theLogger
 
 
 class Rfc2217Actor(DeviceBaseActor):
-	'''
-		Actor for dealing with RFC2217 Connections, creates and maintains a RFC2217Protocol handler and relays messages towards it
-	https://pythonhosted.org/pyserial/pyserial_api.html#module-serial.aio
-	'''
-	__open = False
-	__port_ident : str
-	__port : serial.rfc2217.Serial  = None
+    '''Actor for dealing with RFC2217 Connections, creates and maintains
+    a RFC2217Protocol handler and relays messages towards it
+    https://pythonhosted.org/pyserial/pyserial_api.html#module-serial.aio'''
+    __open = False
+    __port_ident: str
+    __port: serial.rfc2217.Serial = None
 
-	def __connect(self):
-		''' internal Function to connect to instrument server 2 over rfc2217'''
-		if  self._file:
-			address = self._file.get('Remote', {}).get('Address', None)
-			port = self._file.get('Remote',{}).get('Port', None)
-			if not address or not port:
-				return self.ILLEGAL_STATE
-			self.__port_ident =  fr'rfc2217://{address}:{port}'
+    def __connect(self):
+        '''internal Function to connect to instrument server 2 over rfc2217'''
+        if self._file:
+            address = self._file.get('Remote', {}).get('Address', None)
+            port = self._file.get('Remote', {}).get('Port', None)
+            if not address or not port:
+                return self.ILLEGAL_STATE
+            self.__port_ident = fr'rfc2217://{address}:{port}'
 
-		if self.__port_ident  and not (self.__port and self.__port.is_open):
-			try:
-				self.__port = serial.rfc2217.Serial(self.__port_ident) # move the send ( test if connection is up and if not create)
-			except BaseException as error: #pylint: disable=W0703
-				theLogger.info(self._config)
-				theLogger.error(f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
-		if self.__port and self.__port.is_open:
-			return self.OK
-		return self.ILLEGAL_STATE
+        if self.__port_ident and not (self.__port and self.__port.is_open):
+            try:
+                self.__port = serial.rfc2217.Serial(
+                    self.__port_ident
+                )  # move the send ( test if connection is up and if not create)
+            except BaseException as error:  # pylint: disable=W0703
+                theLogger.info(self._config)
+                theLogger.error(
+                    f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                )
+        if self.__port and self.__port.is_open:
+            return self.OK
+        return self.ILLEGAL_STATE
 
-	def __send__(self, msg : dict):
-		if self.__connect() is self.OK:
-			theLogger.info(f"Actor {self.globalName} Received: {msg.get('DATA')}")
-			data = msg.get('DATA', None)
-			if data:
-				self.__port.write(data)
-				_return = b''
-				while True:
-					time.sleep(.5)
-					_return_part = self.__port.read_all() if self.__port.inWaiting() else ''
-					if _return_part == '':
-						break
-					_return = _return + _return_part
-				return {"RETURN" : "OK", 'DATA':_return}
-			
-			return self.ILLEGAL_WRONGFORMAT
-		return self.ILLEGAL_STATE
+    def __send__(self, msg: dict):
+        if self.__connect() is self.OK:
+            theLogger.info(
+                f"Actor {self.globalName} Received: {msg.get('DATA')}")
+            data = msg.get('DATA', None)
+            if data:
+                self.__port.write(data)
+                _return = b''
+                while True:
+                    time.sleep(.5)
+                    _return_part = self.__port.read_all(
+                    ) if self.__port.inWaiting() else ''
+                    if _return_part == '':
+                        break
+                    _return = _return + _return_part
+                return {"RETURN": "OK", 'DATA': _return}
 
-	def __reserve__(self, msg):
-		theLogger.info(msg)
-		return self.ILLEGAL_NOTIMPLEMENTED
+            return self.ILLEGAL_WRONGFORMAT
+        return self.ILLEGAL_STATE
 
-	def __free__(self, msg):
-		theLogger.info(msg)
-		if self.__port and self.__port.isOpen():
-			self.__port.close()
-			
-	def __kill__(self, msg:dict):
-		super().__kill__(msg)
-		try:
-			self.__port.close()
-			self.__port = None
-		except:
-			pass
-			
+    def __reserve__(self, msg):
+        theLogger.info(msg)
+        return self.ILLEGAL_NOTIMPLEMENTED
+
+    def __free__(self, msg):
+        theLogger.info(msg)
+        if self.__port and self.__port.isOpen():
+            self.__port.close()
+
+    def __kill__(self, msg: dict):
+        super().__kill__(msg)
+        try:
+            self.__port.close()
+            self.__port = None
+        except:
+            pass
+
 
 def __test__():
-	sys = thespian.actors.ActorSystem()
-	act = sys.createActor(Rfc2217Actor, globalName='SARAD_0ghMF8Y._sarad-1688._rfc2217._tcp.local')
-	sys.ask(act, {'CMD':'SETUP'})
-	print(sys.ask(act, {"CMD":"SEND", "DATA":b'\x42\x80\x7f\x01\x01\x00\x45'}))
-	print(sys.ask(act, {"CMD":"FREE", "DATA":b'\x42\x80\x7f\x0c\x00\x0c\x45'}))
-	input('Press Enter to End\n')
-	theLogger.info('!')
+    sys = thespian.actors.ActorSystem()
+    act = sys.createActor(
+        Rfc2217Actor,
+        globalName='SARAD_0ghMF8Y._sarad-1688._rfc2217._tcp.local')
+    sys.ask(act, {'CMD': 'SETUP'})
+    print(
+        sys.ask(act, {
+            "CMD": "SEND",
+            "DATA": b'\x42\x80\x7f\x01\x01\x00\x45'
+        }))
+    print(
+        sys.ask(act, {
+            "CMD": "FREE",
+            "DATA": b'\x42\x80\x7f\x0c\x00\x0c\x45'
+        }))
+    input('Press Enter to End\n')
+    theLogger.info('!')
+
 
 if __name__ == '__main__':
-	__test__()
+    __test__()

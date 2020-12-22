@@ -1,4 +1,2 @@
-[FORMAT]
-indent-string=\t
 [MESSAGES CONTROL]
 disable=C0301,W0122,W1203,W1201
