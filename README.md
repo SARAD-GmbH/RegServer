@@ -1,7 +1,10 @@
-RegistrationServer2 
+# Registration Server 2
 
-It's task is to connect the SARAD® App with the InstrumentServer2 ( and over it indirectly to the device).
-It unifies how devices are accesses, and makes it independent of the protocol used by the InstrumentServer2
+## Introduction ##
+
+It's task is to connect the SARAD® App with the Instrument Server 2 ( and over
+it indirectly to the device). It unifies how devices are accessed, and makes it
+independent of the protocol used by the Instrument Server 2.
 
 	@startuml
 	actor "Trucy" as user
@@ -51,11 +54,51 @@ It unifies how devices are accesses, and makes it independent of the protocol us
 		deviceactor->device:sends free
 	end
 	@enduml
-	
-TODO:
+
+## Installation and usage ##
+
+For test and development, the program is prepared to run in a virtual environment.
+
+### Installation ###
+
+    git clone <bare_repository>
+
+to clone the working directory from the git repository.
+
+    cd src-registrationserver2
+    pipenv shell
+
+to create the virtual environment.
+
+    pipenv install --ignore-pipfile
+
+to install all required dependencies.
+
+If you want to do further development and use modules that are only required
+during the development (for instance test), use
+
+    pipenv install --dev --ignore-pipfile
+
+### Ussage ###
+
+Make sure that port 8000 is not used by any other application.
+
+    cd src
+    python -m registrationserver2.main
+
+to start the program.
+
+With Instrument Server 2 running anywhere in the same LAN, you should see log
+entries on the command line indicating newly attached or disconnected SARAD
+instrument.
+
+With your webbrower pointing to http://localhost:8000/list/, you should see a
+JSON list of attached SARAD instruments with identification information like
+Family, Type, Serial number.
+
+
+## TODO:
 - [ ] fix logging
 - [ ] create actors when device connection is detected
 - [ ] reservation / freeing of devices
 - [ ] automatic unit test cases
-	
-	
