@@ -1,0 +1,468 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<con:soapui-project id="0c7a2ab8-1635-4ded-8d0c-027d67626af2" activeEnvironment="Default" name="REST Project 1" resourceRoot="" soapui-version="5.6.0" abortOnError="false" runType="SEQUENTIAL" xmlns:con="http://eviware.com/soapui/config"><con:settings/><con:interface xsi:type="con:RestService" id="195598e7-ed62-4dc7-b8cf-61d2fdd21ab3" wadlVersion="http://wadl.dev.java.net/2009/02" name="http://localhost:8000" type="rest" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><con:settings/><con:definitionCache type="TEXT" rootPart=""/><con:endpoints><con:endpoint>http://DESKTOP-LLOD5F4:8080/</con:endpoint><con:endpoint>http://localhost:8000</con:endpoint></con:endpoints><con:resource name="List" path="/list/" id="84ca3e5f-6870-453b-8caf-2742f0034e32"><con:settings/><con:parameters/><con:resource name="{id}" path="{id}" id="d5785ce8-7d11-42b3-97fa-8b4237b1a0dc"><con:settings/><con:parameters><con:parameter><con:name>id</con:name><con:value>id</con:value><con:style>TEMPLATE</con:style><con:default>id</con:default></con:parameter></con:parameters><con:resource name="reserve" path="reserve" id="6cd117ca-efb1-4be2-b4a8-cd46191ded47"><con:settings/><con:parameters><con:parameter><con:name>who</con:name><con:value/><con:style>QUERY</con:style><con:default/></con:parameter><con:parameter><con:name>user</con:name><con:value/><con:style>QUERY</con:style><con:default/></con:parameter></con:parameters><con:method name="Method 1" id="76494092-09e7-46bd-a683-a987652ae334" method="GET"><con:settings/><con:parameters/><con:representation type="FAULT"><con:mediaType>text/html; charset=utf-8</con:mediaType><con:status>500</con:status><con:params/><con:element>html</con:element></con:representation><con:request name="Request 1" id="126bf423-4b82-4348-b757-d0d41be65971" mediaType="application/json"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings><con:endpoint>http://localhost:8000</con:endpoint><con:request/><con:originalUri>http://localhost/list/1234/reserve</con:originalUri><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters>
+  <con:entry key="id" value="1234"/>
+  <con:entry key="user" value=""/>
+  <con:entry key="who" value=""/>
+</con:parameters><con:parameterOrder><con:entry>id</con:entry><con:entry>who</con:entry><con:entry>user</con:entry></con:parameterOrder></con:request></con:method></con:resource><con:resource name="free" path="free" id="f7c297fe-36b4-4bf3-8a4e-5b71efe024ed"><con:settings/><con:parameters/><con:method name="Method 1" id="a54d22b8-0d61-4936-9f00-b415dec56e39" method="GET"><con:settings/><con:parameters/><con:request name="Request 1" id="d43d925c-7c0d-4b6b-af91-36bedcb832f2" mediaType="application/json"><con:settings/><con:endpoint>http://localhost:8000</con:endpoint><con:request/><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:request></con:method></con:resource><con:method name="Method 1" id="75aeb67a-dbe9-4aff-911b-f270338d628e" method="GET"><con:settings/><con:parameters/><con:representation type="RESPONSE"><con:mediaType>text/html; charset=utf-8</con:mediaType><con:status>308</con:status><con:params/><con:element>html</con:element></con:representation><con:request name="Request 1" id="18dfa53e-f5d5-4746-8100-919673fecf16" mediaType="application/json"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings><con:endpoint>http://localhost:8000</con:endpoint><con:request/><con:originalUri>http://localhost/list/id</con:originalUri><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:request></con:method></con:resource><con:method name="List 1" id="6143f5ac-e44a-4231-8578-c44084778448" method="GET"><con:settings/><con:parameters/><con:request name="Request 1" id="c32affc4-2815-47bb-8e85-cd1f6144f25e" mediaType="application/json"><con:settings/><con:endpoint>http://localhost:8000</con:endpoint><con:request/><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:request></con:method></con:resource><con:resource name="history" path="/history/" id="32220129-d2db-4ce0-8aad-ae4cd5ec88ef"><con:settings/><con:parameters/><con:method name="Method 1" id="d8c896e2-e96b-4a51-9e79-1052afb7ccd1" method="GET"><con:settings/><con:parameters/><con:representation type="RESPONSE"><con:mediaType xsi:nil="true"/><con:status>0</con:status><con:params/><con:element>data</con:element></con:representation><con:request name="Request 1" id="dac0d657-25e3-4c56-9fe0-7da026d1e66a" mediaType="application/json"><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.WsdlRequest@request-headers">&lt;xml-fragment/></con:setting></con:settings><con:endpoint>http://DESKTOP-LLOD5F4:8080/</con:endpoint><con:request/><con:credentials><con:authType>No Authorization</con:authType></con:credentials><con:jmsConfig JMSDeliveryMode="PERSISTENT"/><con:jmsPropertyConfig/><con:parameters/></con:request></con:method></con:resource></con:interface><con:restMockService id="c976abd0-033c-49ad-ad19-44a95bd0d2f5" port="8080" path="/" host="DESKTOP-LLOD5F4" name="EmptyList"><con:settings/><con:properties/><con:restMockAction name="/list/" method="GET" resourcePath="/list/" id="60bbb6c4-ce84-4bf7-ad7f-bcbfc40ed671"><con:settings/><con:defaultResponse xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
+// Script dispatcher is used to select a response based on the incoming request.&#13;
+// Here are few examples showing how to match based on path, query param, header and body&#13;
+&#13;
+// Match based on path&#13;
+def requestPath = mockRequest.getPath()&#13;
+log.info "Path: "+ requestPath&#13;
+&#13;
+if( requestPath.contains("json") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "JSON Response"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on query parameter&#13;
+def queryString = mockRequest.getRequest().getQueryString()&#13;
+log.info "QueryString: " + queryString&#13;
+&#13;
+if( queryString.contains("stockholm") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response Stockholm"&#13;
+}&#13;
+else if( queryString.contains("london") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response London"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on header&#13;
+def acceptEncodingHeaderList = mockRequest.getRequestHeaders().get("Accept-Encoding")&#13;
+log.info "AcceptEncoding Header List: " + acceptEncodingHeaderList&#13;
+&#13;
+if( acceptEncodingHeaderList.contains("gzip,deflate") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "GZiped Response"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on body&#13;
+def requestBody = mockRequest.getRequestContent()&#13;
+log.info "Request body: " + requestBody&#13;
+&#13;
+if( requestBody.contains("some data") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response N"&#13;
+}&#13;
+*/&#13;
+</con:dispatchPath><con:response name="Empty List" id="e8abba9c-c2ab-4339-8fed-0182cd008707" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
+	"ERROR":"OK",
+	"ERROR_CODE": 0,
+}</con:responseContent></con:response></con:restMockAction><con:restMockAction name="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local" method="GET" resourcePath="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local" id="4328c349-d25b-426b-b61a-ce52324f7844"><con:settings/><con:defaultResponse xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
+// Script dispatcher is used to select a response based on the incoming request.&#13;
+// Here are few examples showing how to match based on path, query param, header and body&#13;
+&#13;
+// Match based on path&#13;
+def requestPath = mockRequest.getPath()&#13;
+log.info "Path: "+ requestPath&#13;
+&#13;
+if( requestPath.contains("json") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "JSON Response"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on query parameter&#13;
+def queryString = mockRequest.getRequest().getQueryString()&#13;
+log.info "QueryString: " + queryString&#13;
+&#13;
+if( queryString.contains("stockholm") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response Stockholm"&#13;
+}&#13;
+else if( queryString.contains("london") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response London"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on header&#13;
+def acceptEncodingHeaderList = mockRequest.getRequestHeaders().get("Accept-Encoding")&#13;
+log.info "AcceptEncoding Header List: " + acceptEncodingHeaderList&#13;
+&#13;
+if( acceptEncodingHeaderList.contains("gzip,deflate") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "GZiped Response"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on body&#13;
+def requestBody = mockRequest.getRequestContent()&#13;
+log.info "Request body: " + requestBody&#13;
+&#13;
+if( requestBody.contains("some data") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response N"&#13;
+}&#13;
+*/&#13;
+</con:dispatchPath><con:response name="list" id="29559af8-4b2e-4f50-b81d-f45fa21b9c20" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
+	"ERROR":"Device not found",
+	"ERROR_CODE": 11,
+}
+</con:responseContent></con:response></con:restMockAction></con:restMockService><con:restMockService id="783e9dbc-a9b0-47b3-8f96-2205eb7754b7" port="8080" path="/" host="DESKTOP-LLOD5F4" name="Reserve instrument"><con:settings/><con:properties/><con:restMockAction name="/list/id" method="GET" resourcePath="/list/id" id="47c2611b-081b-4240-b74b-48412f44b382"><con:settings/><con:defaultResponse xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
+// Script dispatcher is used to select a response based on the incoming request.&#13;
+// Here are few examples showing how to match based on path, query param, header and body&#13;
+&#13;
+// Match based on path&#13;
+def requestPath = mockRequest.getPath()&#13;
+log.info "Path: "+ requestPath&#13;
+&#13;
+if( requestPath.contains("json") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "JSON Response"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on query parameter&#13;
+def queryString = mockRequest.getRequest().getQueryString()&#13;
+log.info "QueryString: " + queryString&#13;
+&#13;
+if( queryString.contains("stockholm") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response Stockholm"&#13;
+}&#13;
+else if( queryString.contains("london") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response London"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on header&#13;
+def acceptEncodingHeaderList = mockRequest.getRequestHeaders().get("Accept-Encoding")&#13;
+log.info "AcceptEncoding Header List: " + acceptEncodingHeaderList&#13;
+&#13;
+if( acceptEncodingHeaderList.contains("gzip,deflate") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "GZiped Response"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on body&#13;
+def requestBody = mockRequest.getRequestContent()&#13;
+log.info "Request body: " + requestBody&#13;
+&#13;
+if( requestBody.contains("some data") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response N"&#13;
+}&#13;
+*/&#13;
+</con:dispatchPath><con:response name="Response 1" id="b21ecab0-8218-4b48-b77b-e876e3bc411a" httpResponseStatus="200" mediaType="application/json" encoding="utf-8"><con:settings/><con:responseContent>{
+	"ERROR":"Device not found",
+	"ERROR_CODE": 11,
+}
+</con:responseContent><con:header><con:name>Server</con:name><con:value>Werkzeug/1.0.1 Python/3.9.1</con:value></con:header><con:header><con:name>Date</con:name><con:value>Wed, 17 Feb 2021 04:52:59 GMT</con:value></con:header><con:header><con:name>Location</con:name><con:value>http://localhost:8000/list/id/</con:value></con:header></con:response></con:restMockAction><con:restMockAction name="/list/" method="GET" resourcePath="/list/" id="c8950b7b-c9af-40a5-b740-013bee7ef088"><con:settings/><con:defaultResponse xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
+// Script dispatcher is used to select a response based on the incoming request.&#13;
+// Here are few examples showing how to match based on path, query param, header and body&#13;
+&#13;
+// Match based on path&#13;
+def requestPath = mockRequest.getPath()&#13;
+log.info "Path: "+ requestPath&#13;
+&#13;
+if( requestPath.contains("json") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "JSON Response"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on query parameter&#13;
+def queryString = mockRequest.getRequest().getQueryString()&#13;
+log.info "QueryString: " + queryString&#13;
+&#13;
+if( queryString.contains("stockholm") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response Stockholm"&#13;
+}&#13;
+else if( queryString.contains("london") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response London"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on header&#13;
+def acceptEncodingHeaderList = mockRequest.getRequestHeaders().get("Accept-Encoding")&#13;
+log.info "AcceptEncoding Header List: " + acceptEncodingHeaderList&#13;
+&#13;
+if( acceptEncodingHeaderList.contains("gzip,deflate") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "GZiped Response"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on body&#13;
+def requestBody = mockRequest.getRequestContent()&#13;
+log.info "Request body: " + requestBody&#13;
+&#13;
+if( requestBody.contains("some data") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response N"&#13;
+}&#13;
+*/&#13;
+</con:dispatchPath><con:response name="prereservation" id="9c3725f7-52de-4aa9-bb69-fe91aa7e7f1d" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
+	"ERROR":"OK",
+	"ERROR_CODE": 0,
+	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
+		{
+			"Identification": 
+				{
+					"Family": 2,
+					"Host": "serviri.hq.sarad.de",
+					"Name": "RADON\\x20SCOUT\\x20HOME",
+					"Serial number": 791,
+					"Type": 8
+				}
+			
+		}
+}</con:responseContent></con:response><con:response name="AfterRegistration" id="72bc268d-8d6a-43cc-a234-f84b1227c86e" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
+	"ERROR":"OK",
+	"ERROR_CODE": 0,
+	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
+		{
+			"Identification": 
+				{
+					"Family": 2,
+					"Host": "serviri.hq.sarad.de",
+					"Name": "RADON\\x20SCOUT\\x20HOME",
+					"Serial number": 791,
+					"Type": 8
+				}
+			"Reservation": 
+				{
+					"Active": true,
+					"Host": "WS02",
+					"App": "RadonVision",
+					"User": "mstrey",
+					"Timestamp": "202-12-09T08:22:43Z",
+					"IP": "123.123.123.123",
+					"Port": 2345
+				}
+			
+		}
+}</con:responseContent></con:response><con:response name="afterfree" id="7e6012dd-e5d5-428a-b78f-099463e54f10" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
+	"ERROR":"OK",
+	"ERROR_CODE": 0,
+	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
+		{
+			"Identification": 
+				{
+					"Family": 2,
+					"Host": "serviri.hq.sarad.de",
+					"Name": "RADON\\x20SCOUT\\x20HOME",
+					"Serial number": 791,
+					"Type": 8
+				}
+			
+		}
+}</con:responseContent></con:response></con:restMockAction><con:restMockAction name="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/reserve" method="GET" resourcePath="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/reserve" id="ad3a32d1-313b-4764-a047-19689e64090a"><con:settings/><con:defaultResponse xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
+// Script dispatcher is used to select a response based on the incoming request.&#13;
+// Here are few examples showing how to match based on path, query param, header and body&#13;
+&#13;
+// Match based on path&#13;
+def requestPath = mockRequest.getPath()&#13;
+log.info "Path: "+ requestPath&#13;
+&#13;
+if( requestPath.contains("json") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "JSON Response"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on query parameter&#13;
+def queryString = mockRequest.getRequest().getQueryString()&#13;
+log.info "QueryString: " + queryString&#13;
+&#13;
+if( queryString.contains("stockholm") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response Stockholm"&#13;
+}&#13;
+else if( queryString.contains("london") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response London"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on header&#13;
+def acceptEncodingHeaderList = mockRequest.getRequestHeaders().get("Accept-Encoding")&#13;
+log.info "AcceptEncoding Header List: " + acceptEncodingHeaderList&#13;
+&#13;
+if( acceptEncodingHeaderList.contains("gzip,deflate") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "GZiped Response"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on body&#13;
+def requestBody = mockRequest.getRequestContent()&#13;
+log.info "Request body: " + requestBody&#13;
+&#13;
+if( requestBody.contains("some data") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response N"&#13;
+}&#13;
+*/&#13;
+</con:dispatchPath><con:response name="afterreservation" id="6bb7cf93-618f-4210-bc7e-8f821f461c76" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
+	"ERROR":"OK",
+	"ERROR_CODE": 0,
+	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
+		{
+			"Identification": 
+				{
+					"Family": 2,
+					"Host": "serviri.hq.sarad.de",
+					"Name": "RADON\\x20SCOUT\\x20HOME",
+					"Serial number": 791,
+					"Type": 8
+				},
+			"Reservation": 
+				{
+					"Active": true,
+					"Host": "WS02",
+					"App": "RadonVision",
+					"User": "mstrey",
+					"Timestamp": "202-12-09T08:22:43Z",
+					"IP": "123.123.123.123",
+					"Port": 2345
+				}
+			
+		}
+}</con:responseContent></con:response><con:response name="beforeregistration" id="ffdda88a-198e-4f2a-bbd9-7d2c3c8c328d" httpResponseStatus="200"><con:settings/><con:responseContent>{
+	"ERROR":"OK",
+	"ERROR_CODE": 0,
+	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
+		{
+			"Identification": 
+				{
+					"Family": 2,
+					"Host": "serviri.hq.sarad.de",
+					"Name": "RADON\\x20SCOUT\\x20HOME",
+					"Serial number": 791,
+					"Type": 8
+				}
+			"Reservation": 
+				{
+					"Active": true,
+					"Host": "WS02",
+					"App": "RadonVision",
+					"User": "mstrey",
+					"Timestamp": "202-12-09T08:22:43Z",
+					"IP": "123.123.123.123",
+					"Port": 2345
+				}
+			
+		}
+}</con:responseContent></con:response></con:restMockAction><con:restMockAction name="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/free" method="GET" resourcePath="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/free" id="c032e067-0977-4a38-a36a-450e1d8bedf2"><con:settings/><con:defaultResponse xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
+// Script dispatcher is used to select a response based on the incoming request.&#13;
+// Here are few examples showing how to match based on path, query param, header and body&#13;
+&#13;
+// Match based on path&#13;
+def requestPath = mockRequest.getPath()&#13;
+log.info "Path: "+ requestPath&#13;
+&#13;
+if( requestPath.contains("json") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "JSON Response"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on query parameter&#13;
+def queryString = mockRequest.getRequest().getQueryString()&#13;
+log.info "QueryString: " + queryString&#13;
+&#13;
+if( queryString.contains("stockholm") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response Stockholm"&#13;
+}&#13;
+else if( queryString.contains("london") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response London"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on header&#13;
+def acceptEncodingHeaderList = mockRequest.getRequestHeaders().get("Accept-Encoding")&#13;
+log.info "AcceptEncoding Header List: " + acceptEncodingHeaderList&#13;
+&#13;
+if( acceptEncodingHeaderList.contains("gzip,deflate") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "GZiped Response"&#13;
+}&#13;
+&#13;
+&#13;
+// Match based on body&#13;
+def requestBody = mockRequest.getRequestContent()&#13;
+log.info "Request body: " + requestBody&#13;
+&#13;
+if( requestBody.contains("some data") )&#13;
+{&#13;
+    // return the name of the response you want to dispatch&#13;
+    return "Response N"&#13;
+}&#13;
+*/&#13;
+</con:dispatchPath><con:response name="before registration" id="7c10d7d1-ec71-4603-9d82-7fe90493cb72" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
+"ERROR": "No reservation found",
+"ERROR_CODE": 10,
+		{
+			"Identification": 
+				{
+					"Family": 2,
+					"Host": "serviri.hq.sarad.de",
+					"Name": "RADON\\x20SCOUT\\x20HOME",
+					"Serial number": 791,
+					"Type": 8
+				}
+		}
+}</con:responseContent></con:response><con:response name="othereservation" id="91f23642-d539-40f8-b7f3-14a0fae596e1" httpResponseStatus="200"><con:settings/><con:responseContent>{
+"ERROR": "Already Reserved by other party",
+"ERROR_CODE": 12,
+		{
+			"Identification": 
+				{
+					"Family": 2,
+					"Host": "serviri.hq.sarad.de",
+					"Name": "RADON\\x20SCOUT\\x20HOME",
+					"Serial number": 791,
+					"Type": 8
+				}
+		},
+			"Reservation": 
+				{
+					"Active": true,
+					"Host": "WS02",
+					"App": "RadonVision",
+					"User": "mstrey",
+					"Timestamp": "202-12-09T08:22:43Z",
+				}
+}</con:responseContent></con:response></con:restMockAction></con:restMockService><con:properties/><con:wssContainer/><con:oAuth2ProfileContainer/><con:oAuth1ProfileContainer/><con:sensitiveInformation/></con:soapui-project>
