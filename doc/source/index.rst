@@ -8,9 +8,11 @@ Welcome to registrationserver's documentation!
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
-
+   use_case
+   folder_structure
+   actor_messages
+   modules
 
 Indices and tables
 ==================

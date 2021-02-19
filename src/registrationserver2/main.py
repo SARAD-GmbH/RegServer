@@ -1,27 +1,15 @@
 '''
-	Created on 30.09.2020
+    Created on 30.09.2020
 
-	@author: rfoerster
+    @author: rfoerster
 
-	Main executable
-	TODO: Loads each module
-	Loads / Starts Rest API
-	Starts mDNS Listener (TODO: move to module)
-	/*
-	@startuml
-	box "RegistrationServer 2"
-	entity "Main Executable" as main
-	database "Configuration" as config
-	entity "mDNS" as mdns
-	entity "Rest API" as api
-	database "Instrument Server Connectors" as modules
-	end box
-	main -> config : Loads with config.py
-	main -> api : restapi.py
-	main -> mdns : mdnsListener.py
-	main -> modules : modules/*/
-	@enduml
-	*/
+    Main executable
+    TODO: Loads each module
+    Loads / Starts Rest API
+    Starts mDNS Listener (TODO: move to module)
+
+    .. uml:: uml-main.puml
+
 '''
 
 import threading

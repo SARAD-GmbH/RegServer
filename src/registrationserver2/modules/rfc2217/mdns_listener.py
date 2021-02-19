@@ -22,28 +22,8 @@ from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
 
 class SaradMdnsListener(ServiceListener):
     '''
-    /**
-    classdocs
-    @startuml
-    actor "Service Employee" as user
-    entity "Device with Instrument Server" as is2
-    box "RegistrationServer 2"
-    entity "SaradMdnsListener" as rs2
-    entity "mDNS Actor" as mdnsactor
-    database "Device List" as list
-    end box
-    user -> is2 : connect to local network
-    is2 -> rs2 : Sends mDNS over multicast
-    rs2 -> list : creates / updates device description file
-    rs2 -> list : links device into the available list
-    rs2 -> mdnsactor : creates listener (Actor) to receive commands / data
-    user -> is2 : disconnects from network
-    is2 -> rs2 : sends disconnect over mDNS
-    rs2 -> list : unlinks device from the available list
-    rs2 -> mdnsactor: destroy
-    @enduml
+    .. uml:: uml-mdns_listener.puml
 
-    */
     '''
     __zeroconf: Zeroconf
     __browser: ServiceBrowser

@@ -18,60 +18,8 @@ from registrationserver2 import theLogger
 
 class DeviceBaseActor(Actor):
     '''
-	classdocs
-	/**
-	@startuml
-	actor "Alice" as user
-	control "Sarad App" as app
-	box "Registration Server 2" #pink
-		entity "rest api" as api
-		entity "device Actor" as deviceactor
-	end box
-	entity "device with Instrument Server" as device
-	user->app:Changes Config /\n Requests Data
+    .. uml:: uml-device_base_actor.puml
 
-	group reservation
-		app->api:Attempts to Reserve Device
-		api->deviceactor:relays request
-		deviceactor->device:relays request
-		device->deviceactor:accepts request /\n relays port information
-		deviceactor->device:connects
-		deviceactor->deviceactor:opens port
-		deviceactor->api:accepts request /\n relays port information
-		api->app:relays port
-	end
-	note over deviceactor: start timeout
-	group Data - repeats on unexpected disconnect
-		app->deviceactor:connects
-		note over deviceactor: refresh timeout
-		group Commands without response
-			app->deviceactor:sends data
-			note over deviceactor: refresh timeout
-			deviceactor->device:relays data
-			app->user:"OK"
-		end
-		group Commands with response
-			app->deviceactor:sends data
-			note over deviceactor: refresh timeout
-			deviceactor->device:relays data
-			device->deviceactor:relays answer
-			deviceactor->app:relays answer
-		end
-		app->user:displays answer
-		app->deviceactor:disconnects
-	end
-	group free
-		app->api:frees device
-		api->deviceactor:relays free
-		deviceactor->device:relays free
-	end
-	group timeout reached
-		deviceactor->device:sends free
-	end
-	collections cake
-	user->cake:has some
-	@enduml
-	*/
 	'''
     ILLEGAL_WRONGFORMAT = {
         "ERROR": "Misformatted or no message sent",
