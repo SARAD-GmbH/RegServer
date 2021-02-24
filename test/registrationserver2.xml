@@ -109,8 +109,8 @@ if( requestBody.contains("some data") )&#13;
 }&#13;
 */&#13;
 </con:dispatchPath><con:response name="list" id="29559af8-4b2e-4f50-b81d-f45fa21b9c20" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-	"ERROR":"Device not found",
-	"ERROR_CODE": 11,
+	"Error":"Device not found",
+	"Error code": 11
 }
 </con:responseContent></con:response></con:restMockAction></con:restMockService><con:restMockService id="783e9dbc-a9b0-47b3-8f96-2205eb7754b7" port="8080" path="/" host="DESKTOP-LLOD5F4" name="Reserve instrument"><con:settings/><con:properties/><con:restMockAction name="/list/id" method="GET" resourcePath="/list/id" id="47c2611b-081b-4240-b74b-48412f44b382"><con:settings/><con:defaultResponse xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
 // Script dispatcher is used to select a response based on the incoming request.&#13;
@@ -165,8 +165,8 @@ if( requestBody.contains("some data") )&#13;
 }&#13;
 */&#13;
 </con:dispatchPath><con:response name="Response 1" id="b21ecab0-8218-4b48-b77b-e876e3bc411a" httpResponseStatus="200" mediaType="application/json" encoding="utf-8"><con:settings/><con:responseContent>{
-	"ERROR":"Device not found",
-	"ERROR_CODE": 11,
+	"Error": "Device not found",
+	"Error code": 11
 }
 </con:responseContent><con:header><con:name>Server</con:name><con:value>Werkzeug/1.0.1 Python/3.9.1</con:value></con:header><con:header><con:name>Date</con:name><con:value>Wed, 17 Feb 2021 04:52:59 GMT</con:value></con:header><con:header><con:name>Location</con:name><con:value>http://localhost:8000/list/id/</con:value></con:header></con:response></con:restMockAction><con:restMockAction name="/list/" method="GET" resourcePath="/list/" id="c8950b7b-c9af-40a5-b740-013bee7ef088"><con:settings/><con:defaultResponse xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
 // Script dispatcher is used to select a response based on the incoming request.&#13;
@@ -223,7 +223,7 @@ if( requestBody.contains("some data") )&#13;
 </con:dispatchPath><con:response name="prereservation" id="9c3725f7-52de-4aa9-bb69-fe91aa7e7f1d" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
 	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
 		{
-			"Identification": 
+			"Identification":
 				{
 					"Family": 2,
 					"Host": "serviri.hq.sarad.de",
@@ -231,12 +231,11 @@ if( requestBody.contains("some data") )&#13;
 					"Serial number": 791,
 					"Type": 8
 				}
-			
 		}
 }</con:responseContent></con:response><con:response name="AfterRegistration" id="72bc268d-8d6a-43cc-a234-f84b1227c86e" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
 	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
 		{
-			"Identification": 
+			"Identification":
 				{
 					"Family": 2,
 					"Host": "serviri.hq.sarad.de",
@@ -244,7 +243,7 @@ if( requestBody.contains("some data") )&#13;
 					"Serial number": 791,
 					"Type": 8
 				}
-			"Reservation": 
+			"Reservation":
 				{
 					"Active": true,
 					"Host": "WS02",
@@ -254,12 +253,11 @@ if( requestBody.contains("some data") )&#13;
 					"IP": "123.123.123.123",
 					"Port": 2345
 				}
-			
 		}
 }</con:responseContent></con:response><con:response name="afterfree" id="7e6012dd-e5d5-428a-b78f-099463e54f10" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
 	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
 		{
-			"Identification": 
+			"Identification":
 				{
 					"Family": 2,
 					"Host": "serviri.hq.sarad.de",
@@ -267,7 +265,6 @@ if( requestBody.contains("some data") )&#13;
 					"Serial number": 791,
 					"Type": 8
 				}
-			
 		}
 }</con:responseContent></con:response></con:restMockAction><con:restMockAction name="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/reserve" method="GET" resourcePath="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/reserve" id="ad3a32d1-313b-4764-a047-19689e64090a"><con:settings/><con:defaultResponse xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
 // Script dispatcher is used to select a response based on the incoming request.&#13;
@@ -322,11 +319,11 @@ if( requestBody.contains("some data") )&#13;
 }&#13;
 */&#13;
 </con:dispatchPath><con:response name="afterreservation" id="6bb7cf93-618f-4210-bc7e-8f821f461c76" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-	"ERROR":"OK",
-	"ERROR_CODE": 0,
+	"Error":"OK",
+	"Error code": 0,
 	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
 		{
-			"Identification": 
+			"Identification":
 				{
 					"Family": 2,
 					"Host": "serviri.hq.sarad.de",
@@ -334,7 +331,7 @@ if( requestBody.contains("some data") )&#13;
 					"Serial number": 791,
 					"Type": 8
 				},
-			"Reservation": 
+			"Reservation":
 				{
 					"Active": true,
 					"Host": "WS02",
@@ -344,14 +341,13 @@ if( requestBody.contains("some data") )&#13;
 					"IP": "123.123.123.123",
 					"Port": 2345
 				}
-			
 		}
 }</con:responseContent></con:response><con:response name="beforeregistration" id="ffdda88a-198e-4f2a-bbd9-7d2c3c8c328d" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-	"ERROR":"OK",
-	"ERROR_CODE": 0,
+	"Error":"OK",
+	"Error code": 0,
 	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
 		{
-			"Identification": 
+			"Identification":
 				{
 					"Family": 2,
 					"Host": "serviri.hq.sarad.de",
@@ -359,7 +355,7 @@ if( requestBody.contains("some data") )&#13;
 					"Serial number": 791,
 					"Type": 8
 				}
-			"Reservation": 
+			"Reservation":
 				{
 					"Active": true,
 					"Host": "WS02",
@@ -369,7 +365,6 @@ if( requestBody.contains("some data") )&#13;
 					"IP": "123.123.123.123",
 					"Port": 2345
 				}
-			
 		}
 }</con:responseContent></con:response></con:restMockAction><con:restMockAction name="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/free" method="GET" resourcePath="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/free" id="c032e067-0977-4a38-a36a-450e1d8bedf2"><con:settings/><con:defaultResponse xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
 // Script dispatcher is used to select a response based on the incoming request.&#13;
@@ -424,11 +419,11 @@ if( requestBody.contains("some data") )&#13;
 }&#13;
 */&#13;
 </con:dispatchPath><con:response name="before registration" id="7c10d7d1-ec71-4603-9d82-7fe90493cb72" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-	"ERROR": "No reservation found",
-	"ERROR_CODE": 10,
+	"Error": "No reservation found",
+	"Error code": 10,
 	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
 	{
-		"Identification": 
+		"Identification":
 			{
 				"Family": 2,
 				"Host": "serviri.hq.sarad.de",
@@ -438,11 +433,11 @@ if( requestBody.contains("some data") )&#13;
 			}
 	}
 }</con:responseContent></con:response><con:response name="othereservation" id="91f23642-d539-40f8-b7f3-14a0fae596e1" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-	"ERROR": "Already Reserved by other party",
-	"ERROR_CODE": 12,
+	"Error": "Already reserved by other party",
+	"Error code": 12,
 	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
 	{
-		"Identification": 
+		"Identification":
 		{
 			"Family": 2,
 			"Host": "serviri.hq.sarad.de",
@@ -450,14 +445,14 @@ if( requestBody.contains("some data") )&#13;
 			"Serial number": 791,
 			"Type": 8
 		}
-		},
-		"Reservation": 
+	},
+		"Reservation":
 		{
 			"Active": true,
 			"Host": "WS02",
 			"App": "RadonVision",
 			"User": "mstrey",
-			"Timestamp": "202-12-09T08:22:43Z",
+			"Timestamp": "202-12-09T08:22:43Z"
 		}
 	}
 }</con:responseContent></con:response></con:restMockAction></con:restMockService><con:properties/><con:wssContainer/><con:oAuth2ProfileContainer/><con:oAuth1ProfileContainer/><con:sensitiveInformation/></con:soapui-project>
