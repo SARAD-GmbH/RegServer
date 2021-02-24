@@ -227,7 +227,7 @@ if( requestBody.contains("some data") )&#13;
 				{
 					"Family": 2,
 					"Host": "serviri.hq.sarad.de",
-					"Name": "RADON\\x20SCOUT\\x20HOME",
+					"Name": "RADON SCOUT HOME",
 					"Serial number": 791,
 					"Type": 8
 				}
@@ -239,7 +239,7 @@ if( requestBody.contains("some data") )&#13;
 				{
 					"Family": 2,
 					"Host": "serviri.hq.sarad.de",
-					"Name": "RADON\\x20SCOUT\\x20HOME",
+					"Name": "RADON SCOUT HOME",
 					"Serial number": 791,
 					"Type": 8
 				}
@@ -261,7 +261,7 @@ if( requestBody.contains("some data") )&#13;
 				{
 					"Family": 2,
 					"Host": "serviri.hq.sarad.de",
-					"Name": "RADON\\x20SCOUT\\x20HOME",
+					"Name": "RADON SCOUT HOME",
 					"Serial number": 791,
 					"Type": 8
 				}
@@ -327,7 +327,7 @@ if( requestBody.contains("some data") )&#13;
 				{
 					"Family": 2,
 					"Host": "serviri.hq.sarad.de",
-					"Name": "RADON\\x20SCOUT\\x20HOME",
+					"Name": "RADON SCOUT HOME",
 					"Serial number": 791,
 					"Type": 8
 				},
@@ -351,7 +351,7 @@ if( requestBody.contains("some data") )&#13;
 				{
 					"Family": 2,
 					"Host": "serviri.hq.sarad.de",
-					"Name": "RADON\\x20SCOUT\\x20HOME",
+					"Name": "RADON SCOUT HOME",
 					"Serial number": 791,
 					"Type": 8
 				}
@@ -427,7 +427,7 @@ if( requestBody.contains("some data") )&#13;
 			{
 				"Family": 2,
 				"Host": "serviri.hq.sarad.de",
-				"Name": "RADON\\x20SCOUT\\x20HOME",
+				"Name": "RADON SCOUT HOME",
 				"Serial number": 791,
 				"Type": 8
 			}
@@ -441,7 +441,7 @@ if( requestBody.contains("some data") )&#13;
 		{
 			"Family": 2,
 			"Host": "serviri.hq.sarad.de",
-			"Name": "RADON\\x20SCOUT\\x20HOME",
+			"Name": "RADON SCOUT HOME",
 			"Serial number": 791,
 			"Type": 8
 		}
