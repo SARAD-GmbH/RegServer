@@ -37,13 +37,6 @@ registrationserver2.test
    :members:
    :undoc-members:
 
-registrationserver2.modules.device_actor_manager
-------------------------------------------------
-
-.. automodule:: registrationserver2.modules.device_actor_manager
-   :members:
-   :undoc-members:
-
 registrationserver2.modules.device_base_actor
 ---------------------------------------------
 
