@@ -10,6 +10,7 @@ Welcome to registrationserver's documentation!
    :maxdepth: 2
 
    use_case
+   classes
    folder_structure
    actor_messages
    modules
