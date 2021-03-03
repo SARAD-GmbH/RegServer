@@ -1,36 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <con:soapui-project id="0c7a2ab8-1635-4ded-8d0c-027d67626af2" activeEnvironment="Default" name="Registration Server API" resourceRoot="" soapui-version="5.6.0" abortOnError="false" runType="SEQUENTIAL" defaultScriptLanguage="Groovy" xmlns:con="http://eviware.com/soapui/config"><con:description>API between  app and SARAD Registration Server</con:description><con:settings><con:setting id="com.eviware.soapui.impl.wsdl.actions.iface.tools.soapui.TestRunnerAction@values-local"><![CDATA[<xml-fragment xmlns:con="http://eviware.com/soapui/config">
-  <con:entry key="Report Format(s)" value=""/>
-  <con:entry key="Host:Port" value=""/>
-  <con:entry key="Export JUnit Results" value="false"/>
-  <con:entry key="Export All" value="false"/>
-  <con:entry key="Save After" value="false"/>
-  <con:entry key="Add Settings" value="false"/>
-  <con:entry key="WSS Password Type" value=""/>
-  <con:entry key="TestSuite" value="&lt;all>"/>
-  <con:entry key="Endpoint" value=""/>
-  <con:entry key="Select Report Type" value=""/>
-  <con:entry key="System Properties" value=""/>
-  <con:entry key="Password" value=""/>
-  <con:entry key="Print Report" value="false"/>
-  <con:entry key="Open Report" value="false"/>
-  <con:entry key="Export JUnit Results with test properties" value="false"/>
-  <con:entry key="Global Properties" value=""/>
-  <con:entry key="Project Properties" value=""/>
-  <con:entry key="Project Password" value=""/>
-  <con:entry key="TestCase" value="&lt;all>"/>
-  <con:entry key="Username" value=""/>
-  <con:entry key="user-settings.xml Password" value=""/>
-  <con:entry key="TestRunner Path" value=""/>
-  <con:entry key="Environment" value="Default"/>
-  <con:entry key="Coverage Report" value="false"/>
-  <con:entry key="Enable UI" value="false"/>
-  <con:entry key="Root Folder" value=""/>
-  <con:entry key="Ignore Errors" value="false"/>
-  <con:entry key="Domain" value=""/>
-  <con:entry key="Tool Args" value=""/>
-  <con:entry key="Save Project" value="false"/>
-</xml-fragment>]]></con:setting></con:settings><con:restMockService id="c976abd0-033c-49ad-ad19-44a95bd0d2f5" port="8080" path="/" host="DESKTOP-LLOD5F4" name="Get instrument list" docroot=""><con:description>Get a list of available instruments together with their states</con:description><con:settings/><con:properties/><con:restMockAction name="/list/" method="GET" resourcePath="/list/" id="60bbb6c4-ce84-4bf7-ad7f-bcbfc40ed671"><con:settings/><con:defaultResponse xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">One free instrument</con:defaultResponse><con:dispatchStyle>SCRIPT</con:dispatchStyle><con:dispatchPath>/*&#13;
+<con:entry key="Report Format(s)" value=""/>
+<con:entry key="Host:Port" value=""/>
+<con:entry key="Export JUnit Results" value="false"/>
+<con:entry key="Export All" value="false"/>
+<con:entry key="Save After" value="false"/>
+<con:entry key="Add Settings" value="false"/>
+<con:entry key="WSS Password Type" value=""/>
+<con:entry key="TestSuite" value="&lt;all>"/>
+<con:entry key="Endpoint" value=""/>
+<con:entry key="Select Report Type" value=""/>
+<con:entry key="System Properties" value=""/>
+<con:entry key="Password" value=""/>
+<con:entry key="Print Report" value="false"/>
+<con:entry key="Open Report" value="false"/>
+<con:entry key="Export JUnit Results with test properties" value="false"/>
+<con:entry key="Global Properties" value=""/>
+<con:entry key="Project Properties" value=""/>
+<con:entry key="Project Password" value=""/>
+<con:entry key="TestCase" value="&lt;all>"/>
+<con:entry key="Username" value=""/>
+<con:entry key="user-settings.xml Password" value=""/>
+<con:entry key="TestRunner Path" value=""/>
+<con:entry key="Environment" value="Default"/>
+<con:entry key="Coverage Report" value="false"/>
+<con:entry key="Enable UI" value="false"/>
+<con:entry key="Root Folder" value=""/>
+<con:entry key="Ignore Errors" value="false"/>
+<con:entry key="Domain" value=""/>
+<con:entry key="Tool Args" value=""/>
+<con:entry key="Save Project" value="false"/>
+</xml-fragment>]]></con:setting></con:settings><con:restMockService id="c976abd0-033c-49ad-ad19-44a95bd0d2f5" port="8080" path="/" host="DESKTOP-LLOD5F4" name="Registration Server" docroot=""><con:description>Registration Server API with corner cases</con:description><con:settings/><con:properties/><con:restMockAction name="/list/" method="GET" resourcePath="/list/" id="60bbb6c4-ce84-4bf7-ad7f-bcbfc40ed671"><con:settings/><con:defaultResponse xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">One free instrument</con:defaultResponse><con:dispatchStyle>SCRIPT</con:dispatchStyle><con:dispatchPath>/*&#13;
 // Script dispatcher is used to select a response based on the incoming request.&#13;
 // Here are few examples showing how to match based on path, query param, header and body&#13;
 &#13;
@@ -40,8 +40,8 @@ log.info "Path: "+ requestPath&#13;
 &#13;
 if( requestPath.contains("json") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "JSON Response"&#13;
+// return the name of the response you want to dispatch&#13;
+return "JSON Response"&#13;
 }&#13;
 &#13;
 &#13;
@@ -51,13 +51,13 @@ log.info "QueryString: " + queryString&#13;
 &#13;
 if( queryString.contains("stockholm") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response Stockholm"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response Stockholm"&#13;
 }&#13;
 else if( queryString.contains("london") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response London"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response London"&#13;
 }&#13;
 &#13;
 &#13;
@@ -67,8 +67,8 @@ log.info "AcceptEncoding Header List: " + acceptEncodingHeaderList&#13;
 &#13;
 if( acceptEncodingHeaderList.contains("gzip,deflate") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "GZiped Response"&#13;
+// return the name of the response you want to dispatch&#13;
+return "GZiped Response"&#13;
 }&#13;
 &#13;
 &#13;
@@ -78,107 +78,107 @@ log.info "Request body: " + requestBody&#13;
 &#13;
 if( requestBody.contains("some data") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response N"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response N"&#13;
 }&#13;
 */&#13;
 </con:dispatchPath><con:response name="Empty list" id="e8abba9c-c2ab-4339-8fed-0182cd008707" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
 }</con:responseContent></con:response><con:response name="One free instrument" id="c39a53e0-e8e9-445f-be62-4c51b0761351" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
-		{
-			"Identification":
-				{
-					"Family": 2,
-					"Host": "serviri.hq.sarad.de",
-					"Name": "RADON SCOUT HOME",
-					"Serial number": 791,
-					"Type": 8
-				}
-		}
+"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
+{
+"Identification":
+{
+"Family": 2,
+"Host": "serviri.hq.sarad.de",
+"Name": "RADON SCOUT HOME",
+"Serial number": 791,
+"Type": 8
+}
+}
 }</con:responseContent></con:response><con:response name="One reserved instrument" id="b244c954-f5fd-4a43-9bad-cdc258d86cc6" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
-		{
-			"Identification":
-				{
-					"Family": 2,
-					"Host": "serviri.hq.sarad.de",
-					"Name": "RADON SCOUT HOME",
-					"Serial number": 791,
-					"Type": 8
-				},
-			"Reservation":
-				{
-					"Active": true,
-					"Host": "WS02",
-					"App": "RadonVision",
-					"User": "mstrey",
-					"Timestamp": "202-12-09T08:22:43Z",
-					"IP": "123.123.123.123",
-					"Port": 2345
-				}
-		}
+"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
+{
+"Identification":
+{
+"Family": 2,
+"Host": "serviri.hq.sarad.de",
+"Name": "RADON SCOUT HOME",
+"Serial number": 791,
+"Type": 8
+},
+"Reservation":
+{
+"Active": true,
+"Host": "WS02",
+"App": "RadonVision",
+"User": "mstrey",
+"Timestamp": "202-12-09T08:22:43Z",
+"IP": "123.123.123.123",
+"Port": 2345
+}
+}
 }</con:responseContent></con:response><con:response name="One free, one reserved" id="db5e2e11-ee9d-4af0-9c59-354ad9b72c83" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-    "0ghMF8Y._sarad-1688._rfc2217._tcp.local": {
-        "Identification": {
-            "Family": 2,
-            "Host": "sarad_is2_2",
-            "Name": "Radon Scout Home",
-            "Serial number": 791,
-            "Type": 8
-        },
-        "Reservation": {
-            "Active": true,
-            "Host": "PC12",
-            "App": "RadonVision",
-            "User": "rfoerster",
-            "Timestamp": "2020-10-09T09:30:24Z"
-        }
-    },
-    "hkg4Tu._sarad-1688._rfc2217._tcp.local": {
-        "Identification": {
-            "Family": 2,
-            "Host": "sarad_is2_2",
-            "Name": "RTM 1688-2",
-            "Serial number": 25,
-            "Type": 4
-        }
-    }
+"0ghMF8Y._sarad-1688._rfc2217._tcp.local": {
+"Identification": {
+"Family": 2,
+"Host": "sarad_is2_2",
+"Name": "Radon Scout Home",
+"Serial number": 791,
+"Type": 8
+},
+"Reservation": {
+"Active": true,
+"Host": "PC12",
+"App": "RadonVision",
+"User": "rfoerster",
+"Timestamp": "2020-10-09T09:30:24Z"
+}
+},
+"hkg4Tu._sarad-1688._rfc2217._tcp.local": {
+"Identification": {
+"Family": 2,
+"Host": "sarad_is2_2",
+"Name": "RTM 1688-2",
+"Serial number": 25,
+"Type": 4
+}
+}
 }</con:responseContent></con:response><con:response name="One reserved by me, one by other" id="9132397c-d822-4999-b31a-3d5f0f0f4f3d" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-    "0ghMF8Y._sarad-1688._rfc2217._tcp.local": {
-        "Identification": {
-            "Name": "Radon Scout Home",
-            "Family": 2,
-            "Type": 8,
-            "Serial number": 791,
-            "Host": "sarad_is2_2"
-        },
-        "Reservation": {
-            "Active": true,
-            "Host": "WS02",
-            "App": "RadonVision",
-            "User": "mstrey",
-            "Timestamp": "202-12-09T08:22:43Z",
-            "IP": "123.123.123.123",
-            "Port": 2345
-        }
-    },
-    "hkg4Tu._sarad-1688._rfc2217._tcp.local": {
-        "Identification": {
-            "Name": "RTM 1688-2",
-            "Family": 2,
-            "Type": 4,
-            "Serial number": 25,
-            "Host": "sarad_is2_2"
-        },
-        "Reservation": {
-            "Active": true,
-            "Host": "PC12",
-            "App": "RadonVision",
-            "User": "rfoerster",
-            "Timestamp": "2020-10-09T08:22:43Z"
-        }
-    }
-}</con:responseContent></con:response></con:restMockAction></con:restMockService><con:restMockService id="783e9dbc-a9b0-47b3-8f96-2205eb7754b7" port="8080" path="/" host="DESKTOP-LLOD5F4" name="Link request"><con:description>Try to reserve an instrument for communication</con:description><con:settings/><con:properties/><con:restMockAction name="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/reserve" method="GET" resourcePath="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/reserve" id="ad3a32d1-313b-4764-a047-19689e64090a"><con:settings/><con:defaultResponse xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">OK</con:defaultResponse><con:dispatchStyle>SCRIPT</con:dispatchStyle><con:dispatchPath>/*&#13;
+"0ghMF8Y._sarad-1688._rfc2217._tcp.local": {
+"Identification": {
+"Name": "Radon Scout Home",
+"Family": 2,
+"Type": 8,
+"Serial number": 791,
+"Host": "sarad_is2_2"
+},
+"Reservation": {
+"Active": true,
+"Host": "WS02",
+"App": "RadonVision",
+"User": "mstrey",
+"Timestamp": "202-12-09T08:22:43Z",
+"IP": "123.123.123.123",
+"Port": 2345
+}
+},
+"hkg4Tu._sarad-1688._rfc2217._tcp.local": {
+"Identification": {
+"Name": "RTM 1688-2",
+"Family": 2,
+"Type": 4,
+"Serial number": 25,
+"Host": "sarad_is2_2"
+},
+"Reservation": {
+"Active": true,
+"Host": "PC12",
+"App": "RadonVision",
+"User": "rfoerster",
+"Timestamp": "2020-10-09T08:22:43Z"
+}
+}
+}</con:responseContent></con:response></con:restMockAction><con:restMockAction name="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/reserve" method="GET" resourcePath="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/reserve" id="ad3a32d1-313b-4764-a047-19689e64090a"><con:settings/><con:defaultResponse xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">OK</con:defaultResponse><con:dispatchStyle>SCRIPT</con:dispatchStyle><con:dispatchPath>/*&#13;
 // Script dispatcher is used to select a response based on the incoming request.&#13;
 // Here are few examples showing how to match based on path, query param, header and body&#13;
 &#13;
@@ -188,8 +188,8 @@ log.info "Path: "+ requestPath&#13;
 &#13;
 if( requestPath.contains("json") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "JSON Response"&#13;
+// return the name of the response you want to dispatch&#13;
+return "JSON Response"&#13;
 }&#13;
 &#13;
 &#13;
@@ -199,13 +199,13 @@ log.info "QueryString: " + queryString&#13;
 &#13;
 if( queryString.contains("stockholm") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response Stockholm"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response Stockholm"&#13;
 }&#13;
 else if( queryString.contains("london") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response London"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response London"&#13;
 }&#13;
 &#13;
 &#13;
@@ -215,8 +215,8 @@ log.info "AcceptEncoding Header List: " + acceptEncodingHeaderList&#13;
 &#13;
 if( acceptEncodingHeaderList.contains("gzip,deflate") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "GZiped Response"&#13;
+// return the name of the response you want to dispatch&#13;
+return "GZiped Response"&#13;
 }&#13;
 &#13;
 &#13;
@@ -226,39 +226,39 @@ log.info "Request body: " + requestBody&#13;
 &#13;
 if( requestBody.contains("some data") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response N"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response N"&#13;
 }&#13;
 */&#13;
 </con:dispatchPath><con:response name="OK" id="6bb7cf93-618f-4210-bc7e-8f821f461c76" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-	"Error":"OK",
-	"Error code": 0,
-	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
-		{
-			"Identification":
-				{
-					"Family": 2,
-					"Host": "serviri.hq.sarad.de",
-					"Name": "RADON SCOUT HOME",
-					"Serial number": 791,
-					"Type": 8
-				},
-			"Reservation":
-				{
-					"Active": true,
-					"Host": "WS02",
-					"App": "RadonVision",
-					"User": "mstrey",
-					"Timestamp": "202-12-09T08:22:43Z",
-					"IP": "123.123.123.123",
-					"Port": 2345
-				}
-		}
+"Error":"OK",
+"Error code": 0,
+"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
+{
+"Identification":
+{
+"Family": 2,
+"Host": "serviri.hq.sarad.de",
+"Name": "RADON SCOUT HOME",
+"Serial number": 791,
+"Type": 8
+},
+"Reservation":
+{
+"Active": true,
+"Host": "WS02",
+"App": "RadonVision",
+"User": "mstrey",
+"Timestamp": "202-12-09T08:22:43Z",
+"IP": "123.123.123.123",
+"Port": 2345
+}
+}
 }</con:responseContent></con:response><con:response name="Device not found" id="ffdda88a-198e-4f2a-bbd9-7d2c3c8c328d" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-    "Error code": 11,
-    "Error": "Device not found",
-    "0ghMF8Y._sarad-1688._rfc2217._tcp.local": {
-    }
+"Error code": 11,
+"Error": "Device not found",
+"0ghMF8Y._sarad-1688._rfc2217._tcp.local": {
+}
 }</con:responseContent></con:response></con:restMockAction><con:restMockAction name="/list/hkg4Tu._sarad-1688._rfc2217._tcp.local/reserve" method="GET" resourcePath="/list/hkg4Tu._sarad-1688._rfc2217._tcp.local/reserve" id="f45a1374-581c-44a6-8e82-1b046e0d32aa"><con:settings/><con:defaultResponse>Already reserved by other party</con:defaultResponse><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
 // Script dispatcher is used to select a response based on the incoming request.&#13;
 // Here are few examples showing how to match based on path, query param, header and body&#13;
@@ -269,8 +269,8 @@ log.info "Path: "+ requestPath&#13;
 &#13;
 if( requestPath.contains("json") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "JSON Response"&#13;
+// return the name of the response you want to dispatch&#13;
+return "JSON Response"&#13;
 }&#13;
 &#13;
 &#13;
@@ -280,13 +280,13 @@ log.info "QueryString: " + queryString&#13;
 &#13;
 if( queryString.contains("stockholm") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response Stockholm"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response Stockholm"&#13;
 }&#13;
 else if( queryString.contains("london") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response London"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response London"&#13;
 }&#13;
 &#13;
 &#13;
@@ -296,8 +296,8 @@ log.info "AcceptEncoding Header List: " + acceptEncodingHeaderList&#13;
 &#13;
 if( acceptEncodingHeaderList.contains("gzip,deflate") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "GZiped Response"&#13;
+// return the name of the response you want to dispatch&#13;
+return "GZiped Response"&#13;
 }&#13;
 &#13;
 &#13;
@@ -307,30 +307,30 @@ log.info "Request body: " + requestBody&#13;
 &#13;
 if( requestBody.contains("some data") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response N"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response N"&#13;
 }&#13;
 */&#13;
 </con:dispatchPath><con:response name="Already reserved by other party" id="01fc2d92-8264-46d6-be72-1656238a18e7" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-    "Error code": 12,
-    "Error": "Already reserved by other party",
-    "hkg4Tu._sarad-1688._rfc2217._tcp.local": {
-        "Identification": {
-            "Name": "RTM 1688-2",
-            "Family": 2,
-            "Type": 4,
-            "Serial number": 25,
-            "Host": "sarad_is2_2"
-        },
-        "Reservation": {
-            "Active": true,
-            "Host": "PC12",
-            "App": "RadonVision",
-            "User": "rfoerster",
-            "Timestamp": "2020-10-09T08:22:43Z"
-        }
-    }
-}</con:responseContent></con:response></con:restMockAction></con:restMockService><con:restMockService id="fbaaa5af-9f10-4f92-8b3f-158f586e5e30" port="8080" path="/" host="mischka" name="Get instrument information"><con:description>Get information about an instrument with known id</con:description><con:settings/><con:properties/><con:restMockAction name="/list/id" method="GET" resourcePath="/list/id" id="b3033d88-22eb-4587-840e-adb6166c2951"><con:settings/><con:defaultResponse xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
+"Error code": 12,
+"Error": "Already reserved by other party",
+"hkg4Tu._sarad-1688._rfc2217._tcp.local": {
+"Identification": {
+"Name": "RTM 1688-2",
+"Family": 2,
+"Type": 4,
+"Serial number": 25,
+"Host": "sarad_is2_2"
+},
+"Reservation": {
+"Active": true,
+"Host": "PC12",
+"App": "RadonVision",
+"User": "rfoerster",
+"Timestamp": "2020-10-09T08:22:43Z"
+}
+}
+}</con:responseContent></con:response></con:restMockAction><con:restMockAction name="/list/id" method="GET" resourcePath="/list/id" id="b3033d88-22eb-4587-840e-adb6166c2951"><con:settings/><con:defaultResponse xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
 // Script dispatcher is used to select a response based on the incoming request.&#13;
 // Here are few examples showing how to match based on path, query param, header and body&#13;
 &#13;
@@ -340,8 +340,8 @@ log.info "Path: "+ requestPath&#13;
 &#13;
 if( requestPath.contains("json") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "JSON Response"&#13;
+// return the name of the response you want to dispatch&#13;
+return "JSON Response"&#13;
 }&#13;
 &#13;
 &#13;
@@ -351,13 +351,13 @@ log.info "QueryString: " + queryString&#13;
 &#13;
 if( queryString.contains("stockholm") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response Stockholm"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response Stockholm"&#13;
 }&#13;
 else if( queryString.contains("london") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response London"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response London"&#13;
 }&#13;
 &#13;
 &#13;
@@ -367,8 +367,8 @@ log.info "AcceptEncoding Header List: " + acceptEncodingHeaderList&#13;
 &#13;
 if( acceptEncodingHeaderList.contains("gzip,deflate") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "GZiped Response"&#13;
+// return the name of the response you want to dispatch&#13;
+return "GZiped Response"&#13;
 }&#13;
 &#13;
 &#13;
@@ -378,15 +378,15 @@ log.info "Request body: " + requestBody&#13;
 &#13;
 if( requestBody.contains("some data") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response N"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response N"&#13;
 }&#13;
 */&#13;
 </con:dispatchPath><con:response name="Device not found" id="4a65c6f1-9a8e-4876-8575-e4436158ca89" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-	"Error": "Device not found",
-	"Error code": 11,
-	"id": {
-     }
+"Error": "Device not found",
+"Error code": 11,
+"id": {
+}
 }</con:responseContent></con:response></con:restMockAction><con:restMockAction name="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local" method="GET" resourcePath="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local" id="2b03acaa-48de-4470-9811-6ca94fd583a4"><con:settings/><con:defaultResponse>Device not found</con:defaultResponse><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
 // Script dispatcher is used to select a response based on the incoming request.&#13;
 // Here are few examples showing how to match based on path, query param, header and body&#13;
@@ -397,8 +397,8 @@ log.info "Path: "+ requestPath&#13;
 &#13;
 if( requestPath.contains("json") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "JSON Response"&#13;
+// return the name of the response you want to dispatch&#13;
+return "JSON Response"&#13;
 }&#13;
 &#13;
 &#13;
@@ -408,13 +408,13 @@ log.info "QueryString: " + queryString&#13;
 &#13;
 if( queryString.contains("stockholm") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response Stockholm"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response Stockholm"&#13;
 }&#13;
 else if( queryString.contains("london") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response London"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response London"&#13;
 }&#13;
 &#13;
 &#13;
@@ -424,8 +424,8 @@ log.info "AcceptEncoding Header List: " + acceptEncodingHeaderList&#13;
 &#13;
 if( acceptEncodingHeaderList.contains("gzip,deflate") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "GZiped Response"&#13;
+// return the name of the response you want to dispatch&#13;
+return "GZiped Response"&#13;
 }&#13;
 &#13;
 &#13;
@@ -435,34 +435,34 @@ log.info "Request body: " + requestBody&#13;
 &#13;
 if( requestBody.contains("some data") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response N"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response N"&#13;
 }&#13;
 */&#13;
 </con:dispatchPath><con:response name="Device not found" id="5e2fec86-2b08-48b5-a3b7-bb3c7916dd24" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-	"Error":"Device not found",
-	"Error code": 11,
-     "0ghMF8Y._sarad-1688._rfc2217._tcp.local": {
-     }
+"Error":"Device not found",
+"Error code": 11,
+"0ghMF8Y._sarad-1688._rfc2217._tcp.local": {
+}
 }</con:responseContent></con:response><con:response name="Reserved by me" id="4e526226-cd20-4e36-b186-c42dbfe33c77" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-    "0ghMF8Y._sarad-1688._rfc2217._tcp.local": {
-        "Identification": {
-            "Name": "Radon Scout Home",
-            "Family": 2,
-            "Type": 8,
-            "Serial number": 791,
-            "Host": "sarad_is2_2"
-        },
-        "Reservation": {
-            "Active": true,
-            "Host": "WS02",
-            "App": "RadonVision",
-            "User": "mstrey",
-            "Timestamp": "202-12-09T08:22:43Z",
-            "IP": "123.123.123.123",
-            "Port": 2345
-        }
-    }
+"0ghMF8Y._sarad-1688._rfc2217._tcp.local": {
+"Identification": {
+"Name": "Radon Scout Home",
+"Family": 2,
+"Type": 8,
+"Serial number": 791,
+"Host": "sarad_is2_2"
+},
+"Reservation": {
+"Active": true,
+"Host": "WS02",
+"App": "RadonVision",
+"User": "mstrey",
+"Timestamp": "202-12-09T08:22:43Z",
+"IP": "123.123.123.123",
+"Port": 2345
+}
+}
 }</con:responseContent></con:response></con:restMockAction><con:restMockAction name="/list/hkg4Tu._sarad-1688._rfc2217._tcp.local" method="GET" resourcePath="/list/hkg4Tu._sarad-1688._rfc2217._tcp.local" id="f021bf6f-fd64-4078-9aa3-c1167fa2235b"><con:settings/><con:defaultResponse>Reserved by other</con:defaultResponse><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
 // Script dispatcher is used to select a response based on the incoming request.&#13;
 // Here are few examples showing how to match based on path, query param, header and body&#13;
@@ -473,8 +473,8 @@ log.info "Path: "+ requestPath&#13;
 &#13;
 if( requestPath.contains("json") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "JSON Response"&#13;
+// return the name of the response you want to dispatch&#13;
+return "JSON Response"&#13;
 }&#13;
 &#13;
 &#13;
@@ -484,13 +484,13 @@ log.info "QueryString: " + queryString&#13;
 &#13;
 if( queryString.contains("stockholm") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response Stockholm"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response Stockholm"&#13;
 }&#13;
 else if( queryString.contains("london") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response London"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response London"&#13;
 }&#13;
 &#13;
 &#13;
@@ -500,8 +500,8 @@ log.info "AcceptEncoding Header List: " + acceptEncodingHeaderList&#13;
 &#13;
 if( acceptEncodingHeaderList.contains("gzip,deflate") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "GZiped Response"&#13;
+// return the name of the response you want to dispatch&#13;
+return "GZiped Response"&#13;
 }&#13;
 &#13;
 &#13;
@@ -511,28 +511,28 @@ log.info "Request body: " + requestBody&#13;
 &#13;
 if( requestBody.contains("some data") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response N"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response N"&#13;
 }&#13;
 */&#13;
 </con:dispatchPath><con:response name="Reserved by other" id="3700c693-6a8a-4897-b3be-4e30a96b1c62" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-    "hkg4Tu._sarad-1688._rfc2217._tcp.local": {
-        "Identification": {
-            "Name": "RTM 1688-2",
-            "Family": 2,
-            "Type": 4,
-            "Serial number": 25,
-            "Host": "sarad_is2_2"
-        },
-        "Reservation": {
-            "Active": true,
-            "Host": "PC12",
-            "App": "RadonVision",
-            "User": "rfoerster",
-            "Timestamp": "2020-10-09T08:22:43Z"
-        }
-    }
-}</con:responseContent></con:response></con:restMockAction></con:restMockService><con:restMockService id="06768a3f-b14c-4a9a-b975-dcfb402f6bd2" port="8080" path="/" host="mischka" name="Release instrument"><con:description>Give an instrument free for others</con:description><con:settings/><con:properties/><con:restMockAction name="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/free" method="GET" resourcePath="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/free" id="eedf89e3-cbd1-4e50-b396-e4633ae7b856"><con:settings/><con:defaultResponse>No reservation found</con:defaultResponse><con:dispatchStyle>SEQUENCE</con:dispatchStyle><con:dispatchPath>/*&#13;
+"hkg4Tu._sarad-1688._rfc2217._tcp.local": {
+"Identification": {
+"Name": "RTM 1688-2",
+"Family": 2,
+"Type": 4,
+"Serial number": 25,
+"Host": "sarad_is2_2"
+},
+"Reservation": {
+"Active": true,
+"Host": "PC12",
+"App": "RadonVision",
+"User": "rfoerster",
+"Timestamp": "2020-10-09T08:22:43Z"
+}
+}
+}</con:responseContent></con:response></con:restMockAction><con:restMockAction name="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/free" method="GET" resourcePath="/list/0ghMF8Y._sarad-1688._rfc2217._tcp.local/free" id="eedf89e3-cbd1-4e50-b396-e4633ae7b856"><con:settings/><con:defaultResponse>OK</con:defaultResponse><con:dispatchStyle>SCRIPT</con:dispatchStyle><con:dispatchPath>/*&#13;
 // Script dispatcher is used to select a response based on the incoming request.&#13;
 // Here are few examples showing how to match based on path, query param, header and body&#13;
 &#13;
@@ -542,8 +542,8 @@ log.info "Path: "+ requestPath&#13;
 &#13;
 if( requestPath.contains("json") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "JSON Response"&#13;
+// return the name of the response you want to dispatch&#13;
+return "JSON Response"&#13;
 }&#13;
 &#13;
 &#13;
@@ -553,13 +553,13 @@ log.info "QueryString: " + queryString&#13;
 &#13;
 if( queryString.contains("stockholm") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response Stockholm"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response Stockholm"&#13;
 }&#13;
 else if( queryString.contains("london") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response London"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response London"&#13;
 }&#13;
 &#13;
 &#13;
@@ -569,8 +569,8 @@ log.info "AcceptEncoding Header List: " + acceptEncodingHeaderList&#13;
 &#13;
 if( acceptEncodingHeaderList.contains("gzip,deflate") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "GZiped Response"&#13;
+// return the name of the response you want to dispatch&#13;
+return "GZiped Response"&#13;
 }&#13;
 &#13;
 &#13;
@@ -580,62 +580,62 @@ log.info "Request body: " + requestBody&#13;
 &#13;
 if( requestBody.contains("some data") )&#13;
 {&#13;
-    // return the name of the response you want to dispatch&#13;
-    return "Response N"&#13;
+// return the name of the response you want to dispatch&#13;
+return "Response N"&#13;
 }&#13;
 */&#13;
 </con:dispatchPath><con:response name="No reservation found" id="97e3843d-5140-4b1f-aa77-eb8f431e6a17" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-	"Error": "No reservation found",
-	"Error code": 10,
-	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
-	{
-		"Identification":
-			{
-				"Family": 2,
-				"Host": "serviri.hq.sarad.de",
-				"Name": "RADON SCOUT HOME",
-				"Serial number": 791,
-				"Type": 8
-			}
-	}
+"Error": "No reservation found",
+"Error code": 10,
+"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
+{
+"Identification":
+{
+"Family": 2,
+"Host": "serviri.hq.sarad.de",
+"Name": "Radon Scout Home",
+"Serial number": 791,
+"Type": 8
+}
+}
 }</con:responseContent></con:response><con:response name="Already reserved by other party" id="17d56ea1-7afc-40f5-9722-e5fce860d429" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-	"Error": "Already reserved by other party",
-	"Error code": 12,
-	"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
-	{
-		"Identification":
-		{
-			"Family": 2,
-			"Host": "serviri.hq.sarad.de",
-			"Name": "RADON SCOUT HOME",
-			"Serial number": 791,
-			"Type": 8
-		}
-	},
-		"Reservation":
-		{
-			"Active": true,
-			"Host": "WS02",
-			"App": "RadonVision",
-			"User": "mstrey",
-			"Timestamp": "202-12-09T08:22:43Z"
-		}
+"Error": "Already reserved by other party",
+"Error code": 12,
+"0ghMF8Y._sarad-1688._rfc2217._tcp.local":
+{
+"Identification":
+{
+"Family": 2,
+"Host": "serviri.hq.sarad.de",
+"Name": "Radon Scout Home",
+"Serial number": 791,
+"Type": 8
+}
+},
+"Reservation":
+{
+"Active": true,
+"Host": "WS02",
+"App": "RadonVision",
+"User": "mstrey",
+"Timestamp": "202-12-09T08:22:43Z"
+}
 }
 </con:responseContent></con:response><con:response name="OK" id="7c01b8cf-7890-444c-a8d6-5e965d48fa51" httpResponseStatus="200" mediaType="application/json"><con:settings/><con:responseContent>{
-    "0ghMF8Y._sarad-1688._rfc2217._tcp.local": {
-        "Identification": {
-            "Family": 2,
-            "Host": "sarad_is2_2",
-            "Name": "Radon Scout Home",
-            "Serial number": 791,
-            "Type": 8
-        },
-        "Reservation": {
-            "Active": false,
-            "App": "RadonVision",
-            "Host": "WS02",
-            "Timestamp": "2020-10-09T09:30:52Z",
-            "User":"mstrey"
-        }
-    }
+"0ghMF8Y._sarad-1688._rfc2217._tcp.local": {
+"Identification": {
+"Family": 2,
+"Host": "sarad_is2_2",
+"Name": "Radon Scout Home",
+"Serial number": 791,
+"Type": 8
+},
+"Reservation": {
+"Active": false,
+"App": "RadonVision",
+"Host": "WS02",
+"Timestamp": "2020-10-09T09:30:52Z",
+"User":"mstrey"
+}
+}
 }</con:responseContent></con:response></con:restMockAction></con:restMockService><con:properties/><con:wssContainer/><con:oAuth2ProfileContainer/><con:oAuth1ProfileContainer/><con:sensitiveInformation/></con:soapui-project>
