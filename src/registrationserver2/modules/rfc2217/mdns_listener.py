@@ -9,21 +9,23 @@ import socket
 import json
 import traceback
 import threading
+import logging
 
 import hashids
 from zeroconf import Zeroconf, ServiceBrowser, ServiceListener
-from thespian.actors import ActorExitRequest
 
 import registrationserver2
 from registrationserver2.config import config
 from registrationserver2 import theLogger
 from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
 
+from registrationserver2.messages import RETURN_MESSAGES
+
+logging.getLogger('Registration Server V2').info(f'{__package__}->{__file__}')
 
 class SaradMdnsListener(ServiceListener):
     '''
     .. uml:: uml-mdns_listener.puml
-
     '''
     __zeroconf: Zeroconf
     __browser: ServiceBrowser
@@ -73,15 +75,15 @@ class SaradMdnsListener(ServiceListener):
                 setup_return = registrationserver2.actor_system.ask(
                     this_actor, {'CMD': 'SETUP'})
                 theLogger.info(setup_return)
-                if setup_return is Rfc2217Actor.OK:
+                if setup_return is RETURN_MESSAGE.get('OK'):
                     theLogger.info(
                         registrationserver2.actor_system.ask(
                             this_actor, {
                                 "CMD": "SEND",
                                 "DATA": b'\x42\x80\x7f\x0c\x0c\x00\x45'
                             }))
-                if not (setup_return is Rfc2217Actor.OK
-                        or setup_return is Rfc2217Actor.OK_SKIPPED):
+                if not (setup_return is RETURN_MESSAGE.get('OK')
+                        or setup_return is RETURN_MESSAGE.get('OK_SKIPPED'):
                     registrationserver2.actor_system.ask(
                         this_actor, {'CMD': 'KILL'})
 
@@ -207,7 +209,6 @@ class SaradMdnsListener(ServiceListener):
             self.__browser = ServiceBrowser(self.__zeroconf, _type, self)
             self.__folder_history = f'{registrationserver2.FOLDER_HISTORY}{os.path.sep}'
             self.__folder_available = f'{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}'
-            # self.__folder_history = config.get('FOLDER', f'{os.environ.get("HOME",None) or os.environ.get("LOCALAPPDATA",None)}{os.path.sep}SARAD{os.path.sep}devices') + f'{os.path.sep}'
             if not os.path.exists(self.__folder_history):
                 os.makedirs(self.__folder_history)
             if not os.path.exists(self.__folder_available):
