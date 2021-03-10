@@ -1,6 +1,9 @@
 '''Loading all modules'''
 # https://stackoverflow.com/a/3365846
 import pkgutil
+import logging
+
+logging.getLogger('Registration Server V2').info(f'{__package__}->{__file__}')
 
 __all__ = []
 for loader, module_name, is_pkg in pkgutil.walk_packages(__path__):

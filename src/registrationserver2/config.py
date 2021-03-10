@@ -5,8 +5,11 @@ Created on 30.09.2020
 @author: rfoerster
 '''
 import sys
+import logging
 from logging import DEBUG
 import registrationserver2
+
+logging.getLogger('Registration Server V2').info(f'{__package__}->{__file__}')
 
 if __name__ == '__main__':
     exec(open(registrationserver2.mainpy).read()

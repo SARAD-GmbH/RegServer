@@ -18,16 +18,19 @@ import os
 import time
 import importlib.util
 import pathlib
+import logging
 from thespian.actors import ActorSystem
 from registrationserver2.restapi import RestApi
 import registrationserver2
 from registrationserver2 import theLogger
-#import registrationserver2.modules #pylint: disable=W0611 #@UnusedImport
+# import registrationserver2.modules #pylint: disable=W0611 #@UnusedImport
+
+logging.getLogger('Registration Server V2').info(f'{__package__}->{__file__}')
 
 
 def main():
     '''Starting the RegistrationServer2'''
-    registrationserver2.actor_system = ActorSystem()  #systemBase='multiprocQueueBase')
+    registrationserver2.actor_system = ActorSystem()  # systemBase='multiprocQueueBase')
     time.sleep(2)
     test2 = RestApi()
     apithread = threading.Thread(target=test2.run, args=(
@@ -49,7 +52,7 @@ def main():
         registrationserver2.actor_system.shutdown()
         os.kill(
             os.getpid(), signal.SIGTERM
-        )  #Self kill, mostly to make sure all sub threads are stopped, including the rest API
+        )  # Self kill, mostly to make sure all sub threads are stopped, including the REST API
 
 
 if __name__ == '__main__':

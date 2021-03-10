@@ -13,7 +13,12 @@ from thespian.actors import ActorSystem
 
 # local
 from registrationserver2.config import config
-actor_system: ActorSystem = None
+# actor_system :ActorSystem = ActorSystem('multiprocTCPBase')
+actor_system: ActorSystem = ActorSystem()
+
+logging.basicConfig(format='[%(name)s]\t[%(levelname)s]:\t%(message)s',
+                    level=logging.DEBUG)
+logging.getLogger('Registration Server V2').info(f'{__package__}->{__file__}')
 
 mainpy = fr"{os.path.dirname(os.path.realpath(__file__))}{os.path.sep}main.py"
 if __name__ == '__main__':
@@ -26,8 +31,7 @@ if __name__ == '__main__':
 # =======================
 config.setdefault(
     'FOLDER',
-    f'{os.environ.get("HOME",None) or os.environ.get("LOCALAPPDATA",None)}{os.path.sep}SARAD{os.path.sep}devices'
-)
+    f'{os.environ.get("HOME", None) or os.environ.get("LOCALAPPDATA",None)}{os.path.sep}SARAD{os.path.sep}devices' )
 config.setdefault('LEVEL', logging.CRITICAL)
 config.setdefault('MDNS_TIMEOUT', 3000)
 config.setdefault('TYPE', '_sarad-1688._rfc2217._tcp.local.')
@@ -41,7 +45,7 @@ config.setdefault('TYPE', '_sarad-1688._rfc2217._tcp.local.')
 # TODO: configuration still gets overwritten by one of the imports
 # ==========================================
 theLogger = logging.getLogger('Instrument Server V2')
-#theLogger = logging.getLogger()
+# theLogger = logging.getLogger()
 werklog = logging.getLogger('werkzeug')
 formatter = logging.Formatter('[%(name)s]\t[%(levelname)s]:\t%(message)s')
 if werklog.handlers:
@@ -64,16 +68,22 @@ werklog.setLevel(logging.CRITICAL)
 theLogger.info("Test")
 
 # ==========================================
-# Folders structure / APi names for devices and device history
+# Folders structure / API names for devices and device history
 # TODO: move to configuration instead
 # ==========================================
 matchid = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 
-FILE_PATH_AVAILABLE = 'available'  # How the sub folder for available instruments description files is called
-FILE_PATH_HISTORY = 'history'  # How the sub folder for all detected instruments description files is called
+# How the sub folder for available instruments description files is called
+FILE_PATH_AVAILABLE = 'available'
 
-PATH_AVAILABLE = FILE_PATH_AVAILABLE  # How the API sub path for available instruments descriptions is called
-PATH_HISTORY = FILE_PATH_HISTORY  # How the API sub path for all detected instruments descriptions is called
+# How the sub folder for all detected instruments description files is called
+FILE_PATH_HISTORY = 'history'
+
+# How the API sub path for available instruments descriptions is called
+PATH_AVAILABLE = FILE_PATH_AVAILABLE
+
+# How the API sub path for all detected instruments descriptions is called
+PATH_HISTORY = FILE_PATH_HISTORY
 
 FOLDER_AVAILABLE = f'{config["FOLDER"]}{os.path.sep}{FILE_PATH_AVAILABLE}'
 FOLDER_HISTORY = f'{config["FOLDER"]}{os.path.sep}{FILE_PATH_HISTORY}'
