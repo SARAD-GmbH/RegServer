@@ -16,6 +16,8 @@ flask = "*"
 pyserial = "*"
 hashids = "*"
 pyserial-asyncio = "*"
+paho-mqtt = "*"
+pyyaml = "*"
 
 [requires]
 python_version = "3.9"
