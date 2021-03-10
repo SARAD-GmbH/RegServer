@@ -8,6 +8,7 @@ import socket
 import os
 import sys
 import traceback
+import logging
 
 from flask import Flask, json, request, Response
 from thespian.actors import Actor
@@ -19,6 +20,7 @@ if __name__ == '__main__':
     exec(open(registrationserver2.mainpy).read())
     sys.exit()
 
+logging.getLogger('Registration Server V2').info(f'{__package__}->{__file__}')
 
 class RestApi(Actor):
     '''
@@ -189,7 +191,7 @@ class RestApi(Actor):
         if not registrationserver2.matchid.fullmatch(did):
             return json.dumps({'Error': 'Wronly formated ID'})
         answer = {}
-        Reservation = {
+        reservation = {
             "Active": True,
             "Host": request_host,
             "App": attribute_who,
@@ -216,7 +218,7 @@ class RestApi(Actor):
         except:  # pylint: disable=W0702
             theLogger.error('!!!')
 
-        answer[did]["Reservation"] = Reservation
+        answer[did]["Reservation"] = reservation
         resp = Response(response=json.dumps(answer),
                         status=200,
                         mimetype="application/json")

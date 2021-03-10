@@ -2,12 +2,14 @@
 import socket
 import traceback
 import time
+import logging
 from registrationserver2 import theLogger
 import registrationserver2
 
 port: tuple = ('127.0.0.1', 54626)
 _csock: socket.socket
 
+logging.getLogger('Registration Server V2').info(f'{__package__}->{__file__}')
 
 def testingServ():
     _sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -5,6 +5,7 @@ Created on 14.10.2020
 '''
 import traceback
 import time
+import logging
 
 import serial.rfc2217
 import thespian
@@ -12,6 +13,9 @@ import thespian
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2 import theLogger
 
+from registrationserver2.messages import RETURN_MESSAGES
+
+logging.getLogger('Registration Server V2').info(f'{__package__}->{__file__}')
 
 class Rfc2217Actor(DeviceBaseActor):
     '''Actor for dealing with RFC2217 Connections, creates and maintains
@@ -27,7 +31,7 @@ class Rfc2217Actor(DeviceBaseActor):
             address = self._file.get('Remote', {}).get('Address', None)
             port = self._file.get('Remote', {}).get('Port', None)
             if not address or not port:
-                return self.ILLEGAL_STATE
+                return RETURN_MESSAGES.get('ILLEGAL_STATE')
             self.__port_ident = fr'rfc2217://{address}:{port}'
 
         if self.__port_ident and not (self.__port and self.__port.is_open):
@@ -36,13 +40,12 @@ class Rfc2217Actor(DeviceBaseActor):
                     self.__port_ident
                 )  # move the send ( test if connection is up and if not create)
             except BaseException as error:  # pylint: disable=W0703
-                theLogger.info(self._config)
                 theLogger.error(
                     f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
                 )
         if self.__port and self.__port.is_open:
-            return self.OK
-        return self.ILLEGAL_STATE
+            return RETURN_MESSAGES.get('OK')
+        return RETURN_MESSAGES.get('ILLEGAL_STATE')
 
     def __send__(self, msg: dict):
         if self.__connect() is self.OK:
@@ -61,12 +64,12 @@ class Rfc2217Actor(DeviceBaseActor):
                     _return = _return + _return_part
                 return {"RETURN": "OK", 'DATA': _return}
 
-            return self.ILLEGAL_WRONGFORMAT
-        return self.ILLEGAL_STATE
+            return RETURN_MESSAGES.get('ILLEGAL_WRONGFORMAT')
+        return RETURN_MESSAGES.get('ILLEGAL_STATE')
 
     def __reserve__(self, msg):
         theLogger.info(msg)
-        return self.ILLEGAL_NOTIMPLEMENTED
+        return RETURN_MESSAGES.get('ILLEGAL_NOTIMPLEMENTED')
 
     def __free__(self, msg):
         theLogger.info(msg)
@@ -78,8 +81,8 @@ class Rfc2217Actor(DeviceBaseActor):
         try:
             self.__port.close()
             self.__port = None
-        except:
-            pass
+		except BaseException as error: # pylint: disable=W0703
+			theLogger.error(f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
 
 
 def __test__():
