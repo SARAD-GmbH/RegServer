@@ -78,7 +78,7 @@ class RedirectorActor(Actor):
             client_socket[0], SockInfo(client_socket[1][0],
                                        client_socket[1][1]))
         # get data here
-		#awr = self.ask(self._device, {'CMD':'SEND', 'DATA':data})
+        #awr = self.ask(self._device, {'CMD':'SEND', 'DATA':data})
 
         client_socket.close()
 

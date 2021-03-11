@@ -13,7 +13,7 @@ import thespian
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2 import theLogger
 
-from registrationserver2.messages import RETURN_MESSAGES
+from registrationserver2.modules.messages import RETURN_MESSAGES
 
 logging.getLogger('Registration Server V2').info(f'{__package__}->{__file__}')
 
@@ -81,8 +81,8 @@ class Rfc2217Actor(DeviceBaseActor):
         try:
             self.__port.close()
             self.__port = None
-		except BaseException as error: # pylint: disable=W0703
-			theLogger.error(f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
+        except BaseException as error: # pylint: disable=W0703
+            theLogger.error(f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}')
 
 
 def __test__():

@@ -1,5 +1,5 @@
 '''
-Created on 2021Äê2ÔÂ24ÈÕ
+Created on 2021-03-10
 
 @author: Yixiang
 '''
@@ -29,10 +29,7 @@ class SaradMqttSubscriber(object):
     '''
     classdocs
     '''
-
-
     def __init__(self, params):
         '''
         Constructor
         '''
-        
