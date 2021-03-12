@@ -99,8 +99,11 @@ class SaradMqttClient(Actor):
         
         if self.len == 2:
             self.send()
-        else:
-            pass
+        elif self.len == 3:
+            self.send(self.mqtt_actor_add_dict.get(self.topic_parts[1]), 
+                      {'msg_type': self.topic_parts[2], 
+                       'payload': str(message.payload.decode("utf-8")), 
+                       'qos' : str(message.qos.decode("utf-8"))})
         '''if self.count_rx < 3:
             if self.msg_head < 3:
                 print('recieved message = %s with the index = %d', str(message.payload.decode("utf-8")), self.msg_head)
@@ -263,8 +266,9 @@ class SaradMqttClient(Actor):
         self.mqttc.loop_start()
         return RETURN_MESSAGES.get('OK_SKIPPED')
     
-    def __init__(self):
+    def __init__(self, MQTT_ACTOR_ADRs:dict):
         super().__init__()
+        self.mqtt_actor_add_dict = MQTT_ACTOR_ADRs
         self.rc_conn = 2
         self.rc_disc = 2
         self.rc_pub = 1
