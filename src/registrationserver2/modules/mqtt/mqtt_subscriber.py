@@ -12,20 +12,21 @@ import traceback
 import threading
 import logging
 
-import hashids
-from zeroconf import Zeroconf, ServiceBrowser, ServiceListener
+import paho.mqtt.client as mqtt# type: ignore
+from thespian.actors import Actor, ActorExitRequest, ActorAddress
+import thespian
 
-import registrationserver2
-from registrationserver2.config import config
 from registrationserver2 import theLogger
-from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
+import registrationserver2
+from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
+from registrationserver2 import actor_system
 
-from registrationserver2.modules.device_base_actor import RETURN_MESSAGES
+from registrationserver2.modules.mqtt import MQTT_ACTOR_ADRs
 
 logging.getLogger('Registration Server V2').info(f'{__package__}->{__file__}')
 
 
-class SaradMqttSubscriber(object):
+class SaradMqttSubscriber(Actor):
     '''
     classdocs
     '''
@@ -33,3 +34,5 @@ class SaradMqttSubscriber(object):
         '''
         Constructor
         '''
+
+SARAD_MQTT_SUBSCRIBER : ActorAddress =  actor_system.createActor(SaradMqttSubscriber,type(SaradMqttSubscriber).__name__)
