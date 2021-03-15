@@ -20,6 +20,9 @@ import registrationserver2
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
 from registrationserver2 import actor_system
 
+from registrationserver2.modules.mqtt.mqtt_subscriber import  SARAD_MQTT_SUBSCRIBER
+from registrationserver2.modules.mqtt import MQTT_ACTOR_ADRs
+
 #logger = logging.getLogger()
 logging.getLogger('Registration Server V2').info(f'{__package__}->{__file__}')
 
@@ -98,23 +101,40 @@ class SaradMqttClient(Actor):
         self.len = len(self.topic_parts)
         
         if self.len == 2:
-            self.send()
+            self.send(SARAD_MQTT_CLEINT, 
+                      { 
+                          'CMD'  : 'MQTT_Message',
+                          'Data' : {
+                              'msg_type': self.topic_parts[1],
+                              'payload' : str(message.payload.decode("utf-8")), 
+                              'qos'     : str(message.qos.decode("utf-8"))
+                              }
+                          })
         elif self.len == 3:
-            self.send(self.mqtt_actor_add_dict.get(self.topic_parts[1]), 
-                      {'msg_type': self.topic_parts[2], 
-                       'payload': str(message.payload.decode("utf-8")), 
-                       'qos' : str(message.qos.decode("utf-8"))})
-        '''if self.count_rx < 3:
-            if self.msg_head < 3:
-                print('recieved message = %s with the index = %d', str(message.payload.decode("utf-8")), self.msg_head)
-                self.mqtt_msg_rx[self.msg_head] = message
-                self.msg_head = self.msg_head + 1
+            if self.topic_parts[2] == 'connected':
+                self.send(SARAD_MQTT_CLEINT, 
+                          { 
+                              'CMD'  : 'MQTT_Message',
+                              'Data' : {
+                                  'msg_type': self.topic_parts[2], 
+                                  'payload' : str(message.payload.decode("utf-8")), 
+                                  'qos'     : str(message.qos.decode("utf-8"))
+                                  }
+                              })
+            elif self.topic_parts[2] == 'msg' or self.topic_parts[2] == 'meta':
+                self.send(MQTT_ACTOR_ADRs.get(self.topic_parts[1]), 
+                      {
+                          'CMD'  : 'MQTT_Message',
+                          'Data' : {
+                              'msg_type': self.topic_parts[2], 
+                              'payload' : str(message.payload.decode("utf-8")), #byte-string or a string???
+                              'qos'     : str(message.qos.decode("utf-8"))}
+                      })
+                #TODO: regarding how the byte-string is sent via MQTT; in another word, for example, if the IS MQTT sends a byte-string, would this MQTT Client Actor receives a byte-string or a string?
             else:
-                self.msg_head = 0           
-            self.count_rx = self.count_rx + 1
-        #if self.count_rx == 3:
-        '''
-            
+                theLogger.info('Receive unknown message "%s" under the topic "%"', str(message.payload.decode("utf-8")), str(message.topic.decode("utf-8")))
+        else:
+            theLogger.info('Receive unknown message "%s" under the topic "%"', str(message.payload.decode("utf-8")), str(message.topic.decode("utf-8")))  
     
     def receiveMessage(self, msg, sender):
         
@@ -147,12 +167,12 @@ class SaradMqttClient(Actor):
         self.send(sender,getattr(self,cmd)(msg))
         
     def __connect__(self, msg:dict)->dict:
-        self.mqtt_cid = msg.get('client_id', None)
+        self.mqtt_cid = msg.get('Data', None).get('client_id', None)
         
         if self.mqtt_cid is None:
             return RETURN_MESSAGES.get('ILLEGAL_STATE')
         
-        self.mqtt_broker = msg.get('mqtt_broker', None)
+        self.mqtt_broker = msg.get('Data', None).get('mqtt_broker', None)
         
         if self.mqtt_broker is None:
             return RETURN_MESSAGES.get('ILLEGAL_STATE')
@@ -161,11 +181,11 @@ class SaradMqttClient(Actor):
         
         self.mqttc.reinitialise() 
         
-        self.mqttc.on_connect = self.on_connect
-        self.mqttc.on_disconnect = self.on_disconnect
-        self.mqttc.on_message = self.on_message
-        self.mqttc.on_publish = self.on_publish
-        self.mqttc.on_subscribe = self.on_subscribe
+        self.mqttc.on_connect     = self.on_connect
+        self.mqttc.on_disconnect  = self.on_disconnect
+        self.mqttc.on_message     = self.on_message
+        self.mqttc.on_publish     = self.on_publish
+        self.mqttc.on_subscribe   = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
         
         self.mqttc.connect(self.mqtt_broker)
@@ -202,11 +222,11 @@ class SaradMqttClient(Actor):
         #TODO: clear the used memory 
     
     def __publish__(self, msg:dict)->dict:
-        self.mqtt_topic = msg.get('topic', None)
+        self.mqtt_topic = msg.get('Data', None).get('topic', None)
         if self.mqtt_topic is None:
             return RETURN_MESSAGES.get('ILLEGAL_WRONGFORMAT')
-        self.mqtt_payload = msg.get('payload', None)
-        self.mqtt_qos = msg.get('qos', None)
+        self.mqtt_payload = msg.get('Data', None).get('payload', None)
+        self.mqtt_qos = msg.get('Data', None).get('qos', None)
         self.mqttc.publish(self.mqtt_topic, self.mqtt_payload, self.mqtt_qos)
         self.wait_cnt = 3
         
@@ -266,13 +286,25 @@ class SaradMqttClient(Actor):
         self.mqttc.loop_start()
         return RETURN_MESSAGES.get('OK_SKIPPED')
     
-    def __init__(self, MQTT_ACTOR_ADRs:dict):
+    # * Handling of Ctrl+C:
+    def signal_handler(self, sig, frame):  # pylint: disable=unused-argument
+        """On Ctrl+C:
+        - stop all cycles
+        - disconnect from MQTT self.mqtt_broker"""
+        theLogger.info('You pressed Ctrl+C!\n')
+        self.mqttc.disconnect()
+        self.mqttc.loop_stop()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT,
+                  signal_handler)  # SIGINT: By default, interrupt is Ctrl+C
+    
+    def __init__(self):
         super().__init__()
-        self.mqtt_actor_add_dict = MQTT_ACTOR_ADRs
         self.rc_conn = 2
         self.rc_disc = 2
         self.rc_pub = 1
         self.rc_sub = 1
         self.rc_uns = 1
         
-SARAD_MQTT_CLEINT : ActorAddress =  actor_system.createActor(SaradMqttClient,type(SaradMqttClient).__name__)
+SARAD_MQTT_CLIENT : ActorAddress =  actor_system.createActor(SaradMqttClient,type(SaradMqttClient).__name__)
