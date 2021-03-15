@@ -1,19 +1,19 @@
 *
-#Scan all the folders
+# Scan all the folders
 !/**/*/
-#Python inside Source
+# Python inside source
 !/src/**/*.py
-#Dokumentation Files (README...)
+# Dokumentation files (README...)
 !/*.md
-#License
+!/doc/**
+# License
 !/LICENSE
-#this file (in all subfolders)
+# this file (in all subfolders)
 !.gitignore
 !.git*
-#Pipenv
+# Pipenv
 !Pipfile
 !Pipfile.lock
 !/.env
-#Coding Style
+# Coding style
 !pylintrc
-

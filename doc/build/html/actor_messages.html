@@ -1,0 +1,212 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Actor Messages &#8212; Registration Server 0.1 documentation</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Modules" href="modules.html" />
+    <link rel="prev" title="Folder Structure" href="folder_structure.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="actor-messages">
+<h1>Actor Messages<a class="headerlink" href="#actor-messages" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="general">
+<h2>General<a class="headerlink" href="#general" title="Permalink to this headline">¶</a></h2>
+<p>The general format for messages between defined actor is a python dict with the
+following properties:</p>
+<dl class="simple">
+<dt>CMD</dt><dd><p>contains the message type</p>
+</dd>
+<dt>RETURN</dt><dd><p>for response message, contains True if no error happened, False in any other case</p>
+</dd>
+<dt>ERROR</dt><dd><p>Contains an error message (for display or translation input)</p>
+</dd>
+<dt>ERRORCODE</dt><dd><p>To unique identify the error, for machine processing.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="devicebaseactor">
+<h2>DeviceBaseActor<a class="headerlink" href="#devicebaseactor" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>SEND</p>
+<ul>
+<li><p>Request to a Device Actor (implimenting DeviceBaseActor)</p>
+<ul>
+<li><p>DATA: Contains the DATA so be send</p></li>
+<li><p>HOST: Host requesting the DATA to be send ( for reservation checks )</p></li>
+</ul>
+</li>
+<li><p>Response:</p>
+<ul>
+<li><p>DATA: Contains DATA that the device send back, not set in case there is no
+reponse</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>SEND_RESERVE</p>
+<ul>
+<li><p>Request to reserve an instrument</p>
+<ul>
+<li><p>HOST : Host requesting the reservation</p></li>
+<li><p>USER : Username requesting the reservation</p></li>
+<li><p>APP : Application requesting the reservation</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>SEND_FREE</p>
+<ul>
+<li><p>Request to free an instrument</p>
+<ul>
+<li><p>HOST : Host requesting the reservation</p></li>
+<li><p>USER : Username requesting the reservation</p></li>
+<li><p>APP : Application requesting the reservation</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="deviceactormanager">
+<h2>DeviceActorManager<a class="headerlink" href="#deviceactormanager" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>CREATE</p>
+<ul>
+<li><p>Request to create an actor for a specific device and class, send when a new
+device is detected</p>
+<ul>
+<li><p>NAME: Device ID</p></li>
+<li><p>CLASS: Class for the Instrument Actor (i.e. Rfc2217Actor), must implement
+DeviceBaseActor</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>KILL</p>
+<ul>
+<li><p>Request the termination of an actor, send when a device gets disconnected
+from the accessable network</p>
+<ul>
+<li><p>NAME: Device ID</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="misc-all">
+<h2>Misc (all)<a class="headerlink" href="#misc-all" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>ECHO</p>
+<ul>
+<li><p>Responds with the message send, used for debugging of actors</p></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Registration Server</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="use_case.html">Overview and Use Case</a></li>
+<li class="toctree-l1"><a class="reference internal" href="classes.html">UML Class Diagramm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="folder_structure.html">Folder Structure</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Actor Messages</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#general">General</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#devicebaseactor">DeviceBaseActor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#deviceactormanager">DeviceActorManager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#misc-all">Misc (all)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">Modules</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="folder_structure.html" title="previous chapter">Folder Structure</a></li>
+      <li>Next: <a href="modules.html" title="next chapter">Modules</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2021, Riccardo Förster.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.4.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/actor_messages.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
