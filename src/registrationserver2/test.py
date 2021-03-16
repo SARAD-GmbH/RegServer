@@ -6,15 +6,16 @@ import logging
 from registrationserver2 import theLogger
 import registrationserver2
 
-port: tuple = ('127.0.0.1', 54626)
+port: tuple = ("127.0.0.1", 54626)
 _csock: socket.socket
 
-logging.getLogger('Registration Server V2').info(f'{__package__}->{__file__}')
+logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
+
 
 def testingServ():
     _sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     _sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    _sock.bind(('', 0))
+    _sock.bind(("", 0))
     port = _sock.getsockname()
     theLogger.info(port)
     _sock.settimeout(0.5)
@@ -37,25 +38,25 @@ def testingServ():
 
 
 def testingClient():
-    registrationserver2.test._csock = socket.socket(socket.AF_INET,
-                                                    socket.SOCK_STREAM)
-    registrationserver2.test._csock.setsockopt(socket.SOL_SOCKET,
-                                               socket.SO_REUSEADDR, 1)
+    registrationserver2.test._csock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    registrationserver2.test._csock.setsockopt(
+        socket.SOL_SOCKET, socket.SO_REUSEADDR, 1
+    )
     registrationserver2.test._csock.connect(registrationserver2.test.port)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     try:
-        raise BaseException('x')
+        raise BaseException("x")
     except NameError as error:
-        print('!NE')
+        print("!NE")
     except BaseException as error:
         print(
             f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-" }'
         )
     except:
-        print('?!?')
+        print("?!?")
     finally:
         pass
     test = {"CMD": "Test"}
