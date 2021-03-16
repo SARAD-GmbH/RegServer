@@ -1,10 +1,10 @@
-import socket
-import yaml
+import json
+import logging
 import os
 from appdirs import AppDirs  # type: ignore
 import signal
+import socket
 import sys
-
 # import queue
 import json
 
@@ -15,10 +15,16 @@ import paho.mqtt.client as mqtt  # type: ignore
 from thespian.actors import Actor, ActorExitRequest, ActorAddress
 import thespian
 
-from registrationserver2 import theLogger
+import paho.mqtt.client as mqtt  # type: ignore
 import registrationserver2
+import thespian
+import yaml
+from appdirs import AppDirs  # type: ignore
+from registrationserver2 import actor_system, theLogger
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
-from registrationserver2 import actor_system
+# [???] causing runtime errors -- MS, 2021-03-16
+# from registrationserver2.modules.mqtt.mqtt_subscriber import SARAD_MQTT_SUBSCRIBER
+from thespian.actors import Actor, ActorAddress, ActorExitRequest
 
 from registrationserver2.modules.mqtt.mqtt_subscriber import SARAD_MQTT_SUBSCRIBER
 from registrationserver2.modules.mqtt import MQTT_ACTOR_ADRs, MQTT_CLIENT_RESULTs
@@ -37,7 +43,6 @@ class SaradMqttClient(Actor):
         "DISCONNECT": "__disconnect__",
         "UNSUBSCRIBE": "__unsubscribe__",
     }
-
     mqtt_topic: str
 
     mqtt_payload: str
@@ -135,7 +140,9 @@ class SaradMqttClient(Actor):
                         },
                     },
                 )
-                # TODO: regarding how the byte-string is sent via MQTT; in another word, for example, if the IS MQTT sends a byte-string, would this MQTT Client Actor receives a byte-string or a string?
+                # TODO: regarding how the byte-string is sent via MQTT;
+                # in another word, for example, if the IS MQTT sends a byte-string,
+                # would this MQTT Client Actor receives a byte-string or a string?
             else:
                 theLogger.info(
                     'Receive unknown message "%s" under the topic "%"',

@@ -1,47 +1,45 @@
 """
-Created on 16.02.2021
+Created on 2021-02-16
 
 @author: Yixiang
 """
-import socket
-import yaml
-import os
-from appdirs import AppDirs  # type: ignore
-import signal
-import sys
-
-import queue
 import json
-
-import traceback
-import time
 import logging
+
+import os
+import queue
+import signal
+import socket
+import sys
+import time
+import traceback
+from locale import str
 
 import paho.mqtt.client  # type: ignore
 import thespian
 
-from registrationserver2.modules.device_base_actor import DeviceBaseActor
-from registrationserver2 import theLogger
-
-from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
-
+import yaml
+# [???] Why? -- MS, 2021-03-16
 # from curses.textpad import str
 from _testmultiphase import Str, str_const
+from appdirs import AppDirs  # type: ignore
+# from builtins import None
+from pip._internal.utils.compat import str_to_display
+from registrationserver2 import theLogger
+from registrationserver2.modules.device_base_actor import DeviceBaseActor
+from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
+from registrationserver2.modules.mqtt.mqtt_client_actor import \
+    SARAD_MQTT_CLIENT
 
+# [???] Why? -- MS, 2021-03-16
 # from pip._vendor.urllib3.contrib._securetransport.low_level import _is_identity
 # logger = logging.getLogger()
 
-from registrationserver2.modules.mqtt.mqtt_client_actor import SARAD_MQTT_CLIENT
-from locale import str
-from pylint.checkers.strings import str_eval
-
-# from builtins import None
-from pip._internal.utils.compat import str_to_display
-from pipenv.vendor.passa.cli.options import strategy
+# [???] Why? -- MS, 2021-03-16
+# from pylint.checkers.strings import str_eval
+from thespian.actors import ActorAddress
 
 logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
-
-from thespian.actors import ActorAddress
 
 
 class MqttActor(DeviceBaseActor):
@@ -59,6 +57,7 @@ class MqttActor(DeviceBaseActor):
     self.ACCEPTED_MESSAGES[
         "PREPARE"
     ] = "__prepare__"  # called after the Subscriber successfully sends the properties to this MQTT Actor
+
     """
     The receiveMessage() is defined in the DeviceBaseActor class.
     """
@@ -93,6 +92,7 @@ class MqttActor(DeviceBaseActor):
                 },
             },
         )
+
         return send_status
 
     def __send_reserve__(self, msg):
@@ -238,7 +238,6 @@ class MqttActor(DeviceBaseActor):
                 "User": None,
             }
         )  # default reserve-request
-
         self.free_req_msg = {"Req": "free"}  # default free-request
         self.is_id: str
         self.instr_id: str

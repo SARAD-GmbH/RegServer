@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 MQTT_ACTOR_ADRs: dict  # A dictionary for storing the addresses of MQTT Actors
 """
 Stuture of MQTT_ACTOR_ADRs:
@@ -118,3 +119,6 @@ MQTT_CLIENT_RESULTs = {
     @enduml
     */
     """
+=======
+# MQTT_ACTOR_ADRs:dict # A dictionary for storing the addresses of MQTT Actors
+>>>>>>> 0bad1af952a4b7c3b1fa67053d5288c402b48b31

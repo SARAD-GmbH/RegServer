@@ -1,4 +1,4 @@
-'''
+"""
     Created on 30.09.2020
 
     @author: rfoerster
@@ -10,7 +10,7 @@
 
     .. uml:: uml-main.puml
 
-'''
+"""
 
 import threading
 import signal
@@ -23,31 +23,34 @@ from thespian.actors import ActorSystem
 from registrationserver2.restapi import RestApi
 import registrationserver2
 from registrationserver2 import theLogger
+
 # import registrationserver2.modules #pylint: disable=W0611 #@UnusedImport
 
-logging.getLogger('Registration Server V2').info(f'{__package__}->{__file__}')
+logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
 
 
 def main():
-    '''Starting the RegistrationServer2'''
+    """Starting the RegistrationServer2"""
     registrationserver2.actor_system = ActorSystem()  # systemBase='multiprocQueueBase')
     time.sleep(2)
     test2 = RestApi()
-    apithread = threading.Thread(target=test2.run, args=(
-        '0.0.0.0',
-        8000,
-    ))
+    apithread = threading.Thread(
+        target=test2.run,
+        args=(
+            "0.0.0.0",
+            8000,
+        ),
+    )
     apithread.start()
 
-    modules_path = f'{pathlib.Path(__file__).parent.absolute()}{os.path.sep}modules{os.path.sep}__init__.py'
+    modules_path = f"{pathlib.Path(__file__).parent.absolute()}{os.path.sep}modules{os.path.sep}__init__.py"
     theLogger.info(modules_path)
-    specification = importlib.util.spec_from_file_location(
-        "modules", modules_path)
+    specification = importlib.util.spec_from_file_location("modules", modules_path)
     modules = importlib.util.module_from_spec(specification)
     specification.loader.exec_module(modules)
 
     try:
-        input('Press Enter to End\n')
+        input("Press Enter to End\n")
     finally:
         registrationserver2.actor_system.shutdown()
         os.kill(
@@ -55,5 +58,5 @@ def main():
         )  # Self kill, mostly to make sure all sub threads are stopped, including the REST API
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

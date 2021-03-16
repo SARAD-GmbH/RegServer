@@ -1,0 +1,575 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Modules &#8212; Registration Server 0.1 documentation</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Actor Messages" href="actor_messages.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="modules">
+<h1>Modules<a class="headerlink" href="#modules" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-registrationserver2.main">
+<span id="registrationserver2-main"></span><h2>registrationserver2.main<a class="headerlink" href="#module-registrationserver2.main" title="Permalink to this headline">¶</a></h2>
+<p>Created on 30.09.2020</p>
+<p>&#64;author: rfoerster</p>
+<p>Main executable
+TODO: Loads each module
+Loads / Starts Rest API
+Starts mDNS Listener (TODO: move to module)</p>
+<p class="plantuml">
+<img src="_images/plantuml-da0e4a21c90bdb98620b4f4ced0ad57376957edd.png" alt="&#64;startuml
+box &quot;RegistrationServer 2&quot;
+entity &quot;Main Executable&quot; as main
+database &quot;Configuration&quot; as config
+entity &quot;mDNS&quot; as mdns
+entity &quot;Rest API&quot; as api
+database &quot;Instrument Server Connectors&quot; as modules
+end box
+main -&gt; config : Loads with config.py
+main -&gt; api : restapi.py
+main -&gt; mdns : mdnsListener.py
+main -&gt; modules : modules/*/
+&#64;enduml
+"/>
+</p>
+<dl class="py function">
+<dt id="registrationserver2.main.main">
+<code class="sig-prename descclassname">registrationserver2.main.</code><code class="sig-name descname">main</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.main.main" title="Permalink to this definition">¶</a></dt>
+<dd><p>Starting the RegistrationServer2</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-registrationserver2.config">
+<span id="registrationserver2-config"></span><h2>registrationserver2.config<a class="headerlink" href="#module-registrationserver2.config" title="Permalink to this headline">¶</a></h2>
+<p>Module for handing the configuration
+Created on 30.09.2020</p>
+<p>&#64;author: rfoerster</p>
+<dl class="py data">
+<dt id="registrationserver2.config.config">
+<code class="sig-prename descclassname">registrationserver2.config.</code><code class="sig-name descname">config</code><em class="property"> = {'FOLDER': '/home/strey/SARAD/devices', 'LEVEL': 10, 'MDNS_TIMEOUT': 3000, 'TYPE': ['_sarad-1688._rfc2217._tcp.local.', '_rfc2217._tcp.local.']}</em><a class="headerlink" href="#registrationserver2.config.config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Configuration Object
+TODO: Load from yaml file instead of a ‘executable’ file format</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-registrationserver2.redirector_actor">
+<span id="registrationserver2-redirector-actor"></span><h2>registrationserver2.redirector_actor<a class="headerlink" href="#module-registrationserver2.redirector_actor" title="Permalink to this headline">¶</a></h2>
+<p>Created on 01.12.2020</p>
+<p>&#64;author: rfoerster</p>
+<dl class="py class">
+<dt id="registrationserver2.redirector_actor.RedirectorActor">
+<em class="property">class </em><code class="sig-prename descclassname">registrationserver2.redirector_actor.</code><code class="sig-name descname">RedirectorActor</code><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creating port for listening to Packages from a SARAD© Application</p>
+<dl class="py attribute">
+<dt id="registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_STATE">
+<code class="sig-name descname">ILLEGAL_STATE</code><em class="property"> = {'ERROR': 'Actor not setup correctly, make sure to send SETUP message first', 'ERROR_CODE': 5}</em><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_STATE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_WRONGFORMAT">
+<code class="sig-name descname">ILLEGAL_WRONGFORMAT</code><em class="property"> = {'ERROR': 'Misformatted or no message sent', 'ERROR_CODE': 1}</em><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_WRONGFORMAT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_WRONGTYPE">
+<code class="sig-name descname">ILLEGAL_WRONGTYPE</code><em class="property"> = {'ERROR': 'Wrong message type, dictionary expected', 'ERROR_CODE': 3}</em><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_WRONGTYPE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="registrationserver2.redirector_actor.RedirectorActor.LOOP">
+<code class="sig-name descname">LOOP</code><em class="property"> = {'CMD': 'LOOP'}</em><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.LOOP" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.redirector_actor.RedirectorActor.receive">
+<code class="sig-name descname">receive</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.receive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Listen to Port and redirect any messages</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.redirector_actor.RedirectorActor.receiveMessage">
+<code class="sig-name descname">receiveMessage</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">msg</span></em>, <em class="sig-param"><span class="n">sender</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.receiveMessage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Actor receive message loop</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="registrationserver2.redirector_actor.SockInfo">
+<em class="property">class </em><code class="sig-prename descclassname">registrationserver2.redirector_actor.</code><code class="sig-name descname">SockInfo</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">address</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">port</span><span class="p">:</span> <span class="n">int</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.redirector_actor.SockInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Refer to SocketClient</p>
+<dl class="py attribute">
+<dt id="registrationserver2.redirector_actor.SockInfo.address">
+<code class="sig-name descname">address</code><em class="property">: str</em><a class="headerlink" href="#registrationserver2.redirector_actor.SockInfo.address" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="registrationserver2.redirector_actor.SockInfo.port">
+<code class="sig-name descname">port</code><em class="property">: int</em><a class="headerlink" href="#registrationserver2.redirector_actor.SockInfo.port" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="registrationserver2.redirector_actor.SocketClient">
+<em class="property">class </em><code class="sig-prename descclassname">registrationserver2.redirector_actor.</code><code class="sig-name descname">SocketClient</code><span class="sig-paren">(</span><em class="sig-param">client_socket: &lt;module 'socket' from '/usr/lib/python3.9/socket.py'&gt;</em>, <em class="sig-param">client_address: registrationserver2.redirector_actor.SockInfo</em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.redirector_actor.SocketClient" title="Permalink to this definition">¶</a></dt>
+<dd><p>Example: SocketClient(client_socket=&lt;socket.socket fd=3708,
+family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0,
+laddr=(‘127.0.0.1’, 55224), raddr=(‘127.0.0.1’, 56066)&gt;,
+client_address=SockInfo(address=’127.0.0.1’, port=56066))</p>
+<dl class="py attribute">
+<dt id="registrationserver2.redirector_actor.SocketClient.client_address">
+<code class="sig-name descname">client_address</code><em class="property">: <a class="reference internal" href="#registrationserver2.redirector_actor.SockInfo" title="registrationserver2.redirector_actor.SockInfo">registrationserver2.redirector_actor.SockInfo</a></em><a class="headerlink" href="#registrationserver2.redirector_actor.SocketClient.client_address" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="registrationserver2.redirector_actor.SocketClient.client_socket">
+<code class="sig-name descname">client_socket</code><em class="property">: &lt;module ‘socket’ from ‘/usr/lib/python3.9/socket.py’&gt;</em><a class="headerlink" href="#registrationserver2.redirector_actor.SocketClient.client_socket" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-registrationserver2.restapi">
+<span id="registrationserver2-restapi"></span><h2>registrationserver2.restapi<a class="headerlink" href="#module-registrationserver2.restapi" title="Permalink to this headline">¶</a></h2>
+<p>Created on 02.10.2020</p>
+<p>&#64;author: rfoerster</p>
+<dl class="py class">
+<dt id="registrationserver2.restapi.RestApi">
+<em class="property">class </em><code class="sig-prename descclassname">registrationserver2.restapi.</code><code class="sig-name descname">RestApi</code><a class="headerlink" href="#registrationserver2.restapi.RestApi" title="Permalink to this definition">¶</a></dt>
+<dd><p>Rest API
+delivers lists and info for devices
+relays reservation / free requests towards the Instrument Server 2
+for the devices
+information is taken from the device info folder defined
+in both config.py (settings) and __init__.py (defaults)</p>
+<p class="plantuml">
+<img src="_images/plantuml-092e722a71648d46cf7034b73be9333e6c7c047b.png" alt="&#64;startuml
+actor &quot;Trucy&quot; as user
+control &quot;Sarad App&quot; as app
+box &quot;Registration Server 2&quot; #pink
+    entity &quot;rest api&quot; as api
+    entity &quot;device Actor&quot; as deviceactor
+end box
+entity &quot;device with Instrument Server&quot; as device
+user-&gt;app:Changes Config /\n Requests Data
+
+group reservation
+    app-&gt;api:Attempts to Reserve Device
+    api-&gt;deviceactor:relays request
+    deviceactor-&gt;device:relays request
+    device-&gt;deviceactor:accepts request /\n relays port information
+    deviceactor-&gt;device:connects
+    deviceactor-&gt;deviceactor:opens port
+    deviceactor-&gt;api:accepts request /\n relays port information
+    api-&gt;app:relays port
+end
+note over deviceactor: start timeout
+group Data - repeats on unexpected disconnect
+    app-&gt;deviceactor:connects
+    note over deviceactor: refresh timeout
+    group Commands without response
+        app-&gt;deviceactor:sends data
+        note over deviceactor: refresh timeout
+        deviceactor-&gt;device:relays data
+        app-&gt;user:&quot;OK&quot;
+    end
+    group Commands with response
+        app-&gt;deviceactor:sends data
+        note over deviceactor: refresh timeout
+        deviceactor-&gt;device:relays data
+        device-&gt;deviceactor:relays answer
+        deviceactor-&gt;app:relays answer
+    end
+    app-&gt;user:displays answer
+    app-&gt;deviceactor:disconnects
+end
+group free
+    app-&gt;api:frees device
+    api-&gt;deviceactor:relays free
+    deviceactor-&gt;device:relays free
+end
+group timeout reached
+    deviceactor-&gt;device:sends free
+end
+&#64;enduml
+"/>
+</p>
+<dl class="py class">
+<dt id="registrationserver2.restapi.RestApi.Dummy">
+<em class="property">class </em><code class="sig-name descname">Dummy</code><a class="headerlink" href="#registrationserver2.restapi.RestApi.Dummy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dummy Output which just ignored messages</p>
+<dl class="py method">
+<dt id="registrationserver2.restapi.RestApi.Dummy.flush">
+<em class="property">static </em><code class="sig-name descname">flush</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">arg</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.restapi.RestApi.Dummy.flush" title="Permalink to this definition">¶</a></dt>
+<dd><p>Does Nothing</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.restapi.RestApi.Dummy.write">
+<em class="property">static </em><code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">arg</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.restapi.RestApi.Dummy.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Does Nothing</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="registrationserver2.restapi.RestApi.api">
+<code class="sig-name descname">api</code><em class="property"> = &lt;Flask 'registrationserver2.restapi'&gt;</em><a class="headerlink" href="#registrationserver2.restapi.RestApi.api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.restapi.RestApi.free_device">
+<em class="property">static </em><code class="sig-name descname">free_device</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">did</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.restapi.RestApi.free_device" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path for freeing a single active device</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.restapi.RestApi.get_device">
+<em class="property">static </em><code class="sig-name descname">get_device</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">did</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.restapi.RestApi.get_device" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path for getting information for a single active device</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.restapi.RestApi.get_device_old">
+<em class="property">static </em><code class="sig-name descname">get_device_old</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">did</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.restapi.RestApi.get_device_old" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path for getting information about a single
+previously or currently detected device</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.restapi.RestApi.get_history">
+<em class="property">static </em><code class="sig-name descname">get_history</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.restapi.RestApi.get_history" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path for getting the list of all time detected devices</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.restapi.RestApi.get_list">
+<em class="property">static </em><code class="sig-name descname">get_list</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.restapi.RestApi.get_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path for getting the list of active devices</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.restapi.RestApi.reserve_device">
+<em class="property">static </em><code class="sig-name descname">reserve_device</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">did</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.restapi.RestApi.reserve_device" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path for reserving a single active device</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.restapi.RestApi.run">
+<code class="sig-name descname">run</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">host</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">port</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">debug</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">load_dotenv</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.restapi.RestApi.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Start the API</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-registrationserver2.test">
+<span id="registrationserver2-test"></span><h2>registrationserver2.test<a class="headerlink" href="#module-registrationserver2.test" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt id="registrationserver2.test.testingClient">
+<code class="sig-prename descclassname">registrationserver2.test.</code><code class="sig-name descname">testingClient</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.test.testingClient" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="registrationserver2.test.testingServ">
+<code class="sig-prename descclassname">registrationserver2.test.</code><code class="sig-name descname">testingServ</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.test.testingServ" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-registrationserver2.modules.device_base_actor">
+<span id="registrationserver2-modules-device-base-actor"></span><h2>registrationserver2.modules.device_base_actor<a class="headerlink" href="#module-registrationserver2.modules.device_base_actor" title="Permalink to this headline">¶</a></h2>
+<p>Created on 13.10.2020</p>
+<p>&#64;author: rfoerster</p>
+<dl class="py class">
+<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor">
+<em class="property">class </em><code class="sig-prename descclassname">registrationserver2.modules.device_base_actor.</code><code class="sig-name descname">DeviceBaseActor</code><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor" title="Permalink to this definition">¶</a></dt>
+<dd><p class="plantuml">
+<img src="_images/plantuml-0cbfc1f7a1d62d0097084f73e1b12e6bb03b8950.png" alt="&#64;startuml
+actor &quot;Alice&quot; as user
+control &quot;Sarad App&quot; as app
+box &quot;Registration Server 2&quot; #pink
+	entity &quot;rest api&quot; as api
+	entity &quot;device Actor&quot; as deviceactor
+end box
+entity &quot;device with Instrument Server&quot; as device
+user-&gt;app:Changes Config /\n Requests Data
+
+group reservation
+	app-&gt;api:Attempts to Reserve Device
+	api-&gt;deviceactor:relays request
+	deviceactor-&gt;device:relays request
+	device-&gt;deviceactor:accepts request /\n relays port information
+	deviceactor-&gt;device:connects
+	deviceactor-&gt;deviceactor:opens port
+	deviceactor-&gt;api:accepts request /\n relays port information
+	api-&gt;app:relays port
+end
+note over deviceactor: start timeout
+group Data - repeats on unexpected disconnect
+	app-&gt;deviceactor:connects
+	note over deviceactor: refresh timeout
+	group Commands without response
+		app-&gt;deviceactor:sends data
+		note over deviceactor: refresh timeout
+		deviceactor-&gt;device:relays data
+		app-&gt;user:&quot;OK&quot;
+	end
+	group Commands with response
+		app-&gt;deviceactor:sends data
+		note over deviceactor: refresh timeout
+		deviceactor-&gt;device:relays data
+		device-&gt;deviceactor:relays answer
+		deviceactor-&gt;app:relays answer
+	end
+	app-&gt;user:displays answer
+	app-&gt;deviceactor:disconnects
+end
+group free
+	app-&gt;api:frees device
+	api-&gt;deviceactor:relays free
+	deviceactor-&gt;device:relays free
+end
+group timeout reached
+	deviceactor-&gt;device:sends free
+end
+collections cake
+user-&gt;cake:has some
+&#64;enduml
+"/>
+</p>
+<dl class="py attribute">
+<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.ACCEPTED_MESSAGES">
+<code class="sig-name descname">ACCEPTED_MESSAGES</code><em class="property"> = {'ECHO': '__echo__', 'FREE': '__free__', 'KILL': '__kill__', 'RESERVE': '__reserve__', 'SEND': '__send__', 'SEND_FREE': '__send_free__', 'SEND_RESERVE': '__send_reserve__', 'SETUP': '__setup__'}</em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.ACCEPTED_MESSAGES" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines magic methods that are called when the specific message is received by the actor</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.receiveMessage">
+<code class="sig-name descname">receiveMessage</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">msg</span></em>, <em class="sig-param"><span class="n">sender</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.receiveMessage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handles received Actor messages / verification of the message format</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.reservation">
+<code class="sig-name descname">reservation</code><em class="property">: dict</em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.reservation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.setup_done">
+<code class="sig-name descname">setup_done</code><em class="property"> = False</em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.setup_done" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-registrationserver2.modules.rfc2217.rfc2217_actor">
+<span id="registrationserver2-modules-rfc2217-rfc2217-actor"></span><h2>registrationserver2.modules.rfc2217.rfc2217_actor<a class="headerlink" href="#module-registrationserver2.modules.rfc2217.rfc2217_actor" title="Permalink to this headline">¶</a></h2>
+<p>Created on 14.10.2020</p>
+<p>&#64;author: rfoerster</p>
+<dl class="py class">
+<dt id="registrationserver2.modules.rfc2217.rfc2217_actor.Rfc2217Actor">
+<em class="property">class </em><code class="sig-prename descclassname">registrationserver2.modules.rfc2217.rfc2217_actor.</code><code class="sig-name descname">Rfc2217Actor</code><a class="headerlink" href="#registrationserver2.modules.rfc2217.rfc2217_actor.Rfc2217Actor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Actor for dealing with RFC2217 Connections, creates and maintains
+a RFC2217Protocol handler and relays messages towards it
+<a class="reference external" href="https://pythonhosted.org/pyserial/pyserial_api.html#module-serial.aio">https://pythonhosted.org/pyserial/pyserial_api.html#module-serial.aio</a></p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-registrationserver2.modules.rfc2217.mdns_listener">
+<span id="registrationserver2-modules-rfc2217-mdns-listener"></span><h2>registrationserver2.modules.rfc2217.mdns_listener<a class="headerlink" href="#module-registrationserver2.modules.rfc2217.mdns_listener" title="Permalink to this headline">¶</a></h2>
+<p>Created on 30.09.2020</p>
+<p>&#64;author: rfoerster</p>
+<dl class="py class">
+<dt id="registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener">
+<em class="property">class </em><code class="sig-prename descclassname">registrationserver2.modules.rfc2217.mdns_listener.</code><code class="sig-name descname">SaradMdnsListener</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">_type</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener" title="Permalink to this definition">¶</a></dt>
+<dd><p class="plantuml">
+<img src="_images/plantuml-6101aba0d61a9826e2e4f98115b07fd7cf8aef1f.png" alt="&#64;startuml
+actor &quot;Service Employee&quot; as user
+entity &quot;Device with Instrument Server&quot; as is2
+box &quot;RegistrationServer 2&quot;
+entity &quot;SaradMdnsListener&quot; as rs2
+entity &quot;mDNS Actor&quot; as mdnsactor
+database &quot;Device List&quot; as list
+end box
+user -&gt; is2 : connect to local network
+is2 -&gt; rs2 : Sends mDNS over multicast
+rs2 -&gt; list : creates / updates device description file
+rs2 -&gt; list : links device into the available list
+rs2 -&gt; mdnsactor : creates listener (Actor) to receive commands / data
+user -&gt; is2 : disconnects from network
+is2 -&gt; rs2 : sends disconnect over mDNS
+rs2 -&gt; list : unlinks device from the available list
+rs2 -&gt; mdnsactor: destroy
+&#64;enduml
+"/>
+</p>
+<dl class="py method">
+<dt id="registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener.add_service">
+<code class="sig-name descname">add_service</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">zc</span><span class="p">:</span> <span class="n">zeroconf.Zeroconf</span></em>, <em class="sig-param"><span class="n">type_</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">name</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener.add_service" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook, being called when a new service
+representing a device is being detected</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener.convert_properties">
+<em class="property">static </em><code class="sig-name descname">convert_properties</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">info</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">name</span><span class="o">=</span><span class="default_value">''</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener.convert_properties" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function to convert mdns service information
+to the desired yaml format</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener.remove_service">
+<code class="sig-name descname">remove_service</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">zc</span><span class="p">:</span> <span class="n">zeroconf.Zeroconf</span></em>, <em class="sig-param"><span class="n">type_</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">name</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener.remove_service" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook, being called when a regular shutdown of a service
+representing a device is being detected</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener.update_service">
+<code class="sig-name descname">update_service</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">zc</span><span class="p">:</span> <span class="n">zeroconf.Zeroconf</span></em>, <em class="sig-param"><span class="n">type_</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">name</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span> &#x2192; None<a class="headerlink" href="#registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener.update_service" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hook, being called when a service
+representing a device is being updated</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-registrationserver2.modules.device_actor_manager">
+<span id="registrationserver2-modules-device-actor-manager"></span><h2>registrationserver2.modules.device_actor_manager<a class="headerlink" href="#module-registrationserver2.modules.device_actor_manager" title="Permalink to this headline">¶</a></h2>
+<p>Created on 08.12.2020</p>
+<p>&#64;author: rfoerster</p>
+<dl class="py class">
+<dt id="registrationserver2.modules.device_actor_manager.DeviceActorManager">
+<em class="property">class </em><code class="sig-prename descclassname">registrationserver2.modules.device_actor_manager.</code><code class="sig-name descname">DeviceActorManager</code><a class="headerlink" href="#registrationserver2.modules.device_actor_manager.DeviceActorManager" title="Permalink to this definition">¶</a></dt>
+<dd><p>classdocs</p>
+<dl class="py attribute">
+<dt id="registrationserver2.modules.device_actor_manager.DeviceActorManager.ACCEPTED_MESSAGES">
+<code class="sig-name descname">ACCEPTED_MESSAGES</code><em class="property"> = {'CREATE': '__create__', 'ECHO': '__echo__', 'KILL': '__kill__', 'SETUP': '__setup__'}</em><a class="headerlink" href="#registrationserver2.modules.device_actor_manager.DeviceActorManager.ACCEPTED_MESSAGES" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines magic methods that are called when the specific message is received by the actor</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="registrationserver2.modules.device_actor_manager.DeviceActorManager.actors">
+<code class="sig-name descname">actors</code><em class="property">: dict</em><a class="headerlink" href="#registrationserver2.modules.device_actor_manager.DeviceActorManager.actors" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.modules.device_actor_manager.DeviceActorManager.receiveMessage">
+<code class="sig-name descname">receiveMessage</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">msg</span></em>, <em class="sig-param"><span class="n">sender</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.modules.device_actor_manager.DeviceActorManager.receiveMessage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handles received Actor messages / verification of the message format</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Registration Server</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="use_case.html">Overview and Use Case</a></li>
+<li class="toctree-l1"><a class="reference internal" href="classes.html">UML Class Diagram</a></li>
+<li class="toctree-l1"><a class="reference internal" href="folder_structure.html">Folder Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="actor_messages.html">Actor Messages</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Modules</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.main">registrationserver2.main</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.config">registrationserver2.config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.redirector_actor">registrationserver2.redirector_actor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.restapi">registrationserver2.restapi</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.test">registrationserver2.test</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.modules.device_base_actor">registrationserver2.modules.device_base_actor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.modules.rfc2217.rfc2217_actor">registrationserver2.modules.rfc2217.rfc2217_actor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.modules.rfc2217.mdns_listener">registrationserver2.modules.rfc2217.mdns_listener</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.modules.device_actor_manager">registrationserver2.modules.device_actor_manager</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="actor_messages.html" title="previous chapter">Actor Messages</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2021, Riccardo Förster.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.4.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/modules.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

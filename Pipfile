@@ -18,6 +18,7 @@ hashids = "*"
 pyserial-asyncio = "*"
 paho-mqtt = "*"
 pyyaml = "*"
+appdirs = "*"
 
 [requires]
 python_version = "3.9"

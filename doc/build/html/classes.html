@@ -1,0 +1,149 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UML Class Diagram &#8212; Registration Server 0.1 documentation</title>
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Folder Structure" href="folder_structure.html" />
+    <link rel="prev" title="Overview and Use Case" href="use_case.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="uml-class-diagram">
+<h1>UML Class Diagram<a class="headerlink" href="#uml-class-diagram" title="Permalink to this headline">¶</a></h1>
+<p class="plantuml">
+<img src="_images/plantuml-7caca80c7070ce7e6384cdbd92bf09a8a38b84db.png" alt="&#64;startuml
+class registrationserver2.restapi.RestApi {
+}
+class registrationserver2.modules.device_base_actor.DeviceBaseActor {
+  _config: dict
+  _file: &lt;module 'flask.json' from '/usr/lib/python3.9/site-packages/flask/json/__init__.py'&gt;
+}
+class registrationserver2.modules.rfc2217.rfc2217_actor.Rfc2217Actor {
+  _Rfc2217Actor__port_ident: str
+  _Rfc2217Actor__port: serial.rfc2217.Serial
+}
+class registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener {
+  _SaradMdnsListener__zeroconf: zeroconf.Zeroconf
+  _SaradMdnsListener__browser: zeroconf.ServiceBrowser
+  _SaradMdnsListener__folder_history: str
+  _SaradMdnsListener__folder_available: str
+  _SaradMdnsListener__type: str
+}
+class registrationserver2.redirector_actor.RedirectorActor {
+  _sock: &lt;module 'socket' from '/usr/lib/python3.9/socket.py'&gt;
+  _sockclient: SockInfo
+  _device: &lt;module 'registrationserver2.modules.device_base_actor' from '/home/strey/Projekte/src-registrationserver2/src/registrationserver2/modules/device_base_actor.py'&gt;
+}
+class registrationserver2.redirector_actor.SockInfo {
+  address: str
+  port: int
+}
+class registrationserver2.redirector_actor.SocketClient {
+  client_socket: &lt;module 'socket' from '/usr/lib/python3.9/socket.py'&gt;
+  client_address: SockInfo
+}
+registrationserver2.modules.device_base_actor.DeviceBaseActor &lt;|-- registrationserver2.modules.rfc2217.rfc2217_actor.Rfc2217Actor
+registrationserver2.redirector_actor.RedirectorActor *-- registrationserver2.redirector_actor.SockInfo
+registrationserver2.redirector_actor.SocketClient *-- registrationserver2.redirector_actor.SockInfo
+&#64;enduml
+"/>
+</p>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Registration Server</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="use_case.html">Overview and Use Case</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">UML Class Diagram</a></li>
+<li class="toctree-l1"><a class="reference internal" href="folder_structure.html">Folder Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="actor_messages.html">Actor Messages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">Modules</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="use_case.html" title="previous chapter">Overview and Use Case</a></li>
+      <li>Next: <a href="folder_structure.html" title="next chapter">Folder Structure</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2021, Riccardo Förster.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.4.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/classes.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
