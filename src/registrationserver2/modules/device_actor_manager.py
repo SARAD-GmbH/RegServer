@@ -4,10 +4,11 @@ Created on 08.12.2020
 @author: rfoerster
 '''
 import logging
-from thespian.actors import Actor, ActorExitRequest, ActorAddress
+
+from registrationserver2 import actor_system
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
-from registrationserver2 import actor_system
+from thespian.actors import Actor, ActorAddress, ActorExitRequest
 
 logging.getLogger('Registration Server V2').info(f'{__package__}->{__file__}')
 
