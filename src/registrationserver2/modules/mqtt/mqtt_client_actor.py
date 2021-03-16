@@ -5,6 +5,7 @@ from appdirs import AppDirs  # type: ignore
 import signal
 import socket
 import sys
+
 # import queue
 import json
 
@@ -22,6 +23,7 @@ import yaml
 from appdirs import AppDirs  # type: ignore
 from registrationserver2 import actor_system, theLogger
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
+
 # [???] causing runtime errors -- MS, 2021-03-16
 # from registrationserver2.modules.mqtt.mqtt_subscriber import SARAD_MQTT_SUBSCRIBER
 from thespian.actors import Actor, ActorAddress, ActorExitRequest

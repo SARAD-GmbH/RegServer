@@ -55,7 +55,7 @@ RETURN_MESSAGES = {
     #     "ERROR_CODE": 9,
     # },
     "PUBLISH_FAILURE": {
-        "ERROR": "Failed to publish the message", 
+        "ERROR": "Failed to publish the message",
         "ERROR_CODE": 10,
     },
     "SUBSCRIBE_FAILURE": {
@@ -67,7 +67,7 @@ RETURN_MESSAGES = {
         "ERROR_CODE": 12,
     },
     "NO_MQTT_ACTOR": {
-        "ERROR": "There is no such MQTT Actor created", 
+        "ERROR": "There is no such MQTT Actor created",
         "ERROR_CODE": 13,
     },
     "PREPARE_FAILURE": {

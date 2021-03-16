@@ -19,17 +19,18 @@ import paho.mqtt.client  # type: ignore
 import thespian
 
 import yaml
+
 # [???] Why? -- MS, 2021-03-16
 # from curses.textpad import str
 from _testmultiphase import Str, str_const
 from appdirs import AppDirs  # type: ignore
+
 # from builtins import None
 from pip._internal.utils.compat import str_to_display
 from registrationserver2 import theLogger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
-from registrationserver2.modules.mqtt.mqtt_client_actor import \
-    SARAD_MQTT_CLIENT
+from registrationserver2.modules.mqtt.mqtt_client_actor import SARAD_MQTT_CLIENT
 
 # [???] Why? -- MS, 2021-03-16
 # from pip._vendor.urllib3.contrib._securetransport.low_level import _is_identity
