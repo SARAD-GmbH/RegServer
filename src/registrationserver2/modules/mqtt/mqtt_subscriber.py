@@ -29,13 +29,13 @@ class SaradMqttSubscriber(Actor):
     classdocs
     """
 
-    def __init__(self, params):
+    def __init__(self):
         """
         Constructor
         """
 
 
 # [???] Causing runtime errors -- MS, 2021-03-16
-# SARAD_MQTT_SUBSCRIBER: ActorAddress = actor_system.createActor(
-#     SaradMqttSubscriber, type(SaradMqttSubscriber).__name__
-# )
+SARAD_MQTT_SUBSCRIBER: ActorAddress = actor_system.createActor(
+    SaradMqttSubscriber, type(SaradMqttSubscriber).__name__
+)

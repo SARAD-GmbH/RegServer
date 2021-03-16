@@ -1,9 +1,5 @@
 """
-<<<<<<< HEAD
-Created on 2021Äê3ÔÂ12ÈÕ
-=======
 Created on 2021-03-12
->>>>>>> 0bad1af952a4b7c3b1fa67053d5288c402b48b31
 
 @author: Yixiang
 """

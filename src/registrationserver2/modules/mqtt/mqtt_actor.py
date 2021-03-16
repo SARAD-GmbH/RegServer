@@ -5,7 +5,6 @@ Created on 2021-02-16
 """
 import json
 import logging
-
 import os
 import queue
 import signal
@@ -17,28 +16,26 @@ from locale import str
 
 import paho.mqtt.client  # type: ignore
 import thespian
-
 import yaml
-
 # [???] Why? -- MS, 2021-03-16
 # from curses.textpad import str
 from _testmultiphase import Str, str_const
 from appdirs import AppDirs  # type: ignore
-
 # from builtins import None
 from pip._internal.utils.compat import str_to_display
 from registrationserver2 import theLogger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
-from registrationserver2.modules.mqtt.mqtt_client_actor import SARAD_MQTT_CLIENT
+from registrationserver2.modules.mqtt.mqtt_client_actor import \
+    SARAD_MQTT_CLIENT
+# [???] Why? -- MS, 2021-03-16
+# from pylint.checkers.strings import str_eval
+from thespian.actors import ActorAddress
 
 # [???] Why? -- MS, 2021-03-16
 # from pip._vendor.urllib3.contrib._securetransport.low_level import _is_identity
 # logger = logging.getLogger()
 
-# [???] Why? -- MS, 2021-03-16
-# from pylint.checkers.strings import str_eval
-from thespian.actors import ActorAddress
 
 logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
 
@@ -49,15 +46,38 @@ class MqttActor(DeviceBaseActor):
     Actor interacting with a new device
     """
 
-    self.ACCEPTED_MESSAGES[
-        "MQTT_Message"
-    ] = "__mqtt_message__"  # called when receive a MQTT message
-    self.ACCEPTED_MESSAGES[
-        "Property"
-    ] = "__property_store__"  # called to store the properties of this MQTT Actor, like its name and the ID of the IS MQTT that it takes care of
-    self.ACCEPTED_MESSAGES[
-        "PREPARE"
-    ] = "__prepare__"  # called after the Subscriber successfully sends the properties to this MQTT Actor
+    def __init__(self):
+        super.__init__()
+        self.reserve_req_msg = (
+            {  # how to get these information: App name, Host, User name???
+                "Req": "reserve",
+                "App": None,
+                "Host": None,
+                "User": None,
+            }
+        )  # default reserve-request
+        self.free_req_msg = {"Req": "free"}  # default free-request
+        self.is_id: str
+        self.instr_id: str
+        self.actor_name: str
+        self.actor_adr: ActorAddress
+        self.allowed_sys_topics = {
+            "CMD": "/cmd",
+            "META": "/meta",
+            "CTRL": "/control",
+            "MSG": "/msg",
+        }
+        self.pub_req_msg = {"topic": None, "payload": None, "qos": 0}
+        self.sub_req_msg = {"topic": None, "qos": 0}
+        ACCEPTED_MESSAGES[
+            "MQTT_Message"
+        ] = "__mqtt_message__"  # called when receive a MQTT message
+        ACCEPTED_MESSAGES[
+            "Property"
+        ] = "__property_store__"  # called to store the properties of this MQTT Actor, like its name and the ID of the IS MQTT that it takes care of
+        ACCEPTED_MESSAGES[
+            "PREPARE"
+        ] = "__prepare__"  # called after the Subscriber successfully sends the properties to this MQTT Actor
 
     """
     The receiveMessage() is defined in the DeviceBaseActor class.
@@ -228,27 +248,3 @@ class MqttActor(DeviceBaseActor):
     def __mqtt_message__(self, msg):
         # TODO: handling MQTT messages
         pass
-
-    def __init__(self):
-        super.__init__()
-        self.reserve_req_msg = (
-            {  # how to get these information: App name, Host, User name???
-                "Req": "reserve",
-                "App": None,
-                "Host": None,
-                "User": None,
-            }
-        )  # default reserve-request
-        self.free_req_msg = {"Req": "free"}  # default free-request
-        self.is_id: str
-        self.instr_id: str
-        self.actor_name: str
-        self.actor_adr: ActorAddress
-        self.allowed_sys_topics = {
-            "CMD": "/cmd",
-            "META": "/meta",
-            "CTRL": "/control",
-            "MSG": "/msg",
-        }
-        self.pub_req_msg = {"topic": None, "payload": None, "qos": 0}
-        self.sub_req_msg = {"topic": None, "qos": 0}
