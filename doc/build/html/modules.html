@@ -97,7 +97,7 @@ TODO: Load from yaml file instead of a ‘executable’ file format</p>
 
 <dl class="py attribute">
 <dt id="registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_WRONGTYPE">
-<code class="sig-name descname">ILLEGAL_WRONGTYPE</code><em class="property"> = {'ERROR': 'Wrong Message Type, dictionary Expected', 'ERROR_CODE': 3}</em><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_WRONGTYPE" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">ILLEGAL_WRONGTYPE</code><em class="property"> = {'ERROR': 'Wrong message type, dictionary expected', 'ERROR_CODE': 3}</em><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_WRONGTYPE" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -365,50 +365,20 @@ user-&gt;cake:has some
 </p>
 <dl class="py attribute">
 <dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.ACCEPTED_MESSAGES">
-<code class="sig-name descname">ACCEPTED_MESSAGES</code><em class="property"> = {'ECHO': '__echo__', 'FREE': '__free__', 'KILL': '__kill__', 'RESERVE': '__reserve__', 'SEND': '__send__', 'SETUP': '__setup__'}</em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.ACCEPTED_MESSAGES" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">ACCEPTED_MESSAGES</code><em class="property"> = {'ECHO': '__echo__', 'FREE': '__free__', 'KILL': '__kill__', 'RESERVE': '__reserve__', 'SEND': '__send__', 'SEND_FREE': '__send_free__', 'SEND_RESERVE': '__send_reserve__', 'SETUP': '__setup__'}</em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.ACCEPTED_MESSAGES" title="Permalink to this definition">¶</a></dt>
 <dd><p>Defines magic methods that are called when the specific message is received by the actor</p>
 </dd></dl>
-
-<dl class="py attribute">
-<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.ILLEGAL_NOTIMPLEMENTED">
-<code class="sig-name descname">ILLEGAL_NOTIMPLEMENTED</code><em class="property"> = {'ERROR': 'Not implemented', 'ERROR_CODE': 2}</em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.ILLEGAL_NOTIMPLEMENTED" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.ILLEGAL_STATE">
-<code class="sig-name descname">ILLEGAL_STATE</code><em class="property"> = {'ERROR': 'Actor not setup correctly, make sure to send SETUP message first', 'ERROR_CODE': 5}</em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.ILLEGAL_STATE" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.ILLEGAL_UNKNOWN_COMMAND">
-<code class="sig-name descname">ILLEGAL_UNKNOWN_COMMAND</code><em class="property"> = {'ERROR': 'Unknown Command', 'ERROR_CODE': 4}</em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.ILLEGAL_UNKNOWN_COMMAND" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.ILLEGAL_WRONGFORMAT">
-<code class="sig-name descname">ILLEGAL_WRONGFORMAT</code><em class="property"> = {'ERROR': 'Misformatted or no message sent', 'ERROR_CODE': 1}</em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.ILLEGAL_WRONGFORMAT" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.ILLEGAL_WRONGTYPE">
-<code class="sig-name descname">ILLEGAL_WRONGTYPE</code><em class="property"> = {'ERROR': 'Wrong Message Type, dictionary Expected', 'ERROR_CODE': 3}</em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.ILLEGAL_WRONGTYPE" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.OK">
-<code class="sig-name descname">OK</code><em class="property"> = {'First': True, 'RETURN': 'OK'}</em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.OK" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.OK_SKIPPED">
-<code class="sig-name descname">OK_SKIPPED</code><em class="property"> = {'First': False, 'RETURN': 'OK'}</em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.OK_SKIPPED" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
 
 <dl class="py method">
 <dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.receiveMessage">
 <code class="sig-name descname">receiveMessage</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">msg</span></em>, <em class="sig-param"><span class="n">sender</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.receiveMessage" title="Permalink to this definition">¶</a></dt>
 <dd><p>Handles received Actor messages / verification of the message format</p>
 </dd></dl>
+
+<dl class="py attribute">
+<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.reservation">
+<code class="sig-name descname">reservation</code><em class="property">: dict</em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.reservation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="py attribute">
 <dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.setup_done">
@@ -490,6 +460,34 @@ representing a device is being updated</p>
 </dd></dl>
 
 </div>
+<div class="section" id="module-registrationserver2.modules.device_actor_manager">
+<span id="registrationserver2-modules-device-actor-manager"></span><h2>registrationserver2.modules.device_actor_manager<a class="headerlink" href="#module-registrationserver2.modules.device_actor_manager" title="Permalink to this headline">¶</a></h2>
+<p>Created on 08.12.2020</p>
+<p>&#64;author: rfoerster</p>
+<dl class="py class">
+<dt id="registrationserver2.modules.device_actor_manager.DeviceActorManager">
+<em class="property">class </em><code class="sig-prename descclassname">registrationserver2.modules.device_actor_manager.</code><code class="sig-name descname">DeviceActorManager</code><a class="headerlink" href="#registrationserver2.modules.device_actor_manager.DeviceActorManager" title="Permalink to this definition">¶</a></dt>
+<dd><p>classdocs</p>
+<dl class="py attribute">
+<dt id="registrationserver2.modules.device_actor_manager.DeviceActorManager.ACCEPTED_MESSAGES">
+<code class="sig-name descname">ACCEPTED_MESSAGES</code><em class="property"> = {'CREATE': '__create__', 'ECHO': '__echo__', 'KILL': '__kill__', 'SETUP': '__setup__'}</em><a class="headerlink" href="#registrationserver2.modules.device_actor_manager.DeviceActorManager.ACCEPTED_MESSAGES" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines magic methods that are called when the specific message is received by the actor</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="registrationserver2.modules.device_actor_manager.DeviceActorManager.actors">
+<code class="sig-name descname">actors</code><em class="property">: dict</em><a class="headerlink" href="#registrationserver2.modules.device_actor_manager.DeviceActorManager.actors" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="registrationserver2.modules.device_actor_manager.DeviceActorManager.receiveMessage">
+<code class="sig-name descname">receiveMessage</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">msg</span></em>, <em class="sig-param"><span class="n">sender</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.modules.device_actor_manager.DeviceActorManager.receiveMessage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handles received Actor messages / verification of the message format</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
 </div>
 
 
@@ -511,7 +509,7 @@ representing a device is being updated</p>
 <h3>Navigation</h3>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="use_case.html">Overview and Use Case</a></li>
-<li class="toctree-l1"><a class="reference internal" href="classes.html">UML Class Diagramm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="classes.html">UML Class Diagram</a></li>
 <li class="toctree-l1"><a class="reference internal" href="folder_structure.html">Folder Structure</a></li>
 <li class="toctree-l1"><a class="reference internal" href="actor_messages.html">Actor Messages</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Modules</a><ul>
@@ -523,6 +521,7 @@ representing a device is being updated</p>
 <li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.modules.device_base_actor">registrationserver2.modules.device_base_actor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.modules.rfc2217.rfc2217_actor">registrationserver2.modules.rfc2217.rfc2217_actor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.modules.rfc2217.mdns_listener">registrationserver2.modules.rfc2217.mdns_listener</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.modules.device_actor_manager">registrationserver2.modules.device_actor_manager</a></li>
 </ul>
 </li>
 </ul>

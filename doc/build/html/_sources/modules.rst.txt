@@ -54,6 +54,13 @@ registrationserver2.modules.rfc2217.rfc2217_actor
 registrationserver2.modules.rfc2217.mdns_listener
 -------------------------------------------------
 
-.. automodule:: registrationserver2.modules.rfc2217.mdns_listener
+.. automodule :: registrationserver2.modules.rfc2217.mdns_listener
+   :members:
+   :undoc-members:
+
+registrationserver2.modules.device_actor_manager
+------------------------------------------------
+
+.. automodule :: registrationserver2.modules.device_actor_manager
    :members:
    :undoc-members:
