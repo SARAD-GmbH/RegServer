@@ -69,13 +69,13 @@ class MqttActor(DeviceBaseActor):
         }
         self.pub_req_msg = {"topic": None, "payload": None, "qos": 0}
         self.sub_req_msg = {"topic": None, "qos": 0}
-        ACCEPTED_MESSAGES[
+        self.ACCEPTED_MESSAGES[
             "MQTT_Message"
         ] = "__mqtt_message__"  # called when receive a MQTT message
-        ACCEPTED_MESSAGES[
+        self.ACCEPTED_MESSAGES[
             "Property"
         ] = "__property_store__"  # called to store the properties of this MQTT Actor, like its name and the ID of the IS MQTT that it takes care of
-        ACCEPTED_MESSAGES[
+        self.ACCEPTED_MESSAGES[
             "PREPARE"
         ] = "__prepare__"  # called after the Subscriber successfully sends the properties to this MQTT Actor
 
