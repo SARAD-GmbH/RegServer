@@ -10,16 +10,12 @@ import sys
 import traceback
 
 from flask import Flask, Response, json, request
-from thespian.actors import Actor
+from thespian.actors import Actor  # type: ignore
 
 import registrationserver2
 from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
                                  FREE_KEYWORD, PATH_AVAILABLE, PATH_HISTORY,
                                  RESERVE_KEYWORD, theLogger)
-
-if __name__ == "__main__":
-    exec(open(registrationserver2.mainpy).read())
-    sys.exit()
 
 theLogger.info("%s -> %s", __package__, __file__)
 

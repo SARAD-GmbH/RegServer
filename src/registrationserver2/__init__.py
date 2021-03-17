@@ -3,13 +3,13 @@ Registration Server 2 module,
 connects all kinds of Instrument Server 2 with the user applications
 """
 # standard libraries
-import os
-import sys
 import logging
+import os
 import re
+import sys
 
 # 3rd party
-from thespian.actors import ActorSystem
+from thespian.actors import ActorSystem  # type: ignore
 
 # local
 from registrationserver2.config import config
@@ -17,15 +17,6 @@ from registrationserver2.config import config
 # actor_system :ActorSystem = ActorSystem('multiprocTCPBase')
 actor_system: ActorSystem = ActorSystem()
 
-logging.basicConfig(
-    format="[%(name)s]\t[%(levelname)s]:\t%(message)s", level=logging.DEBUG
-)
-logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
-
-mainpy = fr"{os.path.dirname(os.path.realpath(__file__))}{os.path.sep}main.py"
-if __name__ == "__main__":
-    exec(open(mainpy).read())
-    sys.exit()
 
 # =======================
 # Default values for configuration,
@@ -59,7 +50,7 @@ if theLogger.handlers:
         theLogger.removeHandler(handler)
 
 streamh = logging.StreamHandler()
-logging.basicConfig(level=logging.CRITICAL)  # , format=registrationserver2.formatter)
+logging.basicConfig(level=logging.CRITICAL)
 streamh.setFormatter(formatter)
 werklog.addHandler(streamh)
 werklog.addHandler(streamh)
@@ -67,7 +58,7 @@ werklog.addHandler(streamh)
 theLogger.setLevel(config["LEVEL"])
 werklog.setLevel(logging.CRITICAL)
 
-theLogger.info("Test")
+theLogger.info("Logging system initialized.")
 
 # ==========================================
 # Folders structure / API names for devices and device history
