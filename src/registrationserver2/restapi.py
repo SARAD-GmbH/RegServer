@@ -68,7 +68,7 @@ class RestApi(Actor):
                             "Identification", None
                         )
                     }
-        except BaseException as error:  # pylint: disable=W0703
+        except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
                 "! %s\t%s\t%s\t%s",
                 type(error),
@@ -76,12 +76,9 @@ class RestApi(Actor):
                 vars(error) if isinstance(error, dict) else "-",
                 traceback.format_exc(),
             )
-        except:  # pylint: disable=W0702
-            theLogger.error("!!!")
-        resp = Response(
+        return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
-        return resp
 
     @staticmethod
     @api.route("/list/<did>", methods=["GET"])
@@ -100,7 +97,7 @@ class RestApi(Actor):
                         open(f"{FOLDER_AVAILABLE}{os.path.sep}{did}")
                     ).get("Identification", None)
                 }
-        except BaseException as error:  # pylint: disable=W0703
+        except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
                 "! %s\t%s\t%s\t%s",
                 type(error),
@@ -108,13 +105,9 @@ class RestApi(Actor):
                 vars(error) if isinstance(error, dict) else "-",
                 traceback.format_exc(),
             )
-        except:  # pylint: disable=W0702
-            theLogger.error("!!!")
-
-        resp = Response(
+        return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
-        return resp
 
     @staticmethod
     @api.route(f"/{PATH_HISTORY}", methods=["GET"])
@@ -130,7 +123,7 @@ class RestApi(Actor):
                             open(f"{FOLDER_HISTORY}{os.path.sep}{dir_entry}")
                         ).get("Identification", None)
                     }
-        except BaseException as error:  # pylint: disable=W0703
+        except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
                 "! %s\t%s\t%s\t%s",
                 type(error),
@@ -138,12 +131,9 @@ class RestApi(Actor):
                 vars(error) if isinstance(error, dict) else "-",
                 traceback.format_exc(),
             )
-        except:  # pylint: disable=W0702
-            theLogger.error("!!!")
-        resp = Response(
+        return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
-        return resp
 
     @staticmethod
     @api.route(f"/{PATH_HISTORY}/<did>", methods=["GET"])
@@ -161,7 +151,7 @@ class RestApi(Actor):
                         open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
                     ).get("Identification", None)
                 }
-        except BaseException as error:  # pylint: disable=W0703
+        except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
                 "! %s\t%s\t%s\t%s",
                 type(error),
@@ -169,12 +159,9 @@ class RestApi(Actor):
                 vars(error) if isinstance(error, dict) else "-",
                 traceback.format_exc(),
             )
-        except:  # pylint: disable=W0702
-            theLogger.error("!!!")
-        resp = Response(
+        return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
-        return resp
 
     @staticmethod
     @api.route(f"/list/<did>/{RESERVE_KEYWORD}", methods=["GET"])
@@ -187,7 +174,7 @@ class RestApi(Actor):
         attribute_who = request.args.get("who")
         try:
             request_host = socket.gethostbyaddr(request.environ["REMOTE_ADDR"])[0]
-        except BaseException as error:  # pylint: disable=W0703
+        except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
                 "! %s\t%s\t%s\t%s",
                 type(error),
@@ -195,7 +182,7 @@ class RestApi(Actor):
                 vars(error) if isinstance(error, dict) else "-",
                 traceback.format_exc(),
             )
-        except:  # pylint: disable=W0702
+        else:
             request_host = request.environ["REMOTE_ADDR"]
         theLogger.info("%s: %s --> %s", did, attribute_who, request_host)
 
@@ -219,7 +206,7 @@ class RestApi(Actor):
                         open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
                     ).get("Identification", None)
                 }
-        except BaseException as error:  # pylint: disable=W0703
+        except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
                 "! %s\t%s\t%s\t%s",
                 type(error),
@@ -227,15 +214,10 @@ class RestApi(Actor):
                 vars(error) if isinstance(error, dict) else "-",
                 traceback.format_exc(),
             )
-        except:  # pylint: disable=W0702
-            theLogger.error("!!!")
-
         answer[did]["Reservation"] = reservation
-        resp = Response(
+        return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
-
-        return resp
 
     @staticmethod
     @api.route(f"/list/<did>/{FREE_KEYWORD}", methods=["GET"])
