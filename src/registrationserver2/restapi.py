@@ -4,13 +4,12 @@ Created on 02.10.2020
 @author: rfoerster
 """
 
-import socket
 import os
+import socket
 import sys
 import traceback
-import logging
 
-from flask import Flask, json, request, Response
+from flask import Flask, Response, json, request
 from thespian.actors import Actor
 
 import registrationserver2
@@ -20,7 +19,7 @@ if __name__ == "__main__":
     exec(open(registrationserver2.mainpy).read())
     sys.exit()
 
-logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
+theLogger.info("%s -> %s", __package__, __file__)
 
 
 class RestApi(Actor):
@@ -71,7 +70,11 @@ class RestApi(Actor):
                     }
         except BaseException as error:  # pylint: disable=W0703
             theLogger.error(
-                f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                "! %s\t%s\t%s\t%s",
+                type(error),
+                error,
+                vars(error) if isinstance(error, dict) else "-",
+                traceback.format_exc(),
             )
         except:  # pylint: disable=W0702
             theLogger.error("!!!")
@@ -103,7 +106,11 @@ class RestApi(Actor):
                 }
         except BaseException as error:  # pylint: disable=W0703
             theLogger.error(
-                f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                "! %s\t%s\t%s\t%s",
+                type(error),
+                error,
+                vars(error) if isinstance(error, dict) else "-",
+                traceback.format_exc(),
             )
         except:  # pylint: disable=W0702
             theLogger.error("!!!")
@@ -133,7 +140,11 @@ class RestApi(Actor):
                     }
         except BaseException as error:  # pylint: disable=W0703
             theLogger.error(
-                f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                "! %s\t%s\t%s\t%s",
+                type(error),
+                error,
+                vars(error) if isinstance(error, dict) else "-",
+                traceback.format_exc(),
             )
         except:  # pylint: disable=W0702
             theLogger.error("!!!")
@@ -162,7 +173,11 @@ class RestApi(Actor):
                 }
         except BaseException as error:  # pylint: disable=W0703
             theLogger.error(
-                f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                "! %s\t%s\t%s\t%s",
+                type(error),
+                error,
+                vars(error) if isinstance(error, dict) else "-",
+                traceback.format_exc(),
             )
         except:  # pylint: disable=W0702
             theLogger.error("!!!")
@@ -184,11 +199,15 @@ class RestApi(Actor):
             request_host = socket.gethostbyaddr(request.environ["REMOTE_ADDR"])[0]
         except BaseException as error:  # pylint: disable=W0703
             theLogger.error(
-                f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                "! %s\t%s\t%s\t%s",
+                type(error),
+                error,
+                vars(error) if isinstance(error, dict) else "-",
+                traceback.format_exc(),
             )
         except:  # pylint: disable=W0702
             request_host = request.environ["REMOTE_ADDR"]
-        theLogger.info(f"{did}:{attribute_who} --> {request_host}")
+        theLogger.info("%s: %s --> %s", did, attribute_who, request_host)
 
         if not registrationserver2.matchid.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
@@ -214,7 +233,11 @@ class RestApi(Actor):
                 }
         except BaseException as error:  # pylint: disable=W0703
             theLogger.error(
-                f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                "! %s\t%s\t%s\t%s",
+                type(error),
+                error,
+                vars(error) if isinstance(error, dict) else "-",
+                traceback.format_exc(),
             )
         except:  # pylint: disable=W0702
             theLogger.error("!!!")
@@ -238,7 +261,7 @@ class RestApi(Actor):
 
     def run(self, host=None, port=None, debug=None, load_dotenv=True):
         """Start the API"""
-        theLogger.info(f"Starting Api at {host}:{port}")
+        theLogger.info("Starting API at %s:%d", host, port)
         std = sys.stdout
         sys.stdout = RestApi.Dummy
         self.api.run(host=host, port=port, debug=debug, load_dotenv=load_dotenv)
