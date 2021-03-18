@@ -3,20 +3,19 @@ Created on 13.10.2020
 
 @author: rfoerster
 """
-import logging
 import os
 import traceback
 from builtins import staticmethod
 from json.decoder import JSONDecodeError
 
 import registrationserver2
-import thespian
+import thespian.actors  # type: ignore
 from flask import json
-from registrationserver2 import theLogger
+from registrationserver2 import FOLDER_HISTORY, theLogger
 from registrationserver2.modules.messages import RETURN_MESSAGES
-from thespian.actors import Actor
+from thespian.actors import Actor  # type: ignore
 
-logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
+theLogger.info("%s -> %s", __package__, __file__)
 
 
 class DeviceBaseActor(Actor):
@@ -24,26 +23,36 @@ class DeviceBaseActor(Actor):
     .. uml :: uml-device_base_actor.puml
     """
 
-    ACCEPTED_MESSAGES = {
-        # Those needs implementing
-        "SEND": "__send__",  # is being called when the end-user-application wants to send data, should return the direct or indirect response from the device, None in case the device is not reachable (so the end application can set the timeout itself)
-        "SEND_RESERVE": "__send_reserve__",  # is being called when the end-user-application wants to reserve the directly or indirectly connected device for exclusive communication, should return if a reservation is currently possible
+    # Defines magic methods that are called when the specific message is
+    # received by the actor
+    ACCEPTED_MESSAGES = {  # Those needs implementing
+        # SEND is being called when the end-user-application wants to send data,
+        # should return the direct or indirect response from the device, None in
+        # case the device is not reachable (so the end application can set the
+        # timeout itself)
+        "SEND": "__send__",
+        # SEND_RESERVE is being called when the end-user-application wants to reserve the
+        # directly or indirectly connected device for exclusive communication,
+        # should return if a reservation is currently possible
+        "SEND_RESERVE": "__send_reserve__",
         "SEND_FREE": "__send_free__",
         # Those are implemented by the base class (this class)
-        "ECHO": "__echo__",  # should returns what is send, main use is for testing purpose at this point
-        "FREE": "__free__",  # is being called when the end-user-application is done requesting / sending data, should return true as soon the freeing process has been initialized
+        # ECHO should return what is send, main use is for testing purpose at this point
+        "ECHO": "__echo__",
+        # is being called when the end-user-application is done requesting /
+        # sending data, should return true as soon the freeing process has been
+        # initialized
+        "FREE": "__free__",
         "SETUP": "__setup__",
         "RESERVE": "__reserve__",
         "KILL": "__kill__",
     }
-    """
-    Defines magic methods that are called when the specific message is received by the actor
-    """
 
-    _config: dict = {}
-    _file: json
-    setup_done = False
-    reservation: dict
+    def __init__(self):
+        super().__init__()
+        self._config: dict = {}
+        self._file: json
+        self.setup_done: bool = False
 
     def receiveMessage(self, msg, sender):
         """
@@ -84,10 +93,8 @@ class DeviceBaseActor(Actor):
     def __setup__(self, msg: dict) -> dict:
         if not self.setup_done:
             self._config = msg
-            filename = (
-                fr"{registrationserver2.FOLDER_HISTORY}{os.path.sep}{self.globalName}"
-            )
-            registrationserver2.theLogger.info(f"Setting up Actor {self.globalName}")
+            filename = fr"{FOLDER_HISTORY}{os.path.sep}{self.globalName}"
+            theLogger.info("Setting up Actor %s", self.globalName)
             if os.path.isfile(filename):
                 try:
                     file = open(filename)
@@ -95,25 +102,25 @@ class DeviceBaseActor(Actor):
                     self.setup_done = True
                     return RETURN_MESSAGES.get("OK")
                 except JSONDecodeError as error:
-                    registrationserver2.theLogger.error(f" Failed to parse {filename}")
+                    theLogger.error("Failed to parse %s", filename)
                     return RETURN_MESSAGES.get("ILLEGAL_STATE")
-                except BaseException as error:  # pylint: disable=W0703
-                    registrationserver2.theLogger.error(
-                        f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                except Exception as error:  # pylint: disable=broad-except
+                    theLogger.error(
+                        "! %s\t%s\t%s\t%s",
+                        type(error),
+                        error,
+                        vars(error) if isinstance(error, dict) else "-",
+                        traceback.format_exc(),
                     )
                     return RETURN_MESSAGES.get("ILLEGAL_STATE")
             else:
                 return RETURN_MESSAGES.get("ILLEGAL_STATE")
         else:
-            registrationserver2.theLogger.info(
-                f"Actor already set up with {self._config}"
-            )
+            theLogger.info("Actor already set up with %s", self._config)
             return RETURN_MESSAGES.get("OK_SKIPPED")
 
-    def __kill__(self, msg: dict) -> dict:  # TODO move to Actor Manager
-        registrationserver2.theLogger.info(
-            f"Shutting down actor {self.globalName}, Message : {msg}"
-        )
+    def __kill__(self, msg: dict):  # TODO move to Actor Manager
+        theLogger.info("Shutting down actor %s, Message: %s", self.globalName, msg)
         theLogger.info(
             registrationserver2.actor_system.ask(
                 self.myAddress, thespian.actors.ActorExitRequest()
@@ -123,9 +130,3 @@ class DeviceBaseActor(Actor):
 
     def __reserve__(self, msg: dict) -> dict:
         pass
-
-    def __init__(self):
-        super().__init__()
-        self._config: dict = {}
-        self._file: json
-        self.setup_done = False
