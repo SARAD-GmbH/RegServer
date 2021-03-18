@@ -3,25 +3,22 @@ Created on 30.09.2020
 
 @author: rfoerster
 """
-import os
 import ipaddress
-import socket
 import json
-import traceback
+import os
+import socket
 import threading
-import logging
+import traceback
 
-import hashids
-from zeroconf import Zeroconf, ServiceBrowser, ServiceListener
-
+import hashids  # type: ignore
 import registrationserver2
+from registrationserver2 import FOLDER_AVAILABLE, FOLDER_HISTORY, theLogger
 from registrationserver2.config import config
-from registrationserver2 import theLogger
-from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
-
 from registrationserver2.modules.messages import RETURN_MESSAGES
+from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
+from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
-logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
+theLogger.info("%s -> %s", __package__, __file__)
 
 
 class SaradMdnsListener(ServiceListener):
@@ -42,9 +39,10 @@ class SaradMdnsListener(ServiceListener):
         """Hook, being called when a new service
         representing a device is being detected"""
         with self.__lock:
-            theLogger.info(f"[Add]:\tFound: Service of type {type_}. Name: {name}")
+            theLogger.info("[Add]:\tFound: Service of type %s. Name: %s", type_, name)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
-            theLogger.info(f"[Add]:\t{info.properties}")
+            if info is not None:
+                theLogger.info("[Add]:\t%s", info.properties)
             # serial = info.properties.get(b'SERIAL', b'UNKNOWN').decode("utf-8")
             filename = fr"{self.__folder_history}{name}"
             link = fr"{self.__folder_available}{name}"
@@ -52,19 +50,21 @@ class SaradMdnsListener(ServiceListener):
                 data = self.convert_properties(name=name, info=info)
                 if data:
                     with open(filename, "w+") as file_stream:
-                        file_stream.write(data) if data else theLogger.error(
-                            f"[Add]:\tFailed to convert Properties from {type_}, {name}"
-                        )  # pylint: disable=W0106
+                        file_stream.write(data)
                     if not os.path.exists(link):
-                        theLogger.info(f"Linking {link} to {filename}")
+                        theLogger.info("Linking %s to %s", link, filename)
                         os.link(filename, link)
-            except BaseException as error:  # pylint: disable=W0703
+                else:
+                    theLogger.error(
+                        "[Add]:\tFailed to convert properties from %s, %s", type_, name
+                    )
+            except Exception as error:  # pylint: disable=broad-except
                 theLogger.error(
-                    f'[Add]:\t {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
-                )
-            except:  # pylint: disable=W0702
-                theLogger.error(
-                    f"[Add]:\tCould not write properties of device with Name: {name} and Type: {type_}"
+                    "[Add]:\t%s\t%s\t%s\t%s",
+                    type(error),
+                    error,
+                    vars(error) if isinstance(error, dict) else "-",
+                    traceback.format_exc(),
                 )
             # if an actor already exists this will return
             # the address of the excisting one, else it will create a new one
@@ -94,12 +94,12 @@ class SaradMdnsListener(ServiceListener):
         """Hook, being called when a regular shutdown of a service
         representing a device is being detected"""
         with self.__lock:
-            theLogger.info(f"[Del]:\tRemoved: Service of type {type_}. Name: {name}")
+            theLogger.info("[Del]:\tRemoved: Service of type %s. Name: %s", type_, name)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             # serial = info.properties.get("SERIAL", "UNKNOWN")
             # filename= fr'{self.__folder_history}{serial}'
             link = fr"{self.__folder_available}{name}"
-            theLogger.debug("[Del]:\tInfo: %s" % (info))
+            theLogger.debug("[Del]:\tInfo: %s", info)
             if os.path.exists(link):
                 os.unlink(link)
             this_actor = registrationserver2.actor_system.createActor(
@@ -114,11 +114,11 @@ class SaradMdnsListener(ServiceListener):
         """Hook, being called when a service
         representing a device is being updated"""
         with self.__lock:
-            theLogger.info(f"[Update]:\tService of type {type_}. Name: {name}")
+            theLogger.info("[Update]:\tService of type %s. Name: %s", type_, name)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
-            theLogger.info(f"[Update]:\tGot Info: {(info)}")
             if not info:
                 return
+            theLogger.info("[Update]:\tGot Info: %s", info)
             # serial = info.properties.get("SERIAL", "UNKNOWN")
             filename = fr"{self.__folder_history}{info.name}"
             link = fr"{self.__folder_available}{info.name}"
@@ -126,18 +126,22 @@ class SaradMdnsListener(ServiceListener):
                 data = self.convert_properties(name=name, info=info)
                 if data:
                     with open(filename, "w+") as file_stream:
-                        file_stream.write(data) if data else theLogger.error(
-                            f"[Update]:\tFailed to convert Properties from {type_}, {name}"
-                        )  # pylint: disable=W0106
+                        file_stream.write(data)
                     if not os.path.exists(link):
                         os.link(filename, link)
-            except BaseException as error:  # pylint: disable=W0703
+                else:
+                    theLogger.error(
+                        "[Update]:\tFailed to convert Properties from %s, %s",
+                        type_,
+                        name,
+                    )
+            except Exception as error:  # pylint: disable=broad-except
                 theLogger.error(
-                    f'[Update]:\t{type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
-                )
-            except:  # pylint: disable=W0702
-                theLogger.error(
-                    f"[Update]:\tCould not write properties of device with Name: {name} and Type: {type_}"
+                    "[Update]:\t%s\t%s\t%s\t%s",
+                    type(error),
+                    error,
+                    vars(error) if isinstance(error, dict) else "-",
+                    traceback.format_exc(),
                 )
 
     @staticmethod
@@ -170,13 +174,14 @@ class SaradMdnsListener(ServiceListener):
         try:
             _addr_ip = ipaddress.IPv4Address(info.addresses[0]).exploded
             _addr = socket.gethostbyaddr(_addr_ip)[0]
-        except BaseException as error:  # pylint: disable=W0703
+        except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
-                f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                "! %s\t%s\t%s\t%s",
+                type(error),
+                error,
+                vars(error) if isinstance(error, dict) else "-",
+                traceback.format_exc(),
             )
-        except:  # pylint: disable=W0702
-            pass
-
         out = {
             "Identification": {
                 "Name": properties[b"MODEL_ENC"].decode("utf-8"),
@@ -187,9 +192,7 @@ class SaradMdnsListener(ServiceListener):
             },
             "Remote": {"Address": _addr_ip, "Port": info.port, "Name": name},
         }
-
         theLogger.debug(out)
-
         return json.dumps(out)
 
     def __init__(self, _type):
@@ -200,13 +203,10 @@ class SaradMdnsListener(ServiceListener):
             self.__type = type
             self.__zeroconf = Zeroconf()
             self.__browser = ServiceBrowser(self.__zeroconf, _type, self)
-            self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
-            self.__folder_available = (
-                f"{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}"
-            )
+            self.__folder_history = FOLDER_HISTORY + os.path.sep
+            self.__folder_available = FOLDER_AVAILABLE + os.path.sep
             if not os.path.exists(self.__folder_history):
                 os.makedirs(self.__folder_history)
             if not os.path.exists(self.__folder_available):
                 os.makedirs(self.__folder_available)
-
-            theLogger.debug(f"Output to: {self.__folder_history}")
+            theLogger.debug("Output to: %s", self.__folder_history)

@@ -1,8 +1,8 @@
-from builtins import staticmethod as staticmethod
-from registrationserver2 import theLogger as theLogger
-from registrationserver2.modules.messages import RETURN_MESSAGES as RETURN_MESSAGES
-from thespian.actors import Actor
+"""Stub for type checking with mypy."""
 from typing import Any
+
+from thespian.actors import Actor  # type: ignore
+
 
 class DeviceBaseActor(Actor):
     ACCEPTED_MESSAGES: Any = ...
