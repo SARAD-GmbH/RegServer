@@ -6,8 +6,8 @@ Created on 14.10.2020
 import time
 import traceback
 
-import serial.rfc2217
-import thespian
+import serial.rfc2217  # type: ignore
+import thespian  # type: ignore
 from registrationserver2 import theLogger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
@@ -51,8 +51,8 @@ class Rfc2217Actor(DeviceBaseActor):
         return RETURN_MESSAGES.get("ILLEGAL_STATE")
 
     def __send__(self, msg: dict):
-        if self.__connect() is self.OK:
-            theLogger.info("Actor %s Received: %s", self.globalName, msg.get("DATA"))
+        if self.__connect() is RETURN_MESSAGES["OK"]["RETURN"]:
+            theLogger.info("Actor %s received: %s", self.globalName, msg.get("DATA"))
             data = msg.get("DATA", None)
             if data:
                 self.__port.write(data)
