@@ -3,26 +3,25 @@ Created on 13.10.2020
 
 @author: rfoerster
 """
-from builtins import staticmethod
+import logging
 import os
 import traceback
-import logging
+from builtins import staticmethod
 from json.decoder import JSONDecodeError
 
-from thespian.actors import Actor
+import registrationserver2
 import thespian
 from flask import json
-
-import registrationserver2
 from registrationserver2 import theLogger
 from registrationserver2.modules.messages import RETURN_MESSAGES
+from thespian.actors import Actor
 
 logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
 
 
 class DeviceBaseActor(Actor):
     """
-    .. uml:: uml-device_base_actor.puml
+    .. uml :: uml-device_base_actor.puml
     """
 
     ACCEPTED_MESSAGES = {
