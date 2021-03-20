@@ -1,6 +1,7 @@
-from registrationserver2 import FOLDER_AVAILABLE as FOLDER_AVAILABLE, FOLDER_HISTORY as FOLDER_HISTORY, FREE_KEYWORD as FREE_KEYWORD, PATH_AVAILABLE as PATH_AVAILABLE, PATH_HISTORY as PATH_HISTORY, RESERVE_KEYWORD as RESERVE_KEYWORD, theLogger as theLogger
-from thespian.actors import Actor
 from typing import Any, Optional
+
+from thespian.actors import Actor  # type: ignore
+
 
 class RestApi(Actor):
     api: Any = ...
@@ -21,4 +22,10 @@ class RestApi(Actor):
     def reserve_device(did: Any): ...
     @staticmethod
     def free_device(did: Any): ...
-    def run(self, host: Optional[Any] = ..., port: Optional[Any] = ..., debug: Optional[Any] = ..., load_dotenv: bool = ...) -> None: ...
+    def run(
+        self,
+        host: Optional[Any] = ...,
+        port: Optional[Any] = ...,
+        debug: Optional[Any] = ...,
+        load_dotenv: bool = ...,
+    ) -> None: ...

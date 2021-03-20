@@ -1,4 +1,5 @@
-from registrationserver2 import theLogger as theLogger
-from registrationserver2.restapi import RestApi as RestApi
+"""Stub file for type checking with mypy"""
+from thespian.actors import ActorSystem  # type: ignore
+
 
 def main() -> None: ...

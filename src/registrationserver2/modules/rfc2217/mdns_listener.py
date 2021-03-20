@@ -26,16 +26,27 @@ class SaradMdnsListener(ServiceListener):
     .. uml:: uml-mdns_listener.puml
     """
 
-    __zeroconf: Zeroconf
-    __browser: ServiceBrowser
-    __folder_history: str
-    __folder_available: str
-    __type: str
-
     __lock = threading.Lock()
 
+    def __init__(self, _type):
+        """
+        Initialize a mdns Listener for a specific device group
+        """
+        with self.__lock:
+            self.__type: str = type
+            self.__zeroconf = Zeroconf()
+            self.__browser = ServiceBrowser(self.__zeroconf, _type, self)
+            self.__folder_history: str = FOLDER_HISTORY + os.path.sep
+            self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
+            if not os.path.exists(self.__folder_history):
+                os.makedirs(self.__folder_history)
+            if not os.path.exists(self.__folder_available):
+                os.makedirs(self.__folder_available)
+            theLogger.debug("Output to: %s", self.__folder_history)
+        # Clean __folder_available for a fresh start
+        self.remove_all_services()
+
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
-        # pylint: disable=C0103
         """Hook, being called when a new service
         representing a device is being detected"""
         with self.__lock:
@@ -90,7 +101,6 @@ class SaradMdnsListener(ServiceListener):
                     registrationserver2.actor_system.ask(this_actor, {"CMD": "KILL"})
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
-        # pylint: disable=C0103
         """Hook, being called when a regular shutdown of a service
         representing a device is being detected"""
         with self.__lock:
@@ -144,6 +154,25 @@ class SaradMdnsListener(ServiceListener):
                     traceback.format_exc(),
                 )
 
+    def remove_all_services(self) -> None:
+        """Kill all device actors and remove all links to device file from FOLDER_AVAILABLE."""
+        with self.__lock:
+            if os.path.exists(self.__folder_available):
+                for root, _, files in os.walk(self.__folder_available):
+                    for name in files:
+                        if name.find("_rfc2217"):
+                            link = os.path.join(root, name)
+                            theLogger.debug("[Del]:\tRemoved: %s", name)
+                            os.unlink(link)
+                            this_actor = registrationserver2.actor_system.createActor(
+                                Rfc2217Actor, globalName=name
+                            )
+                            theLogger.info(
+                                registrationserver2.actor_system.ask(
+                                    this_actor, {"CMD": "KILL"}
+                                )
+                            )
+
     @staticmethod
     def convert_properties(info=None, name=""):
         """Helper function to convert mdns service information
@@ -194,19 +223,3 @@ class SaradMdnsListener(ServiceListener):
         }
         theLogger.debug(out)
         return json.dumps(out)
-
-    def __init__(self, _type):
-        """
-        Initialize a mdns Listener for a specific device group
-        """
-        with self.__lock:
-            self.__type = type
-            self.__zeroconf = Zeroconf()
-            self.__browser = ServiceBrowser(self.__zeroconf, _type, self)
-            self.__folder_history = FOLDER_HISTORY + os.path.sep
-            self.__folder_available = FOLDER_AVAILABLE + os.path.sep
-            if not os.path.exists(self.__folder_history):
-                os.makedirs(self.__folder_history)
-            if not os.path.exists(self.__folder_available):
-                os.makedirs(self.__folder_available)
-            theLogger.debug("Output to: %s", self.__folder_history)

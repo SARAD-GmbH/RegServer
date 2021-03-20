@@ -1,9 +1,9 @@
+"""Stub for type checking with mypy"""
 import socket
-from registrationserver2 import actor_system as actor_system, theLogger as theLogger
-from registrationserver2.modules import device_base_actor as device_base_actor
-from registrationserver2.modules.device_actor_manager import DEVICE_ACTOR_MANAGER as DEVICE_ACTOR_MANAGER
-from thespian.actors import Actor
 from typing import Any
+
+from thespian.actors import Actor  # type: ignore
+
 
 class SockInfo:
     address: str
