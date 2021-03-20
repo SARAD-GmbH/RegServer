@@ -190,10 +190,11 @@ class SaradMdnsListener(ServiceListener):
         if not (_serial_short := properties.get(b"SERIAL_SHORT", None)):
             return None
 
-        _serial_short = _serial_short.decode("utf-8")
+        _device_id = _serial_short.decode("utf-8").split(".")[0]
+        _sarad_protocol = _serial_short.decode("utf-8").split(".")[1]
         hids = hashids.Hashids()
 
-        if not (_ids := hids.decode(_serial_short)):
+        if not (_ids := hids.decode(_device_id)):
             return None
 
         if not (len(_ids) == 3) or not info.port:
@@ -218,6 +219,7 @@ class SaradMdnsListener(ServiceListener):
                 "Type": _ids[1],
                 "Serial number": _ids[2],
                 "Host": _addr,
+                "Protocol": _sarad_protocol,
             },
             "Remote": {"Address": _addr_ip, "Port": info.port, "Name": name},
         }
