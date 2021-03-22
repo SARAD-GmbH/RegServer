@@ -87,13 +87,13 @@ class SaradMdnsListener(ServiceListener):
                     this_actor, {"CMD": "SETUP"}
                 )
                 theLogger.info(setup_return)
-                if setup_return is RETURN_MESSAGES.get("OK"):
-                    theLogger.info(
-                        registrationserver2.actor_system.ask(
-                            this_actor,
-                            {"CMD": "SEND", "DATA": b"\x42\x80\x7f\x0c\x0c\x00\x45"},
-                        )
-                    )
+                # if setup_return is RETURN_MESSAGES.get("OK"):
+                #     theLogger.info(
+                #         registrationserver2.actor_system.ask(
+                #             this_actor,
+                #             {"CMD": "SEND", "DATA": b"\x42\x80\x7f\x0c\x0c\x00\x45"},
+                #         )
+                #     )
                 if not (
                     setup_return is RETURN_MESSAGES.get("OK")
                     or setup_return is RETURN_MESSAGES.get("OK_SKIPPED")
@@ -160,7 +160,7 @@ class SaradMdnsListener(ServiceListener):
             if os.path.exists(self.__folder_available):
                 for root, _, files in os.walk(self.__folder_available):
                     for name in files:
-                        if name.find("_rfc2217"):
+                        if "_rfc2217" in name:
                             link = os.path.join(root, name)
                             theLogger.debug("[Del]:\tRemoved: %s", name)
                             os.unlink(link)

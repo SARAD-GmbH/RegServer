@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from thespian.actors import Actor  # type: ignore
 
 from registrationserver2 import actor_system, theLogger
-from registrationserver2.modules import device_base_actor
+# from registrationserver2.modules import device_base_actor
 from registrationserver2.modules.device_actor_manager import \
     DEVICE_ACTOR_MANAGER
 
@@ -41,7 +41,7 @@ class RedirectorActor(Actor):
 
     _sock: socket
     _sockclient: SockInfo
-    _device: device_base_actor
+    # _device: device_base_actor  # TODO: Ist das richtig? -- MS
 
     ILLEGAL_STATE = {
         "ERROR": "Actor not setup correctly, make sure to send SETUP message first",

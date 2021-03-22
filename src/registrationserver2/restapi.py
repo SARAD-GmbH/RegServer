@@ -16,6 +16,8 @@ import registrationserver2
 from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
                                  FREE_KEYWORD, PATH_AVAILABLE, PATH_HISTORY,
                                  RESERVE_KEYWORD, theLogger)
+from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
+from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
 
 theLogger.info("%s -> %s", __package__, __file__)
 
@@ -167,7 +169,10 @@ class RestApi(Actor):
     )
     def reserve_device(did):
         """Path for reserving a single active device"""
-        attribute_who = request.args.get("who")
+        # Collect information about who sent the request.
+        attribute_who = request.args.get("who").strip('"')
+        app = attribute_who.split(" - ")[0]
+        user = attribute_who.split(" - ")[1]
         try:
             request_host = socket.gethostbyaddr(request.environ["REMOTE_ADDR"])[0]
         except Exception as error:  # pylint: disable=broad-except
@@ -181,15 +186,35 @@ class RestApi(Actor):
         else:
             request_host = request.environ["REMOTE_ADDR"]
         theLogger.info("%s: %s --> %s", did, attribute_who, request_host)
-
         if not registrationserver2.matchid.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
+        # SEND_RESERVE message to device actor
+        if "_rfc2217" in did:
+            device_actor = registrationserver2.actor_system.createActor(
+                Rfc2217Actor, globalName=did
+            )
+        elif "mqtt" in did:
+            device_actor = registrationserver2.actor_system.createActor(
+                MqttActor, globalName=did
+            )
+        else:
+            theLogger.error("Requested service not supported by actor system.")
+            answer = {"Error code": "11", "Error": "Device not found", did: {}}
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        reserve_return = registrationserver2.actor_system.ask(
+            device_actor,
+            {"CMD": "SEND_RESERVE", "HOST": request_host, "USER": user, "APP": app},
+        )
+        theLogger.info(reserve_return)
+
         answer = {}
         reservation = {
             "Active": True,
             "Host": request_host,
-            "App": attribute_who,
-            "User": "rfoerster",
+            "App": app,
+            "User": user,
             "Timestamp": "2020-10-09T08:22:43Z",
             "IP": "123.123.123.123",
             "Port": 2345,
