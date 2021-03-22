@@ -13,6 +13,7 @@ import thespian.actors  # type: ignore
 from flask import json
 from registrationserver2 import FOLDER_HISTORY, theLogger
 from registrationserver2.modules.messages import RETURN_MESSAGES
+# from registrationserver2.redirector_actor import RedirectorActor
 from thespian.actors import Actor  # type: ignore
 
 theLogger.info("%s -> %s", __package__, __file__)
@@ -130,3 +131,18 @@ class DeviceBaseActor(Actor):
 
     def __reserve__(self, msg: dict) -> dict:
         pass
+
+    def __send_reserve__(self, msg: dict) -> dict:
+        """Handler for SEND_RESERVE message from REST API."""
+        theLogger.info(
+            "Device actor received a SEND_RESERVE command with message: %s", msg
+        )
+        # Create redirector actor
+        # short_id = self.globalName.split(".")[0]
+        # redirector_actor = registrationserver2.actor_system.createActor(
+        #     RedirectorActor, globalName=short_id
+        # )
+        # theLogger.info("Redirector actor created.")
+        # # Write into device file
+
+        return RETURN_MESSAGES.get("OK")
