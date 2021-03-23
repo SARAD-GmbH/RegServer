@@ -20,6 +20,9 @@ import importlib.util
 import pathlib
 import logging
 from thespian.actors import ActorSystem
+import sys
+#sys.path.append('C:\\Users\\Yixiang\\Documents\\Projekte\\git\\SARAD\\src-registrationserver2\\src')
+print(sys.path)
 from registrationserver2.restapi import RestApi
 import registrationserver2
 from registrationserver2 import theLogger

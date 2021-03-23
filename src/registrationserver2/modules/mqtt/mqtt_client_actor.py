@@ -1,50 +1,28 @@
-import json
+'''
 import logging
+import time
 import os
-from appdirs import AppDirs  # type: ignore
-import signal
-import socket
 import sys
-
 # import queue
 import json
+#import yaml
+import signal 
+import threading
+import traceback
+import paho.mqtt.client  as MQTT# type: ignore
 
-import time
-import logging
-
-import paho.mqtt.client as mqtt  # type: ignore
-from thespian.actors import Actor, ActorExitRequest, ActorAddress
-import thespian
-
-import paho.mqtt.client as mqtt  # type: ignore
-import registrationserver2
-import thespian
-import yaml
-from appdirs import AppDirs  # type: ignore
+import registrationserver2 
 from registrationserver2 import actor_system, theLogger
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
+from registrationserver2.modules.mqtt import MQTT_ACTOR_ADRs
+from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
+from registrationserver2.modules.mqtt.mqtt_subscriber import SaradMqttSubscriber
 
-# [???] causing runtime errors -- MS, 2021-03-16
-# from registrationserver2.modules.mqtt.mqtt_subscriber import SARAD_MQTT_SUBSCRIBER
-from thespian.actors import Actor, ActorAddress, ActorExitRequest
-
-from registrationserver2.modules.mqtt.mqtt_subscriber import SARAD_MQTT_SUBSCRIBER
-from registrationserver2.modules.mqtt import MQTT_ACTOR_ADRs, MQTT_CLIENT_RESULTs
-
-# logger = logging.getLogger()
 logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
 
 
-class SaradMqttClient(Actor):
+class SaradMqttClient(object):
 
-    ACCEPTED_MESSAGES = {
-        "KILL": "__kill__",
-        "CONNECT": "__connect__",
-        "PUBLISH": "__publish__",
-        "SUBSCRIBE": "__subscribe__",
-        "DISCONNECT": "__disconnect__",
-        "UNSUBSCRIBE": "__unsubscribe__",
-    }
     mqtt_topic: str
 
     mqtt_payload: str
@@ -54,6 +32,12 @@ class SaradMqttClient(Actor):
     mqtt_broker: str  # MQTT Broker, here: localhost
 
     mqtt_cid: str  # MQTT Client ID
+    
+    __folder_history: str
+    
+    __folder_available: str
+    
+    __lock = threading.Lock()
 
     def on_connect(
         self, client, userdata, flags, result_code
@@ -98,14 +82,19 @@ class SaradMqttClient(Actor):
 
     def on_message(self, client, userdata, message):
         self.topic_parts = []
+        
+        print("message received " ,str(message.payload.decode("utf-8")))
+        print("message topic=",message.topic)
+        print("message qos=",message.qos)
+        print("message retain flag=",message.retain)
 
-        self.topic_parts = message.split("/")
+        self.topic_parts = message.topic.split("/")
 
         self.len = len(self.topic_parts)
 
         if self.len == 2:
             self.send(
-                SARAD_MQTT_CLEINT,
+                SARAD_MQTT_CLIENT,
                 {
                     "CMD": "MQTT_Message",
                     "Data": {
@@ -118,7 +107,7 @@ class SaradMqttClient(Actor):
         elif self.len == 3:
             if self.topic_parts[2] == "connected":
                 self.send(
-                    SARAD_MQTT_CLEINT,
+                    SARAD_MQTT_CLIENT,
                     {
                         "CMD": "MQTT_Message",
                         "Data": {
@@ -157,37 +146,53 @@ class SaradMqttClient(Actor):
                 str(message.payload.decode("utf-8")),
                 str(message.topic.decode("utf-8")),
             )
-
-    def receiveMessage(self, msg, sender):
-
-        """
-        Handles received Actor messages / verification of the message format
-        """
-        if isinstance(msg, thespian.actors.ActorExitRequest):
-            return
-
-        if not isinstance(msg, dict):
-            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGTYPE"))
-            return
-
-        cmd_string = msg.get("CMD", None)
-
-        if not cmd_string:
-            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
-            return
-
-        cmd = self.ACCEPTED_MESSAGES.get(cmd_string, None)
-
-        if not cmd:
-            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_UNKNOWN_COMMAND"))
-            return
-
-        if not getattr(self, cmd, None):
-            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_NOTIMPLEMENTED"))
-            return
-
-        self.send(sender, getattr(self, cmd)(msg))
-
+            
+    def __add_instr__(self, instr_id : str, msg)->dict:
+        with self.__lock:
+            theLogger.info(f"[Add]:\tFound: A new connected instrument with instrument ID : {instr_id}")
+            filename = fr"{self.__folder_history}{instr_id}"
+            link = fr"{self.__folder_available}{instr_id}"
+            try:
+                data = msg
+                if data:
+                    with open(filename, "w+") as file_stream:
+                        file_stream.write(data) if data else theLogger.error(
+                            f"[Add]:\tFailed to get Properties from {msg}, {instr_id}"
+                        )  # pylint: disable=W0106
+                    if not os.path.exists(link):
+                        theLogger.info(f"Linking {link} to {filename}")
+                        os.link(filename, link)
+            except BaseException as error:  # pylint: disable=W0703
+                theLogger.error(
+                    f'[Add]:\t {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                )
+            except:  # pylint: disable=W0702
+                theLogger.error(
+                    f"[Add]:\tCould not write properties of device with ID: {instr_id}"
+                )
+            # if an actor already exists this will return
+            # the address of the excisting one, else it will create a new one
+            if data:
+                this_actor = registrationserver2.actor_system.createActor(
+                    MqttActor, globalName=instr_id
+                )
+                setup_return = registrationserver2.actor_system.ask(
+                    this_actor, {"CMD": "SETUP"}
+                )
+                theLogger.info(setup_return)
+                if setup_return is RETURN_MESSAGES.get("OK"):
+                    theLogger.info(
+                        registrationserver2.actor_system.ask(
+                            this_actor,
+                            {"CMD": "SEND", "DATA": b"\x42\x80\x7f\x0c\x0c\x00\x45"},
+                        )
+                    )
+                if not (
+                    setup_return is RETURN_MESSAGES.get("OK")
+                    or setup_return is RETURN_MESSAGES.get("OK_SKIPPED")
+                ):
+                    registrationserver2.actor_system.ask(this_actor, {"CMD": "KILL"})
+    
     def __connect__(self, msg: dict) -> dict:
         self.mqtt_cid = msg.get("Data", None).get("client_id", None)
 
@@ -197,9 +202,9 @@ class SaradMqttClient(Actor):
         self.mqtt_broker = msg.get("Data", None).get("mqtt_broker", None)
 
         if self.mqtt_broker is None:
-            return RETURN_MESSAGES.get("ILLEGAL_STATE")
+            self.mqtt_broker = 'localhost'
 
-        self.mqttc = self.mqtt.Client(self.mqtt_cid)
+        self.mqttc = MQTT.Client(self.mqtt_cid)
 
         self.mqttc.reinitialise()
 
@@ -237,18 +242,6 @@ class SaradMqttClient(Actor):
         self.mqttc.loop_stop()
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
-    def __kill__(self, msg):
-        registrationserver2.theLogger.info(
-            f"Shutting down actor {self.globalName}, Message : {msg}"
-        )
-        theLogger.info(
-            registrationserver2.actor_system.ask(
-                self.myAddress, thespian.actors.ActorExitRequest()
-            )
-        )
-        self.__disconnect__()
-        # TODO: clear the used memory
-
     def __publish__(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("Data", None).get("topic", None)
         if self.mqtt_topic is None:
@@ -262,10 +255,12 @@ class SaradMqttClient(Actor):
             if self.rc_pub == 1:
                 time.sleep(2)
                 self.wait_cnt = self.wait_cnt - 1
+                theLogger.info("Waiting for the on_publish being called\n")
             else:
                 self.rc_pub = 1
                 break
         else:
+            theLogger.info("on_publish not called: PUBLISH FAILURE!\n")
             return RETURN_MESSAGES.get("PUBLISH_FAILURE")
 
         self.mqttc.loop_start()
@@ -285,10 +280,12 @@ class SaradMqttClient(Actor):
             if self.rc_sub == 1:
                 time.sleep(2)
                 self.wait_cnt = self.wait_cnt - 1
+                theLogger.info("Waiting for the on_subscribe being called\n")
             else:
                 self.rc_sub = 1
                 break
         else:
+            theLogger.info("on_subscribe not called: SUBSCRIBE FAILURE!\n")
             return RETURN_MESSAGES.get("SUBSCRIBE_FAILURE")
 
         self.mqttc.loop_start()
@@ -305,10 +302,12 @@ class SaradMqttClient(Actor):
             if self.rc_uns == 1:
                 time.sleep(2)
                 self.wait_cnt = self.wait_cnt - 1
+                theLogger.info("Waiting for the on_unsubscribe being called\n")
             else:
                 self.rc_uns = 1
                 break
         else:
+            theLogger.info("on_unsubscribe not called: UNSUBSCRIBE FAILURE!\n")
             return RETURN_MESSAGES.get("UNSUBSCRIBE_FAILURE")
 
         self.mqttc.loop_start()
@@ -329,14 +328,47 @@ class SaradMqttClient(Actor):
     )  # SIGINT: By default, interrupt is Ctrl+C
 
     def __init__(self):
-        super().__init__()
         self.rc_conn = 2
         self.rc_disc = 2
         self.rc_pub = 1
         self.rc_sub = 1
         self.rc_uns = 1
+        self.SARAD_MQTT_SUBSCRIBER = actor_system.createActor(
+            SaradMqttSubscriber, globalName="MQTT_SUBSCRIBER"
+        )
+        with self.__lock:
+            self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
+            self.__folder_available = (
+                f"{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}"
+            )
+            if not os.path.exists(self.__folder_history):
+                os.makedirs(self.__folder_history)
+            if not os.path.exists(self.__folder_available):
+                os.makedirs(self.__folder_available)
 
+            theLogger.debug(f"Output to: {self.__folder_history}")
+        setup_return = actor_system.ask(self.SARAD_MQTT_SUBSCRIBER, "SETUP")
+        if setup_return == RETURN_MESSAGES.get("OK"):
+            theLogger.info("SARAD MQTT Subscriber is setup correctly!\n")
+        else:
+            theLogger.warning("SARAD MQTT Subscriber is not setup!\n")
+#SARAD_MQTT_CLIENT: ActorAddress = actor_system.createActor(
+#    SaradMqttClient, type(SaradMqttClient).__name__
+#)
+'''
+# Plan A:
+#SARAD_MQTT_CLIENT = registrationserver2.actor_system.createActor(SaradMqttClient, globalName="sarad_mqtt_client")
+# Plan B:
+#SARAD_MQTT_CLIENT: ActorAddress = actor_system.createActor(
+#    SaradMqttClient, globalName=type(SaradMqttClient).__name__
+#)
+'''
+def test():
+    connect_status = actor_system.ask(SARAD_MQTT_CLIENT, {"CMD" : "CONNECT", "Data" : {"client_id" : "Test_client1", "mqtt_broker" : "localhost"}})
+    print (connect_status)
+    input("Press Enter to End\n")
+    theLogger.info("!")
 
-SARAD_MQTT_CLIENT: ActorAddress = actor_system.createActor(
-    SaradMqttClient, type(SaradMqttClient).__name__
-)
+if __name__ == "__main__":
+    test()    
+'''

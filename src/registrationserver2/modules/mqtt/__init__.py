@@ -1,7 +1,8 @@
-<<<<<<< HEAD
-MQTT_ACTOR_ADRs: dict  # A dictionary for storing the addresses of MQTT Actors
+#from typing import Dict
+
+#MQTT_ACTOR_ADRs: Dict[str, str] = {}  # A dictionary for storing the addresses of MQTT Actors
 """
-Stuture of MQTT_ACTOR_ADRs:
+Struture of MQTT_ACTOR_ADRs:
 MQTT_ACTOR_ADRs = {
     Actor1_Name : Actor1_ADR,
     Actor2_Name : Actor2_ADR,
@@ -18,7 +19,7 @@ MQTT_CLIENT_RESULTs = {
         'Publish' : 'Wait',  # 'Wait' = waiting for the confirmation; 'Default' : 'Idle'
         'Subscribe' : 'Idle', # 'Idle' = No non-confirmed subscription; 'Default' : 'Idle'
         'Unsubscribe' : 'Fail' # 'Fail' or 'Success' means as their words; 'Default' : 'Idle'
-        # 'Publish', 'Subscribe' and 'Unsubscribe' are legal receptable work types of the MQTT Client and have same possible values as above.
+        # 'Publish', 'Subscribe' and 'Unsubscribe' are legal acceptable work types of the MQTT Client and have same possible values as above.
      },
      Actor2_ADR: {...},
      ...
@@ -119,6 +120,3 @@ MQTT_CLIENT_RESULTs = {
     @enduml
     */
     """
-=======
-# MQTT_ACTOR_ADRs:dict # A dictionary for storing the addresses of MQTT Actors
->>>>>>> 0bad1af952a4b7c3b1fa67053d5288c402b48b31
