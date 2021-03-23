@@ -18,15 +18,7 @@ from locale import str
 from registrationserver2 import theLogger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
-#from registrationserver2.modules.mqtt.mqtt_client_actor import SARAD_MQTT_CLIENT
 
-# [???] Why? -- MS, 2021-03-16
-# from pip._vendor.urllib3.contrib._securetransport.low_level import _is_identity
-# logger = logging.getLogger()
-
-# [???] Why? -- MS, 2021-03-16
-# from pylint.checkers.strings import str_eval
-from thespian.actors import ActorAddress
 
 logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
 
@@ -36,7 +28,6 @@ class MqttActor(DeviceBaseActor):
     classdocs:
     Actor interacting with a new device
     """
-    
     ACCEPTED_MESSAGES = {
         # Those needs implementing
         "SEND": "__send__",  # is being called when the end-user-application wants to send data, should return the direct or indirect response from the device, None in case the device is not reachable (so the end application can set the timeout itself)
@@ -222,27 +213,3 @@ class MqttActor(DeviceBaseActor):
     def __mqtt_message__(self, msg):
         # TODO: handling MQTT messages
         pass
-
-    def __init__(self):
-        super.__init__()
-        self.reserve_req_msg = (
-            {  # how to get these information: App name, Host, User name???
-                "Req": "reserve",
-                "App": None,
-                "Host": None,
-                "User": None,
-            }
-        )  # default reserve-request
-        self.free_req_msg = {"Req": "free"}  # default free-request
-        self.is_id: str
-        self.instr_id: str
-        self.actor_name: str
-        self.actor_adr: ActorAddress
-        self.allowed_sys_topics = {
-            "CMD": "/cmd",
-            "META": "/meta",
-            "CTRL": "/control",
-            "MSG": "/msg",
-        }
-        self.pub_req_msg = {"topic": None, "payload": None, "qos": 0}
-        self.sub_req_msg = {"topic": None, "qos": 0}
