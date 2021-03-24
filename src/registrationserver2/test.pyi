@@ -1,0 +1,6 @@
+from registrationserver2 import theLogger as theLogger
+
+port: tuple
+
+def testingServ() -> None: ...
+def testingClient() -> None: ...

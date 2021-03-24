@@ -5,21 +5,17 @@ Created on 2021-02-16
 """
 import json
 import logging
-
-#import sys
-#import time
-#import traceback
+# import sys
+# import time
+# import traceback
 from locale import str
-
 #import thespian
 #import yaml
-
 
 from registrationserver2 import theLogger, actor_system
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
 #from _testmultiphase import Str, str_const
-
 
 logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
 
@@ -29,6 +25,7 @@ class MqttActor(DeviceBaseActor):
     classdocs:
     Actor interacting with a new device
     """
+
     ACCEPTED_MESSAGES = {
         # Those needs implementing
         "SEND": "__send__",  # is being called when the end-user-application wants to send data, should return the direct or indirect response from the device, None in case the device is not reachable (so the end application can set the timeout itself)
@@ -122,6 +119,7 @@ class MqttActor(DeviceBaseActor):
                 },
             },
         )
+
         return send_reserve_status
 
     def __send_free__(self, msg):
@@ -204,7 +202,6 @@ class MqttActor(DeviceBaseActor):
             return RETURN_MESSAGES.get("PREPARE_FAILURE")
 
         return RETURN_MESSAGES.get("OK_SKIPPED")
-
 
     def __binary_reply__(self, msg):
         # TODO: transfer the binary reply to app/redirector actor

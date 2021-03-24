@@ -4,10 +4,11 @@ Created on 2021-03-12
 @author: Yixiang
 """
 
-import logging
 from typing import Dict
 
-MQTT_ACTOR_REQUESTs: Dict[str, str] = {}  # A dictionary for storing the request statuses of MQTT Actors
+MQTT_ACTOR_REQUESTs: Dict[
+    str, str
+] = {}  # A dictionary for storing the request statuses of MQTT Actors
 """
 Struture of MQTT_ACTOR_REQUESTs:
 MQTT_ACTOR_REQUESTs = {
@@ -21,7 +22,9 @@ MQTT_ACTOR_REQUESTs = {
 }
 """
 
-MQTT_ACTOR_ADRs: Dict[str, str] = {}  # A dictionary for storing the addresses of MQTT Actors
+MQTT_ACTOR_ADRs: Dict[
+    str, str
+] = {}  # A dictionary for storing the addresses of MQTT Actors
 """
 Struture of MQTT_ACTOR_ADRs:
 MQTT_ACTOR_ADRs = {
@@ -39,9 +42,8 @@ MQTT_ACTOR_ADRs = {
 }
 """
 
-IS_ID_LIST:list # A list for storing the ID of IS MQTT
+IS_ID_LIST: list = []  # A list for storing the ID of IS MQTT
 
-logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
 
 RETURN_MESSAGES = {
     # The message received by the actor was not in an expected format

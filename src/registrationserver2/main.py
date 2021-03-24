@@ -12,53 +12,51 @@
 
 """
 
-import threading
-import signal
+import atexit
 import os
+import signal
+import threading
 import time
-import importlib.util
-import pathlib
-import logging
-from thespian.actors import ActorSystem
-import sys
-#sys.path.append('C:\\Users\\Yixiang\\Documents\\Projekte\\git\\SARAD\\src-registrationserver2\\src')
-print(sys.path)
-from registrationserver2.restapi import RestApi
+
+from thespian.actors import ActorSystem  # type: ignore
+
 import registrationserver2
-from registrationserver2 import theLogger
+from registrationserver2 import FOLDER_AVAILABLE, theLogger
+from registrationserver2.config import config
+from registrationserver2.modules.rfc2217.mdns_listener import SaradMdnsListener
+from registrationserver2.restapi import RestApi
 
-# import registrationserver2.modules #pylint: disable=W0611 #@UnusedImport
-
-logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
+theLogger.info("%s -> %s", __package__, __file__)
 
 
 def main():
     """Starting the RegistrationServer2"""
     registrationserver2.actor_system = ActorSystem()  # systemBase='multiprocQueueBase')
     time.sleep(2)
-    test2 = RestApi()
+    restapi = RestApi()
     apithread = threading.Thread(
-        target=test2.run,
+        target=restapi.run,
         args=(
             "0.0.0.0",
             8000,
         ),
     )
     apithread.start()
+    _ = SaradMdnsListener(_type=config["TYPE"])
 
-    modules_path = f"{pathlib.Path(__file__).parent.absolute()}{os.path.sep}modules{os.path.sep}__init__.py"
-    theLogger.info(modules_path)
-    specification = importlib.util.spec_from_file_location("modules", modules_path)
-    modules = importlib.util.module_from_spec(specification)
-    specification.loader.exec_module(modules)
-
-    try:
-        input("Press Enter to End\n")
-    finally:
+    # Prepare for closing
+    @atexit.register
+    def cleanup():  # pylint: disable=unused-variable
+        """Make sure all sub threads are stopped, including the REST API"""
+        theLogger.info("Cleaning up before closing.")
         registrationserver2.actor_system.shutdown()
-        os.kill(
-            os.getpid(), signal.SIGTERM
-        )  # Self kill, mostly to make sure all sub threads are stopped, including the REST API
+        if os.path.exists(FOLDER_AVAILABLE):
+            for root, _, files in os.walk(FOLDER_AVAILABLE):
+                for name in files:
+                    link = os.path.join(root, name)
+                    theLogger.debug("[Del]:\tRemoved: %s", name)
+                    os.unlink(link)
+        os.kill(os.getpid(), signal.SIGTERM)
 
 
 if __name__ == "__main__":

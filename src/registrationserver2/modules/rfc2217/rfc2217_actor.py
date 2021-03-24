@@ -3,19 +3,16 @@ Created on 14.10.2020
 
 @author: rfoerster
 """
-import traceback
 import time
-import logging
+import traceback
 
-import serial.rfc2217
-import thespian
-
-from registrationserver2.modules.device_base_actor import DeviceBaseActor
+import serial.rfc2217  # type: ignore
+import thespian  # type: ignore
 from registrationserver2 import theLogger
-
+from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
 
-logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
+theLogger.info("%s -> %s", __package__, __file__)
 
 
 class Rfc2217Actor(DeviceBaseActor):
@@ -41,17 +38,21 @@ class Rfc2217Actor(DeviceBaseActor):
                 self.__port = serial.rfc2217.Serial(
                     self.__port_ident
                 )  # move the send ( test if connection is up and if not create)
-            except BaseException as error:  # pylint: disable=W0703
+            except Exception as error:  # pylint: disable=broad-except
                 theLogger.error(
-                    f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                    "! %s\t%s\t%s\t%s",
+                    type(error),
+                    error,
+                    vars(error) if isinstance(error, dict) else "-",
+                    traceback.format_exc(),
                 )
         if self.__port and self.__port.is_open:
             return RETURN_MESSAGES.get("OK")
         return RETURN_MESSAGES.get("ILLEGAL_STATE")
 
     def __send__(self, msg: dict):
-        if self.__connect() is self.OK:
-            theLogger.info(f"Actor {self.globalName} Received: {msg.get('DATA')}")
+        if self.__connect() is RETURN_MESSAGES["OK"]["RETURN"]:
+            theLogger.info("Actor %s received: %s", self.globalName, msg.get("DATA"))
             data = msg.get("DATA", None)
             if data:
                 self.__port.write(data)
@@ -65,7 +66,6 @@ class Rfc2217Actor(DeviceBaseActor):
                         break
                     _return = _return + _return_part
                 return {"RETURN": "OK", "DATA": _return}
-
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         return RETURN_MESSAGES.get("ILLEGAL_STATE")
 
@@ -83,9 +83,13 @@ class Rfc2217Actor(DeviceBaseActor):
         try:
             self.__port.close()
             self.__port = None
-        except BaseException as error:  # pylint: disable=W0703
+        except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
-                f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                "! %s\t%s\t%s\t%s",
+                type(error),
+                error,
+                vars(error) if isinstance(error, dict) else "-",
+                traceback.format_exc(),
             )
 
 

@@ -5,17 +5,16 @@ Created on 01.12.2020
 """
 import socket
 import traceback
-import logging
-
 from dataclasses import dataclass
 
-from thespian.actors import Actor
-from registrationserver2.modules import device_base_actor
-from registrationserver2 import actor_system
-from registrationserver2.modules.device_actor_manager import DEVICE_ACTOR_MANAGER
-from registrationserver2 import theLogger
+from thespian.actors import Actor  # type: ignore
 
-logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
+from registrationserver2 import actor_system, theLogger
+# from registrationserver2.modules import device_base_actor
+from registrationserver2.modules.device_actor_manager import \
+    DEVICE_ACTOR_MANAGER
+
+theLogger.info("%s -> %s", __package__, __file__)
 
 
 @dataclass
@@ -33,8 +32,8 @@ class SocketClient:
     laddr=('127.0.0.1', 55224), raddr=('127.0.0.1', 56066)>,
     client_address=SockInfo(address='127.0.0.1', port=56066))"""
 
-    client_socket: socket
-    client_address: SockInfo
+    # client_socket: socket
+    # client_address: SockInfo
 
 
 class RedirectorActor(Actor):
@@ -42,7 +41,7 @@ class RedirectorActor(Actor):
 
     _sock: socket
     _sockclient: SockInfo
-    _device: device_base_actor
+    # _device: device_base_actor  # TODO: Ist das richtig? -- MS
 
     ILLEGAL_STATE = {
         "ERROR": "Actor not setup correctly, make sure to send SETUP message first",
@@ -66,16 +65,20 @@ class RedirectorActor(Actor):
             client_socket, socket_info = self._sock.accept()
             while True:
                 data = client_socket.recv(9002)
-                theLogger.info(f"{data} from {socket_info}")
+                theLogger.info("%s from %s", data, socket_info)
                 if not data:
                     break
                 remote = actor_system.ask(
                     DEVICE_ACTOR_MANAGER, {"CMD": "GET", "NAME": ""}
                 )
                 actor_system.ask(remote, {"CMD": "SEND", "DATA": data})
-        except BaseException as error:  # pylint: disable=W0703
+        except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
-                f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                "[Add]:\t%s\t%s\t%s\t%s",
+                type(error),
+                error,
+                vars(error) if isinstance(error, dict) else "-",
+                traceback.format_exc(),
             )
             client_socket = None
             return
@@ -84,7 +87,6 @@ class RedirectorActor(Actor):
         )
         # get data here
         # awr = self.ask(self._device, {'CMD':'SEND', 'DATA':data})
-
         client_socket.close()
 
     def receiveMessage(self, msg, sender):

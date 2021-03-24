@@ -3,6 +3,8 @@
 !/**/*/
 # Python inside source
 !/src/**/*.py
+# Stub files for type checking with mypy
+!/src/**/*.pyi
 # Dokumentation files (README...)
 !/*.md
 !/doc/**
