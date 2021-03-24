@@ -9,8 +9,7 @@ from typing import Any, Dict
 
 config: Dict[str, Any] = {
     "MDNS_TIMEOUT": 3000,
-    "TYPE": ["_sarad-1688._rfc2217._tcp.local.", "_rfc2217._tcp.local."],
-    # 'FOLDER':          r'D:\test\rfc2217',
+    "TYPE": "_rfc2217._tcp.local.",
     "LEVEL": DEBUG,
 }
 """
