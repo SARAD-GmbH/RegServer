@@ -30,6 +30,10 @@ config.setdefault(
 config.setdefault("LEVEL", logging.CRITICAL)
 config.setdefault("MDNS_TIMEOUT", 3000)
 config.setdefault("TYPE", "_sarad-1688._rfc2217._tcp.local.")
+config.setdefault(
+    "FOLDER2",
+    f'{os.environ.get("HOME", None) or os.environ.get("LOCALAPPDATA",None)}{os.path.sep}SARAD{os.path.sep}hosts',
+)
 
 # Initialization of the actor system,
 # can be changed to a distributed system here.
@@ -67,20 +71,25 @@ theLogger.info("Logging system initialized.")
 # ==========================================
 matchid: Pattern[str] = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 
-# How the sub folder for available instruments description files is called
+# How the sub folder for available instrument/host description files is called
 FILE_PATH_AVAILABLE: str = "available"
 
-# How the sub folder for all detected instruments description files is called
+# How the sub folder for all detected instrument/host description files is called
 FILE_PATH_HISTORY: str = "history"
 
-# How the API sub path for available instruments descriptions is called
+# How the API sub path for available instrument/host descriptions is called
 PATH_AVAILABLE: str = FILE_PATH_AVAILABLE
 
-# How the API sub path for all detected instruments descriptions is called
+# How the API sub path for all detected instrument/host descriptions is called
 PATH_HISTORY: str = FILE_PATH_HISTORY
 
+# "available" and "history" under "devices"
 FOLDER_AVAILABLE: str = f'{config["FOLDER"]}{os.path.sep}{FILE_PATH_AVAILABLE}'
 FOLDER_HISTORY: str = f'{config["FOLDER"]}{os.path.sep}{FILE_PATH_HISTORY}'
+
+# "available" and "history" under "hosts"
+FOLDER2_AVAILABLE = f'{config["FOLDER2"]}{os.path.sep}{FILE_PATH_AVAILABLE}'
+FOLDER2_HISTORY = f'{config["FOLDER2"]}{os.path.sep}{FILE_PATH_HISTORY}'
 
 RESERVE_KEYWORD: str = "reserve"
 FREE_KEYWORD: str = "free"
