@@ -13,9 +13,7 @@
 """
 
 import atexit
-import importlib.util
 import os
-import pathlib
 import signal
 import threading
 import time
@@ -23,6 +21,9 @@ import time
 from thespian.actors import ActorSystem  # type: ignore
 
 import registrationserver2
+import registrationserver2.modules.rfc2217
+import registrationserver2.modules.rfc2217.mdns_listener
+import registrationserver2.modules.rfc2217.rfc2217_actor
 from registrationserver2 import FOLDER_AVAILABLE, theLogger
 from registrationserver2.restapi import RestApi
 
@@ -42,12 +43,6 @@ def main():
         ),
     )
     apithread.start()
-    parent_path = pathlib.Path(__file__).parent.absolute()
-    modules_path = f"{parent_path}{os.path.sep}modules{os.path.sep}__init__.py"
-    theLogger.info(modules_path)
-    specification = importlib.util.spec_from_file_location("modules", modules_path)
-    modules = importlib.util.module_from_spec(specification)
-    specification.loader.exec_module(modules)
 
     # Prepare for closing
     @atexit.register
