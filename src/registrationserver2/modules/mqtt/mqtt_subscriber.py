@@ -149,6 +149,26 @@ class MqttParser(threading.Thread):
                                 del MQTT_ACTOR_REQUESTs[self.topic_parts[0]][self.topic_parts[1]]
                             else:
                                 theLogger.info(f"the MQTT actor {self.topic_parts[1]} is  setup correctly")
+                                ask_msg = {
+                                    "CMD": "PREPARE",
+                                    "Data": {
+                                        "is_id": self.topic_parts[0],
+                                        "instr_id": self.topic_parts[1],
+                                        "mqtt_client_adr": SARAD_MQTT_SUBSCRIBER,
+                                    }
+                                }
+                                ask_return = actor_system.ask(new_actor, ask_msg)
+                                theLogger.info(ask_return)
+                                if not (
+                                    ask_return is RETURN_MESSAGES.get("OK")
+                                    or ask_return is RETURN_MESSAGES.get("OK_SKIPPED")
+                                ):
+                                    theLogger.warning(f"the MQTT actor {self.topic_parts[1]} hasn't correctly setup itself and will be killed")
+                                    actor_system.ask(new_actor, {"CMD": "KILL"})
+                                    del MQTT_ACTOR_ADRs[self.topic_parts[0]][self.topic_parts[1]]
+                                    del MQTT_ACTOR_REQUESTs[self.topic_parts[0]][self.topic_parts[1]]
+                                else:
+                                    theLogger.info(f"the MQTT actor {self.topic_parts[1]} has correctly setup itself")                                 
                     elif message.payload == "0":
                         if self.topic_parts[1] in MQTT_ACTOR_ADRs[self.topic_parts[0]].keys():
                             ask_msg = {
@@ -172,6 +192,8 @@ class MqttParser(threading.Thread):
                     ask_msg = {
                         "CMD": "BINARY_REPLY",
                         "Data": {
+                            "is_id": self.topic_parts[0],
+                            "instr_id": self.topic_parts[1],
                             "payload": message.payload,  # original payload should be encoded using UTF-8, i.e., converted into bytes
                         },
                     }
@@ -233,10 +255,12 @@ class SaradMqttSubscriber(Actor):
         "CONNECT": "__connect__",
         "PUBLISH": "__publish__",
         "ADD_HOST": "__add_host__", # Create the link of the description file of a host from "available" to "history" 
-        "RM_DEVICE": "__rm_instr__", # Delete the link of the description file of a instrument from "available" to "history" 
-        "SUBSCRIBE": "__subscribe__",        
+        "RM_DEVICE": "__rm_instr__", # Delete the link of the description file of an instrument from "available" to "history" 
+        "SUBSCRIBE": "__subscribe__",    
+        "UP_HOST": "__update_host__", # Update the description file of a host    
         "ADD_DEVICE": "__add_instr__", # Delete the link of the description file of a instrument from "available" to "history" 
         "DISCONNECT": "__disconnect__",
+        "UP_DEVICE": "__update_instr__", # Update the description file of an instrument
         "UNSUBSCRIBE": "__unsubscribe__",
     }
 
@@ -395,6 +419,38 @@ class SaradMqttSubscriber(Actor):
             del MQTT_ACTOR_REQUESTs[_is_id][instr_id]
         return RETURN_MESSAGES.get("OK_SKIPPED")
     
+    def __update__instr__(self, msg:dict)->dict:
+        instr_id = msg.get("Data", None).get("instr_id", None)
+        _is_id = msg.get("Data", None).get("is_id", None)
+        if _is_id is None:
+            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        if instr_id is None:
+            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        with self.__lock:
+            theLogger.info(f"[Update]:\tUpdate: Instrument ID: {instr_id}")
+            filename = fr"{self.__folder_history}{instr_id}"
+            link = fr"{self.__folder_available}{instr_id}"
+            try:
+                data = msg.get("Data", None).get("payload")
+                if data:
+                    with open(filename, "w+") as file_stream:
+                        file_stream.write(data) if data else theLogger.error(
+                            f"[Update]:\tFailed to get Properties from {msg}, {instr_id}"
+                        )  # pylint: disable=W0106
+                    if not os.path.exists(link):
+                        theLogger.info(f"Linking {link} to {filename}")
+                        os.link(filename, link)
+            except BaseException as error:  # pylint: disable=W0703
+                theLogger.error(
+                    f'[Update]:\t {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                )
+            except:  # pylint: disable=W0702
+                theLogger.error(
+                    f"[Update]:\tCould not write properties of device with ID: {instr_id}"
+                )
+            
+        return RETURN_MESSAGES.get("OK_SKIPPED")
+    
     def __add_host__(self, msg:dict)->dict:
         is_id = msg.get("Data", None).get("is_id", None)
         if is_id is None:
@@ -440,6 +496,34 @@ class SaradMqttSubscriber(Actor):
             IS_ID_LIST.remove(is_id)
             del MQTT_ACTOR_ADRs[is_id]
             del MQTT_ACTOR_REQUESTs[is_id]
+        return RETURN_MESSAGES.get("OK_SKIPPED")
+    
+    def __update_host__(self, msg:dict)->dict:
+        is_id = msg.get("Data", None).get("is_id", None)
+        if is_id is None:
+            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        with self.__lock:
+            theLogger.info(f"[Update]:\tFound: A new connected host with Instrument Server ID : {is_id}")
+            filename = fr"{self.__folder2_history}{is_id}"
+            link = fr"{self.__folder2_available}{is_id}"
+            try:
+                data = msg.get("Data", None).get("payload")
+                if data:
+                    with open(filename, "w+") as file_stream:
+                        file_stream.write(data) if data else theLogger.error(
+                            f"[Update]:\tFailed to get Properties from {msg}, {is_id}"
+                        )  # pylint: disable=W0106
+                    if not os.path.exists(link):
+                        theLogger.info(f"Linking {link} to {filename}")
+                        os.link(filename, link)
+            except BaseException as error:  # pylint: disable=W0703
+                theLogger.error(
+                    f'[Update]:\t {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
+                )
+            except:  # pylint: disable=W0702
+                theLogger.error(
+                    f"[Update]:\tCould not write properties of device with ID: {is_id}"
+                )
         return RETURN_MESSAGES.get("OK_SKIPPED")
     
     def __connect__(self, msg: dict) -> dict:
@@ -503,7 +587,7 @@ class SaradMqttSubscriber(Actor):
         split_buf = self.mqtt_topic.split('/')
         if len(split_buf) != 3 and len(split_buf) != 2:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        if "control" in split_buf and len(split_buf) == 3:
+        if split_buf[2] == "control" and len(split_buf) == 3:
             if self.mqtt_payload.get("payload", None).get("Req", None) == "reserve":
                 #self.reserve_flag = 1 # 2: free; 0: None
                 MQTT_ACTOR_REQUESTs[split_buf[0]][split_buf[1]] = "reserve"
