@@ -21,10 +21,9 @@ import time
 from thespian.actors import ActorSystem  # type: ignore
 
 import registrationserver2
-import registrationserver2.modules.rfc2217
-import registrationserver2.modules.rfc2217.mdns_listener
-import registrationserver2.modules.rfc2217.rfc2217_actor
 from registrationserver2 import FOLDER_AVAILABLE, theLogger
+from registrationserver2.config import config
+from registrationserver2.modules.rfc2217.mdns_listener import SaradMdnsListener
 from registrationserver2.restapi import RestApi
 
 theLogger.info("%s -> %s", __package__, __file__)
@@ -43,6 +42,7 @@ def main():
         ),
     )
     apithread.start()
+    _ = SaradMdnsListener(_type=config["TYPE"])
 
     # Prepare for closing
     @atexit.register
