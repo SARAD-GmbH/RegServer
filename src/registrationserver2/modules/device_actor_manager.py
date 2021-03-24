@@ -6,7 +6,7 @@ Created on 08.12.2020
 import logging
 
 from registrationserver2 import actor_system
-from registrationserver2.modules.device_base_actor import DeviceBaseActor
+# from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from thespian.actors import Actor, ActorAddress, ActorExitRequest
 
