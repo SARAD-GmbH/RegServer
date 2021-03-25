@@ -170,9 +170,20 @@ class RestApi(Actor):
     def reserve_device(did):
         """Path for reserving a single active device"""
         # Collect information about who sent the request.
-        attribute_who = request.args.get("who").strip('"')
-        app = attribute_who.split(" - ")[0]
-        user = attribute_who.split(" - ")[1]
+        try:
+            attribute_who = request.args.get("who").strip('"')
+            app = attribute_who.split(" - ")[0]
+            user = attribute_who.split(" - ")[1]
+        except (IndexError, AttributeError):
+            theLogger.error("Reserve request without proper who attribute.")
+            answer = {
+                "Error code": "13",
+                "Error": "No or incomplete attributes.",
+                did: {},
+            }
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
         try:
             request_host = socket.gethostbyaddr(request.environ["REMOTE_ADDR"])[0]
         except Exception as error:  # pylint: disable=broad-except
