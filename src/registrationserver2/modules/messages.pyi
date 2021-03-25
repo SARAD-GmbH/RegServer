@@ -1,3 +1,3 @@
-from typing import Any
+from typing import Dict, Any
 
-RETURN_MESSAGES: Any
+RETURN_MESSAGES: Dict[str, Any]
