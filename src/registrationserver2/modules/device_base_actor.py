@@ -63,23 +63,23 @@ class DeviceBaseActor(Actor):
             return
 
         if not isinstance(msg, dict):
-            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGTYPE"))
+            self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGTYPE"])
             return
 
         cmd_string = msg.get("CMD", None)
 
         if not cmd_string:
-            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"])
             return
 
         cmd = self.ACCEPTED_MESSAGES.get(cmd_string, None)
 
         if not cmd:
-            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_UNKNOWN_COMMAND"))
+            self.send(sender, RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"])
             return
 
         if not getattr(self, cmd, None):
-            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_NOTIMPLEMENTED"))
+            self.send(sender, RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"])
             return
 
         self.send(sender, getattr(self, cmd)(msg))
@@ -101,10 +101,10 @@ class DeviceBaseActor(Actor):
                     file = open(filename)
                     self._file = json.load(file)
                     self.setup_done = True
-                    return RETURN_MESSAGES.get("OK")
+                    return RETURN_MESSAGES["OK"]
                 except JSONDecodeError as error:
                     theLogger.error("Failed to parse %s", filename)
-                    return RETURN_MESSAGES.get("ILLEGAL_STATE")
+                    return RETURN_MESSAGES["ILLEGAL_STATE"]
                 except Exception as error:  # pylint: disable=broad-except
                     theLogger.error(
                         "! %s\t%s\t%s\t%s",
@@ -113,12 +113,12 @@ class DeviceBaseActor(Actor):
                         vars(error) if isinstance(error, dict) else "-",
                         traceback.format_exc(),
                     )
-                    return RETURN_MESSAGES.get("ILLEGAL_STATE")
+                    return RETURN_MESSAGES["ILLEGAL_STATE"]
             else:
-                return RETURN_MESSAGES.get("ILLEGAL_STATE")
+                return RETURN_MESSAGES["ILLEGAL_STATE"]
         else:
             theLogger.info("Actor already set up with %s", self._config)
-            return RETURN_MESSAGES.get("OK_SKIPPED")
+            return RETURN_MESSAGES["OK_SKIPPED"]
 
     def __kill__(self, msg: dict):  # TODO move to Actor Manager
         theLogger.info("Shutting down actor %s, Message: %s", self.globalName, msg)
@@ -137,6 +137,16 @@ class DeviceBaseActor(Actor):
         theLogger.info(
             "Device actor received a SEND_RESERVE command with message: %s", msg
         )
+        if msg["APP"] is None:
+            theLogger.error("ERROR: there is no APP name!")
+            return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
+        if msg["HOST"] is None:
+            theLogger.error("ERROR: there is no HOST name!")
+            return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
+        if msg["USER"] is None:
+            theLogger.error("ERROR: there is no USER name!")
+            return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
+        # TODO: Check instrument server for availability of requested instrument
         # Create redirector actor
         short_id = self.globalName.split(".")[0]
         redirector_actor = registrationserver2.actor_system.createActor(
@@ -145,4 +155,4 @@ class DeviceBaseActor(Actor):
         theLogger.info("Redirector actor created.")
         # Write into device file
 
-        return RETURN_MESSAGES.get("OK")
+        return RETURN_MESSAGES["OK"]
