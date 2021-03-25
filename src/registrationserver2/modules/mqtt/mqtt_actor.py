@@ -84,29 +84,30 @@ class MqttActor(DeviceBaseActor):
 
         return send_status
 
-    def __send_reserve__(self, msg):
+    def __send_reserve__(self, msg:dict)->dict:
+        super().__send_reserve__(msg)
         theLogger.info("Reserve-Request\n")
         if msg is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
 
         self.reserve_req_msg["Req"] = msg.get("Req", None)
-        if self.reserve_req_msg["Req"] is None:
-            self.reserve_req_msg["Req"] = "reserve"
+        #if self.reserve_req_msg["Req"] is None:
+        #    self.reserve_req_msg["Req"] = "reserve"
 
         self.reserve_req_msg["App"] = msg.get("App", None)
-        if self.reserve_req_msg["App"] is None:
-            theLogger.info("ERROR: there is no App name!\n")
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        #if self.reserve_req_msg["App"] is None:
+        #    theLogger.info("ERROR: there is no App name!\n")
+        #    return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
 
         self.reserve_req_msg["Host"] = msg.get("Host", None)
-        if self.reserve_req_msg["Host"] is None:
-            theLogger.info("ERROR: there is no host name!\n")
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        #if self.reserve_req_msg["Host"] is None:
+        #    theLogger.info("ERROR: there is no host name!\n")
+        #    return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
 
         self.reserve_req_msg["User"] = msg.get("User", None)
-        if self.reserve_req_msg["User"] is None:
-            theLogger.info("ERROR: there is no user name!\n")
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        #if self.reserve_req_msg["User"] is None:
+        #    theLogger.info("ERROR: there is no user name!\n")
+        #    return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
 
         send_reserve_status = actor_system.ask(
             self.mqtt_client_adr,
@@ -124,12 +125,12 @@ class MqttActor(DeviceBaseActor):
 
     def __send_free__(self, msg):
         theLogger.info("Free-Request\n")
-        if msg is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        #if msg is None:
+        #    return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
 
         self.free_req_msg["Req"] = msg.get("Req", None)
-        if self.free_req_msg["Req"] is None:
-            self.free_req_msg["Req"] = "free"
+        #if self.free_req_msg["Req"] is None:
+        #    self.free_req_msg["Req"] = "free"
 
         send_free_status = actor_system.ask(
             self.mqtt_client_adr,
