@@ -71,7 +71,7 @@ Created on 30.09.2020</p>
 <p>&#64;author: rfoerster</p>
 <dl class="py data">
 <dt id="registrationserver2.config.config">
-<code class="sig-prename descclassname"><span class="pre">registrationserver2.config.</span></code><code class="sig-name descname"><span class="pre">config</span></code><em class="property"><span class="pre">:</span> <span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">{'FOLDER':</span> <span class="pre">'/home/strey/SARAD/devices',</span> <span class="pre">'LEVEL':</span> <span class="pre">10,</span> <span class="pre">'MDNS_TIMEOUT':</span> <span class="pre">3000,</span> <span class="pre">'TYPE':</span> <span class="pre">['_sarad-1688._rfc2217._tcp.local.',</span> <span class="pre">'_rfc2217._tcp.local.']}</span></em><a class="headerlink" href="#registrationserver2.config.config" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">registrationserver2.config.</span></code><code class="sig-name descname"><span class="pre">config</span></code><em class="property"><span class="pre">:</span> <span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">{'FOLDER':</span> <span class="pre">'/home/strey/SARAD/devices',</span> <span class="pre">'FOLDER2':</span> <span class="pre">'/home/strey/SARAD/hosts',</span> <span class="pre">'LEVEL':</span> <span class="pre">10,</span> <span class="pre">'MDNS_TIMEOUT':</span> <span class="pre">3000,</span> <span class="pre">'TYPE':</span> <span class="pre">'_rfc2217._tcp.local.'}</span></em><a class="headerlink" href="#registrationserver2.config.config" title="Permalink to this definition">¶</a></dt>
 <dd><p>Configuration Object
 TODO: Load from yaml file instead of a ‘executable’ file format</p>
 </dd></dl>
@@ -86,23 +86,18 @@ TODO: Load from yaml file instead of a ‘executable’ file format</p>
 <em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">registrationserver2.redirector_actor.</span></code><code class="sig-name descname"><span class="pre">RedirectorActor</span></code><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creating port for listening to Packages from a SARAD© Application</p>
 <dl class="py attribute">
-<dt id="registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_STATE">
-<code class="sig-name descname"><span class="pre">ILLEGAL_STATE</span></code><em class="property"> <span class="pre">=</span> <span class="pre">{'ERROR':</span> <span class="pre">'Actor</span> <span class="pre">not</span> <span class="pre">setup</span> <span class="pre">correctly,</span> <span class="pre">make</span> <span class="pre">sure</span> <span class="pre">to</span> <span class="pre">send</span> <span class="pre">SETUP</span> <span class="pre">message</span> <span class="pre">first',</span> <span class="pre">'ERROR_CODE':</span> <span class="pre">5}</span></em><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_STATE" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_WRONGFORMAT">
-<code class="sig-name descname"><span class="pre">ILLEGAL_WRONGFORMAT</span></code><em class="property"> <span class="pre">=</span> <span class="pre">{'ERROR':</span> <span class="pre">'Misformatted</span> <span class="pre">or</span> <span class="pre">no</span> <span class="pre">message</span> <span class="pre">sent',</span> <span class="pre">'ERROR_CODE':</span> <span class="pre">1}</span></em><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_WRONGFORMAT" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_WRONGTYPE">
-<code class="sig-name descname"><span class="pre">ILLEGAL_WRONGTYPE</span></code><em class="property"> <span class="pre">=</span> <span class="pre">{'ERROR':</span> <span class="pre">'Wrong</span> <span class="pre">message</span> <span class="pre">type,</span> <span class="pre">dictionary</span> <span class="pre">expected',</span> <span class="pre">'ERROR_CODE':</span> <span class="pre">3}</span></em><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.ILLEGAL_WRONGTYPE" title="Permalink to this definition">¶</a></dt>
+<dt id="registrationserver2.redirector_actor.RedirectorActor.HOST">
+<code class="sig-name descname"><span class="pre">HOST</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'127.0.0.1'</span></em><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.HOST" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt id="registrationserver2.redirector_actor.RedirectorActor.LOOP">
 <code class="sig-name descname"><span class="pre">LOOP</span></code><em class="property"> <span class="pre">=</span> <span class="pre">{'CMD':</span> <span class="pre">'LOOP'}</span></em><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.LOOP" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt id="registrationserver2.redirector_actor.RedirectorActor.PORT">
+<code class="sig-name descname"><span class="pre">PORT</span></code><em class="property"> <span class="pre">=</span> <span class="pre">50000</span></em><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.PORT" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -137,21 +132,11 @@ TODO: Load from yaml file instead of a ‘executable’ file format</p>
 
 <dl class="py class">
 <dt id="registrationserver2.redirector_actor.SocketClient">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">registrationserver2.redirector_actor.</span></code><code class="sig-name descname"><span class="pre">SocketClient</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="pre">client_socket:</span> <span class="pre">&lt;module</span> <span class="pre">'socket'</span> <span class="pre">from</span> <span class="pre">'/usr/lib/python3.9/socket.py'&gt;</span></em>, <em class="sig-param"><span class="pre">client_address:</span> <span class="pre">registrationserver2.redirector_actor.SockInfo</span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.redirector_actor.SocketClient" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">registrationserver2.redirector_actor.</span></code><code class="sig-name descname"><span class="pre">SocketClient</span></code><a class="headerlink" href="#registrationserver2.redirector_actor.SocketClient" title="Permalink to this definition">¶</a></dt>
 <dd><p>Example: SocketClient(client_socket=&lt;socket.socket fd=3708,
 family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0,
 laddr=(‘127.0.0.1’, 55224), raddr=(‘127.0.0.1’, 56066)&gt;,
 client_address=SockInfo(address=’127.0.0.1’, port=56066))</p>
-<dl class="py attribute">
-<dt id="registrationserver2.redirector_actor.SocketClient.client_address">
-<code class="sig-name descname"><span class="pre">client_address</span></code><em class="property"><span class="pre">:</span> <a class="reference internal" href="#registrationserver2.redirector_actor.SockInfo" title="registrationserver2.redirector_actor.SockInfo"><span class="pre">registrationserver2.redirector_actor.SockInfo</span></a></em><a class="headerlink" href="#registrationserver2.redirector_actor.SocketClient.client_address" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt id="registrationserver2.redirector_actor.SocketClient.client_socket">
-<code class="sig-name descname"><span class="pre">client_socket</span></code><em class="property"><span class="pre">:</span> <span class="pre">&lt;module</span> <span class="pre">‘socket’</span> <span class="pre">from</span> <span class="pre">‘/usr/lib/python3.9/socket.py’&gt;</span></em><a class="headerlink" href="#registrationserver2.redirector_actor.SocketClient.client_socket" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
 </dd></dl>
 
 </div>
@@ -364,8 +349,8 @@ user-&gt;cake:has some
 "/>
 </p>
 <dl class="py attribute">
-<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.ACCEPTED_MESSAGES">
-<code class="sig-name descname"><span class="pre">ACCEPTED_MESSAGES</span></code><em class="property"> <span class="pre">=</span> <span class="pre">{'ECHO':</span> <span class="pre">'__echo__',</span> <span class="pre">'FREE':</span> <span class="pre">'__free__',</span> <span class="pre">'KILL':</span> <span class="pre">'__kill__',</span> <span class="pre">'RESERVE':</span> <span class="pre">'__reserve__',</span> <span class="pre">'SEND':</span> <span class="pre">'__send__',</span> <span class="pre">'SEND_FREE':</span> <span class="pre">'__send_free__',</span> <span class="pre">'SEND_RESERVE':</span> <span class="pre">'__send_reserve__',</span> <span class="pre">'SETUP':</span> <span class="pre">'__setup__'}</span></em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.ACCEPTED_MESSAGES" title="Permalink to this definition">¶</a></dt>
+<dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.ACCEPTED_COMMANDS">
+<code class="sig-name descname"><span class="pre">ACCEPTED_COMMANDS</span></code><em class="property"> <span class="pre">=</span> <span class="pre">{'ECHO':</span> <span class="pre">'_echo',</span> <span class="pre">'FREE':</span> <span class="pre">'_free',</span> <span class="pre">'KILL':</span> <span class="pre">'_kill',</span> <span class="pre">'RESERVE':</span> <span class="pre">'_reserve',</span> <span class="pre">'SEND':</span> <span class="pre">'_send',</span> <span class="pre">'SETUP':</span> <span class="pre">'_setup'}</span></em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.ACCEPTED_COMMANDS" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -433,6 +418,12 @@ to the desired yaml format</p>
 </dd></dl>
 
 <dl class="py method">
+<dt id="registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener.remove_all_services">
+<code class="sig-name descname"><span class="pre">remove_all_services</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="headerlink" href="#registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener.remove_all_services" title="Permalink to this definition">¶</a></dt>
+<dd><p>Kill all device actors and remove all links to device file from FOLDER_AVAILABLE.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt id="registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener.remove_service">
 <code class="sig-name descname"><span class="pre">remove_service</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">zc</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">zeroconf.Zeroconf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">type_</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">None</span><a class="headerlink" href="#registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener.remove_service" title="Permalink to this definition">¶</a></dt>
 <dd><p>Hook, being called when a regular shutdown of a service
@@ -459,7 +450,7 @@ representing a device is being updated</p>
 <dd><p>classdocs</p>
 <dl class="py attribute">
 <dt id="registrationserver2.modules.device_actor_manager.DeviceActorManager.ACCEPTED_MESSAGES">
-<code class="sig-name descname"><span class="pre">ACCEPTED_MESSAGES</span></code><em class="property"> <span class="pre">=</span> <span class="pre">{'CREATE':</span> <span class="pre">'__create__',</span> <span class="pre">'ECHO':</span> <span class="pre">'__echo__',</span> <span class="pre">'KILL':</span> <span class="pre">'__kill__',</span> <span class="pre">'SETUP':</span> <span class="pre">'__setup__'}</span></em><a class="headerlink" href="#registrationserver2.modules.device_actor_manager.DeviceActorManager.ACCEPTED_MESSAGES" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">ACCEPTED_MESSAGES</span></code><em class="property"> <span class="pre">=</span> <span class="pre">{'CREATE':</span> <span class="pre">'_create',</span> <span class="pre">'ECHO':</span> <span class="pre">'_echo',</span> <span class="pre">'KILL':</span> <span class="pre">'_kill',</span> <span class="pre">'SETUP':</span> <span class="pre">'_setup'}</span></em><a class="headerlink" href="#registrationserver2.modules.device_actor_manager.DeviceActorManager.ACCEPTED_MESSAGES" title="Permalink to this definition">¶</a></dt>
 <dd><p>Defines magic methods that are called when the specific message is received by the actor</p>
 </dd></dl>
 
