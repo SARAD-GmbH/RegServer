@@ -26,27 +26,25 @@ class DeviceBaseActor(Actor):
 
     # Defines magic methods that are called when the specific message is
     # received by the actor
-    ACCEPTED_MESSAGES = {  # Those needs implementing
+    ACCEPTED_COMMANDS = {  # Those needs implementing
         # SEND is being called when the end-user-application wants to send data,
         # should return the direct or indirect response from the device, None in
         # case the device is not reachable (so the end application can set the
         # timeout itself)
-        "SEND": "__send__",
-        # SEND_RESERVE is being called when the end-user-application wants to reserve the
+        "SEND": "_send",
+        # RESERVE is being called when the end-user-application wants to reserve the
         # directly or indirectly connected device for exclusive communication,
         # should return if a reservation is currently possible
-        "SEND_RESERVE": "__send_reserve__",
-        "SEND_FREE": "__send_free__",
+        "RESERVE": "_reserve",
         # Those are implemented by the base class (this class)
         # ECHO should return what is send, main use is for testing purpose at this point
-        "ECHO": "__echo__",
+        "ECHO": "_echo",
         # is being called when the end-user-application is done requesting /
         # sending data, should return true as soon the freeing process has been
         # initialized
-        "FREE": "__free__",
-        "SETUP": "__setup__",
-        "RESERVE": "__reserve__",
-        "KILL": "__kill__",
+        "FREE": "_free",
+        "SETUP": "_setup",
+        "KILL": "_kill",
     }
 
     def __init__(self):
@@ -66,32 +64,32 @@ class DeviceBaseActor(Actor):
             self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGTYPE"])
             return
 
-        cmd_string = msg.get("CMD", None)
+        cmd_key = msg.get("CMD", None)
 
-        if not cmd_string:
+        if cmd_key is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"])
             return
 
-        cmd = self.ACCEPTED_MESSAGES.get(cmd_string, None)
-
-        if not cmd:
+        cmd = self.ACCEPTED_COMMANDS.get(cmd_key, None)
+        theLogger.info("Call function %s", cmd)
+        if cmd is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"])
             return
 
-        if not getattr(self, cmd, None):
+        if getattr(self, cmd, None) is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"])
             return
 
         self.send(sender, getattr(self, cmd)(msg))
 
     @staticmethod
-    def __echo__(msg: dict) -> dict:
+    def _echo(msg: dict) -> dict:
         msg.pop("CMD", None)
         msg.pop("RETURN", None)
         msg["RETURN"] = True
         return msg
 
-    def __setup__(self, msg: dict) -> dict:
+    def _setup(self, msg: dict) -> dict:
         if not self.setup_done:
             self._config = msg
             filename = fr"{FOLDER_HISTORY}{os.path.sep}{self.globalName}"
@@ -120,7 +118,7 @@ class DeviceBaseActor(Actor):
             theLogger.info("Actor already set up with %s", self._config)
             return RETURN_MESSAGES["OK_SKIPPED"]
 
-    def __kill__(self, msg: dict):  # TODO move to Actor Manager
+    def _kill(self, msg: dict):  # TODO move to Actor Manager
         theLogger.info("Shutting down actor %s, Message: %s", self.globalName, msg)
         theLogger.info(
             registrationserver2.actor_system.ask(
@@ -129,14 +127,9 @@ class DeviceBaseActor(Actor):
         )
         # self.setup_done = False
 
-    def __reserve__(self, msg: dict) -> dict:
-        pass
-
-    def __send_reserve__(self, msg: dict) -> dict:
-        """Handler for SEND_RESERVE message from REST API."""
-        theLogger.info(
-            "Device actor received a SEND_RESERVE command with message: %s", msg
-        )
+    def _reserve(self, msg: dict) -> dict:
+        """Handler for RESERVE message from REST API."""
+        theLogger.info("Device actor received a RESERVE command with message: %s", msg)
         if msg["APP"] is None:
             theLogger.error("ERROR: there is no APP name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]

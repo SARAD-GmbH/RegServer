@@ -19,10 +19,10 @@ class DeviceActorManager(Actor):
     """
 
     ACCEPTED_MESSAGES = {
-        "CREATE": "__create__",  # is being called when the end-user-application wants to reserve the directly or indirectly connected device for exclusive communication, should return if a reservation is currently possible
-        "ECHO": "__echo__",  # should returns what is send, main use is for testing purpose at this point
-        "SETUP": "__setup__",
-        "KILL": "__kill__",
+        "CREATE": "_create",  # is being called when the end-user-application wants to reserve the directly or indirectly connected device for exclusive communication, should return if a reservation is currently possible
+        "ECHO": "_echo",  # should returns what is send, main use is for testing purpose at this point
+        "SETUP": "_setup",
+        "KILL": "_kill",
     }
     """
     Defines magic methods that are called when the specific message is received by the actor
@@ -61,13 +61,13 @@ class DeviceActorManager(Actor):
         self.send(sender, getattr(self, cmd)(msg))
 
     @staticmethod
-    def __echo__(msg: dict) -> dict:
+    def _echo(msg: dict) -> dict:
         msg.pop("CMD", None)
         msg.pop("RETURN", None)
         msg["RETURN"] = True
         return msg
 
-    def __create__(self, msg: dict) -> dict:
+    def _create(self, msg: dict) -> dict:
         if not hasattr(self, "actors"):
             self.actors = {}
         _name = msg.get("Name", None)
@@ -81,7 +81,7 @@ class DeviceActorManager(Actor):
             return RETURN_MESSAGES.get("OK")
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
-    def __kill__(self, msg: dict) -> dict:
+    def _kill(self, msg: dict) -> dict:
         if not hasattr(self, "actors"):
             self.actors = {}
 

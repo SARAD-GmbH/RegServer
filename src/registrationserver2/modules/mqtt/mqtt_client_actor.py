@@ -6,12 +6,12 @@ import sys
 # import queue
 import json
 #import yaml
-import signal 
+import signal
 import threading
 import traceback
 import paho.mqtt.client  as MQTT# type: ignore
 
-import registrationserver2 
+import registrationserver2
 from registrationserver2 import actor_system, theLogger
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
 from registrationserver2.modules.mqtt import MQTT_ACTOR_ADRs
@@ -32,11 +32,11 @@ class SaradMqttClient(object):
     mqtt_broker: str  # MQTT Broker, here: localhost
 
     mqtt_cid: str  # MQTT Client ID
-    
+
     __folder_history: str
-    
+
     __folder_available: str
-    
+
     __lock = threading.Lock()
 
     def on_connect(
@@ -82,7 +82,7 @@ class SaradMqttClient(object):
 
     def on_message(self, client, userdata, message):
         self.topic_parts = []
-        
+
         print("message received " ,str(message.payload.decode("utf-8")))
         print("message topic=",message.topic)
         print("message qos=",message.qos)
@@ -146,8 +146,8 @@ class SaradMqttClient(object):
                 str(message.payload.decode("utf-8")),
                 str(message.topic.decode("utf-8")),
             )
-            
-    def __add_instr__(self, instr_id : str, msg)->dict:
+
+    def _add_instr(self, instr_id : str, msg)->dict:
         with self.__lock:
             theLogger.info(f"[Add]:\tFound: A new connected instrument with instrument ID : {instr_id}")
             filename = fr"{self.__folder_history}{instr_id}"
@@ -192,8 +192,8 @@ class SaradMqttClient(object):
                     or setup_return is RETURN_MESSAGES.get("OK_SKIPPED")
                 ):
                     registrationserver2.actor_system.ask(this_actor, {"CMD": "KILL"})
-    
-    def __connect__(self, msg: dict) -> dict:
+
+    def _connect(self, msg: dict) -> dict:
         self.mqtt_cid = msg.get("Data", None).get("client_id", None)
 
         if self.mqtt_cid is None:
@@ -235,14 +235,14 @@ class SaradMqttClient(object):
         self.mqttc.loop_start()
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
-    def __disconnect__(self, msg: dict) -> dict:
+    def _disconnect(self, msg: dict) -> dict:
         theLogger.info("To disconnect from the MQTT-broker!\n")
         self.mqttc.disconnect()
         theLogger.info("To stop the MQTT thread!\n")
         self.mqttc.loop_stop()
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
-    def __publish__(self, msg: dict) -> dict:
+    def _publish(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("Data", None).get("topic", None)
         if self.mqtt_topic is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
@@ -266,7 +266,7 @@ class SaradMqttClient(object):
         self.mqttc.loop_start()
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
-    def __subscribe__(self, msg: dict) -> dict:
+    def _subscribe(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("topic", None)
         if self.mqtt_topic is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
@@ -291,7 +291,7 @@ class SaradMqttClient(object):
         self.mqttc.loop_start()
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
-    def __unsubscribe__(self, msg: dict) -> dict:
+    def _unsubscribe(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("topic", None)
         if self.mqtt_topic is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
@@ -357,12 +357,12 @@ class SaradMqttClient(object):
 #)
 '''
 # Plan A:
-#SARAD_MQTT_CLIENT = registrationserver2.actor_system.createActor(SaradMqttClient, globalName="sarad_mqtt_client")
+# SARAD_MQTT_CLIENT = registrationserver2.actor_system.createActor(SaradMqttClient, globalName="sarad_mqtt_client")
 # Plan B:
-#SARAD_MQTT_CLIENT: ActorAddress = actor_system.createActor(
+# SARAD_MQTT_CLIENT: ActorAddress = actor_system.createActor(
 #    SaradMqttClient, globalName=type(SaradMqttClient).__name__
-#)
-'''
+# )
+"""
 def test():
     connect_status = actor_system.ask(SARAD_MQTT_CLIENT, {"CMD" : "CONNECT", "Data" : {"client_id" : "Test_client1", "mqtt_broker" : "localhost"}})
     print (connect_status)
@@ -370,5 +370,5 @@ def test():
     theLogger.info("!")
 
 if __name__ == "__main__":
-    test()    
-'''
+    test()
+"""

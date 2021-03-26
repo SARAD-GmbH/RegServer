@@ -199,7 +199,7 @@ class RestApi(Actor):
         theLogger.info("%s: %s --> %s", did, attribute_who, request_host)
         if not registrationserver2.matchid.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
-        # SEND_RESERVE message to device actor
+        # send RESERVE message to device actor
         if "_rfc2217" in did:
             device_actor = registrationserver2.actor_system.createActor(
                 Rfc2217Actor, globalName=did
@@ -216,7 +216,7 @@ class RestApi(Actor):
             )
         reserve_return = registrationserver2.actor_system.ask(
             device_actor,
-            {"CMD": "SEND_RESERVE", "HOST": request_host, "USER": user, "APP": app},
+            {"CMD": "RESERVE", "HOST": request_host, "USER": user, "APP": app},
         )
         theLogger.info(reserve_return)
 

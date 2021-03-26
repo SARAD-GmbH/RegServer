@@ -27,7 +27,7 @@ class MqttActor(DeviceBaseActor):
     # The receiveMessage() is defined in the DeviceBaseActor class, as well as
     # the ACCEPTED_MESSAGES.
 
-    def __send__(self, msg: dict):
+    def _send(self, msg: dict):
         if msg is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
 
@@ -60,8 +60,8 @@ class MqttActor(DeviceBaseActor):
 
         return send_status
 
-    def __send_reserve__(self, msg):
-        super().__send_reserve__(msg)
+    def _reserve(self, msg):
+        super()._reserve(msg)
         send_reserve_status = actor_system.ask(
             self.mqtt_client_adr,
             {
@@ -76,7 +76,7 @@ class MqttActor(DeviceBaseActor):
 
         return send_reserve_status
 
-    def __send_free__(self, msg):
+    def _free(self, msg):
         theLogger.info("Free-Request\n")
         if msg is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
@@ -98,12 +98,12 @@ class MqttActor(DeviceBaseActor):
         )
         return send_free_status
 
-    def __kill__(self, msg: dict):
-        super().__kill__(msg)
+    def _kill(self, msg: dict):
+        super()._kill(msg)
         # TODO: clear the used memory space
         # TODO: let sender know this actor is killed
 
-    def __prepare__(self, msg: dict):
+    def _prepare(self, msg: dict):
         self.is_id = msg.get("Data", None).get("is_id", None)
         if self.is_id is None:
             theLogger.info("ERROR: No Instrument Server ID received!\n")
@@ -157,7 +157,7 @@ class MqttActor(DeviceBaseActor):
 
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
-    def __binary_reply__(self, msg):
+    def _binary_reply(self, msg):
         # TODO: transfer the binary reply to app/redirector actor
         theLogger.info(
             f"The binary reply ({msg.get('Data').get('payload')}) from the instrument ({msg.get('Data').get('instr_id')}) connected to the IS MQTT ({msg.get('Data').get('is_id')})"

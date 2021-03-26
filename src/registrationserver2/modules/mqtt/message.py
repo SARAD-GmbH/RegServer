@@ -48,63 +48,63 @@ IS_ID_LIST: list = []  # A list for storing the ID of IS MQTT
 RETURN_MESSAGES = {
     # The message received by the actor was not in an expected format
     "ILLEGAL_WRONGFORMAT": {
-        "ERROR": "Misformatted or no message sent",
+        "RESULT": "Misformatted or no message sent",
         "ERROR_CODE": 1,
     },
     # The command received by the actor was not yet implemented by the implementing class
     "ILLEGAL_NOTIMPLEMENTED": {
-        "ERROR": "Not implemented",
+        "RESULT": "Not implemented",
         "ERROR_CODE": 2,
     },
     # The message received by the actor was not in an expected type
     "ILLEGAL_WRONGTYPE": {
-        "ERROR": "Wrong Message Type, dictionary Expected",
+        "RESULT": "Wrong Message Type, dictionary Expected",
         "ERROR_CODE": 3,
     },
     # The message received by the actor was not in an expected type
     "ILLEGAL_UNKNOWN_COMMAND": {
-        "ERROR": "Unknown Command",
+        "RESULT": "Unknown Command",
         "ERROR_CODE": 4,
     },
     # The actor was in an wrong state
     # "ILLEGAL_STATE": {
-    #     "ERROR": "Actor not setup correctly, make sure to send SETUP message first",
+    #     "RESULT": "Actor not setup correctly, make sure to send SETUP message first",
     #     "ERROR_CODE": 5,
     # }, # not supported in RETURN_MESSAGE in data_base_actor.py
     "CONNECTION_FAILURE": {
-        "ERROR": "MQTT client failed to connect to MQTT-broker",
+        "RESULT": "MQTT client failed to connect to MQTT-broker",
         "ERROR_CODE": 6,
     },
     "CONNECTION_NO_RESPONSE": {
-        "ERROR": "No response to connection request",
+        "RESULT": "No response to connection request",
         "ERROR_CODE": 7,
     },
     # "DISCONNECTION_FAILURE": {
-    #     "ERROR": "MQTT client failed to disconnect with MQTT-broker",
+    #     "RESULT": "MQTT client failed to disconnect with MQTT-broker",
     #     "ERROR_CODE": 8,
     # },
     # "DISCONNECTION_NO_RESPONSE": {
-    #     "ERROR": "No response to disconnection request",
+    #     "RESULT": "No response to disconnection request",
     #     "ERROR_CODE": 9,
     # },
     "PUBLISH_FAILURE": {
-        "ERROR": "Failed to publish the message",
+        "RESULT": "Failed to publish the message",
         "ERROR_CODE": 10,
     },
     "SUBSCRIBE_FAILURE": {
-        "ERROR": "Failed to subscribe to the topic",
+        "RESULT": "Failed to subscribe to the topic",
         "ERROR_CODE": 11,
     },
     "UNSUBSCRIBE_FAILURE": {
-        "ERROR": "Failed to unsubscribe to the topic",
+        "RESULT": "Failed to unsubscribe to the topic",
         "ERROR_CODE": 12,
     },
     "NO_MQTT_ACTOR": {
-        "ERROR": "There is no such MQTT Actor created",
+        "RESULT": "There is no such MQTT Actor created",
         "ERROR_CODE": 13,
     },
     "PREPARE_FAILURE": {
-        "ERROR": "Failed to make the MQTT Actor prepared",
+        "RESULT": "Failed to make the MQTT Actor prepared",
         "ERROR_CODE": 14,
     },
     "OK_SKIPPED": {"RETURN": True, "SKIPPED": True},

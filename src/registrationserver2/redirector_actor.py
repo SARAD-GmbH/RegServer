@@ -13,6 +13,7 @@ from registrationserver2 import actor_system, theLogger
 # from registrationserver2.modules import device_base_actor
 from registrationserver2.modules.device_actor_manager import \
     DEVICE_ACTOR_MANAGER
+from registrationserver2.modules.messages import RETURN_MESSAGES
 
 theLogger.info("%s -> %s", __package__, __file__)
 
@@ -43,20 +44,17 @@ class RedirectorActor(Actor):
     _sockclient: SockInfo
     # _device: device_base_actor  # TODO: Ist das richtig? -- MS
 
-    ILLEGAL_STATE = {
-        "ERROR": "Actor not setup correctly, make sure to send SETUP message first",
-        "ERROR_CODE": 5,
-    }  # The actor was in a wrong state
-    ILLEGAL_WRONGTYPE = {
-        "ERROR": "Wrong message type, dictionary expected",
-        "ERROR_CODE": 3,
-    }  # The message received by the actor was not of expected type
-    ILLEGAL_WRONGFORMAT = {
-        "ERROR": "Misformatted or no message sent",
-        "ERROR_CODE": 1,
-    }  # The message received by the actor did not match the expected format.
-
     LOOP = {"CMD": "LOOP"}
+
+    HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
+    PORT = 50000  # Port to listen on (non-privileged ports are > 1023)
+
+    def __init__(self):
+        super().__init__()
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.bind((self.HOST, self.PORT))
+        self._socket.listen()
+        theLogger.info("Socket listening on port %d", self.PORT)
 
     def receive(self):
         """Listen to Port and redirect any messages"""
