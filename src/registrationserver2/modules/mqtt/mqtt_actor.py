@@ -78,12 +78,12 @@ class MqttActor(DeviceBaseActor):
 
     def _free(self, msg):
         theLogger.info("Free-Request\n")
-        if msg is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        #if msg is None:
+        #    return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
 
         self.free_req_msg["Req"] = msg.get("Req", None)
-        if self.free_req_msg["Req"] is None:
-            self.free_req_msg["Req"] = "free"
+        #if self.free_req_msg["Req"] is None:
+        #    self.free_req_msg["Req"] = "free"
 
         send_free_status = actor_system.ask(
             self.mqtt_client_adr,
