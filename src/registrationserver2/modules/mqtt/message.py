@@ -4,11 +4,11 @@ Created on 2021-03-12
 @author: Yixiang
 """
 
-from typing import Dict
+#from typing import Dict
 
-MQTT_ACTOR_REQUESTs: Dict[
-    str, str
-] = {}  # A dictionary for storing the request statuses of MQTT Actors
+#MQTT_ACTOR_REQUESTs: Dict[
+#    str, str
+#] = {}  # A dictionary for storing the request statuses of MQTT Actors
 """
 Struture of MQTT_ACTOR_REQUESTs:
 MQTT_ACTOR_REQUESTs = {
@@ -22,9 +22,9 @@ MQTT_ACTOR_REQUESTs = {
 }
 """
 
-MQTT_ACTOR_ADRs: Dict[
-    str, str
-] = {}  # A dictionary for storing the addresses of MQTT Actors
+#MQTT_ACTOR_ADRs: Dict[
+#    str, str
+#] = {}  # A dictionary for storing the addresses of MQTT Actors
 """
 Struture of MQTT_ACTOR_ADRs:
 MQTT_ACTOR_ADRs = {
@@ -42,7 +42,7 @@ MQTT_ACTOR_ADRs = {
 }
 """
 
-IS_ID_LIST: list = []  # A list for storing the ID of IS MQTT
+#IS_ID_LIST: list = []  # A list for storing the ID of IS MQTT
 
 
 RETURN_MESSAGES = {
@@ -106,6 +106,30 @@ RETURN_MESSAGES = {
     "PREPARE_FAILURE": {
         "ERROR": "Failed to make the MQTT Actor prepared",
         "ERROR_CODE": 14,
+    },
+    "SEND_RESERVE_FAILURE": {
+        "ERROR": "Failed to send reservation request",
+        "ERROR_CODE": 15,
+    },
+    "RESERVE_NO_REPLY": {
+        "ERROR": "Got no reply for the reservation request",
+        "ERROR_CODE": 16,
+    },
+    "RESERVE_REFUSED": {
+        "ERROR": "Reservation request is refused",
+        "ERROR_CODE": 17,
+    },
+    "SEND_FREE_FAILURE": {
+        "ERROR": "Failed to send free request",
+        "ERROR_CODE": 18,
+    },
+    "SEND_FAILURE": {
+        "ERROR": "Failed to send binary CMD",
+        "ERROR_CODE": 19,
+    },
+    "SEND_NO_REPLY": {
+        "ERROR": "Got no binary reply",
+        "ERROR_CODE": 20,
     },
     "OK_SKIPPED": {"RETURN": True, "SKIPPED": True},
     "OK": {"RETURN": True, "SKIPPED": True},

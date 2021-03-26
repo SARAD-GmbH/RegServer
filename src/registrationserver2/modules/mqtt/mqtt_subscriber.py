@@ -612,7 +612,6 @@ class SaradMqttSubscriber(Actor):
             theLogger.info("on_publish not called: PUBLISH FAILURE!\n")
             return RETURN_MESSAGES.get("PUBLISH_FAILURE")
 
-        self.mqttc.loop_start()
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
     def __subscribe__(self, msg: dict) -> dict:
@@ -637,7 +636,6 @@ class SaradMqttSubscriber(Actor):
             theLogger.info("on_subscribe not called: SUBSCRIBE FAILURE!\n")
             return RETURN_MESSAGES.get("SUBSCRIBE_FAILURE")
 
-        self.mqttc.loop_start()
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
     def __unsubscribe__(self, msg: dict) -> dict:
@@ -659,7 +657,6 @@ class SaradMqttSubscriber(Actor):
             theLogger.info("on_unsubscribe not called: UNSUBSCRIBE FAILURE!\n")
             return RETURN_MESSAGES.get("UNSUBSCRIBE_FAILURE")
 
-        self.mqttc.loop_start()
         return RETURN_MESSAGES.get("OK_SKIPPED")
     
     def __kill__(self, msg) -> dict:
