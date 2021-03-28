@@ -54,51 +54,21 @@ class SaradMdnsListener(ServiceListener):
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             if info is not None:
                 theLogger.info("[Add]:\t%s", info.properties)
-            # serial = info.properties.get(b'SERIAL', b'UNKNOWN').decode("utf-8")
-            filename = fr"{self.__folder_history}{name}"
-            link = fr"{self.__folder_available}{name}"
-            try:
-                data = self.convert_properties(name=name, info=info)
-                if data:
-                    with open(filename, "w+") as file_stream:
-                        file_stream.write(data)
-                    if not os.path.exists(link):
-                        theLogger.info("Linking %s to %s", link, filename)
-                        os.link(filename, link)
-                else:
-                    theLogger.error(
-                        "[Add]:\tFailed to convert properties from %s, %s", type_, name
-                    )
-            except Exception as error:  # pylint: disable=broad-except
-                theLogger.error(
-                    "[Add]:\t%s\t%s\t%s\t%s",
-                    type(error),
-                    error,
-                    vars(error) if isinstance(error, dict) else "-",
-                    traceback.format_exc(),
-                )
-            # if an actor already exists this will return
-            # the address of the excisting one, else it will create a new one
-            if data:
-                this_actor = registrationserver2.actor_system.createActor(
-                    Rfc2217Actor, globalName=name
-                )
-                setup_return = registrationserver2.actor_system.ask(
-                    this_actor, {"CMD": "SETUP"}
-                )
-                theLogger.info(setup_return)
-                # if setup_return is RETURN_MESSAGES.get("OK"):
-                #     theLogger.info(
-                #         registrationserver2.actor_system.ask(
-                #             this_actor,
-                #             {"CMD": "SEND", "DATA": b"\x42\x80\x7f\x0c\x0c\x00\x45"},
-                #         )
-                #     )
-                if not (
-                    setup_return is RETURN_MESSAGES.get("OK")
-                    or setup_return is RETURN_MESSAGES.get("OK_SKIPPED")
-                ):
-                    registrationserver2.actor_system.ask(this_actor, {"CMD": "KILL"})
+            # If an actor already exists, this will return
+            # the address of the excisting one, else it will create a new one.
+            this_actor = registrationserver2.actor_system.createActor(
+                Rfc2217Actor, globalName=name
+            )
+            data = self.convert_properties(name=name, info=info)
+            setup_return = registrationserver2.actor_system.ask(
+                this_actor, {"CMD": "SETUP", "PAR": data}
+            )
+            theLogger.info(setup_return)
+            if not (
+                setup_return is RETURN_MESSAGES["OK"]
+                or setup_return is RETURN_MESSAGES["OK_SKIPPED"]
+            ):
+                registrationserver2.actor_system.tell(this_actor, {"CMD": "KILL"})
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Hook, being called when a regular shutdown of a service
@@ -106,8 +76,6 @@ class SaradMdnsListener(ServiceListener):
         with self.__lock:
             theLogger.info("[Del]:\tRemoved: Service of type %s. Name: %s", type_, name)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
-            # serial = info.properties.get("SERIAL", "UNKNOWN")
-            # filename= fr'{self.__folder_history}{serial}'
             link = fr"{self.__folder_available}{name}"
             theLogger.debug("[Del]:\tInfo: %s", info)
             if os.path.exists(link):

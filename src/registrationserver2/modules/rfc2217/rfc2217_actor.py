@@ -20,9 +20,9 @@ class Rfc2217Actor(DeviceBaseActor):
     a RFC2217Protocol handler and relays messages towards it
     https://pythonhosted.org/pyserial/pyserial_api.html#module-serial.aio"""
 
-    __open = False
-    __port_ident: str
-    __port: serial.rfc2217.Serial = None
+    def __init__(self):
+        super().__init__()
+        self.__port: serial.rfc2217.Serial = None
 
     def _connect(self):
         """internal Function to connect to instrument server 2 over rfc2217"""
@@ -31,13 +31,12 @@ class Rfc2217Actor(DeviceBaseActor):
             port = self._file.get("Remote", {}).get("Port", None)
             if not address or not port:
                 return RETURN_MESSAGES.get("ILLEGAL_STATE")
-            self.__port_ident = fr"rfc2217://{address}:{port}"
+            port_ident = fr"rfc2217://{address}:{port}"
 
-        if self.__port_ident and not (self.__port and self.__port.is_open):
+        if port_ident and not (self.__port and self.__port.is_open):
             try:
-                self.__port = serial.rfc2217.Serial(
-                    self.__port_ident
-                )  # move the send ( test if connection is up and if not create)
+                self.__port = serial.rfc2217.Serial(port_ident)
+                # move the send ( test if connection is up and if not create)
             except Exception as error:  # pylint: disable=broad-except
                 theLogger.error(
                     "! %s\t%s\t%s\t%s",
@@ -69,24 +68,15 @@ class Rfc2217Actor(DeviceBaseActor):
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         return RETURN_MESSAGES.get("ILLEGAL_STATE")
 
-    def _free(self, msg):
-        theLogger.info(msg)
-        if self.__port and self.__port.isOpen():
-            self.__port.close()
+    def _free(self):
+        if self.__port is not None:
+            if self.__port.isOpen():
+                self.__port.close()
+            self.__port = None
 
     def _kill(self, msg: dict):
+        self._free()
         super()._kill(msg)
-        try:
-            self.__port.close()
-            self.__port = None
-        except Exception as error:  # pylint: disable=broad-except
-            theLogger.error(
-                "! %s\t%s\t%s\t%s",
-                type(error),
-                error,
-                vars(error) if isinstance(error, dict) else "-",
-                traceback.format_exc(),
-            )
 
 
 def _test():
