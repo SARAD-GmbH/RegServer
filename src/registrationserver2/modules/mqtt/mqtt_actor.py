@@ -34,10 +34,10 @@ class MqttActor(DeviceBaseActor):
     mqtt_client_adr = None
 
     # The receiveMessage() is defined in the DeviceBaseActor class
-    # "copy" ACCEPTED_MESSAGES of the DeviceBaseActor and add some new methods
-    ACCEPTED_MESSAGES = DeviceBaseActor.ACCEPTED_MESSAGES
+    # "copy" ACCEPTED_COMMANDS of the DeviceBaseActor and add some new methods
+    ACCEPTED_COMMANDS = DeviceBaseActor.ACCEPTED_COMMANDS
 
-    ACCEPTED_MESSAGES["PREPARE"] = "__prepare__"
+    ACCEPTED_COMMANDS["PREPARE"] = "__prepare__"
 
     # Definition of callback functions for the MQTT client, namely the on_* functions
     def on_connect(
@@ -119,7 +119,7 @@ class MqttActor(DeviceBaseActor):
                         f"[MQTT_Message]\tReceived illegal message: topic is {message.topic} and payload is {message.payload}"
                     )
 
-    # Definition of methods accessible for the actor system and other actors -> referred to ACCEPTED_MESSAGES
+    # Definition of methods accessible for the actor system and other actors -> referred to ACCEPTED_COMMANDS
     def _send(self, msg: dict):
         if msg is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")

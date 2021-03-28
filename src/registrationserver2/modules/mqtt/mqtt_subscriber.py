@@ -373,7 +373,7 @@ class SaradMqttSubscriber(Actor):
     classdocs
     """
 
-    ACCEPTED_MESSAGES = {
+    ACCEPTED_COMMANDS = {
         "KILL": "_kill",  # Kill this actor itself
         "RM_HOST": "_rm_host",  # Delete the link of the description file of a host from "available" to "history"
         "CONNECT": "_connect",
@@ -427,7 +427,7 @@ class SaradMqttSubscriber(Actor):
             self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
             return
 
-        cmd = self.ACCEPTED_MESSAGES.get(cmd_string, None)
+        cmd = self.ACCEPTED_COMMANDS.get(cmd_string, None)
 
         if not cmd:
             self.send(sender, RETURN_MESSAGES.get("ILLEGAL_UNKNOWN_COMMAND"))
