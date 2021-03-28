@@ -94,6 +94,26 @@ We have two types of messages:</p>
 </div>
 <div class="section" id="cmds-handled-by-the-devicebaseactor">
 <h2>CMDs handled by the DeviceBaseActor<a class="headerlink" href="#cmds-handled-by-the-devicebaseactor" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="setup">
+<h3>SETUP<a class="headerlink" href="#setup" title="Permalink to this headline">¶</a></h3>
+<p>Request to create the device file that is linked to the actor via its file name.</p>
+<p>Parameters:</p>
+<p>Content of the device file.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;Identification&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;Name&quot;</span><span class="p">:</span> <span class="s2">&quot;RADON SCOUT HOME&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Family&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+     <span class="s2">&quot;Type&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+     <span class="s2">&quot;Serial number&quot;</span><span class="p">:</span> <span class="mi">791</span><span class="p">,</span>
+     <span class="s2">&quot;Host&quot;</span><span class="p">:</span> <span class="s2">&quot;mischka&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;Protocol&quot;</span><span class="p">:</span> <span class="s2">&quot;sarad-1688&quot;</span><span class="p">},</span>
+ <span class="s2">&quot;Remote&quot;</span><span class="p">:</span> <span class="p">{</span>
+     <span class="s2">&quot;Address&quot;</span><span class="p">:</span> <span class="s2">&quot;192.168.178.20&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;Port&quot;</span><span class="p">:</span> <span class="mi">5580</span><span class="p">,</span>
+     <span class="s2">&quot;Name&quot;</span><span class="p">:</span> <span class="s2">&quot;0ghMF8Y.sarad-1688._rfc2217._tcp.local.&quot;</span><span class="p">}}</span>
+</pre></div>
+</div>
+</div>
 <div class="section" id="reserve">
 <h3>RESERVE<a class="headerlink" href="#reserve" title="Permalink to this headline">¶</a></h3>
 <p>Request to reserve an instrument.</p>
@@ -112,6 +132,11 @@ We have two types of messages:</p>
 <div class="section" id="free">
 <h3>FREE<a class="headerlink" href="#free" title="Permalink to this headline">¶</a></h3>
 <p>Request to free an instrument from the reservation.</p>
+</div>
+<div class="section" id="kill">
+<h3>KILL<a class="headerlink" href="#kill" title="Permalink to this headline">¶</a></h3>
+<p>Request the termination of an actor, sent when a device gets disconnected
+from the accessable network.</p>
 </div>
 </div>
 <div class="section" id="cmds-handled-by-the-deviceactor">
@@ -132,27 +157,14 @@ reponse</p></li>
 </ul>
 </div>
 </div>
-<div class="section" id="cmds-of-the-deviceactormanager">
-<h2>CMDs of the DeviceActorManager (???)<a class="headerlink" href="#cmds-of-the-deviceactormanager" title="Permalink to this headline">¶</a></h2>
-<p>(I’m not sure whether this component is really needed. – MS, 2021-03-26)</p>
-<div class="section" id="create">
-<h3>CREATE<a class="headerlink" href="#create" title="Permalink to this headline">¶</a></h3>
-<p>Request to create an actor for a specific device and class, sent when a new
-device is detected.</p>
-<p>Parameters:</p>
-<ul class="simple">
-<li><p>NAME: Device ID</p></li>
-<li><p>CLASS: Class for the Device Actor (i.e. Rfc2217Actor), must implement
-DeviceBaseActor</p></li>
-</ul>
-</div>
-<div class="section" id="kill">
-<h3>KILL<a class="headerlink" href="#kill" title="Permalink to this headline">¶</a></h3>
-<p>Request the termination of an actor, sent when a device gets disconnected
-from the accessable network.</p>
+<div class="section" id="cmds-of-the-redirector-actor">
+<h2>CMDs of the Redirector Actor<a class="headerlink" href="#cmds-of-the-redirector-actor" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id1">
+<h3>SETUP<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>Request to initialize the Redirector Actor with the globalName of its parent Device Actor.</p>
 <p>Parameter:</p>
 <ul class="simple">
-<li><p>NAME: Device ID</p></li>
+<li><p>PARENT_NAME: globalName of the Device Actor that created this Redirector Actor</p></li>
 </ul>
 </div>
 </div>
@@ -190,7 +202,7 @@ from the accessable network.</p>
 <li class="toctree-l2"><a class="reference internal" href="#general-message-structure">General message structure</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#cmds-handled-by-the-devicebaseactor">CMDs handled by the DeviceBaseActor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#cmds-handled-by-the-deviceactor">CMDs handled by the DeviceActor</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#cmds-of-the-deviceactormanager">CMDs of the DeviceActorManager (???)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cmds-of-the-redirector-actor">CMDs of the Redirector Actor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#misc-cmds-all">Misc CMDs (all)</a></li>
 </ul>
 </li>

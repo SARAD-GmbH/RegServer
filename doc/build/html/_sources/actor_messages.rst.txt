@@ -66,6 +66,29 @@ Examples::
 CMDs handled by the DeviceBaseActor
 ===================================
 
+SETUP
+-----
+
+Request to create the device file that is linked to the actor via its file name.
+
+Parameters:
+
+Content of the device file.
+
+Example::
+
+    {"Identification": {
+        "Name": "RADON SCOUT HOME",
+        "Family": 2,
+         "Type": 8,
+         "Serial number": 791,
+         "Host": "mischka",
+         "Protocol": "sarad-1688"},
+     "Remote": {
+         "Address": "192.168.178.20",
+         "Port": 5580,
+         "Name": "0ghMF8Y.sarad-1688._rfc2217._tcp.local."}}
+
 RESERVE
 -------
 
@@ -87,6 +110,12 @@ FREE
 
 Request to free an instrument from the reservation.
 
+KILL
+----
+
+Request the termination of an actor, sent when a device gets disconnected
+from the accessable network.
+
 
 CMDs handled by the DeviceActor
 ===============================
@@ -107,32 +136,18 @@ RESULT attributes:
 * DATA: Contains DATA that the device sent back, not set in case there is no
   reponse
 
-CMDs of the DeviceActorManager (???)
-====================================
+CMDs of the Redirector Actor
+============================
 
-(I'm not sure whether this component is really needed. -- MS, 2021-03-26)
+SETUP
+-----
 
-CREATE
-------
-
-Request to create an actor for a specific device and class, sent when a new
-device is detected.
-
-Parameters:
-
-* NAME: Device ID
-* CLASS: Class for the Device Actor (i.e. Rfc2217Actor), must implement
-  DeviceBaseActor
-
-KILL
-----
-
-Request the termination of an actor, sent when a device gets disconnected
-from the accessable network.
+Request to initialize the Redirector Actor with the globalName of its parent Device Actor.
 
 Parameter:
 
-* NAME: Device ID
+* PARENT_NAME: globalName of the Device Actor that created this Redirector Actor
+
 
 Misc CMDs (all)
 ===============
