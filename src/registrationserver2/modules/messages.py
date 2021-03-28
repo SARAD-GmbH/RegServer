@@ -39,6 +39,10 @@ RETURN_MESSAGES = {
         "RETURN": "OK, skipped",
         "ERROR_CODE": 10,
     },
+    "OK_UPDATED": {
+        "RETURN": "OK, updated",
+        "ERROR_CODE": 20,
+    },
     "OK": {
         "RETURN": "OK",
         "ERROR_CODE": 0,

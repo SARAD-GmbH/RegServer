@@ -66,7 +66,7 @@ class SaradMdnsListener(ServiceListener):
             theLogger.info(setup_return)
             if not (
                 setup_return is RETURN_MESSAGES["OK"]
-                or setup_return is RETURN_MESSAGES["OK_SKIPPED"]
+                or setup_return is RETURN_MESSAGES["OK_UPDATED"]
             ):
                 registrationserver2.actor_system.tell(this_actor, {"CMD": "KILL"})
 
@@ -97,30 +97,21 @@ class SaradMdnsListener(ServiceListener):
             if not info:
                 return
             theLogger.info("[Update]:\tGot Info: %s", info)
-            # serial = info.properties.get("SERIAL", "UNKNOWN")
-            filename = fr"{self.__folder_history}{info.name}"
-            link = fr"{self.__folder_available}{info.name}"
-            try:
-                data = self.convert_properties(name=name, info=info)
-                if data:
-                    with open(filename, "w+") as file_stream:
-                        file_stream.write(data)
-                    if not os.path.exists(link):
-                        os.link(filename, link)
-                else:
-                    theLogger.error(
-                        "[Update]:\tFailed to convert Properties from %s, %s",
-                        type_,
-                        name,
-                    )
-            except Exception as error:  # pylint: disable=broad-except
-                theLogger.error(
-                    "[Update]:\t%s\t%s\t%s\t%s",
-                    type(error),
-                    error,
-                    vars(error) if isinstance(error, dict) else "-",
-                    traceback.format_exc(),
-                )
+            # If an actor already exists, this will return
+            # the address of the excisting one, else it will create a new one.
+            this_actor = registrationserver2.actor_system.createActor(
+                Rfc2217Actor, globalName=name
+            )
+            data = self.convert_properties(name=name, info=info)
+            setup_return = registrationserver2.actor_system.ask(
+                this_actor, {"CMD": "SETUP", "PAR": data}
+            )
+            theLogger.info(setup_return)
+            if not (
+                setup_return is RETURN_MESSAGES["OK"]
+                or setup_return is RETURN_MESSAGES["OK_UPDATED"]
+            ):
+                registrationserver2.actor_system.tell(this_actor, {"CMD": "KILL"})
 
     def remove_all_services(self) -> None:
         """Kill all device actors and remove all links to device file from FOLDER_AVAILABLE."""

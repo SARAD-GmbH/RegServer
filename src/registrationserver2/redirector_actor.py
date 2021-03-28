@@ -86,8 +86,11 @@ class RedirectorActor(Actor):
         self.send(sender, getattr(self, cmd)(msg))
 
     def _setup(self, msg):
-        parent_name = msg["PAR"]["PARENT_NAME"]
-        self.my_parent = self.createActor(Actor, globalName=parent_name)
+        if self.my_parent is None:
+            parent_name = msg["PAR"]["PARENT_NAME"]
+            self.my_parent = self.createActor(Actor, globalName=parent_name)
+            return RETURN_MESSAGES["OK"]
+        return RETURN_MESSAGES["OK_SKIPPED"]
 
     def receive(self):
         """Listen to Port and redirect any messages"""

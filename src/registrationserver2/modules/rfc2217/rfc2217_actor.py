@@ -68,15 +68,19 @@ class Rfc2217Actor(DeviceBaseActor):
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         return RETURN_MESSAGES.get("ILLEGAL_STATE")
 
-    def _free(self):
+    def _free(self, msg: dict):
         if self.__port is not None:
             if self.__port.isOpen():
                 self.__port.close()
             self.__port = None
+        return super()._free(msg)
 
     def _kill(self, msg: dict):
-        self._free()
-        super()._kill(msg)
+        if self.__port is not None:
+            if self.__port.isOpen():
+                self.__port.close()
+            self.__port = None
+        return super()._kill(msg)
 
 
 def _test():

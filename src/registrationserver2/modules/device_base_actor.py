@@ -4,9 +4,7 @@ Created on 13.10.2020
 @author: rfoerster
 """
 import os
-import traceback
 from builtins import staticmethod
-from json.decoder import JSONDecodeError
 
 import registrationserver2
 import thespian.actors  # type: ignore
@@ -94,8 +92,8 @@ class DeviceBaseActor(Actor):
         return msg
 
     def _setup(self, msg: dict) -> dict:
+        filename = fr"{self.__folder_history}{self.globalName}"
         if self.link is None:
-            filename = fr"{self.__folder_history}{self.globalName}"
             self.link = fr"{self.__folder_available}{self.globalName}"
             if not os.path.exists(filename):
                 os.mknod(filename)
@@ -106,7 +104,9 @@ class DeviceBaseActor(Actor):
             with open(filename, "w+") as file_stream:
                 file_stream.write(self._file)
             return RETURN_MESSAGES["OK"]
-        return RETURN_MESSAGES["OK_SKIPPED"]
+        with open(filename, "w+") as file_stream:
+            file_stream.write(self._file)
+        return RETURN_MESSAGES["OK_UPDATED"]
 
     def _kill(self, msg: dict):
         theLogger.info("Shutting down actor %s, Message: %s", self.globalName, msg)
@@ -130,13 +130,13 @@ class DeviceBaseActor(Actor):
     def _reserve(self, msg: dict) -> dict:
         """Handler for RESERVE message from REST API."""
         theLogger.info("Device actor received a RESERVE command with message: %s", msg)
-        if msg["APP"] is None:
+        if msg["PAR"]["APP"] is None:
             theLogger.error("ERROR: there is no APP name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
-        if msg["HOST"] is None:
+        if msg["PAR"]["HOST"] is None:
             theLogger.error("ERROR: there is no HOST name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
-        if msg["USER"] is None:
+        if msg["PAR"]["USER"] is None:
             theLogger.error("ERROR: there is no USER name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
         # TODO: Check instrument server for availability of requested instrument
@@ -151,5 +151,17 @@ class DeviceBaseActor(Actor):
             theLogger.info("Redirector actor created.")
             # Write into device file
 
+            # TODO Return RESULT attributs IP and PORT
+            return RETURN_MESSAGES["OK"]
+        return RETURN_MESSAGES["OK_SKIPPED"]
+
+    def _free(self, _: dict) -> dict:
+        """Handler for FREE message from REST API."""
+        theLogger.info("Device actor received a FREE command.")
+        if self.my_redirector is not None:
+            kill_return = registrationserver2.actor_system.ask(
+                self.my_redirector, thespian.actors.ActorExitRequest()
+            )
+            theLogger.info(kill_return)
             return RETURN_MESSAGES["OK"]
         return RETURN_MESSAGES["OK_SKIPPED"]
