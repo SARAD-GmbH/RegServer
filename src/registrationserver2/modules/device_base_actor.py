@@ -11,7 +11,8 @@ from json.decoder import JSONDecodeError
 import registrationserver2
 import thespian.actors  # type: ignore
 from flask import json
-from registrationserver2 import FOLDER_AVAILABLE, FOLDER_HISTORY, theLogger
+from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
+                                 actor_system, theLogger)
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.redirector_actor import RedirectorActor
 from thespian.actors import Actor  # type: ignore
@@ -143,6 +144,10 @@ class DeviceBaseActor(Actor):
         if self.my_redirector is None:
             short_id = self.globalName.split(".")[0]
             self.my_redirector = self.createActor(RedirectorActor, globalName=short_id)
+            actor_system.ask(
+                self.my_redirector,
+                {"CMD": "SETUP", "PAR": {"PARENT_NAME": self.globalName}},
+            )
             theLogger.info("Redirector actor created.")
             # Write into device file
 

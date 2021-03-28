@@ -11,9 +11,6 @@ import thespian.actors  # type: ignore
 from thespian.actors import Actor  # type: ignore
 
 from registrationserver2 import actor_system, theLogger
-# from registrationserver2.modules import device_base_actor
-from registrationserver2.modules.device_actor_manager import \
-    DEVICE_ACTOR_MANAGER
 from registrationserver2.modules.messages import RETURN_MESSAGES
 
 theLogger.info("%s -> %s", __package__, __file__)
@@ -41,10 +38,12 @@ class SocketClient:
 class RedirectorActor(Actor):
     """Creating port for listening to Packages from a SARAD© Application"""
 
-    _sock: socket
-    _sockclient: SockInfo
-    # _device: device_base_actor  # TODO: Ist das richtig? -- MS
-
+    # Defines magic methods that are called when the specific message is
+    # received by the actor
+    ACCEPTED_COMMANDS = {  # Those needs implementing
+        "SETUP": "_setup",
+        "KILL": "_kill",
+    }
     LOOP = {"CMD": "LOOP"}
 
     HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
@@ -55,6 +54,7 @@ class RedirectorActor(Actor):
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.bind((self.HOST, self.PORT))
         self._socket.listen()
+        self.my_parent = None
         theLogger.info("Socket listening on port %d", self.PORT)
 
     def receiveMessage(self, msg, sender):
@@ -85,23 +85,24 @@ class RedirectorActor(Actor):
 
         self.send(sender, getattr(self, cmd)(msg))
 
+    def _setup(self, msg):
+        parent_name = msg["PAR"]["PARENT_NAME"]
+        self.my_parent = self.createActor(Actor, globalName=parent_name)
+
     def receive(self):
         """Listen to Port and redirect any messages"""
         client_socket: socket
         try:
-            client_socket, socket_info = self._sock.accept()
+            client_socket, socket_info = self._socket.accept()
             while True:
                 data = client_socket.recv(9002)
                 theLogger.info("%s from %s", data, socket_info)
                 if not data:
                     break
-                remote = actor_system.ask(
-                    DEVICE_ACTOR_MANAGER, {"CMD": "GET", "NAME": ""}
-                )
-                actor_system.ask(remote, {"CMD": "SEND", "DATA": data})
+                actor_system.ask(self.my_parent, {"CMD": "SEND", "DATA": data})
         except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
-                "[Add]:\t%s\t%s\t%s\t%s",
+                "[Send data]:\t%s\t%s\t%s\t%s",
                 type(error),
                 error,
                 vars(error) if isinstance(error, dict) else "-",

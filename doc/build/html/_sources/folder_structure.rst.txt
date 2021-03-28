@@ -17,8 +17,6 @@ src: Python Source Files
 * modules: Contains all instrument server specific code ( required to connect to
   specific instrumentserver)
 
-  * modules/device_actor_manager.py: ActorManagers, manages the creation and
-    destruction of instrument specific actors
   * modules/device_base_actor.py: Base Class for Instrument specific Actors
   * modules/rfc2217 : module for connecting to the rfc2217gateway
 

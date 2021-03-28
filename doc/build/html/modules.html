@@ -86,6 +86,11 @@ TODO: Load from yaml file instead of a ‘executable’ file format</p>
 <em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">registrationserver2.redirector_actor.</span></code><code class="sig-name descname"><span class="pre">RedirectorActor</span></code><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creating port for listening to Packages from a SARAD© Application</p>
 <dl class="py attribute">
+<dt id="registrationserver2.redirector_actor.RedirectorActor.ACCEPTED_COMMANDS">
+<code class="sig-name descname"><span class="pre">ACCEPTED_COMMANDS</span></code><em class="property"> <span class="pre">=</span> <span class="pre">{'KILL':</span> <span class="pre">'_kill',</span> <span class="pre">'SETUP':</span> <span class="pre">'_setup'}</span></em><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.ACCEPTED_COMMANDS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
 <dt id="registrationserver2.redirector_actor.RedirectorActor.HOST">
 <code class="sig-name descname"><span class="pre">HOST</span></code><em class="property"> <span class="pre">=</span> <span class="pre">'127.0.0.1'</span></em><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.HOST" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
@@ -109,7 +114,7 @@ TODO: Load from yaml file instead of a ‘executable’ file format</p>
 <dl class="py method">
 <dt id="registrationserver2.redirector_actor.RedirectorActor.receiveMessage">
 <code class="sig-name descname"><span class="pre">receiveMessage</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sender</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.redirector_actor.RedirectorActor.receiveMessage" title="Permalink to this definition">¶</a></dt>
-<dd><p>Actor receive message loop</p>
+<dd><p>Handles received Actor messages / verification of the message format</p>
 </dd></dl>
 
 </dd></dl>
@@ -350,7 +355,7 @@ user-&gt;cake:has some
 </p>
 <dl class="py attribute">
 <dt id="registrationserver2.modules.device_base_actor.DeviceBaseActor.ACCEPTED_COMMANDS">
-<code class="sig-name descname"><span class="pre">ACCEPTED_COMMANDS</span></code><em class="property"> <span class="pre">=</span> <span class="pre">{'ECHO':</span> <span class="pre">'_echo',</span> <span class="pre">'FREE':</span> <span class="pre">'_free',</span> <span class="pre">'KILL':</span> <span class="pre">'_kill',</span> <span class="pre">'RESERVE':</span> <span class="pre">'_reserve',</span> <span class="pre">'SEND':</span> <span class="pre">'_send'}</span></em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.ACCEPTED_COMMANDS" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">ACCEPTED_COMMANDS</span></code><em class="property"> <span class="pre">=</span> <span class="pre">{'ECHO':</span> <span class="pre">'_echo',</span> <span class="pre">'FREE':</span> <span class="pre">'_free',</span> <span class="pre">'KILL':</span> <span class="pre">'_kill',</span> <span class="pre">'RESERVE':</span> <span class="pre">'_reserve',</span> <span class="pre">'SEND':</span> <span class="pre">'_send',</span> <span class="pre">'SETUP':</span> <span class="pre">'_setup'}</span></em><a class="headerlink" href="#registrationserver2.modules.device_base_actor.DeviceBaseActor.ACCEPTED_COMMANDS" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -440,34 +445,6 @@ representing a device is being updated</p>
 </dd></dl>
 
 </div>
-<div class="section" id="module-registrationserver2.modules.device_actor_manager">
-<span id="registrationserver2-modules-device-actor-manager"></span><h2>registrationserver2.modules.device_actor_manager<a class="headerlink" href="#module-registrationserver2.modules.device_actor_manager" title="Permalink to this headline">¶</a></h2>
-<p>Created on 08.12.2020</p>
-<p>&#64;author: rfoerster</p>
-<dl class="py class">
-<dt id="registrationserver2.modules.device_actor_manager.DeviceActorManager">
-<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">registrationserver2.modules.device_actor_manager.</span></code><code class="sig-name descname"><span class="pre">DeviceActorManager</span></code><a class="headerlink" href="#registrationserver2.modules.device_actor_manager.DeviceActorManager" title="Permalink to this definition">¶</a></dt>
-<dd><p>classdocs</p>
-<dl class="py attribute">
-<dt id="registrationserver2.modules.device_actor_manager.DeviceActorManager.ACCEPTED_MESSAGES">
-<code class="sig-name descname"><span class="pre">ACCEPTED_MESSAGES</span></code><em class="property"> <span class="pre">=</span> <span class="pre">{'CREATE':</span> <span class="pre">'_create',</span> <span class="pre">'ECHO':</span> <span class="pre">'_echo',</span> <span class="pre">'KILL':</span> <span class="pre">'_kill',</span> <span class="pre">'SETUP':</span> <span class="pre">'_setup'}</span></em><a class="headerlink" href="#registrationserver2.modules.device_actor_manager.DeviceActorManager.ACCEPTED_MESSAGES" title="Permalink to this definition">¶</a></dt>
-<dd><p>Defines magic methods that are called when the specific message is received by the actor</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt id="registrationserver2.modules.device_actor_manager.DeviceActorManager.actors">
-<code class="sig-name descname"><span class="pre">actors</span></code><em class="property"><span class="pre">:</span> <span class="pre">dict</span></em><a class="headerlink" href="#registrationserver2.modules.device_actor_manager.DeviceActorManager.actors" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt id="registrationserver2.modules.device_actor_manager.DeviceActorManager.receiveMessage">
-<code class="sig-name descname"><span class="pre">receiveMessage</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">msg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sender</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.modules.device_actor_manager.DeviceActorManager.receiveMessage" title="Permalink to this definition">¶</a></dt>
-<dd><p>Handles received Actor messages / verification of the message format</p>
-</dd></dl>
-
-</dd></dl>
-
-</div>
 </div>
 
 
@@ -501,7 +478,6 @@ representing a device is being updated</p>
 <li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.modules.device_base_actor">registrationserver2.modules.device_base_actor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.modules.rfc2217.rfc2217_actor">registrationserver2.modules.rfc2217.rfc2217_actor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.modules.rfc2217.mdns_listener">registrationserver2.modules.rfc2217.mdns_listener</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-registrationserver2.modules.device_actor_manager">registrationserver2.modules.device_actor_manager</a></li>
 </ul>
 </li>
 </ul>
