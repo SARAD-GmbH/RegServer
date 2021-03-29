@@ -37,7 +37,7 @@ class MqttActor(DeviceBaseActor):
     # "copy" ACCEPTED_MESSAGES of the DeviceBaseActor 
     ACCEPTED_MESSAGES = DeviceBaseActor.ACCEPTED_MESSAGES
     # add some new accessible methods
-    ACCEPTED_MESSAGES["PREPARE"] = "__prepare__"
+    ACCEPTED_MESSAGES["PREPARE"] = "_prepare"
     
     def __init__(self):
         super().__init__()
@@ -252,7 +252,7 @@ class MqttActor(DeviceBaseActor):
             theLogger.info("ERROR: No Instrument Server ID received!\n")
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         conn_re = self.__connect()
-        theLogger.info(f"[CONN]\tThe client ({self.mqtt_cid}): {_re}")
+        theLogger.info(f"[CONN]\tThe client ({self.mqtt_cid}): {conn_re}")
         if conn_re is RETURN_MESSAGES.get("OK_SKIPPED"):
             self.mqttc.loop_start()
         else:

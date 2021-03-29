@@ -85,11 +85,11 @@ RETURN_MESSAGES = {
         "RESULT": "Unknown Command",
         "ERROR_CODE": 4,
     },
-    # The actor was in an wrong state
-    # "ILLEGAL_STATE": {
-    #     "RESULT": "Actor not setup correctly, make sure to send SETUP message first",
-    #     "ERROR_CODE": 5,
-    # }, # not supported in RETURN_MESSAGE in data_base_actor.py
+    # The actor was in an wrong state.
+    "ILLEGAL_STATE": {
+        "RETURN": "Actor not setup correctly, make sure to send SETUP message first",
+        "ERROR_CODE": 5,
+    },
     "CONNECTION_FAILURE": {
         "RESULT": "MQTT client failed to connect to MQTT-broker",
         "ERROR_CODE": 6,
@@ -108,54 +108,68 @@ RETURN_MESSAGES = {
     # },
     "PUBLISH_FAILURE": {
         "RESULT": "Failed to publish the message",
-        "ERROR_CODE": 10,
+        "ERROR_CODE": 11,
     },
     "SUBSCRIBE_FAILURE": {
         "RESULT": "Failed to subscribe to the topic",
-        "ERROR_CODE": 11,
+        "ERROR_CODE": 12,
     },
     "UNSUBSCRIBE_FAILURE": {
         "RESULT": "Failed to unsubscribe to the topic",
-        "ERROR_CODE": 12,
+        "ERROR_CODE": 13,
     },
     "NO_MQTT_ACTOR": {
         "RESULT": "There is no such MQTT Actor created",
-        "ERROR_CODE": 13,
+        "ERROR_CODE": 14,
     },
     "PREPARE_FAILURE": {
         "RESULT": "Failed to make the MQTT Actor prepared",
-        "ERROR_CODE": 14,
+        "ERROR_CODE": 15,
     },
     "SEND_RESERVE_FAILURE": {
         "ERROR": "Failed to send reservation request",
-        "ERROR_CODE": 15,
+        "ERROR_CODE": 16,
     },
     "RESERVE_NO_REPLY": {
         "ERROR": "Got no reply for the reservation request",
-        "ERROR_CODE": 16,
+        "ERROR_CODE": 17,
     },
     "RESERVE_REFUSED": {
         "ERROR": "Reservation request is refused",
-        "ERROR_CODE": 17,
+        "ERROR_CODE": 18,
     },
     "SEND_FREE_FAILURE": {
         "ERROR": "Failed to send free request",
-        "ERROR_CODE": 18,
+        "ERROR_CODE": 19,
     },
     "SEND_FAILURE": {
         "ERROR": "Failed to send binary CMD",
-        "ERROR_CODE": 19,
+        "ERROR_CODE": 21,
     },
     "SEND_NO_REPLY": {
         "ERROR": "Got no binary reply",
-        "ERROR_CODE": 20,
+        "ERROR_CODE": 22,
     },
     "INSTRUMENT_UNKNOWN": {
         "ERROR": "Unknown instrument that is not registered",
-        "ERROR_CODE": 21,
+        "ERROR_CODE": 23,
     },
-    "OK_SKIPPED": {"RETURN": True, "SKIPPED": True},
-    "OK": {"RETURN": True, "SKIPPED": True},
+    "SETUP_FAILURE": {
+        "ERROR": "Failed to setup the actor",
+        "ERROR_CODE": 24,
+    },
+    "OK_SKIPPED": {
+        "RETURN": "OK, skipped",
+        "ERROR_CODE": 10,
+    },
+    "OK_UPDATED": {
+        "RETURN": "OK, updated",
+        "ERROR_CODE": 20,
+    },
+    "OK": {
+        "RETURN": "OK",
+        "ERROR_CODE": 0,
+    },
 }
 
 def is_JSON(myJSON):
