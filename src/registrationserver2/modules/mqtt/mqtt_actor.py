@@ -114,7 +114,9 @@ class MqttActor(DeviceBaseActor):
                 )
             else:
                 if topic_buf[2] != "meta" and topic_buf[2] != "msg":
-                    pass
+                    theLogger.warning(
+                        f"[MQTT_Message]\tReceived illegal message: topic is {message.topic} and payload is {message.payload}"
+                    )
                 elif topic_buf[2] == "meta":
                     if self.req_status == mqtt_req_status.reserve_sent:
                         payload_json = is_JSON(payload_str)
@@ -130,10 +132,6 @@ class MqttActor(DeviceBaseActor):
                         self.send_status = mqtt_send_status.send_replied
                     else:
                         theLogger.warning(f"[MQTT_Message]\tReceived an illegal binary reply that is empty: topic is {message.topic}")
-                else:
-                    theLogger.warning(
-                        f"[MQTT_Message]\tReceived illegal message: topic is {message.topic} and payload is {message.payload}"
-                    )
 
     # Definition of methods accessible for the actor system and other actors -> referred to ACCEPTED_COMMANDS
     def _send(self, msg: dict):
