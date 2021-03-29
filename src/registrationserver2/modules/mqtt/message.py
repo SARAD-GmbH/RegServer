@@ -3,7 +3,7 @@ Created on 2021-03-12
 
 @author: Yixiang
 """
-
+import json
 #from typing import Dict
 
 #MQTT_ACTOR_REQUESTs: Dict[
@@ -44,6 +44,25 @@ MQTT_ACTOR_ADRs = {
 
 #IS_ID_LIST: list = []  # A list for storing the ID of IS MQTT
 
+Instr_CONN_HISTORY: Dict[
+    str, str
+] = {}  # mainly used for distinguishing __add_instr__() and __update_instr__()
+"""
+Struture of Instr_CONN_HISTORY:
+MQTT_ACTOR_ADRs = {
+    IS1_ID: {
+        Instr_ID11 : "Not_added", # this instrument has connected but its description message is not added -> __add_instr__()
+        Instr_ID12 : "Added", # this instrument has connected and its description message is added -> __update_instr__()
+        Instr_ID13 : "Not_removed", # this instrument has disconnected but the link to its description message is not removed -> __rm_instr__()
+        Instr_ID14 : "Removed", # this instrument has disconnected and the link to its description message is removed, once connected -> "Not_added"
+        ...
+    },
+    IS2_ID: {
+        ...
+    },
+    ...
+}
+"""
 
 RETURN_MESSAGES = {
     # The message received by the actor was not in an expected format
@@ -131,6 +150,17 @@ RETURN_MESSAGES = {
         "ERROR": "Got no binary reply",
         "ERROR_CODE": 20,
     },
+    "INSTRUMENT_UNKNOWN": {
+        "ERROR": "Unknown instrument that is not registered",
+        "ERROR_CODE": 21,
+    },
     "OK_SKIPPED": {"RETURN": True, "SKIPPED": True},
     "OK": {"RETURN": True, "SKIPPED": True},
 }
+
+def is_JSON(myJSON):
+    try:
+        json_obj = json.loads(myJSON)
+    except ValueError as e:
+        return None
+    return json_obj

@@ -17,11 +17,12 @@ import thespian
 import queue
 import ctypes
 from thespian.actors import Actor
+from pathlib import Path
 #from typing import Dict
 
 import registrationserver2
 from registrationserver2 import actor_system, theLogger
-from registrationserver2.modules.mqtt.message import RETURN_MESSAGES, MQTT_ACTOR_REQUESTs, MQTT_ACTOR_ADRs, IS_ID_LIST
+from registrationserver2.modules.mqtt.message import RETURN_MESSAGES, Instr_CONN_HISTORY, IS_CONN_HISTORY#, MQTT_ACTOR_REQUESTs, MQTT_ACTOR_ADRs, IS_ID_LIST
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
 #from _hashlib import new
 
@@ -45,6 +46,7 @@ class MqttParser(threading.Thread):
         theLogger.info(f"The thread ({self.name}) is created")
         self.len = 0
         self.topic_parts = []
+        self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
         self.__folder2_history = f"{registrationserver2.FOLDER2_HISTORY}{os.path.sep}"
     
     def run(self):
@@ -78,99 +80,78 @@ class MqttParser(threading.Thread):
             self.len = len(self.topic_parts)
             if self.len == 2:
                 SARAD_MQTT_SUBSCRIBER = actor_system.createActor(SaradMqttSubscriber,  globalName= "SARAD_Subscriber")
-                ask_msg = {
-                    "CMD": "MQTT_Message",
-                    "Data": {
-                        "msg_type": self.topic_parts[1],
-                        "payload": message.get("payload").decode("utf-8"),
-                    }
-                }
-                ask_return = actor_system.ask(SARAD_MQTT_SUBSCRIBER, ask_msg)
-                theLogger.info(ask_return)
-                if (ask_return is  RETURN_MESSAGES.get("OK")) or (ask_return is RETURN_MESSAGES.get("OK_SKIPPED")):
-                    theLogger.info("SARAD_Subscriber has dealt with the MQTT message")
-                else:
-                    theLogger.warning("SARAD_Subscriber has problems with the MQTT message")
-                
                 if self.topic_parts[1] == "connected":
                     if message.payload == "2" or message.payload == "1":
-                        filename_ = fr"{self.__folder2_history}{self.topic_parts[0]}"
-                        IS_ID_LIST.append(self.topic_parts[0])
-                        MQTT_ACTOR_ADRs[self.topic_parts[0]]={}
-                        open(filename_, "w+") 
-                        
+                        #filename_ = fr"{self.__folder2_history}{self.topic_parts[0]}"
+                        #IS_ID_LIST.append(self.topic_parts[0])
+                        #MQTT_ACTOR_ADRs[self.topic_parts[0]]={}
+                        if not (Path(filename_).is_file()):
+                            open(filename_, "w+")                     
                     elif message.payload == "0":
-                        ask_msg ={
-                            "CMD": "RM_HOST",
-                            "Data": {
-                                "is_id": self.topic_parts[0],
-                            },
-                        }
-                        ask_return = actor_system.ask(SARAD_MQTT_SUBSCRIBER, ask_msg)
-                        theLogger.info(ask_return)
-                        if (ask_return is  RETURN_MESSAGES.get("OK")) or (ask_return is RETURN_MESSAGES.get("OK_SKIPPED")):
-                            theLogger.info(f"SARAD_Subscriber has removed this cluster ({self.topic_parts[0]}) from file system")
+                        if Path(filename_).is_file():
+                            ask_msg ={
+                                "CMD": "RM_HOST",
+                                "Data": {
+                                    "is_id": self.topic_parts[0],
+                                },
+                            }
+                            ask_return = actor_system.ask(SARAD_MQTT_SUBSCRIBER, ask_msg)
+                            theLogger.info(ask_return)
+                            if (ask_return is  RETURN_MESSAGES.get("OK")) or (ask_return is RETURN_MESSAGES.get("OK_SKIPPED")):
+                                theLogger.info(f"SARAD_Subscriber has removed this cluster ({self.topic_parts[0]}) from file system")
+                            else:
+                                theLogger.warning(f"SARAD_Subscriber has problems with removing this cluster ({self.topic_parts[0]}) from file system")
                         else:
-                            theLogger.warning(f"SARAD_Subscriber has problems with removing this cluster ({self.topic_parts[0]}) from file system")
+                            theLogger.warning(f"SARAD_Subscriber has received disconnection message from an unknown instrument server ({self.topic_parts[0]})")
                     else:
-                        theLogger.warning(f"SARAD_Subscriber has received unknown state of the cluster ({self.topic_parts[0]})")
+                        theLogger.warning(f"SARAD_Subscriber has received connection state of an unknown cluster ({self.topic_parts[0]})")
                 elif self.topic_parts[1] == "meta":
-                    ask_msg ={
-                        "CMD": "ADD_HOST",
-                        "Data": {
-                            "is_id": self.topic_parts[0],
-                            "payload": message.get("payload"),
-                        },
-                    }
-                    ask_return = actor_system.ask(SARAD_MQTT_SUBSCRIBER, ask_msg)
-                    theLogger.info(ask_return)
-                    if (ask_return is  RETURN_MESSAGES.get("OK")) or (ask_return is RETURN_MESSAGES.get("OK_SKIPPED")):
-                        theLogger.info(f"SARAD_Subscriber has added this cluster ({self.topic_parts[0]}) into file system")
+                    filename_ = fr"{self.__folder2_history}{self.topic_parts[0]}"
+                    if Path(filename_).is_file(): # if this file exists
+                        if os.stat(filename_).st_size == 0: # if this file is empty
+                            ask_msg ={
+                                "CMD": "ADD_HOST",
+                                "Data": {
+                                    "is_id": self.topic_parts[0],
+                                    "payload": message.get("payload"),
+                                },
+                            }
+                            ask_return = actor_system.ask(SARAD_MQTT_SUBSCRIBER, ask_msg)
+                            theLogger.info(ask_return)
+                            if (ask_return is RETURN_MESSAGES.get("OK")) or (ask_return is RETURN_MESSAGES.get("OK_SKIPPED")):
+                                theLogger.info(f"SARAD_Subscriber has added this cluster ({self.topic_parts[0]}) into file system")
+                            else:
+                                theLogger.warning(f"SARAD_Subscriber has problems with adding this cluster ({self.topic_parts[0]}) into file system")
+                        else:
+                            ask_msg ={
+                                "CMD": "UP_HOST",
+                                "Data": {
+                                    "is_id": self.topic_parts[0],
+                                    "payload": message.get("payload"),
+                                },
+                            }
+                            ask_return = actor_system.ask(SARAD_MQTT_SUBSCRIBER, ask_msg)
+                            theLogger.info(ask_return)
+                            if (ask_return is RETURN_MESSAGES.get("OK")) or (ask_return is RETURN_MESSAGES.get("OK_SKIPPED")):
+                                theLogger.info(f"SARAD_Subscriber has updated the description of this cluster ({self.topic_parts[0]})")
+                            else:
+                                theLogger.warning(f"SARAD_Subscriber has problems with updating the description of this cluster ({self.topic_parts[0]})")
                     else:
-                        theLogger.warning(f"SARAD_Subscriber has problems with adding this cluster ({self.topic_parts[0]}) into file system")
+                        theLogger.warning(f"SARAD_Subscriber has received meta message of an unknown cluster ({self.topic_parts[0]})")
             elif self.len == 3:
                 if self.topic_parts[2] == "connected":
                     if message.payload == "2" or message.payload == "1":
-                        new_actor = actor_system.createActor(
-                            MqttActor,  globalName=self.topic_parts[1]
-                        )
-                        if add_2d_dict(MQTT_ACTOR_ADRs, self.topic_parts[0], self.topic_parts[1], new_actor) == 1 and add_2d_dict(MQTT_ACTOR_REQUESTs, self.topic_parts[0], self.topic_parts[1], "idle") == 1:
-                            ask_return = actor_system.ask(
-                                new_actor, {"CMD": "SETUP"}
-                            )
-                            theLogger.info(ask_return)
-                            if not (
-                                ask_return is RETURN_MESSAGES.get("OK")
-                                or ask_return is RETURN_MESSAGES.get("OK_SKIPPED")
-                            ):
-                                theLogger.warning(f"the MQTT actor {self.topic_parts[1]} is not setup correctly and will be killed")
-                                actor_system.ask(new_actor, {"CMD": "KILL"})
-                                del MQTT_ACTOR_ADRs[self.topic_parts[0]][self.topic_parts[1]]
-                                del MQTT_ACTOR_REQUESTs[self.topic_parts[0]][self.topic_parts[1]]
+                        if self.topic_parts[0] in Instr_CONN_HISTORY.keys(): # the IS MQTT has been added
+                            if self.topic_parts[1] in Instr_CONN_HISTORY[self.topic_parts[0]].keys():
+                                if Instr_CONN_HISTORY[self.topic_parts[0]][self.topic_parts[1]] == "Removed":
+                                    Instr_CONN_HISTORY[self.topic_parts[0]][self.topic_parts[1]] == "Not_added" 
                             else:
-                                theLogger.info(f"the MQTT actor {self.topic_parts[1]} is  setup correctly")
-                                ask_msg = {
-                                    "CMD": "PREPARE",
-                                    "Data": {
-                                        "is_id": self.topic_parts[0],
-                                        "instr_id": self.topic_parts[1],
-                                        "mqtt_client_adr": SARAD_MQTT_SUBSCRIBER,
-                                    }
-                                }
-                                ask_return = actor_system.ask(new_actor, ask_msg)
-                                theLogger.info(ask_return)
-                                if not (
-                                    ask_return is RETURN_MESSAGES.get("OK")
-                                    or ask_return is RETURN_MESSAGES.get("OK_SKIPPED")
-                                ):
-                                    theLogger.warning(f"the MQTT actor {self.topic_parts[1]} hasn't correctly setup itself and will be killed")
-                                    actor_system.ask(new_actor, {"CMD": "KILL"})
-                                    del MQTT_ACTOR_ADRs[self.topic_parts[0]][self.topic_parts[1]]
-                                    del MQTT_ACTOR_REQUESTs[self.topic_parts[0]][self.topic_parts[1]]
-                                else:
-                                    theLogger.info(f"the MQTT actor {self.topic_parts[1]} has correctly setup itself")                                 
+                                Instr_CONN_HISTORY[self.topic_parts[0]][self.topic_parts[1]] == "Not_added" 
+                        else:
+                            Instr_CONN_HISTORY[self.topic_parts[0]] = {}
+                            Instr_CONN_HISTORY[self.topic_parts[0]][self.topic_parts[1]] == "Not_added"                                
                     elif message.payload == "0":
-                        if self.topic_parts[1] in MQTT_ACTOR_ADRs[self.topic_parts[0]].keys():
+                        if (self.topic_parts[0] in Instr_CONN_HISTORY.keys()) and (self.topic_parts[1] in Instr_CONN_HISTORY[self.topic_parts[0]].keys()):
                             ask_msg = {
                                 "CMD": "RM_DEVICE",
                                 "Data": {
@@ -185,61 +166,45 @@ class MqttParser(threading.Thread):
                             else:
                                 theLogger.warning(f"SARAD_Subscriber has problems with killing the MQTT actor ({self.topic_parts[1]})")
                         else:
-                            theLogger.warning(f"SARAD_Subscriber has received disconnection message from an unknown instrument ({self.topic_parts[1]})")
+                            theLogger.warning(f"SARAD_Subscriber has received disconnection message from an unknown instrument ({self.topic_parts[1]}) controlled by the IS ({self.topic_parts[0]})")
                     else:
-                        theLogger.warning(f"SARAD_Subscriber has received unknown state of the MQTT actor ({self.topic_parts[1]})")
-                elif self.topic_parts[2] == "msg":
-                    ask_msg = {
-                        "CMD": "BINARY_REPLY",
-                        "Data": {
-                            "is_id": self.topic_parts[0],
-                            "instr_id": self.topic_parts[1],
-                            "payload": message.payload,  # original payload should be encoded using UTF-8, i.e., converted into bytes
-                        },
-                    }
-                    ask_return = actor_system.ask(MQTT_ACTOR_ADRs.get(self.topic_parts[1]), ask_msg)
-                    theLogger.info(ask_return)
-                    if ask_return is RETURN_MESSAGES.get("OK"):
-                        theLogger.info("The received binary reply (" + message.payload.decode("utf-8") +")is sent to the target MQTT Actor!\n")
-                    else:
-                        theLogger.warning("Failed to send the binary reply (" + message.payload.decode("utf-8") +")to the target MQTT Actor!\n")
-                        # TODO: regarding how the byte-string is sent via MQTT;
-                        # in another word, for example, if the IS MQTT sends a byte-string,
-                        # would this MQTT Client Actor receives a byte-string or a string?
+                        theLogger.warning(f"SARAD_Subscriber has received unknown state of the MQTT actor ({self.topic_parts[1]}) controlled by the IS ({self.topic_parts[0]})")
                 elif self.topic_parts[2] == "meta":
-                    if self.topic_parts[1] in MQTT_ACTOR_ADRs[self.topic_parts[0]].keys():
-                        ask_msg= {
-                            "CMD": "ADD_DEVICE",
-                            "Data": {
-                                "instr_id": self.topic_parts[1],
-                                "payload": message.get("payload"),
-                            },
-                        }
-                        ask_return = actor_system.ask(SARAD_MQTT_SUBSCRIBER, ask_msg)
-                        theLogger.info(ask_return)
-                        if (ask_return is  RETURN_MESSAGES.get("OK")) or (ask_return is RETURN_MESSAGES.get("OK_SKIPPED")):
-                            theLogger.info(f"SARAD_Subscriber has added this actor ({self.topic_parts[1]}) into file system")
-                        else:
-                            theLogger.warning(f"SARAD_Subscriber has problems with adding this actor ({self.topic_parts[1]}) into file system")
-                    else:
-                        theLogger.warning(f"Receive unknown message {message.get('payload')} under the topic {message.get('topic')}")
-                    if self.topic_parts[1] in MQTT_ACTOR_REQUESTs[self.topic_parts[0]].keys():
-                        if MQTT_ACTOR_REQUESTs[self.topic_parts[0]][self.topic_parts[1]] == "reserve":
-                            ask_msg = {
-                                "CMD": "RESERVE_REPLY",
+                    if (self.topic_parts[0] in Instr_CONN_HISTORY.keys()) and (self.topic_parts[1] in Instr_CONN_HISTORY[self.topic_parts[0]].keys()):
+                        if Instr_CONN_HISTORY[self.topic_parts[0]][self.topic_parts[1]] == "Not_added":
+                            ask_msg= {
+                                "CMD": "ADD_DEVICE",
                                 "Data": {
-                                    "payload": str(message.payload.decode("utf-8")), 
+                                    "is_id": self.topic_parts[0],
+                                    "instr_id": self.topic_parts[1],
+                                    "payload": message.get("payload"),
                                 },
                             }
-                            ask_return = actor_system.ask(MQTT_ACTOR_ADRs[self.topic_parts[0]][self.topic_parts[1]], ask_msg)
+                            ask_return = actor_system.ask(SARAD_MQTT_SUBSCRIBER, ask_msg)
                             theLogger.info(ask_return)
                             if (ask_return is  RETURN_MESSAGES.get("OK")) or (ask_return is RETURN_MESSAGES.get("OK_SKIPPED")):
-                                theLogger.info(f"SARAD_Subscriber has sent the reservation reply to the MQTT actor ({self.topic_parts[1]})")
+                                theLogger.info(f"SARAD_Subscriber has added this actor ({self.topic_parts[1]}) into file system")
                             else:
-                                theLogger.warning(f"SARAD_Subscriber has problems with reservation reply sent to the MQTT actor ({self.topic_parts[1]})")
-                            MQTT_ACTOR_REQUESTs[self.topic_parts[0]][self.topic_parts[1]] = "idle"
+                                theLogger.warning(f"SARAD_Subscriber has problems with adding this actor ({self.topic_parts[1]}) into file system")
+                        elif Instr_CONN_HISTORY[self.topic_parts[0]][self.topic_parts[1]] == "Added":
+                            ask_msg= {
+                                "CMD": "UP_DEVICE",
+                                "Data": {
+                                    "is_id": self.topic_parts[0],
+                                    "instr_id": self.topic_parts[1],
+                                    "payload": message.get("payload"),
+                                },
+                            }
+                            ask_return = actor_system.ask(SARAD_MQTT_SUBSCRIBER, ask_msg)
+                            theLogger.info(ask_return)
+                            if (ask_return is  RETURN_MESSAGES.get("OK")) or (ask_return is RETURN_MESSAGES.get("OK_SKIPPED")):
+                                theLogger.info(f"SARAD_Subscriber has updated the description file of this actor ({self.topic_parts[1]})")
+                            else:
+                                theLogger.warning(f"SARAD_Subscriber has problems with updating the description file of this actor ({self.topic_parts[1]})")
                         else:
-                            theLogger.warning(f"Received unexpected reply on the reservation request sent by the actor ({self.topic_parts[1]})")
+                            theLogger.warning(f"Receive unknown message {message.get('payload')} under the topic {message.get('topic')}")
+                    else:
+                        theLogger.warning(f"Receive unknown message {message.get('payload')} under the topic {message.get('topic')}")
                 else: # Illeagl topics
                     theLogger.warning(f"Receive unknown message {message.get('payload')} under the illegal topic {message.get('topic')}, which is sent to the actor ({self.topic_parts[1]})")
             else: # Acceptable topics can be divided into 2 or 3 parts by '/'
@@ -253,15 +218,15 @@ class SaradMqttSubscriber(Actor):
         "KILL": "__kill__", # Kill this actor itself
         "RM_HOST": "__rm_host__", # Delete the link of the description file of a host from "available" to "history" 
         "CONNECT": "__connect__",
-        "PUBLISH": "__publish__",
+        #"PUBLISH": "__publish__",
         "ADD_HOST": "__add_host__", # Create the link of the description file of a host from "available" to "history" 
         "RM_DEVICE": "__rm_instr__", # Delete the link of the description file of an instrument from "available" to "history" 
-        "SUBSCRIBE": "__subscribe__",    
+        #"SUBSCRIBE": "__subscribe__",    
         "UP_HOST": "__update_host__", # Update the description file of a host    
         "ADD_DEVICE": "__add_instr__", # Delete the link of the description file of a instrument from "available" to "history" 
         "DISCONNECT": "__disconnect__",
         "UP_DEVICE": "__update_instr__", # Update the description file of an instrument
-        "UNSUBSCRIBE": "__unsubscribe__",
+        #"UNSUBSCRIBE": "__unsubscribe__",
     }
 
     mqtt_topic: str
@@ -285,6 +250,37 @@ class SaradMqttSubscriber(Actor):
     __lock = threading.Lock()
     
     SARAD_MQTT_PARSER = MqttParser("MQTT_Parser")
+    
+    def __init__(self):
+        self.rc_conn = 2
+        self.rc_disc = 2
+        self.rc_pub = 1
+        self.rc_sub = 1
+        self.rc_uns = 1
+        with self.__lock:
+            self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
+            self.__folder_available = (
+                f"{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}"
+            )
+            self.__folder2_history = f"{registrationserver2.FOLDER2_HISTORY}{os.path.sep}"
+            self.__folder2_available = (
+                f"{registrationserver2.FOLDER2_AVAILABLE}{os.path.sep}"
+            )
+            if not os.path.exists(self.__folder_history):
+                os.makedirs(self.__folder_history)
+            if not os.path.exists(self.__folder_available):
+                os.makedirs(self.__folder_available)
+            if not os.path.exists(self.__folder2_history):
+                os.makedirs(self.__folder2_history)
+            if not os.path.exists(self.__folder2_available):
+                os.makedirs(self.__folder2_available)    
+            theLogger.debug(f"For instruments, output to: {self.__folder_history}")
+            theLogger.debug(f"For hosts, output to: {self.__folder2_history}")
+        setup_return = actor_system.ask(self.SARAD_MQTT_SUBSCRIBER, "SETUP")
+        if setup_return is RETURN_MESSAGES.get("OK"):
+            theLogger.info("SARAD MQTT Subscriber is setup correctly!\n")
+        else:
+            theLogger.warning("SARAD MQTT Subscriber is not setup!\n")
     
     def receiveMessage(self, msg, sender):
         """
@@ -370,84 +366,190 @@ class SaradMqttSubscriber(Actor):
         mqtt_msg_queue.put(self.msg_buf)        
             
     def __add_instr__(self, msg:dict)->dict:
+        is_id =  msg.get("Data", None).get("is_id", None)
+        if is_id is None:
+            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         instr_id = msg.get("Data", None).get("instr_id", None)
         if instr_id is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        if not is_id+"/"+instr_id in Instr_CONN_HISTORY:
+            return RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN")
+        if msg.get("Data", None).get("payload", None) is None:
+            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        family_ = msg.get("Identification", None).get("Family", None)
+        type_ = msg.get("Identification", None).get("Type", None)
+        if family_ is None or type_ is None:
+            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        if family_ == 1:
+            sarad_type = "SARAD-Doseman"
+        elif family_ == 2:
+            sarad_type = "SARAD-RadonScout"
+        elif family_ == 5:
+            sarad_type = "SARAD-DACM"
+        else:
+            theLogger.warning(f"[Add]:\tFound: Unknown family (index: {family_}) of instrument")
+            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        name_ = instr_id+"."+sarad_type+".mqtt"
         with self.__lock:
             theLogger.info(f"[Add]:\tFound: A new connected instrument with Instrument ID : {instr_id}")
-            filename = fr"{self.__folder_history}{instr_id}"
-            link = fr"{self.__folder_available}{instr_id}"
+            filename = fr"{self.__folder_history}{name_}"
+            link = fr"{self.__folder_available}{name_}"
             try:
                 data = msg.get("Data", None).get("payload")
                 if data:
                     with open(filename, "w+") as file_stream:
-                        file_stream.write(data) if data else theLogger.error(
-                            f"[Add]:\tFailed to get Properties from {msg}, {instr_id}"
-                        )  # pylint: disable=W0106
+                        file_stream.write(data)
                     if not os.path.exists(link):
                         theLogger.info(f"Linking {link} to {filename}")
                         os.link(filename, link)
+                else: 
+                    theLogger.error(
+                            f"[Add]:\tFailed to get Properties from {msg}, {instr_id}"
+                    )  # pylint: disable=W0106
+                    return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
             except BaseException as error:  # pylint: disable=W0703
                 theLogger.error(
                     f'[Add]:\t {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
                 )
+                return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
             except:  # pylint: disable=W0702
                 theLogger.error(
                     f"[Add]:\tCould not write properties of device with ID: {instr_id}"
                 )
+                return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            # if an actor already exists this will return
+            # the address of the excisting one, else it will create a new one
+            if data:
+                this_actor = actor_system.createActor(
+                    MqttActor, globalName=name_
+                )
+                setup_return = actor_system.ask(
+                    this_actor, {"CMD": "SETUP"}
+                )
+                theLogger.info(setup_return)
+                if not (
+                    setup_return is RETURN_MESSAGES.get("OK")
+                    or setup_return is RETURN_MESSAGES.get("OK_SKIPPED")
+                ):
+                    actor_system.ask(this_actor, {"CMD": "KILL"})
+                    # After the device actor is killed because it is not setup correctly in __add_service__ method: 
+                    # how to deal with the description file and the link? 
+                    # how can the instrument server know this situation and handle with it?
+                    # IMO, MQTT Subscriber should ask the IS MQTT to send the ".../.../connected=2" and ".../.../meta" one by one again.
+                    Instr_CONN_HISTORY[is_id][instr_id]="Removed"
+                    return setup_return
+                else:
+                    prep_msg = {
+                        "CMD": "PREPARE",
+                        "Data": {
+                            "is_id": is_id,
+                        }
+                    }
+                    prep_return = actor_system.ask(this_actor, prep_msg)
+                    if not (
+                        prep_return is RETURN_MESSAGES.get("OK")
+                        or prep_return is RETURN_MESSAGES.get("OK_SKIPPED")
+                    ):
+                        actor_system.ask(this_actor, {"CMD": "KILL"})
+                        # After the device actor is killed because it is not setup correctly in __add_service__ method: 
+                        # how to deal with the description file and the link? 
+                        # how can the instrument server know this situation and handle with it?
+                        # IMO, MQTT Subscriber should ask the IS MQTT to send the ".../.../connected=2" and ".../.../meta" one by one again.
+                        Instr_CONN_HISTORY[is_id][instr_id]="Removed"
+                        return prep_return
             return RETURN_MESSAGES.get("OK_SKIPPED")
         
     def __rm_instr__(self, msg:dict)->dict:
         instr_id = msg.get("Data", None).get("instr_id", None)
-        _is_id = msg.get("Data", None).get("is_id", None)
-        if _is_id is None:
+        is_id = msg.get("Data", None).get("is_id", None)
+        if is_id is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         if instr_id is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        if not is_id+"/"+instr_id in Instr_CONN_HISTORY:
+            return RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN")
+        if msg.get("Data", None).get("payload", None) is None:
+            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        family_ = msg.get("Identification", None).get("Family", None)
+        type_ = msg.get("Identification", None).get("Type", None)
+        if family_ is None or type_ is None:
+            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        if family_ == 1:
+            sarad_type = "SARAD-Doseman"
+        elif family_ == 2:
+            sarad_type = "SARAD-RadonScout"
+        elif family_ == 5:
+            sarad_type = "SARAD-DACM"
+        else:
+            theLogger.warning(f"[Add]:\tFound: Unknown family (index: {family_}) of instrument")
+            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        name_ = instr_id+"."+sarad_type+".mqtt"
         with self.__lock:
-            theLogger.info(f"[Del]:\tRemoved the instrument with Instrument ID: {instr_id}")
-            link = fr"{self.__folder_available}{instr_id}"
+            theLogger.info(f"[Del]:\tRemoved the instrument with Instrument ID: {instr_id} controled by the IS MQTT {is_id}")
+            link = fr"{self.__folder_available}{name_}"
             if os.path.exists(link):
                 os.unlink(link)
             this_actor = registrationserver2.actor_system.createActor(
-                MqttActor, globalName=instr_id
+                MqttActor, globalName=name_
             )
             theLogger.info(
                 registrationserver2.actor_system.ask(this_actor, {"CMD": "KILL"})
             )
-            del MQTT_ACTOR_ADRs[_is_id][instr_id]
-            del MQTT_ACTOR_REQUESTs[_is_id][instr_id]
+            del Instr_CONN_HISTORY[is_id+"/"+instr_id]
         return RETURN_MESSAGES.get("OK_SKIPPED")
     
-    def __update__instr__(self, msg:dict)->dict:
+    def __update_instr__(self, msg:dict)->dict:
         instr_id = msg.get("Data", None).get("instr_id", None)
-        _is_id = msg.get("Data", None).get("is_id", None)
-        if _is_id is None:
+        is_id = msg.get("Data", None).get("is_id", None)
+        if is_id is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         if instr_id is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        if not is_id+"/"+instr_id in Instr_CONN_HISTORY:
+            return RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN")
+        if msg.get("Data", None).get("payload", None) is None:
+            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        family_ = msg.get("Identification", None).get("Family", None)
+        type_ = msg.get("Identification", None).get("Type", None)
+        if family_ is None or type_ is None:
+            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        if family_ == 1:
+            sarad_type = "SARAD-Doseman"
+        elif family_ == 2:
+            sarad_type = "SARAD-RadonScout"
+        elif family_ == 5:
+            sarad_type = "SARAD-DACM"
+        else:
+            theLogger.warning(f"[Add]:\tFound: Unknown family (index: {family_}) of instrument")
+            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        name_ = instr_id+"."+sarad_type+".mqtt"
         with self.__lock:
             theLogger.info(f"[Update]:\tUpdate: Instrument ID: {instr_id}")
-            filename = fr"{self.__folder_history}{instr_id}"
-            link = fr"{self.__folder_available}{instr_id}"
+            filename = fr"{self.__folder_history}{name_}"
+            link = fr"{self.__folder_available}{name_}"
             try:
                 data = msg.get("Data", None).get("payload")
                 if data:
                     with open(filename, "w+") as file_stream:
-                        file_stream.write(data) if data else theLogger.error(
-                            f"[Update]:\tFailed to get Properties from {msg}, {instr_id}"
-                        )  # pylint: disable=W0106
+                        file_stream.write(data)
                     if not os.path.exists(link):
                         theLogger.info(f"Linking {link} to {filename}")
                         os.link(filename, link)
+                else: 
+                    theLogger.error(
+                            f"[Update]:\tFailed to get Properties from {msg}, {instr_id}"
+                    )  # pylint: disable=W0106
+                    return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
             except BaseException as error:  # pylint: disable=W0703
                 theLogger.error(
                     f'[Update]:\t {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
                 )
+                return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
             except:  # pylint: disable=W0702
                 theLogger.error(
                     f"[Update]:\tCould not write properties of device with ID: {instr_id}"
                 )
+                return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
             
         return RETURN_MESSAGES.get("OK_SKIPPED")
     
@@ -463,39 +565,40 @@ class SaradMqttSubscriber(Actor):
                 data = msg.get("Data", None).get("payload")
                 if data:
                     with open(filename, "w+") as file_stream:
-                        file_stream.write(data) if data else theLogger.error(
-                            f"[Add]:\tFailed to get Properties from {msg}, {is_id}"
-                        )  # pylint: disable=W0106
+                        file_stream.write(data)
                     if not os.path.exists(link):
                         theLogger.info(f"Linking {link} to {filename}")
                         os.link(filename, link)
+                else: 
+                    theLogger.error(
+                            f"[Add]:\tFailed to get Properties from {msg}, {is_id}"
+                    )  # pylint: disable=W0106
+                    return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
             except BaseException as error:  # pylint: disable=W0703
                 theLogger.error(
                     f'[Add]:\t {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
                 )
+                return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
             except:  # pylint: disable=W0702
                 theLogger.error(
-                    f"[Add]:\tCould not write properties of device with ID: {is_id}"
+                    f"[Add]:\tCould not write properties of instrument server with ID: {is_id}"
                 )
+                return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         return RETURN_MESSAGES.get("OK_SKIPPED")
     
     def __rm_host__(self, msg:dict)->dict:
         is_id = msg.get("Data", None).get("is_id", None)
         if is_id is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        for instr in MQTT_ACTOR_ADRs[is_id].keys():
-            _re = self.__rm_instr__({"CMD": "RM_DEVICE", "Data":{"is_id": is_id, "instr_id": instr}})
-            theLogger.info(_re)
-            del MQTT_ACTOR_ADRs[is_id][instr]
-            del MQTT_ACTOR_REQUESTs[is_id][instr]
+        for mem in Instr_CONN_HISTORY:
+            if mem.split("/")[0] == is_id:
+                _re = self.__rm_instr__({"CMD": "RM_DEVICE", "Data":{"is_id": is_id, "instr_id": mem.split("/")[1]}})
+                theLogger.info(_re)
         with self.__lock:
             theLogger.info(f"[Del]:\tRemoved the host with Instrument Server ID: {is_id}")
             link = fr"{self.__folder2_available}{is_id}"
             if os.path.exists(link):
                 os.unlink(link)
-            IS_ID_LIST.remove(is_id)
-            del MQTT_ACTOR_ADRs[is_id]
-            del MQTT_ACTOR_REQUESTs[is_id]
         return RETURN_MESSAGES.get("OK_SKIPPED")
     
     def __update_host__(self, msg:dict)->dict:
@@ -510,20 +613,25 @@ class SaradMqttSubscriber(Actor):
                 data = msg.get("Data", None).get("payload")
                 if data:
                     with open(filename, "w+") as file_stream:
-                        file_stream.write(data) if data else theLogger.error(
-                            f"[Update]:\tFailed to get Properties from {msg}, {is_id}"
-                        )  # pylint: disable=W0106
+                        file_stream.write(data)
                     if not os.path.exists(link):
                         theLogger.info(f"Linking {link} to {filename}")
                         os.link(filename, link)
+                else: 
+                    theLogger.error(
+                            f"[Update]:\tFailed to get Properties from {msg}, {is_id}"
+                    )  # pylint: disable=W0106
+                    return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
             except BaseException as error:  # pylint: disable=W0703
                 theLogger.error(
                     f'[Update]:\t {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
                 )
+                return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
             except:  # pylint: disable=W0702
                 theLogger.error(
-                    f"[Update]:\tCould not write properties of device with ID: {is_id}"
+                    f"[Update]:\tCould not write properties of instrument server with ID: {is_id}"
                 )
+                return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         return RETURN_MESSAGES.get("OK_SKIPPED")
     
     def __connect__(self, msg: dict) -> dict:
@@ -578,7 +686,15 @@ class SaradMqttSubscriber(Actor):
         self.SARAD_MQTT_PARSER.raise_exception()
         self.SARAD_MQTT_PARSER.join()
         return RETURN_MESSAGES.get("OK_SKIPPED")
-
+    
+    def __kill__(self, msg) -> dict:
+        self.__disconnect__(msg)
+        for IS_ID in Instr_CONN_HISTORY.keys():
+            rm_return = self.__rm_host__({"CMD": "RM_HOST", "Data": {"is_id": IS_ID}})
+            theLogger.info(rm_return)
+        del Instr_CONN_HISTORY
+        return RETURN_MESSAGES.get("OK_SKIPPED")
+    
     def __publish__(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("Data", None).get("topic", None)
         if self.mqtt_topic is None:
@@ -657,15 +773,7 @@ class SaradMqttSubscriber(Actor):
             theLogger.info("on_unsubscribe not called: UNSUBSCRIBE FAILURE!\n")
             return RETURN_MESSAGES.get("UNSUBSCRIBE_FAILURE")
 
-        return RETURN_MESSAGES.get("OK_SKIPPED")
-    
-    def __kill__(self, msg) -> dict:
-        self.__disconnect__(msg)
-        for IS_ID in IS_ID_LIST:
-            rm_return = self.__rm_host__({"CMD": "RM_HOST", "Data": {"is_id": IS_ID}})
-            theLogger.info(rm_return)
-        del IS_ID_LIST
-        return RETURN_MESSAGES.get("OK_SKIPPED")
+        return RETURN_MESSAGES.get("OK_SKIPPED")    
 
     # * Handling of Ctrl+C:
     def signal_handler(self, sig, frame):  # pylint: disable=unused-argument
@@ -679,34 +787,3 @@ class SaradMqttSubscriber(Actor):
     signal.signal(
         signal.SIGINT, signal_handler
     )  # SIGINT: By default, interrupt is Ctrl+C
-
-    def __init__(self):
-        self.rc_conn = 2
-        self.rc_disc = 2
-        self.rc_pub = 1
-        self.rc_sub = 1
-        self.rc_uns = 1
-        with self.__lock:
-            self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
-            self.__folder_available = (
-                f"{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}"
-            )
-            self.__folder2_history = f"{registrationserver2.FOLDER2_HISTORY}{os.path.sep}"
-            self.__folder2_available = (
-                f"{registrationserver2.FOLDER2_AVAILABLE}{os.path.sep}"
-            )
-            if not os.path.exists(self.__folder_history):
-                os.makedirs(self.__folder_history)
-            if not os.path.exists(self.__folder_available):
-                os.makedirs(self.__folder_available)
-            if not os.path.exists(self.__folder2_history):
-                os.makedirs(self.__folder2_history)
-            if not os.path.exists(self.__folder2_available):
-                os.makedirs(self.__folder2_available)    
-            theLogger.debug(f"For instruments, output to: {self.__folder_history}")
-            theLogger.debug(f"For hosts, output to: {self.__folder2_history}")
-        setup_return = actor_system.ask(self.SARAD_MQTT_SUBSCRIBER, "SETUP")
-        if setup_return is RETURN_MESSAGES.get("OK"):
-            theLogger.info("SARAD MQTT Subscriber is setup correctly!\n")
-        else:
-            theLogger.warning("SARAD MQTT Subscriber is not setup!\n")
