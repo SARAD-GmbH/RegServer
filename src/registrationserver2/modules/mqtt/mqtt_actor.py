@@ -9,7 +9,8 @@ from enum import Enum, unique
 import paho.mqtt.client as MQTT  # type: ignore
 from registrationserver2 import actor_system, theLogger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
-from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
+from registrationserver2.modules.mqtt.message import RETURN_MESSAGES, is_JSON
+from enum import Enum
 
 mqtt_req_status = Enum(
     "REQ_STATUS",
@@ -33,13 +34,28 @@ class MqttActor(DeviceBaseActor):
 
     mqtt_client_adr = None
 
+    # "copy" ACCEPTED_MESSAGES of the DeviceBaseActor 
+    ACCEPTED_MESSAGES = DeviceBaseActor.ACCEPTED_MESSAGES
+    # add some new accessible methods
+    ACCEPTED_MESSAGES["PREPARE"] = "_prepare"
+    
+    def __init__(self):
+        super().__init__()
+        self.rc_conn = 2
+        self.rc_disc = 2
+        self.rc_pub = 1
+        self.rc_sub = 1
+        self.rc_uns = 1
+        self.req_status = mqtt_req_status.idle
+        self.send_status = mqtt_send_status.idle
+        self.binary_reply = b""
+        self.mqtt_cid = self.globalName + ".client"
+        self.instr_id = self.globalName.split("/")[1]
+ 
     # The receiveMessage() is defined in the DeviceBaseActor class
-    # "copy" ACCEPTED_COMMANDS of the DeviceBaseActor and add some new methods
-    ACCEPTED_COMMANDS = DeviceBaseActor.ACCEPTED_COMMANDS
-
-    ACCEPTED_COMMANDS["PREPARE"] = "__prepare__"
 
     # Definition of callback functions for the MQTT client, namely the on_* functions
+    # these callback functions are called in the new thread that is created through loo_start() of Client()
     def on_connect(
         self, client, userdata, flags, result_code
     ):  # pylint: disable=unused-argument
@@ -83,15 +99,14 @@ class MqttActor(DeviceBaseActor):
 
     def on_message(self, client, userdata, message):
         topic_buf = {}
-        theLogger.info(f"message received: {str(message.payload.decode('utf-8'))}")
+        payload_str = str(message.payload.decode("utf-8", "ignore"))
+        theLogger.info(f"message received: {payload_str}")
         theLogger.info(f"message topic: {message.topic}")
         theLogger.info(f"message qos: {message.qos}")
         theLogger.info(f"message retain flag: {message.retain}")
         topic_buf = message.split("/")
-        if len(topic_buf) != 3:
-            theLogger.warning(
-                f"[MQTT_Message]\tReceived illegal message: topic is {message.topic} and payload is {message.payload}"
-            )
+        if len(topic_buf) !=3:
+            theLogger.warning(f"[MQTT_Message]\tReceived an illegal message whose topic length is illegal: topic is {message.topic} and payload is {message.payload}")
         else:
             if topic_buf[0] != self.is_id or topic_buf[1] != self.instr_id:
                 theLogger.warning(
@@ -99,25 +114,24 @@ class MqttActor(DeviceBaseActor):
                 )
             else:
                 if topic_buf[2] != "meta" and topic_buf[2] != "msg":
-                    pass
+                    theLogger.warning(
+                        f"[MQTT_Message]\tReceived illegal message: topic is {message.topic} and payload is {message.payload}"
+                    )
                 elif topic_buf[2] == "meta":
                     if self.req_status == mqtt_req_status.reserve_sent:
-                        if (
-                            json.load(message.payload)
-                            .get("Reservation", None)
-                            .get("Active", None)
-                            == True
-                        ):
+                        payload_json = is_JSON(payload_str)
+                        if payload_json is None:
+                            theLogger.warning(f"[MQTT_Message]\tReceived an illegal MQTT message in non-JSON format: topic is {message.topic} and payload is {payload_str}")
+                        elif payload_json.get("Reservation", None).get("Active", None) == True:
                             self.req_status = mqtt_req_status.reserve_accepted
                         else:
                             self.req_status = mqtt_req_status.reserve_refused
                 elif topic_buf[2] == "msg":
-                    self.binary_reply = json.load(message.payload)
-                    self.send_status = mqtt_send_status.send_replied
-                else:
-                    theLogger.warning(
-                        f"[MQTT_Message]\tReceived illegal message: topic is {message.topic} and payload is {message.payload}"
-                    )
+                    self.binary_reply = message.payload
+                    if not (self.binary_reply is None): 
+                        self.send_status = mqtt_send_status.send_replied
+                    else:
+                        theLogger.warning(f"[MQTT_Message]\tReceived an illegal binary reply that is empty: topic is {message.topic}")
 
     # Definition of methods accessible for the actor system and other actors -> referred to ACCEPTED_COMMANDS
     def _send(self, msg: dict):
@@ -160,7 +174,7 @@ class MqttActor(DeviceBaseActor):
                 self.send_status = mqtt_send_status.idle
                 break
             else:
-                time.sleep(0.01)
+                time.sleep(0.01) # check the send_status every 0.01s
                 wait_cnt5 = wait_cnt5 - 1
         else:
             self.send_status = mqtt_send_status.idle
@@ -237,6 +251,12 @@ class MqttActor(DeviceBaseActor):
         if self.is_id is None:
             theLogger.info("ERROR: No Instrument Server ID received!\n")
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+        conn_re = self.__connect()
+        theLogger.info(f"[CONN]\tThe client ({self.mqtt_cid}): {conn_re}")
+        if conn_re is RETURN_MESSAGES.get("OK_SKIPPED"):
+            self.mqttc.loop_start()
+        else:
+            return conn_re
         for k in self.allowed_sys_topics.keys():
             self.allowed_sys_topics[k] = (
                 self.is_id + "/" + self.instr_id + self.allowed_sys_topics[k]
@@ -270,8 +290,8 @@ class MqttActor(DeviceBaseActor):
         if self.globalName is None:
             return RETURN_MESSAGES.get("ILLEGAL_STATE")
         self.mqtt_cid = self.globalName + ".client"
-        self.instr_id = self.globalName.split(".")[1]
-        self.mqtt_broker = "localhost"
+        self.instr_id = self.globalName.split(".")[0]
+        self.mqtt_broker = 'localhost'
         self.mqttc = MQTT.Client(self.mqtt_cid)
         self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
@@ -357,20 +377,3 @@ class MqttActor(DeviceBaseActor):
             theLogger.info("on_unsubscribe not called: UNSUBSCRIBE FAILURE!\n")
             return RETURN_MESSAGES.get("UNSUBSCRIBE_FAILURE")
         return RETURN_MESSAGES.get("OK_SKIPPED")
-
-    def __init__(self):
-        super().__init__()
-        self.rc_conn = 2
-        self.rc_disc = 2
-        self.rc_pub = 1
-        self.rc_sub = 1
-        self.rc_uns = 1
-        self.req_status = mqtt_req_status.idle
-        self.send_status = mqtt_send_status.idle
-        self.binary_reply = b""
-        self.mqtt_cid = self.globalName + ".client"
-        self.instr_id = self.globalName.split("/")[1]
-        _re = self.__connect()
-        theLogger.info(f"[CONN]\tThe client ({self.mqtt_cid}): {_re}")
-        if _re is RETURN_MESSAGES.get("OK_SKIPPED"):
-            self.mqttc.loop_start()
