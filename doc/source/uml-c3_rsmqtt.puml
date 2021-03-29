@@ -1,0 +1,43 @@
+@startuml
+!include <c4/C4_Component.puml>
+!include <office/Users/user.puml>
+
+HIDE_STEREOTYPE()
+
+AddTagSupport("mod", $borderColor="#d73027")
+
+!$app = "SARAD-App"
+!$rs = "Registration Server"
+!$is = "Instrument Server"
+!$inst = "SARAD-Instrument"
+!$inst_m = "SARAD-Instrumente"
+
+Container(app, $app, "wählt ein $instr zur Kommunikation aus.")
+
+Container_Boundary(mod, "MQTT-Modul", $rs, $tags="mod") {
+        Component(listener, "Subscriber", "Python Class", "mit MQTT-Client; erkennt neue $inst_m.")
+        Component(device_actor1, "Device Actor A", "Actor", "mit MQTT-Client")
+}
+Container_Boundary(rs, "Basis", $rs) {
+        Component(api, "REST API", "JSON/HTTP", "Geräteliste mit Status")
+        Component(redirector1, "Redirector Actor A", "Actor", "TCP Socket")
+}
+ComponentDb(device_files, "Gerätedateien", "Dateisystem")
+
+Container(is1, $is, "verwaltet Gerätebelegung, stellt eine Internetschnittstelle zum $inst bereit")
+
+Rel(is1, listener, "1. meldet Gerät A", "MQTT")
+Rel(listener, device_actor1, "2. erzeugt", "createActor")
+Rel(listener, device_actor1, "3. SETUP", "message")
+Rel(device_actor1, device_files, "4. Datei/Link",  "JSON Identification")
+Rel(api, device_files, "5. liest", "JSON/HTTP")
+Rel(api, app, "6. GET list", "JSON/HTTP")
+Rel(app, api, "7. GET reserve", "JSON/HTTP")
+Rel(api, device_actor1, "8. RESERVE", "Message")
+Rel(device_actor1, is1, "9. Reservierung", "MQTT")
+Rel(device_actor1, redirector1, "10. erzeugt", "createActor")
+Rel(redirector1, device_files, "11. schreibt", "JSON Reservation")
+BiRel(app, redirector1, "12. Binärpaket", "TCP-Socket")
+BiRel(redirector1, device_actor1, "12. Binärpaket", "Messages")
+BiRel(is1, device_actor1, "12. Binärpaket", "MQTT")
+@enduml

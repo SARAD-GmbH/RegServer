@@ -20,24 +20,23 @@ class Rfc2217Actor(DeviceBaseActor):
     a RFC2217Protocol handler and relays messages towards it
     https://pythonhosted.org/pyserial/pyserial_api.html#module-serial.aio"""
 
-    __open = False
-    __port_ident: str
-    __port: serial.rfc2217.Serial = None
+    def __init__(self):
+        super().__init__()
+        self.__port: serial.rfc2217.Serial = None
 
-    def __connect(self):
+    def _connect(self):
         """internal Function to connect to instrument server 2 over rfc2217"""
         if self._file:
             address = self._file.get("Remote", {}).get("Address", None)
             port = self._file.get("Remote", {}).get("Port", None)
             if not address or not port:
                 return RETURN_MESSAGES.get("ILLEGAL_STATE")
-            self.__port_ident = fr"rfc2217://{address}:{port}"
+            port_ident = fr"rfc2217://{address}:{port}"
 
-        if self.__port_ident and not (self.__port and self.__port.is_open):
+        if port_ident and not (self.__port and self.__port.is_open):
             try:
-                self.__port = serial.rfc2217.Serial(
-                    self.__port_ident
-                )  # move the send ( test if connection is up and if not create)
+                self.__port = serial.rfc2217.Serial(port_ident)
+                # move the send ( test if connection is up and if not create)
             except Exception as error:  # pylint: disable=broad-except
                 theLogger.error(
                     "! %s\t%s\t%s\t%s",
@@ -50,8 +49,8 @@ class Rfc2217Actor(DeviceBaseActor):
             return RETURN_MESSAGES.get("OK")
         return RETURN_MESSAGES.get("ILLEGAL_STATE")
 
-    def __send__(self, msg: dict):
-        if self.__connect() is RETURN_MESSAGES["OK"]["RETURN"]:
+    def _send(self, msg: dict):
+        if self._connect() is RETURN_MESSAGES["OK"]["RETURN"]:
             theLogger.info("Actor %s received: %s", self.globalName, msg.get("DATA"))
             data = msg.get("DATA", None)
             if data:
@@ -69,31 +68,22 @@ class Rfc2217Actor(DeviceBaseActor):
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         return RETURN_MESSAGES.get("ILLEGAL_STATE")
 
-    def __reserve__(self, msg):
-        theLogger.info(msg)
-        return RETURN_MESSAGES.get("ILLEGAL_NOTIMPLEMENTED")
-
-    def __free__(self, msg):
-        theLogger.info(msg)
-        if self.__port and self.__port.isOpen():
-            self.__port.close()
-
-    def __kill__(self, msg: dict):
-        super().__kill__(msg)
-        try:
-            self.__port.close()
+    def _free(self, msg: dict):
+        if self.__port is not None:
+            if self.__port.isOpen():
+                self.__port.close()
             self.__port = None
-        except Exception as error:  # pylint: disable=broad-except
-            theLogger.error(
-                "! %s\t%s\t%s\t%s",
-                type(error),
-                error,
-                vars(error) if isinstance(error, dict) else "-",
-                traceback.format_exc(),
-            )
+        return super()._free(msg)
+
+    def _kill(self, msg: dict):
+        if self.__port is not None:
+            if self.__port.isOpen():
+                self.__port.close()
+            self.__port = None
+        return super()._kill(msg)
 
 
-def __test__():
+def _test():
     sys = thespian.actors.ActorSystem()
     act = sys.createActor(
         Rfc2217Actor, globalName="SARAD_0ghMF8Y._sarad-1688._rfc2217._tcp.local"
@@ -106,4 +96,4 @@ def __test__():
 
 
 if __name__ == "__main__":
-    __test__()
+    _test()

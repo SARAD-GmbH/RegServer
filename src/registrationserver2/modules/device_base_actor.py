@@ -4,14 +4,13 @@ Created on 13.10.2020
 @author: rfoerster
 """
 import os
-import traceback
 from builtins import staticmethod
-from json.decoder import JSONDecodeError
 
 import registrationserver2
 import thespian.actors  # type: ignore
 from flask import json
-from registrationserver2 import FOLDER_HISTORY, theLogger
+from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
+                                 actor_system, theLogger)
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.redirector_actor import RedirectorActor
 from thespian.actors import Actor  # type: ignore
@@ -26,34 +25,36 @@ class DeviceBaseActor(Actor):
 
     # Defines magic methods that are called when the specific message is
     # received by the actor
-    ACCEPTED_MESSAGES = {  # Those needs implementing
+    ACCEPTED_COMMANDS = {  # Those needs implementing
         # SEND is being called when the end-user-application wants to send data,
         # should return the direct or indirect response from the device, None in
         # case the device is not reachable (so the end application can set the
         # timeout itself)
-        "SEND": "__send__",
-        # SEND_RESERVE is being called when the end-user-application wants to reserve the
+        "SEND": "_send",
+        # RESERVE is being called when the end-user-application wants to reserve the
         # directly or indirectly connected device for exclusive communication,
         # should return if a reservation is currently possible
-        "SEND_RESERVE": "__send_reserve__",
-        "SEND_FREE": "__send_free__",
+        "RESERVE": "_reserve",
         # Those are implemented by the base class (this class)
         # ECHO should return what is send, main use is for testing purpose at this point
-        "ECHO": "__echo__",
+        "ECHO": "_echo",
         # is being called when the end-user-application is done requesting /
         # sending data, should return true as soon the freeing process has been
         # initialized
-        "FREE": "__free__",
-        "SETUP": "__setup__",
-        "RESERVE": "__reserve__",
-        "KILL": "__kill__",
+        "FREE": "_free",
+        "SETUP": "_setup",
+        "KILL": "_kill",
     }
 
     def __init__(self):
         super().__init__()
         self._config: dict = {}
         self._file: json
-        self.setup_done: bool = False
+        self.link = None
+        self.__folder_history: str = FOLDER_HISTORY + os.path.sep
+        self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
+        self.my_redirector = None
+        theLogger.info("Device actor created.")
 
     def receiveMessage(self, msg, sender):
         """
@@ -66,93 +67,101 @@ class DeviceBaseActor(Actor):
             self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGTYPE"])
             return
 
-        cmd_string = msg.get("CMD", None)
+        cmd_key = msg.get("CMD", None)
 
-        if not cmd_string:
+        if cmd_key is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"])
             return
 
-        cmd = self.ACCEPTED_MESSAGES.get(cmd_string, None)
-
-        if not cmd:
+        cmd = self.ACCEPTED_COMMANDS.get(cmd_key, None)
+        if cmd is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"])
             return
 
-        if not getattr(self, cmd, None):
+        if getattr(self, cmd, None) is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"])
             return
 
         self.send(sender, getattr(self, cmd)(msg))
 
     @staticmethod
-    def __echo__(msg: dict) -> dict:
+    def _echo(msg: dict) -> dict:
         msg.pop("CMD", None)
         msg.pop("RETURN", None)
         msg["RETURN"] = True
         return msg
 
-    def __setup__(self, msg: dict) -> dict:
-        if not self.setup_done:
-            self._config = msg
-            filename = fr"{FOLDER_HISTORY}{os.path.sep}{self.globalName}"
-            theLogger.info("Setting up Actor %s", self.globalName)
-            if os.path.isfile(filename):
-                try:
-                    file = open(filename)
-                    self._file = json.load(file)
-                    self.setup_done = True
-                    return RETURN_MESSAGES["OK"]
-                except JSONDecodeError as error:
-                    theLogger.error("Failed to parse %s", filename)
-                    return RETURN_MESSAGES["ILLEGAL_STATE"]
-                except Exception as error:  # pylint: disable=broad-except
-                    theLogger.error(
-                        "! %s\t%s\t%s\t%s",
-                        type(error),
-                        error,
-                        vars(error) if isinstance(error, dict) else "-",
-                        traceback.format_exc(),
-                    )
-                    return RETURN_MESSAGES["ILLEGAL_STATE"]
-            else:
-                return RETURN_MESSAGES["ILLEGAL_STATE"]
-        else:
-            theLogger.info("Actor already set up with %s", self._config)
-            return RETURN_MESSAGES["OK_SKIPPED"]
+    def _setup(self, msg: dict) -> dict:
+        filename = fr"{self.__folder_history}{self.globalName}"
+        if self.link is None:
+            self.link = fr"{self.__folder_available}{self.globalName}"
+            if not os.path.exists(filename):
+                os.mknod(filename)
+            if not os.path.exists(self.link):
+                theLogger.info("Linking %s to %s", self.link, filename)
+                os.link(filename, self.link)
+            self._file = msg["PAR"]
+            with open(filename, "w+") as file_stream:
+                file_stream.write(self._file)
+            return RETURN_MESSAGES["OK"]
+        with open(filename, "w+") as file_stream:
+            file_stream.write(self._file)
+        return RETURN_MESSAGES["OK_UPDATED"]
 
-    def __kill__(self, msg: dict):  # TODO move to Actor Manager
+    def _kill(self, msg: dict):
         theLogger.info("Shutting down actor %s, Message: %s", self.globalName, msg)
-        theLogger.info(
-            registrationserver2.actor_system.ask(
-                self.myAddress, thespian.actors.ActorExitRequest()
+        filename = fr"{self.__folder_history}{self.globalName}"
+        self.link = fr"{self.__folder_available}{self.globalName}"
+        if os.path.exists(self.link):
+            os.unlink(self.link)
+        if os.path.exists(filename):
+            os.remove(filename)
+        if self.my_redirector is not None:
+            kill_return = registrationserver2.actor_system.ask(
+                self.my_redirector, thespian.actors.ActorExitRequest()
             )
+            theLogger.info(kill_return)
+        kill_return = registrationserver2.actor_system.ask(
+            self.myAddress, thespian.actors.ActorExitRequest()
         )
-        # self.setup_done = False
+        theLogger.info(kill_return)
+        return RETURN_MESSAGES["OK"]
 
-    def __reserve__(self, msg: dict) -> dict:
-        pass
-
-    def __send_reserve__(self, msg: dict) -> dict:
-        """Handler for SEND_RESERVE message from REST API."""
-        theLogger.info(
-            "Device actor received a SEND_RESERVE command with message: %s", msg
-        )
-        if msg["APP"] is None:
+    def _reserve(self, msg: dict) -> dict:
+        """Handler for RESERVE message from REST API."""
+        theLogger.info("Device actor received a RESERVE command with message: %s", msg)
+        if msg["PAR"]["APP"] is None:
             theLogger.error("ERROR: there is no APP name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
-        if msg["HOST"] is None:
+        if msg["PAR"]["HOST"] is None:
             theLogger.error("ERROR: there is no HOST name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
-        if msg["USER"] is None:
+        if msg["PAR"]["USER"] is None:
             theLogger.error("ERROR: there is no USER name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
         # TODO: Check instrument server for availability of requested instrument
         # Create redirector actor
-        short_id = self.globalName.split(".")[0]
-        redirector_actor = registrationserver2.actor_system.createActor(
-            RedirectorActor, globalName=short_id
-        )
-        theLogger.info("Redirector actor created.")
-        # Write into device file
+        if self.my_redirector is None:
+            short_id = self.globalName.split(".")[0]
+            self.my_redirector = self.createActor(RedirectorActor, globalName=short_id)
+            actor_system.ask(
+                self.my_redirector,
+                {"CMD": "SETUP", "PAR": {"PARENT_NAME": self.globalName}},
+            )
+            theLogger.info("Redirector actor created.")
+            # Write into device file
 
-        return RETURN_MESSAGES["OK"]
+            # TODO Return RESULT attributs IP and PORT
+            return RETURN_MESSAGES["OK"]
+        return RETURN_MESSAGES["OK_SKIPPED"]
+
+    def _free(self, _: dict) -> dict:
+        """Handler for FREE message from REST API."""
+        theLogger.info("Device actor received a FREE command.")
+        if self.my_redirector is not None:
+            kill_return = registrationserver2.actor_system.ask(
+                self.my_redirector, thespian.actors.ActorExitRequest()
+            )
+            theLogger.info(kill_return)
+            return RETURN_MESSAGES["OK"]
+        return RETURN_MESSAGES["OK_SKIPPED"]

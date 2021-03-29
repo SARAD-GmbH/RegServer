@@ -4,14 +4,18 @@ Created on 2021-02-16
 @author: Yixiang
 """
 import json
-import paho.mqtt.client  as MQTT# type: ignore
+from enum import Enum, unique
 
+import paho.mqtt.client as MQTT  # type: ignore
 from registrationserver2 import actor_system, theLogger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES, is_JSON
 from enum import Enum
 
-mqtt_req_status = Enum("REQ_STATUS", ("idle", "send_reserve", "reserve_sent", "reserve_accepted", "reserve_refused"))
+mqtt_req_status = Enum(
+    "REQ_STATUS",
+    ("idle", "send_reserve", "reserve_sent", "reserve_accepted", "reserve_refused"),
+)
 
 mqtt_send_status = Enum("SEND_STATUS", ("idle", "to_send", "sent", "send_replied"))
 
@@ -29,7 +33,7 @@ class MqttActor(DeviceBaseActor):
     instr_id: str
 
     mqtt_client_adr = None
-    
+
     # "copy" ACCEPTED_MESSAGES of the DeviceBaseActor 
     ACCEPTED_MESSAGES = DeviceBaseActor.ACCEPTED_MESSAGES
     # add some new accessible methods
@@ -49,7 +53,7 @@ class MqttActor(DeviceBaseActor):
         self.instr_id = self.globalName.split("/")[1]
  
     # The receiveMessage() is defined in the DeviceBaseActor class
-        
+
     # Definition of callback functions for the MQTT client, namely the on_* functions
     # these callback functions are called in the new thread that is created through loo_start() of Client()
     def on_connect(
@@ -104,8 +108,10 @@ class MqttActor(DeviceBaseActor):
         if len(topic_buf) !=3:
             theLogger.warning(f"[MQTT_Message]\tReceived an illegal message whose topic length is illegal: topic is {message.topic} and payload is {message.payload}")
         else:
-            if topic_buf[0] != self.is_id or topic_buf[1] !=self.instr_id:
-                theLogger.warning(f"[MQTT_Message]\tReceived illegal message: topic is {message.topic} and payload is {message.payload}")
+            if topic_buf[0] != self.is_id or topic_buf[1] != self.instr_id:
+                theLogger.warning(
+                    f"[MQTT_Message]\tReceived illegal message: topic is {message.topic} and payload is {message.payload}"
+                )
             else:
                 if topic_buf[2] != "meta" and topic_buf[2] != "msg":
                     pass
@@ -125,10 +131,12 @@ class MqttActor(DeviceBaseActor):
                     else:
                         theLogger.warning(f"[MQTT_Message]\tReceived an illegal binary reply that is empty: topic is {message.topic}")
                 else:
-                    theLogger.warning(f"[MQTT_Message]\tReceived illegal message: topic is {message.topic} and payload is {message.payload}")
-    
-    # Definition of methods accessible for the actor system and other actors -> referred to ACCEPTED_MESSAGES
-    def __send__(self, msg: dict):
+                    theLogger.warning(
+                        f"[MQTT_Message]\tReceived illegal message: topic is {message.topic} and payload is {message.payload}"
+                    )
+
+    # Definition of methods accessible for the actor system and other actors -> referred to ACCEPTED_COMMANDS
+    def _send(self, msg: dict):
         if msg is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
 
@@ -148,7 +156,7 @@ class MqttActor(DeviceBaseActor):
         self.send_status = mqtt_send_status.to_send
         send_status = self.__publish(
             {
-                #"CMD": "PUBLISH",
+                # "CMD": "PUBLISH",
                 "Data": {
                     "topic": self.allowed_sys_topics[pub_req_msg["topic"]],
                     "payload": pub_req_msg["payload"],
@@ -161,7 +169,9 @@ class MqttActor(DeviceBaseActor):
             return RETURN_MESSAGES.get("SEND_RESERVE_FAILURE")
         self.send_status = mqtt_send_status.sent
         wait_cnt5 = 2000
-        while wait_cnt5 != 0:  # Wait max. 2000*0.01s = 20s -> check the reply in on_message()
+        while (
+            wait_cnt5 != 0
+        ):  # Wait max. 2000*0.01s = 20s -> check the reply in on_message()
             if self.send_status == mqtt_send_status.send_replied:
                 self.send_status = mqtt_send_status.idle
                 break
@@ -173,12 +183,12 @@ class MqttActor(DeviceBaseActor):
             return RETURN_MESSAGES.get("SEND_NO_REPLY")
         return {"RETURN": "OK", "DATA": self.binary_reply}
 
-    def __send_reserve__(self, msg):
-        super().__send_reserve__(msg)
+    def _reserve(self, msg):
+        super()._reserve(msg)
         self.req_status = mqtt_req_status.send_reserve
         send_reserve_status = self.__publish(
             {
-                #"CMD": "PUBLISH",
+                # "CMD": "PUBLISH",
                 "Data": {
                     "topic": self.allowed_sys_topics["CTRL"],
                     "payload": json.dump(self.reserve_req_msg),
@@ -191,7 +201,9 @@ class MqttActor(DeviceBaseActor):
             return RETURN_MESSAGES.get("SEND_RESERVE_FAILURE")
         self.req_status = mqtt_req_status.reserve_sent
         wait_cnt4 = 2000
-        while wait_cnt4 != 0:  # Wait max. 2000*0.01s = 20s -> check the reply in on_message()
+        while (
+            wait_cnt4 != 0
+        ):  # Wait max. 2000*0.01s = 20s -> check the reply in on_message()
             if self.req_status == mqtt_req_status.reserve_accepted:
                 self.req_status = mqtt_req_status.idle
                 break
@@ -206,9 +218,8 @@ class MqttActor(DeviceBaseActor):
             self.req_status = mqtt_req_status.idle
             return RETURN_MESSAGES.get("RESERVE_NO_REPLY")
         return RETURN_MESSAGES.get("OK_SKIPPED")
-        
 
-    def __send_free__(self, msg):
+    def _free(self, msg):
         theLogger.info("Free-Request\n")
         if msg is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
@@ -217,7 +228,7 @@ class MqttActor(DeviceBaseActor):
             self.free_req_msg["Req"] = "free"
         send_free_status = self.__publish(
             {
-                #"CMD": "PUBLISH",
+                # "CMD": "PUBLISH",
                 "Data": {
                     "topic": self.allowed_sys_topics["CTRL"],
                     "payload": json.dump(self.free_req_msg),
@@ -225,19 +236,19 @@ class MqttActor(DeviceBaseActor):
                 },
             }
         )
-        if not(
+        if not (
             send_free_status is RETURN_MESSAGES.get("OK")
             or send_free_status is RETURN_MESSAGES.get("OK_SKIPPED")
         ):
-            return RETURN_MESSAGES.get("SEND_FREE_FAILURE")      
+            return RETURN_MESSAGES.get("SEND_FREE_FAILURE")
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
-    def __kill__(self, msg: dict):
-        super().__kill__(msg)
+    def _kill(self, msg: dict):
+        super()._kill(msg)
         # TODO: clear the used memory space
         # TODO: let sender know this actor is killed
 
-    def __prepare__(self, msg: dict):
+    def _prepare(self, msg: dict):
         self.is_id = msg.get("Data", None).get("is_id", None)
         if self.is_id is None:
             theLogger.info("ERROR: No Instrument Server ID received!\n")
@@ -253,7 +264,7 @@ class MqttActor(DeviceBaseActor):
                 self.is_id + "/" + self.instr_id + self.allowed_sys_topics[k]
             )
         sub_req_msg = {
-            #"CMD": "SUBSCRIBE",
+            # "CMD": "SUBSCRIBE",
             "Data": {"topic": self.allowed_sys_topics["MSG"], "qos": 0},
         }
         subscribe_status = self.__subscribe(sub_req_msg)
@@ -264,7 +275,7 @@ class MqttActor(DeviceBaseActor):
             return RETURN_MESSAGES.get("PREPARE_FAILURE")
 
         sub_req_msg = {
-            #"CMD": "SUBSCRIBE",
+            # "CMD": "SUBSCRIBE",
             "Data": {"topic": self.allowed_sys_topics["META"], "qos": 0},
         }
         subscribe_status = self.__subscribe(sub_req_msg)
@@ -275,7 +286,7 @@ class MqttActor(DeviceBaseActor):
             return RETURN_MESSAGES.get("PREPARE_FAILURE")
 
         return RETURN_MESSAGES.get("OK_SKIPPED")
-    
+
     # Definition of methods, namely __*(), not accessible for the actor system and other actors
     def __connect(self) -> dict:
         if self.globalName is None:
@@ -306,8 +317,8 @@ class MqttActor(DeviceBaseActor):
         else:
             return RETURN_MESSAGES.get("CONNECTION_NO_RESPONSE")
         return RETURN_MESSAGES.get("OK_SKIPPED")
-    
-    def __publish(self, msg:dict)->dict:
+
+    def __publish(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("Data", None).get("topic", None)
         if self.mqtt_topic is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
@@ -327,8 +338,8 @@ class MqttActor(DeviceBaseActor):
             theLogger.info("on_publish not called: PUBLISH FAILURE!\n")
             return RETURN_MESSAGES.get("PUBLISH_FAILURE")
         return RETURN_MESSAGES.get("OK_SKIPPED")
-    
-    def __subscribe(self, msg:dict)->dict:
+
+    def __subscribe(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("Data", None).get("topic", None)
         if self.mqtt_topic is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
@@ -349,8 +360,8 @@ class MqttActor(DeviceBaseActor):
             theLogger.info("on_subscribe not called: SUBSCRIBE FAILURE!\n")
             return RETURN_MESSAGES.get("SUBSCRIBE_FAILURE")
         return RETURN_MESSAGES.get("OK_SKIPPED")
-    
-    def __unsubscribe(self, msg:dict)->dict:
+
+    def __unsubscribe(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("Data", None).get("topic", None)
         if self.mqtt_topic is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")

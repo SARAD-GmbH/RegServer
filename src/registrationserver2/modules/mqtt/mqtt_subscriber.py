@@ -3,13 +3,14 @@ Created on 2021-03-10
 
 @author: Yixiang
 """
-import sys
+import ctypes
+# import json
 import os
-#import json
-import logging
-import time
-import signal 
+import queue
+import signal
+import sys
 import threading
+import time
 import traceback
 import paho.mqtt.client  as MQTT# type: ignore
 #import traceback
@@ -21,14 +22,22 @@ from pathlib import Path
 #from typing import Dict
 
 import registrationserver2
+# import traceback
+import thespian
 from registrationserver2 import actor_system, theLogger
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES, Instr_CONN_HISTORY, IS_CONN_HISTORY#, MQTT_ACTOR_REQUESTs, MQTT_ACTOR_ADRs, IS_ID_LIST
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
-#from _hashlib import new
+from thespian.actors import Actor
 
-logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
+# from typing import Dict
+
+
+# from _hashlib import new
+
+theLogger.info("%s -> %s", __package__, __file__)
 
 mqtt_msg_queue = queue.Queue()
+
 
 def add_2d_dict(actor_adr_dict, is_id_, instr_id_, val):
     if is_id_ in actor_adr_dict.keys():
@@ -36,8 +45,11 @@ def add_2d_dict(actor_adr_dict, is_id_, instr_id_, val):
         theLogger.info(f"The Instrument ({instr_id_}) is added")
         return 1
     else:
-        theLogger.warning(f"The IS MQTT ({is_id_}) is unknown and hence, the instrument ({instr_id_}) is not added")
+        theLogger.warning(
+            f"The IS MQTT ({is_id_}) is unknown and hence, the instrument ({instr_id_}) is not added"
+        )
         return 0
+
 
 class MqttParser(threading.Thread):
     def __init__(self, name):
@@ -48,31 +60,32 @@ class MqttParser(threading.Thread):
         self.topic_parts = []
         self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
         self.__folder2_history = f"{registrationserver2.FOLDER2_HISTORY}{os.path.sep}"
-    
+
     def run(self):
         try:
             while True:
                 self.parser()
         finally:
             theLogger.info("The MQTT parser thread is ended")
-    
-    def get_id(self): 
-        # returns id of the respective thread 
-        if hasattr(self, '_thread_id'): 
-            return self._thread_id 
-        for ID, thread_ in threading._active.items(): 
-            if thread_ is self: 
+
+    def get_id(self):
+        # returns id of the respective thread
+        if hasattr(self, "_thread_id"):
+            return self._thread_id
+        for ID, thread_ in threading._active.items():
+            if thread_ is self:
                 return ID
 
-    def raise_exception(self): 
-        thread_id = self.get_id() 
-        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, 
-            ctypes.py_object(SystemExit)) 
-        if res > 1: 
-            ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, 0) 
-            theLogger.warning('Exception raise failure') 
+    def raise_exception(self):
+        thread_id = self.get_id()
+        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+            thread_id, ctypes.py_object(SystemExit)
+        )
+        if res > 1:
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, 0)
+            theLogger.warning("Exception raise failure")
             theLogger.warning("Failed to stop the MQTT parser thread")
-    
+
     def parser(self):
         if not mqtt_msg_queue.empty():
             message = mqtt_msg_queue.get()
@@ -157,14 +170,22 @@ class MqttParser(threading.Thread):
                                 "Data": {
                                     "is_id": self.topic_parts[0],
                                     "instr_id": self.topic_parts[1],
-                                } 
+                                },
                             }
-                            ask_return = actor_system.ask(SARAD_MQTT_SUBSCRIBER, ask_msg)
+                            ask_return = actor_system.ask(
+                                SARAD_MQTT_SUBSCRIBER, ask_msg
+                            )
                             theLogger.info(ask_return)
-                            if (ask_return is  RETURN_MESSAGES.get("OK")) or (ask_return is RETURN_MESSAGES.get("OK_SKIPPED")):
-                                theLogger.info(f"SARAD_Subscriber has killed the MQTT actor ({self.topic_parts[1]})")
+                            if (ask_return is RETURN_MESSAGES.get("OK")) or (
+                                ask_return is RETURN_MESSAGES.get("OK_SKIPPED")
+                            ):
+                                theLogger.info(
+                                    f"SARAD_Subscriber has killed the MQTT actor ({self.topic_parts[1]})"
+                                )
                             else:
-                                theLogger.warning(f"SARAD_Subscriber has problems with killing the MQTT actor ({self.topic_parts[1]})")
+                                theLogger.warning(
+                                    f"SARAD_Subscriber has problems with killing the MQTT actor ({self.topic_parts[1]})"
+                                )
                         else:
                             theLogger.warning(f"SARAD_Subscriber has received disconnection message from an unknown instrument ({self.topic_parts[1]}) controlled by the IS ({self.topic_parts[0]})")
                     else:
@@ -238,17 +259,17 @@ class SaradMqttSubscriber(Actor):
     mqtt_broker: str  # MQTT Broker, here: localhost
 
     mqtt_cid: str  # MQTT Client ID
-    
-    __folder_history: str 
-    
+
+    __folder_history: str
+
     __folder_available: str
-    
+
     __folder2_history: str
-    
+
     __folder2_available: str
-    
+
     __lock = threading.Lock()
-    
+
     SARAD_MQTT_PARSER = MqttParser("MQTT_Parser")
     
     def __init__(self):
@@ -299,7 +320,7 @@ class SaradMqttSubscriber(Actor):
             self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
             return
 
-        cmd = self.ACCEPTED_MESSAGES.get(cmd_string, None)
+        cmd = self.ACCEPTED_COMMANDS.get(cmd_string, None)
 
         if not cmd:
             self.send(sender, RETURN_MESSAGES.get("ILLEGAL_UNKNOWN_COMMAND"))
@@ -310,7 +331,7 @@ class SaradMqttSubscriber(Actor):
             return
 
         self.send(sender, getattr(self, cmd)(msg))
-    
+
     def on_connect(
         self, client, userdata, flags, result_code
     ):  # pylint: disable=unused-argument
@@ -354,7 +375,7 @@ class SaradMqttSubscriber(Actor):
 
     def on_message(self, client, userdata, message):
         self.msg_buf = {}
-        
+
         theLogger.info(f"message received: {str(message.payload.decode('utf-8'))}")
         theLogger.info(f"message topic: {message.topic}")
         theLogger.info(f"message qos: {message.qos}")
@@ -458,8 +479,8 @@ class SaradMqttSubscriber(Actor):
                         Instr_CONN_HISTORY[is_id][instr_id]="Removed"
                         return prep_return
             return RETURN_MESSAGES.get("OK_SKIPPED")
-        
-    def __rm_instr__(self, msg:dict)->dict:
+
+    def _rm_instr(self, msg: dict) -> dict:
         instr_id = msg.get("Data", None).get("instr_id", None)
         is_id = msg.get("Data", None).get("is_id", None)
         if is_id is None:
@@ -552,13 +573,15 @@ class SaradMqttSubscriber(Actor):
                 return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
             
         return RETURN_MESSAGES.get("OK_SKIPPED")
-    
-    def __add_host__(self, msg:dict)->dict:
+
+    def _add_host(self, msg: dict) -> dict:
         is_id = msg.get("Data", None).get("is_id", None)
         if is_id is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         with self.__lock:
-            theLogger.info(f"[Add]:\tFound: A new connected host with Instrument Server ID : {is_id}")
+            theLogger.info(
+                f"[Add]:\tFound: A new connected host with Instrument Server ID : {is_id}"
+            )
             filename = fr"{self.__folder2_history}{is_id}"
             link = fr"{self.__folder2_available}{is_id}"
             try:
@@ -585,8 +608,8 @@ class SaradMqttSubscriber(Actor):
                 )
                 return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         return RETURN_MESSAGES.get("OK_SKIPPED")
-    
-    def __rm_host__(self, msg:dict)->dict:
+
+    def _rm_host(self, msg: dict) -> dict:
         is_id = msg.get("Data", None).get("is_id", None)
         if is_id is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
@@ -595,18 +618,22 @@ class SaradMqttSubscriber(Actor):
                 _re = self.__rm_instr__({"CMD": "RM_DEVICE", "Data":{"is_id": is_id, "instr_id": mem.split("/")[1]}})
                 theLogger.info(_re)
         with self.__lock:
-            theLogger.info(f"[Del]:\tRemoved the host with Instrument Server ID: {is_id}")
+            theLogger.info(
+                f"[Del]:\tRemoved the host with Instrument Server ID: {is_id}"
+            )
             link = fr"{self.__folder2_available}{is_id}"
             if os.path.exists(link):
                 os.unlink(link)
         return RETURN_MESSAGES.get("OK_SKIPPED")
-    
-    def __update_host__(self, msg:dict)->dict:
+
+    def _update_host(self, msg: dict) -> dict:
         is_id = msg.get("Data", None).get("is_id", None)
         if is_id is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         with self.__lock:
-            theLogger.info(f"[Update]:\tFound: A new connected host with Instrument Server ID : {is_id}")
+            theLogger.info(
+                f"[Update]:\tFound: A new connected host with Instrument Server ID : {is_id}"
+            )
             filename = fr"{self.__folder2_history}{is_id}"
             link = fr"{self.__folder2_available}{is_id}"
             try:
@@ -633,8 +660,8 @@ class SaradMqttSubscriber(Actor):
                 )
                 return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         return RETURN_MESSAGES.get("OK_SKIPPED")
-    
-    def __connect__(self, msg: dict) -> dict:
+
+    def _connect(self, msg: dict) -> dict:
         self.mqtt_cid = msg.get("Data", None).get("client_id", None)
 
         if self.mqtt_cid is None:
@@ -643,7 +670,7 @@ class SaradMqttSubscriber(Actor):
         self.mqtt_broker = msg.get("Data", None).get("mqtt_broker", None)
 
         if self.mqtt_broker is None:
-            self.mqtt_broker = 'localhost'
+            self.mqtt_broker = "localhost"
 
         self.mqttc = MQTT.Client(self.mqtt_cid)
 
@@ -677,7 +704,7 @@ class SaradMqttSubscriber(Actor):
         self.SARAD_MQTT_PARSER.start()
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
-    def __disconnect__(self, msg: dict) -> dict:
+    def _disconnect(self, msg: dict) -> dict:
         theLogger.info("To disconnect from the MQTT-broker!\n")
         self.mqttc.disconnect()
         theLogger.info("To stop the MQTT thread!\n")
@@ -700,16 +727,16 @@ class SaradMqttSubscriber(Actor):
         if self.mqtt_topic is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         self.mqtt_payload = msg.get("Data", None).get("payload", None)
-        split_buf = self.mqtt_topic.split('/')
+        split_buf = self.mqtt_topic.split("/")
         if len(split_buf) != 3 and len(split_buf) != 2:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         if split_buf[2] == "control" and len(split_buf) == 3:
             if self.mqtt_payload.get("payload", None).get("Req", None) == "reserve":
-                #self.reserve_flag = 1 # 2: free; 0: None
+                # self.reserve_flag = 1 # 2: free; 0: None
                 MQTT_ACTOR_REQUESTs[split_buf[0]][split_buf[1]] = "reserve"
                 theLogger.info(f"Reserve target is: {split_buf[0]}/{split_buf[1]}")
             elif self.mqtt_payload.get("payload", None).get("Req", None) == "free":
-                #self.reserve_flag = 2 # 2: free; 0: None
+                # self.reserve_flag = 2 # 2: free; 0: None
                 MQTT_ACTOR_REQUESTs[split_buf[0]][split_buf[1]] = "free"
                 theLogger.info(f"Reserve target is: {split_buf[0]}/{split_buf[1]}")
         self.mqtt_qos = msg.get("Data", None).get("qos", None)
@@ -730,7 +757,7 @@ class SaradMqttSubscriber(Actor):
 
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
-    def __subscribe__(self, msg: dict) -> dict:
+    def _subscribe(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("topic", None)
         if self.mqtt_topic is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
@@ -754,7 +781,7 @@ class SaradMqttSubscriber(Actor):
 
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
-    def __unsubscribe__(self, msg: dict) -> dict:
+    def _unsubscribe(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("topic", None)
         if self.mqtt_topic is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
@@ -781,7 +808,7 @@ class SaradMqttSubscriber(Actor):
         - stop all cycles
         - disconnect from MQTT self.mqtt_broker"""
         theLogger.info("You pressed Ctrl+C!\n")
-        self.__disconnect__()
+        self._disconnect()
         sys.exit(0)
 
     signal.signal(

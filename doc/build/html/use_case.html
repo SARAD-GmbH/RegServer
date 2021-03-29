@@ -34,6 +34,106 @@
             
   <div class="section" id="overview-and-use-case">
 <h1>Overview and Use Case<a class="headerlink" href="#overview-and-use-case" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="component-diagram-of-registration-server-2">
+<h2>Component diagram of Registration Server 2<a class="headerlink" href="#component-diagram-of-registration-server-2" title="Permalink to this headline">¶</a></h2>
+<p class="plantuml">
+<img src="_images/plantuml-00d08cdc80ad31db6df4639ab5b866c40ef9f4a3.png" alt="&#64;startuml
+!include &lt;c4/C4_Component.puml&gt;
+!include &lt;office/Users/user.puml&gt;
+
+HIDE_STEREOTYPE()
+
+AddTagSupport(&quot;mod&quot;, $borderColor=&quot;#d73027&quot;)
+
+!$app = &quot;SARAD-App&quot;
+!$rs = &quot;Registration Server 2 (ZeroConf)&quot;
+!$is = &quot;Instrument Server&quot;
+!$inst = &quot;SARAD-Instrument&quot;
+!$inst_m = &quot;SARAD-Instrumente&quot;
+
+Container(app, $app, &quot;wählt ein $instr zur Kommunikation aus.&quot;)
+
+Container_Boundary(mod, &quot;RFC2217-Modul&quot;, $rs, $tags=&quot;mod&quot;) {
+        Component(listener, &quot;mDNS Listener&quot;, &quot;Python Class&quot;, &quot;Erkennt neue $inst_m.&quot;)
+        Component(device_actor1, &quot;Device Actor A&quot;, &quot;Actor&quot;, &quot;RFC2217&quot;)
+}
+Container_Boundary(rs, &quot;Basis&quot;, $rs) {
+        Component(api, &quot;REST API&quot;, &quot;JSON/HTTP&quot;, &quot;Geräteliste mit Status&quot;)
+        Component(redirector1, &quot;Redirector Actor A&quot;, &quot;Actor&quot;, &quot;TCP Socket&quot;)
+}
+ComponentDb(device_files, &quot;Gerätedateien&quot;, &quot;Dateisystem&quot;)
+
+Container(is1, $is, &quot;verwaltet Gerätebelegung, stellt eine Internetschnittstelle zum $inst bereit&quot;)
+
+Rel(is1, listener, &quot;1. meldet Gerät A&quot;, &quot;mDNS Broadcast&quot;)
+Rel(listener, device_actor1, &quot;2. erzeugt&quot;, &quot;createActor&quot;)
+Rel(listener, device_actor1, &quot;3. SETUP&quot;, &quot;message&quot;)
+Rel(device_actor1, device_files, &quot;4. Datei/Link&quot;,  &quot;JSON Identification&quot;)
+Rel(api, app, &quot;5. GET list&quot;, &quot;JSON/HTTP&quot;)
+Rel(api, device_files, &quot;6. liest&quot;, &quot;JSON/HTTP&quot;)
+Rel(app, api, &quot;7. GET reserve&quot;, &quot;JSON/HTTP&quot;)
+Rel(api, device_actor1, &quot;8. RESERVE&quot;, &quot;Message&quot;)
+Rel(device_actor1, is1, &quot;9. Reservierung&quot;, &quot;JSON/HTTP&quot;)
+Rel(device_actor1, redirector1, &quot;10. erzeugt&quot;, &quot;createActor&quot;)
+Rel(redirector1, device_files, &quot;11. schreibt in Datei&quot;, &quot;JSON&quot;)
+BiRel(app, redirector1, &quot;12. Binärpaket&quot;, &quot;TCP-Socket&quot;)
+BiRel(redirector1, device_actor1, &quot;12. Binärpaket&quot;, &quot;Messages&quot;)
+BiRel(is1, device_actor1, &quot;12. Binärpaket&quot;, &quot;RFC2217&quot;)
+&#64;enduml
+"/>
+</p>
+</div>
+<div class="section" id="component-diagram-of-registration-server-mqtt">
+<h2>Component diagram of Registration Server MQTT<a class="headerlink" href="#component-diagram-of-registration-server-mqtt" title="Permalink to this headline">¶</a></h2>
+<p class="plantuml">
+<img src="_images/plantuml-2e9e7259dfd51dfe92f8e817cfd74c4e86f9debb.png" alt="&#64;startuml
+!include &lt;c4/C4_Component.puml&gt;
+!include &lt;office/Users/user.puml&gt;
+
+HIDE_STEREOTYPE()
+
+AddTagSupport(&quot;mod&quot;, $borderColor=&quot;#d73027&quot;)
+
+!$app = &quot;SARAD-App&quot;
+!$rs = &quot;Registration Server&quot;
+!$is = &quot;Instrument Server&quot;
+!$inst = &quot;SARAD-Instrument&quot;
+!$inst_m = &quot;SARAD-Instrumente&quot;
+
+Container(app, $app, &quot;wählt ein $instr zur Kommunikation aus.&quot;)
+
+Container_Boundary(mod, &quot;MQTT-Modul&quot;, $rs, $tags=&quot;mod&quot;) {
+        Component(listener, &quot;Subscriber&quot;, &quot;Python Class&quot;, &quot;mit MQTT-Client; erkennt neue $inst_m.&quot;)
+        Component(device_actor1, &quot;Device Actor A&quot;, &quot;Actor&quot;, &quot;mit MQTT-Client&quot;)
+}
+Container_Boundary(rs, &quot;Basis&quot;, $rs) {
+        Component(api, &quot;REST API&quot;, &quot;JSON/HTTP&quot;, &quot;Geräteliste mit Status&quot;)
+        Component(redirector1, &quot;Redirector Actor A&quot;, &quot;Actor&quot;, &quot;TCP Socket&quot;)
+}
+ComponentDb(device_files, &quot;Gerätedateien&quot;, &quot;Dateisystem&quot;)
+
+Container(is1, $is, &quot;verwaltet Gerätebelegung, stellt eine Internetschnittstelle zum $inst bereit&quot;)
+
+Rel(is1, listener, &quot;1. meldet Gerät A&quot;, &quot;MQTT&quot;)
+Rel(listener, device_actor1, &quot;2. erzeugt&quot;, &quot;createActor&quot;)
+Rel(listener, device_actor1, &quot;3. SETUP&quot;, &quot;message&quot;)
+Rel(device_actor1, device_files, &quot;4. Datei/Link&quot;,  &quot;JSON Identification&quot;)
+Rel(api, device_files, &quot;5. liest&quot;, &quot;JSON/HTTP&quot;)
+Rel(api, app, &quot;6. GET list&quot;, &quot;JSON/HTTP&quot;)
+Rel(app, api, &quot;7. GET reserve&quot;, &quot;JSON/HTTP&quot;)
+Rel(api, device_actor1, &quot;8. RESERVE&quot;, &quot;Message&quot;)
+Rel(device_actor1, is1, &quot;9. Reservierung&quot;, &quot;MQTT&quot;)
+Rel(device_actor1, redirector1, &quot;10. erzeugt&quot;, &quot;createActor&quot;)
+Rel(redirector1, device_files, &quot;11. schreibt&quot;, &quot;JSON Reservation&quot;)
+BiRel(app, redirector1, &quot;12. Binärpaket&quot;, &quot;TCP-Socket&quot;)
+BiRel(redirector1, device_actor1, &quot;12. Binärpaket&quot;, &quot;Messages&quot;)
+BiRel(is1, device_actor1, &quot;12. Binärpaket&quot;, &quot;MQTT&quot;)
+&#64;enduml
+"/>
+</p>
+</div>
+<div class="section" id="overview-from-riccardo">
+<h2>Overview (from Riccardo)<a class="headerlink" href="#overview-from-riccardo" title="Permalink to this headline">¶</a></h2>
 <p class="plantuml">
 <img src="_images/plantuml-18e9a1d79de56c5f2bcf58a538cfcb260390a13d.png" alt="&#64;startuml
 	actor &quot;Alice&quot; as user
@@ -86,6 +186,7 @@
 &#64;enduml"/>
 </p>
 </div>
+</div>
 
 
           </div>
@@ -105,7 +206,12 @@
 
 <h3>Navigation</h3>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Overview and Use Case</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Overview and Use Case</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#component-diagram-of-registration-server-2">Component diagram of Registration Server 2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#component-diagram-of-registration-server-mqtt">Component diagram of Registration Server MQTT</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#overview-from-riccardo">Overview (from Riccardo)</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="classes.html">UML Class Diagram</a></li>
 <li class="toctree-l1"><a class="reference internal" href="folder_structure.html">Folder Structure</a></li>
 <li class="toctree-l1"><a class="reference internal" href="actor_messages.html">Actor Messages</a></li>

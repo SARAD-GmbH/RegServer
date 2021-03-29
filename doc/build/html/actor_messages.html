@@ -34,100 +34,146 @@
             
   <div class="section" id="actor-messages">
 <h1>Actor Messages<a class="headerlink" href="#actor-messages" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="general">
-<h2>General<a class="headerlink" href="#general" title="Permalink to this headline">¶</a></h2>
-<p>The general format for messages between defined actor is a python dict with the
-following properties:</p>
+<div class="section" id="general-message-structure">
+<h2>General message structure<a class="headerlink" href="#general-message-structure" title="Permalink to this headline">¶</a></h2>
+<p>The general format for messages between defined actors is a Python dictionary.
+We have two types of messages:</p>
+<ul class="simple">
+<li><p>Commands sent to the actor,</p></li>
+<li><p>Return messages sent by the actor as reply to a command.</p></li>
+</ul>
+<div class="section" id="commands">
+<h3>Commands<a class="headerlink" href="#commands" title="Permalink to this headline">¶</a></h3>
+<p>Commands consist of the keys:</p>
 <dl class="simple">
-<dt>CMD</dt><dd><p>contains the message type</p>
+<dt>CMD</dt><dd><p>contains the message type.</p>
 </dd>
-<dt>RETURN</dt><dd><p>for response message, contains True if no error happened, False in any other case</p>
-</dd>
-<dt>ERROR</dt><dd><p>Contains an error message (for display or translation input)</p>
-</dd>
-<dt>ERRORCODE</dt><dd><p>To unique identify the error, for machine processing.</p>
+<dt>PAR (optional)</dt><dd><p>contains optional parameters that differ from command to command.</p>
 </dd>
 </dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cmd_dict</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;CMD&quot;</span><span class="p">:</span> <span class="s2">&quot;RESERVE&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;PAR&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;HOST&quot;</span><span class="p">:</span> <span class="n">request_host</span><span class="p">,</span>
+        <span class="s2">&quot;USER&quot;</span><span class="p">:</span> <span class="n">user</span><span class="p">,</span>
+        <span class="s2">&quot;APP&quot;</span><span class="p">:</span> <span class="n">app</span><span class="p">,</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+</pre></div>
 </div>
-<div class="section" id="devicebaseactor">
-<h2>DeviceBaseActor<a class="headerlink" href="#devicebaseactor" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="return-messages">
+<h3>Return messages<a class="headerlink" href="#return-messages" title="Permalink to this headline">¶</a></h3>
+<p>Return messages consist of the following keys:</p>
+<dl class="simple">
+<dt>ERROR_CODE</dt><dd><p>integer to clearly identify the error.</p>
+</dd>
+<dt>RETURN</dt><dd><p>contains a text reporting the outcome or error message corresponding with ERROR_CODE</p>
+</dd>
+<dt>RESULT (optional)</dt><dd><p>contains additional result attributes that differ from command to command.</p>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">return_dict</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;ERROR_CODE&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s2">&quot;RETURN&quot;</span><span class="p">:</span> <span class="s2">&quot;OK&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;RESULT&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;IP&quot;</span><span class="p">:</span> <span class="mf">127.0</span><span class="o">.</span><span class="mf">0.1</span><span class="p">,</span>
+        <span class="s2">&quot;PORT&quot;</span><span class="p">:</span> <span class="mi">50000</span><span class="p">,</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+
+<span class="n">return_dict</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;ERROR_CODE&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="s2">&quot;RETURN&quot;</span><span class="p">:</span> <span class="s2">&quot;OK, skipped&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="cmds-handled-by-the-devicebaseactor">
+<h2>CMDs handled by the DeviceBaseActor<a class="headerlink" href="#cmds-handled-by-the-devicebaseactor" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="setup">
+<h3>SETUP<a class="headerlink" href="#setup" title="Permalink to this headline">¶</a></h3>
+<p>Request to create the device file that is linked to the actor via its file name.</p>
+<p>Parameters:</p>
+<p>Content of the device file.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;Identification&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;Name&quot;</span><span class="p">:</span> <span class="s2">&quot;RADON SCOUT HOME&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Family&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+     <span class="s2">&quot;Type&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+     <span class="s2">&quot;Serial number&quot;</span><span class="p">:</span> <span class="mi">791</span><span class="p">,</span>
+     <span class="s2">&quot;Host&quot;</span><span class="p">:</span> <span class="s2">&quot;mischka&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;Protocol&quot;</span><span class="p">:</span> <span class="s2">&quot;sarad-1688&quot;</span><span class="p">},</span>
+ <span class="s2">&quot;Remote&quot;</span><span class="p">:</span> <span class="p">{</span>
+     <span class="s2">&quot;Address&quot;</span><span class="p">:</span> <span class="s2">&quot;192.168.178.20&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;Port&quot;</span><span class="p">:</span> <span class="mi">5580</span><span class="p">,</span>
+     <span class="s2">&quot;Name&quot;</span><span class="p">:</span> <span class="s2">&quot;0ghMF8Y.sarad-1688._rfc2217._tcp.local.&quot;</span><span class="p">}}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="reserve">
+<h3>RESERVE<a class="headerlink" href="#reserve" title="Permalink to this headline">¶</a></h3>
+<p>Request to reserve an instrument.</p>
+<p>Parameters:</p>
 <ul class="simple">
-<li><p>SEND</p>
-<ul>
-<li><p>Request to a Device Actor (implimenting DeviceBaseActor)</p>
-<ul>
-<li><p>DATA: Contains the DATA so be send</p></li>
-<li><p>HOST: Host requesting the DATA to be send ( for reservation checks )</p></li>
+<li><p>HOST: Host requesting the reservation</p></li>
+<li><p>USER: Username requesting the reservation</p></li>
+<li><p>APP: Application requesting the reservation</p></li>
 </ul>
-</li>
-<li><p>Response:</p>
-<ul>
-<li><p>DATA: Contains DATA that the device send back, not set in case there is no
+<p>RESULT attributes:</p>
+<ul class="simple">
+<li><p>IP: IP address of the listening server socket</p></li>
+<li><p>PORT: Port number of the listening server socket</p></li>
+</ul>
+</div>
+<div class="section" id="free">
+<h3>FREE<a class="headerlink" href="#free" title="Permalink to this headline">¶</a></h3>
+<p>Request to free an instrument from the reservation.</p>
+</div>
+<div class="section" id="kill">
+<h3>KILL<a class="headerlink" href="#kill" title="Permalink to this headline">¶</a></h3>
+<p>Request the termination of an actor, sent when a device gets disconnected
+from the accessable network.</p>
+</div>
+</div>
+<div class="section" id="cmds-handled-by-the-deviceactor">
+<h2>CMDs handled by the DeviceActor<a class="headerlink" href="#cmds-handled-by-the-deviceactor" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="send">
+<h3>SEND<a class="headerlink" href="#send" title="Permalink to this headline">¶</a></h3>
+<p>Request from the Redirector Actor to a Device Actor to send a binary message to
+the Instrument Server.</p>
+<p>Parameters:</p>
+<ul class="simple">
+<li><p>DATA: Contains the DATA so be sent</p></li>
+<li><p>HOST: Host requesting the DATA to be sent (for reservation checks at the Instrument Server)</p></li>
+</ul>
+<p>RESULT attributes:</p>
+<ul class="simple">
+<li><p>DATA: Contains DATA that the device sent back, not set in case there is no
 reponse</p></li>
 </ul>
-</li>
-</ul>
-</li>
-<li><p>SEND_RESERVE</p>
-<ul>
-<li><p>Request to reserve an instrument</p>
-<ul>
-<li><p>HOST : Host requesting the reservation</p></li>
-<li><p>USER : Username requesting the reservation</p></li>
-<li><p>APP : Application requesting the reservation</p></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><p>SEND_FREE</p>
-<ul>
-<li><p>Request to free an instrument</p>
-<ul>
-<li><p>HOST : Host requesting the reservation</p></li>
-<li><p>USER : Username requesting the reservation</p></li>
-<li><p>APP : Application requesting the reservation</p></li>
-</ul>
-</li>
-</ul>
-</li>
+</div>
+</div>
+<div class="section" id="cmds-of-the-redirector-actor">
+<h2>CMDs of the Redirector Actor<a class="headerlink" href="#cmds-of-the-redirector-actor" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id1">
+<h3>SETUP<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>Request to initialize the Redirector Actor with the globalName of its parent Device Actor.</p>
+<p>Parameter:</p>
+<ul class="simple">
+<li><p>PARENT_NAME: globalName of the Device Actor that created this Redirector Actor</p></li>
 </ul>
 </div>
-<div class="section" id="deviceactormanager">
-<h2>DeviceActorManager<a class="headerlink" href="#deviceactormanager" title="Permalink to this headline">¶</a></h2>
-<ul class="simple">
-<li><p>CREATE</p>
-<ul>
-<li><p>Request to create an actor for a specific device and class, send when a new
-device is detected</p>
-<ul>
-<li><p>NAME: Device ID</p></li>
-<li><p>CLASS: Class for the Instrument Actor (i.e. Rfc2217Actor), must implement
-DeviceBaseActor</p></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><p>KILL</p>
-<ul>
-<li><p>Request the termination of an actor, send when a device gets disconnected
-from the accessable network</p>
-<ul>
-<li><p>NAME: Device ID</p></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
 </div>
-<div class="section" id="misc-all">
-<h2>Misc (all)<a class="headerlink" href="#misc-all" title="Permalink to this headline">¶</a></h2>
-<ul class="simple">
-<li><p>ECHO</p>
-<ul>
-<li><p>Responds with the message send, used for debugging of actors</p></li>
-</ul>
-</li>
-</ul>
+<div class="section" id="misc-cmds-all">
+<h2>Misc CMDs (all)<a class="headerlink" href="#misc-cmds-all" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="echo">
+<h3>ECHO<a class="headerlink" href="#echo" title="Permalink to this headline">¶</a></h3>
+<p>Responds with the message send, used for debugging of actors.</p>
+</div>
 </div>
 </div>
 
@@ -153,10 +199,11 @@ from the accessable network</p>
 <li class="toctree-l1"><a class="reference internal" href="classes.html">UML Class Diagram</a></li>
 <li class="toctree-l1"><a class="reference internal" href="folder_structure.html">Folder Structure</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Actor Messages</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#general">General</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#devicebaseactor">DeviceBaseActor</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#deviceactormanager">DeviceActorManager</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#misc-all">Misc (all)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#general-message-structure">General message structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cmds-handled-by-the-devicebaseactor">CMDs handled by the DeviceBaseActor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cmds-handled-by-the-deviceactor">CMDs handled by the DeviceActor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cmds-of-the-redirector-actor">CMDs of the Redirector Actor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#misc-cmds-all">Misc CMDs (all)</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">Modules</a></li>

@@ -2,77 +2,157 @@
 Actor Messages
 ==============
 
-General
--------
+General message structure
+=========================
 
-The general format for messages between defined actor is a python dict with the
-following properties:
+The general format for messages between defined actors is a Python dictionary.
+We have two types of messages:
+
+* Commands sent to the actor,
+* Return messages sent by the actor as reply to a command.
+
+Commands
+--------
+
+Commands consist of the keys:
 
 CMD
-    contains the message type
+    contains the message type.
 
-RETURN
-    for response message, contains True if no error happened, False in any other case
+PAR (optional)
+    contains optional parameters that differ from command to command.
 
-ERROR
-    Contains an error message (for display or translation input)
+Example::
 
-ERRORCODE
-    To unique identify the error, for machine processing.
+  cmd_dict = {
+      "CMD": "RESERVE",
+      "PAR": {
+          "HOST": request_host,
+          "USER": user,
+          "APP": app,
+      },
+  }
 
-DeviceBaseActor
+Return messages
 ---------------
 
-* SEND
+Return messages consist of the following keys:
 
-  * Request to a Device Actor (implimenting DeviceBaseActor)
+ERROR_CODE
+    integer to clearly identify the error.
 
-    * DATA: Contains the DATA so be send
-    * HOST: Host requesting the DATA to be send ( for reservation checks )
+RETURN
+    contains a text reporting the outcome or error message corresponding with ERROR_CODE
 
-  * Response:
+RESULT (optional)
+    contains additional result attributes that differ from command to command.
 
-    * DATA: Contains DATA that the device send back, not set in case there is no
-      reponse
+Examples::
 
-* SEND_RESERVE
+  return_dict = {
+      "ERROR_CODE": 0,
+      "RETURN": "OK",
+      "RESULT": {
+          "IP": 127.0.0.1,
+          "PORT": 50000,
+      },
+  }
 
-  * Request to reserve an instrument
+  return_dict = {
+      "ERROR_CODE": 10,
+      "RETURN": "OK, skipped",
+  }
 
-    * HOST : Host requesting the reservation
-    * USER : Username requesting the reservation
-    * APP : Application requesting the reservation
+CMDs handled by the DeviceBaseActor
+===================================
 
-* SEND_FREE
+SETUP
+-----
 
-  * Request to free an instrument
+Request to create the device file that is linked to the actor via its file name.
 
-    * HOST : Host requesting the reservation
-    * USER : Username requesting the reservation
-    * APP : Application requesting the reservation
+Parameters:
 
-DeviceActorManager
-------------------
+Content of the device file.
 
-* CREATE
+Example::
 
-  * Request to create an actor for a specific device and class, send when a new
-    device is detected
+    {"Identification": {
+        "Name": "RADON SCOUT HOME",
+        "Family": 2,
+         "Type": 8,
+         "Serial number": 791,
+         "Host": "mischka",
+         "Protocol": "sarad-1688"},
+     "Remote": {
+         "Address": "192.168.178.20",
+         "Port": 5580,
+         "Name": "0ghMF8Y.sarad-1688._rfc2217._tcp.local."}}
 
-    * NAME: Device ID
-    * CLASS: Class for the Instrument Actor (i.e. Rfc2217Actor), must implement
-      DeviceBaseActor
+RESERVE
+-------
 
-* KILL
+Request to reserve an instrument.
 
-  * Request the termination of an actor, send when a device gets disconnected
-    from the accessable network
+Parameters:
 
-    * NAME: Device ID
+* HOST: Host requesting the reservation
+* USER: Username requesting the reservation
+* APP: Application requesting the reservation
 
-Misc (all)
-----------
+RESULT attributes:
 
-* ECHO
+* IP: IP address of the listening server socket
+* PORT: Port number of the listening server socket
 
-  * Responds with the message send, used for debugging of actors
+FREE
+----
+
+Request to free an instrument from the reservation.
+
+KILL
+----
+
+Request the termination of an actor, sent when a device gets disconnected
+from the accessable network.
+
+
+CMDs handled by the DeviceActor
+===============================
+
+SEND
+----
+
+Request from the Redirector Actor to a Device Actor to send a binary message to
+the Instrument Server.
+
+Parameters:
+
+* DATA: Contains the DATA so be sent
+* HOST: Host requesting the DATA to be sent (for reservation checks at the Instrument Server)
+
+RESULT attributes:
+
+* DATA: Contains DATA that the device sent back, not set in case there is no
+  reponse
+
+CMDs of the Redirector Actor
+============================
+
+SETUP
+-----
+
+Request to initialize the Redirector Actor with the globalName of its parent Device Actor.
+
+Parameter:
+
+* PARENT_NAME: globalName of the Device Actor that created this Redirector Actor
+
+
+Misc CMDs (all)
+===============
+
+ECHO
+----
+
+Responds with the message send, used for debugging of actors.

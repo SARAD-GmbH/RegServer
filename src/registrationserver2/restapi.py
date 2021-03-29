@@ -16,6 +16,7 @@ import registrationserver2
 from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
                                  FREE_KEYWORD, PATH_AVAILABLE, PATH_HISTORY,
                                  RESERVE_KEYWORD, theLogger)
+from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
 from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
 
@@ -199,7 +200,7 @@ class RestApi(Actor):
         theLogger.info("%s: %s --> %s", did, attribute_who, request_host)
         if not registrationserver2.matchid.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
-        # SEND_RESERVE message to device actor
+        # send RESERVE message to device actor
         if "_rfc2217" in did:
             device_actor = registrationserver2.actor_system.createActor(
                 Rfc2217Actor, globalName=did
@@ -216,10 +217,9 @@ class RestApi(Actor):
             )
         reserve_return = registrationserver2.actor_system.ask(
             device_actor,
-            {"CMD": "SEND_RESERVE", "HOST": request_host, "USER": user, "APP": app},
+            {"CMD": "RESERVE", "PAR": {"HOST": request_host, "USER": user, "APP": app}},
         )
         theLogger.info(reserve_return)
-
         answer = {}
         reservation = {
             "Active": True,
@@ -259,7 +259,36 @@ class RestApi(Actor):
     )
     def free_device(did):
         """Path for freeing a single active device"""
-        return json.dumps(f"{did}")
+        device_actor = registrationserver2.actor_system.createActor(
+            Actor, globalName=did
+        )
+        free_return = registrationserver2.actor_system.ask(
+            device_actor,
+            {"CMD": "FREE"},
+        )
+        theLogger.info("[Free] returned %s", free_return)
+        if free_return is RETURN_MESSAGES["OK"] or RETURN_MESSAGES["OK_SKIPPED"]:
+            answer = {}
+            if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
+                answer[did] = {
+                    "Identification": json.load(
+                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
+                    ).get("Identification", None),
+                    "Reservation": json.load(
+                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
+                    ).get("Reservation", None),
+                }
+            answer[did]["Reservation"]["Active"] = False
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        answer = {"Error code": 11, "Error": "Device not found", did: {}}
+        return Response(
+            response=json.dumps(answer), status=200, mimetype="application/json"
+        )
+        # TODO Timestamp
+        # TODO Freigabe fehlgeschlagen -- Aready reserved by other party
+        # TODO Freigabe fehlgeschlagen -- No reservation found
 
     def run(self, host=None, port=None, debug=None, load_dotenv=True):
         """Start the API"""
