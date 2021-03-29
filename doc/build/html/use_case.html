@@ -14,7 +14,7 @@
     <script src="_static/doctools.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="UML Class Diagram" href="classes.html" />
+    <link rel="next" title="Modules" href="modules.html" />
     <link rel="prev" title="Welcome to registrationserver’s documentation!" href="index.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -37,7 +37,7 @@
 <div class="section" id="component-diagram-of-registration-server-2">
 <h2>Component diagram of Registration Server 2<a class="headerlink" href="#component-diagram-of-registration-server-2" title="Permalink to this headline">¶</a></h2>
 <p class="plantuml">
-<img src="_images/plantuml-00d08cdc80ad31db6df4639ab5b866c40ef9f4a3.png" alt="&#64;startuml
+<img src="_images/plantuml-b6abb3357fd5acf2ad1aff3167a623d04a0d6213.png" alt="&#64;startuml
 !include &lt;c4/C4_Component.puml&gt;
 !include &lt;office/Users/user.puml&gt;
 
@@ -65,7 +65,7 @@ ComponentDb(device_files, &quot;Gerätedateien&quot;, &quot;Dateisystem&quot;)
 
 Container(is1, $is, &quot;verwaltet Gerätebelegung, stellt eine Internetschnittstelle zum $inst bereit&quot;)
 
-Rel(is1, listener, &quot;1. meldet Gerät A&quot;, &quot;mDNS Broadcast&quot;)
+Rel(is1, listener, &quot;1. meldet Gerät A&quot;, &quot;mDNS Multicast&quot;)
 Rel(listener, device_actor1, &quot;2. erzeugt&quot;, &quot;createActor&quot;)
 Rel(listener, device_actor1, &quot;3. SETUP&quot;, &quot;message&quot;)
 Rel(device_actor1, device_files, &quot;4. Datei/Link&quot;,  &quot;JSON Identification&quot;)
@@ -75,7 +75,7 @@ Rel(app, api, &quot;7. GET reserve&quot;, &quot;JSON/HTTP&quot;)
 Rel(api, device_actor1, &quot;8. RESERVE&quot;, &quot;Message&quot;)
 Rel(device_actor1, is1, &quot;9. Reservierung&quot;, &quot;JSON/HTTP&quot;)
 Rel(device_actor1, redirector1, &quot;10. erzeugt&quot;, &quot;createActor&quot;)
-Rel(redirector1, device_files, &quot;11. schreibt in Datei&quot;, &quot;JSON&quot;)
+Rel(device_actor1, device_files, &quot;11. schreibt in Datei&quot;, &quot;JSON Reservation&quot;)
 BiRel(app, redirector1, &quot;12. Binärpaket&quot;, &quot;TCP-Socket&quot;)
 BiRel(redirector1, device_actor1, &quot;12. Binärpaket&quot;, &quot;Messages&quot;)
 BiRel(is1, device_actor1, &quot;12. Binärpaket&quot;, &quot;RFC2217&quot;)
@@ -86,7 +86,7 @@ BiRel(is1, device_actor1, &quot;12. Binärpaket&quot;, &quot;RFC2217&quot;)
 <div class="section" id="component-diagram-of-registration-server-mqtt">
 <h2>Component diagram of Registration Server MQTT<a class="headerlink" href="#component-diagram-of-registration-server-mqtt" title="Permalink to this headline">¶</a></h2>
 <p class="plantuml">
-<img src="_images/plantuml-2e9e7259dfd51dfe92f8e817cfd74c4e86f9debb.png" alt="&#64;startuml
+<img src="_images/plantuml-56ed8d681951a48f80840ec2dacd574b7071312e.png" alt="&#64;startuml
 !include &lt;c4/C4_Component.puml&gt;
 !include &lt;office/Users/user.puml&gt;
 
@@ -124,7 +124,7 @@ Rel(app, api, &quot;7. GET reserve&quot;, &quot;JSON/HTTP&quot;)
 Rel(api, device_actor1, &quot;8. RESERVE&quot;, &quot;Message&quot;)
 Rel(device_actor1, is1, &quot;9. Reservierung&quot;, &quot;MQTT&quot;)
 Rel(device_actor1, redirector1, &quot;10. erzeugt&quot;, &quot;createActor&quot;)
-Rel(redirector1, device_files, &quot;11. schreibt&quot;, &quot;JSON Reservation&quot;)
+Rel(device_actor1, device_files, &quot;11. schreibt&quot;, &quot;JSON Reservation&quot;)
 BiRel(app, redirector1, &quot;12. Binärpaket&quot;, &quot;TCP-Socket&quot;)
 BiRel(redirector1, device_actor1, &quot;12. Binärpaket&quot;, &quot;Messages&quot;)
 BiRel(is1, device_actor1, &quot;12. Binärpaket&quot;, &quot;MQTT&quot;)
@@ -212,10 +212,10 @@ BiRel(is1, device_actor1, &quot;12. Binärpaket&quot;, &quot;MQTT&quot;)
 <li class="toctree-l2"><a class="reference internal" href="#overview-from-riccardo">Overview (from Riccardo)</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="classes.html">UML Class Diagram</a></li>
-<li class="toctree-l1"><a class="reference internal" href="folder_structure.html">Folder Structure</a></li>
-<li class="toctree-l1"><a class="reference internal" href="actor_messages.html">Actor Messages</a></li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="actor_messages.html">Actor Messages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="folder_structure.html">Folder Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="classes.html">UML Class Diagram</a></li>
 </ul>
 
 <div class="relations">
@@ -223,7 +223,7 @@ BiRel(is1, device_actor1, &quot;12. Binärpaket&quot;, &quot;MQTT&quot;)
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
       <li>Previous: <a href="index.html" title="previous chapter">Welcome to registrationserver’s documentation!</a></li>
-      <li>Next: <a href="classes.html" title="next chapter">UML Class Diagram</a></li>
+      <li>Next: <a href="modules.html" title="next chapter">Modules</a></li>
   </ul></li>
 </ul>
 </div>

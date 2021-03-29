@@ -71,6 +71,9 @@ SETUP
 
 Request to create the device file that is linked to the actor via its file name.
 
+Received from
+    MdnsListener/MqttSubscriber
+
 Parameters:
 
 Content of the device file.
@@ -94,27 +97,32 @@ RESERVE
 
 Request to reserve an instrument.
 
+Received from
+    RestApi
+
 Parameters:
 
 * HOST: Host requesting the reservation
 * USER: Username requesting the reservation
 * APP: Application requesting the reservation
 
-RESULT attributes:
-
-* IP: IP address of the listening server socket
-* PORT: Port number of the listening server socket
-
 FREE
 ----
 
 Request to free an instrument from the reservation.
+
+Received from
+    RestApi
 
 KILL
 ----
 
 Request the termination of an actor, sent when a device gets disconnected
 from the accessable network.
+
+Received from
+    MdnsListener/MqttSubscriber
+
 
 
 CMDs handled by the DeviceActor
@@ -126,6 +134,9 @@ SEND
 Request from the Redirector Actor to a Device Actor to send a binary message to
 the Instrument Server.
 
+Received from
+    RedirectorActor
+
 Parameters:
 
 * DATA: Contains the DATA so be sent
@@ -136,17 +147,25 @@ RESULT attributes:
 * DATA: Contains DATA that the device sent back, not set in case there is no
   reponse
 
-CMDs of the Redirector Actor
-============================
+CMDs handled by the Redirector Actor
+====================================
 
 SETUP
 -----
 
 Request to initialize the Redirector Actor with the globalName of its parent Device Actor.
 
+Received from
+    BaseDeviceActor
+
 Parameter:
 
 * PARENT_NAME: globalName of the Device Actor that created this Redirector Actor
+
+RESULT attributes:
+
+* IP: IP address of the listening server socket
+* PORT: Port number of the listening server socket
 
 
 Misc CMDs (all)

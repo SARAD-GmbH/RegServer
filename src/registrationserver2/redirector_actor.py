@@ -1,7 +1,16 @@
-"""
-Created on 01.12.2020
+"""Creates a listening server socket and forwards pakets received over this
+socket as actor messages to the device actor.
 
-@author: rfoerster
+
+Created
+    2020-12-01
+
+Authors
+    Riccardo Förster <foerster@sarad.de>,
+    Michael Strey <strey@sarad.de>
+
+.. uml :: uml-redirector_actor.puml
+
 """
 import socket
 import traceback
@@ -36,11 +45,9 @@ class SocketClient:
 
 
 class RedirectorActor(Actor):
-    """Creating port for listening to Packages from a SARAD© Application"""
+    """Create listening server socket for binary pakets from a SARAD© Application"""
 
-    # Defines magic methods that are called when the specific message is
-    # received by the actor
-    ACCEPTED_COMMANDS = {  # Those needs implementing
+    ACCEPTED_COMMANDS = {
         "SETUP": "_setup",
         "KILL": "_kill",
     }
@@ -67,22 +74,17 @@ class RedirectorActor(Actor):
         if not isinstance(msg, dict):
             self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGTYPE"])
             return
-
         cmd_key = msg.get("CMD", None)
-
         if cmd_key is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"])
             return
-
         cmd = self.ACCEPTED_COMMANDS.get(cmd_key, None)
         if cmd is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"])
             return
-
         if getattr(self, cmd, None) is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"])
             return
-
         self.send(sender, getattr(self, cmd)(msg))
 
     def _setup(self, msg):

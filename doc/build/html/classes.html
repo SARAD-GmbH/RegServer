@@ -14,8 +14,7 @@
     <script src="_static/doctools.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Folder Structure" href="folder_structure.html" />
-    <link rel="prev" title="Overview and Use Case" href="use_case.html" />
+    <link rel="prev" title="Folder Structure" href="folder_structure.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
@@ -35,7 +34,7 @@
   <div class="section" id="uml-class-diagram">
 <h1>UML Class Diagram<a class="headerlink" href="#uml-class-diagram" title="Permalink to this headline">¶</a></h1>
 <p class="plantuml">
-<img src="_images/plantuml-7caca80c7070ce7e6384cdbd92bf09a8a38b84db.png" alt="&#64;startuml
+<img src="_images/plantuml-224a0dbcd4023a407e721ccbec773740ee78ac77.png" alt="&#64;startuml
 class registrationserver2.restapi.RestApi {
 }
 class registrationserver2.modules.device_base_actor.DeviceBaseActor {
@@ -46,12 +45,12 @@ class registrationserver2.modules.rfc2217.rfc2217_actor.Rfc2217Actor {
   _Rfc2217Actor__port_ident: str
   _Rfc2217Actor__port: serial.rfc2217.Serial
 }
-class registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener {
-  _SaradMdnsListener__zeroconf: zeroconf.Zeroconf
-  _SaradMdnsListener__browser: zeroconf.ServiceBrowser
-  _SaradMdnsListener__folder_history: str
-  _SaradMdnsListener__folder_available: str
-  _SaradMdnsListener__type: str
+class registrationserver2.modules.rfc2217.mdns_listener.MdnsListener {
+  _MdnsListener__zeroconf: zeroconf.Zeroconf
+  _MdnsListener__browser: zeroconf.ServiceBrowser
+  _MdnsListener__folder_history: str
+  _MdnsListener__folder_available: str
+  _MdnsListener__type: str
 }
 class registrationserver2.redirector_actor.RedirectorActor {
   _sock: &lt;module 'socket' from '/usr/lib/python3.9/socket.py'&gt;
@@ -93,18 +92,17 @@ registrationserver2.redirector_actor.SocketClient *-- registrationserver2.redire
 <h3>Navigation</h3>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="use_case.html">Overview and Use Case</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">UML Class Diagram</a></li>
-<li class="toctree-l1"><a class="reference internal" href="folder_structure.html">Folder Structure</a></li>
-<li class="toctree-l1"><a class="reference internal" href="actor_messages.html">Actor Messages</a></li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="actor_messages.html">Actor Messages</a></li>
+<li class="toctree-l1"><a class="reference internal" href="folder_structure.html">Folder Structure</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">UML Class Diagram</a></li>
 </ul>
 
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
-      <li>Previous: <a href="use_case.html" title="previous chapter">Overview and Use Case</a></li>
-      <li>Next: <a href="folder_structure.html" title="next chapter">Folder Structure</a></li>
+      <li>Previous: <a href="folder_structure.html" title="previous chapter">Folder Structure</a></li>
   </ul></li>
 </ul>
 </div>

@@ -1,7 +1,13 @@
-"""
-Created on 14.10.2020
+"""Main actor of the Registration Server -- implementation for RFC 2217
 
-@author: rfoerster
+Created
+    2020-10-14
+
+Authors
+    Riccardo Förster <foerster@sarad.de>,
+    Michael Strey <strey@sarad.de>
+
+.. uml :: uml-rfc2217_actor.puml
 """
 import time
 import traceback

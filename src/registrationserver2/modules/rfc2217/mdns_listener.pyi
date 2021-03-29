@@ -1,11 +1,10 @@
-from registrationserver2 import theLogger as theLogger
-from registrationserver2.config import config as config
-from registrationserver2.modules.messages import RETURN_MESSAGES as RETURN_MESSAGES
-from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor as Rfc2217Actor
+"""Stub file for type checking with Mypy"""
 from typing import Any, Optional
+
 from zeroconf import ServiceListener, Zeroconf
 
-class SaradMdnsListener(ServiceListener):
+
+class MdnsListener(ServiceListener):
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None: ...
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None: ...
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None: ...

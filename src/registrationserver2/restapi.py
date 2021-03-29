@@ -1,7 +1,13 @@
-"""
-Created on 02.10.2020
+"""REST API -- the interface to the SARAD app
 
-@author: rfoerster
+Created
+    2020-10-02
+
+Authors
+    Riccardo Förster <foerster@sarad.de>,
+    Michael Strey <strey@sarad.de>
+
+.. uml:: uml-restapi.puml
 """
 
 import os
@@ -24,21 +30,17 @@ theLogger.info("%s -> %s", __package__, __file__)
 
 
 class RestApi(Actor):
-    """
-    Rest API
+    """REST API
     delivers lists and info for devices
-    relays reservation / free requests towards the Instrument Server 2
-    for the devices.
-    Information is taken from the device info folder defined
+    relays reservation and free requests to the device actors.
+    Information is taken from the device file folder defined
     in both config.py (settings) and __init__.py (defaults).
-
-    .. uml:: uml-restapi.puml
     """
 
     api = Flask(__name__)
 
     class Dummy:
-        """Dummy Output which just ignored messages"""
+        """Dummy output which just ignored messages"""
 
         @staticmethod
         def write(arg=None, **kwargs):

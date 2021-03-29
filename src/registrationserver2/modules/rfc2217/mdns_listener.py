@@ -1,7 +1,15 @@
-"""
-Created on 30.09.2020
+"""Listening for mDNS multicast messages announcing the existence of new
+services (SARAD devices) in the local network.
 
-@author: rfoerster
+Created
+    2020-09-30
+
+Authors
+    Riccardo Förster <foerster@sarad.de>,
+    Michael Strey <strey@sarad.de>
+
+.. uml:: uml-mdns_listener.puml
+
 """
 import ipaddress
 import json
@@ -21,9 +29,12 @@ from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 theLogger.info("%s -> %s", __package__, __file__)
 
 
-class SaradMdnsListener(ServiceListener):
-    """
-    .. uml:: uml-mdns_listener.puml
+class MdnsListener(ServiceListener):
+    """Listens for mDNS multicast messages
+
+    * adds new services (SARAD Instruments) to the system by creating a device actor
+    * updates services with the latest info from mDNS multicast messages
+    * removes services when they disapear from the network
     """
 
     __lock = threading.Lock()

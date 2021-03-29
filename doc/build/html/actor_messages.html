@@ -14,8 +14,8 @@
     <script src="_static/doctools.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Modules" href="modules.html" />
-    <link rel="prev" title="Folder Structure" href="folder_structure.html" />
+    <link rel="next" title="Folder Structure" href="folder_structure.html" />
+    <link rel="prev" title="Modules" href="modules.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
@@ -97,6 +97,10 @@ We have two types of messages:</p>
 <div class="section" id="setup">
 <h3>SETUP<a class="headerlink" href="#setup" title="Permalink to this headline">¶</a></h3>
 <p>Request to create the device file that is linked to the actor via its file name.</p>
+<dl class="simple">
+<dt>Received from</dt><dd><p>MdnsListener/MqttSubscriber</p>
+</dd>
+</dl>
 <p>Parameters:</p>
 <p>Content of the device file.</p>
 <p>Example:</p>
@@ -117,26 +121,33 @@ We have two types of messages:</p>
 <div class="section" id="reserve">
 <h3>RESERVE<a class="headerlink" href="#reserve" title="Permalink to this headline">¶</a></h3>
 <p>Request to reserve an instrument.</p>
+<dl class="simple">
+<dt>Received from</dt><dd><p>RestApi</p>
+</dd>
+</dl>
 <p>Parameters:</p>
 <ul class="simple">
 <li><p>HOST: Host requesting the reservation</p></li>
 <li><p>USER: Username requesting the reservation</p></li>
 <li><p>APP: Application requesting the reservation</p></li>
 </ul>
-<p>RESULT attributes:</p>
-<ul class="simple">
-<li><p>IP: IP address of the listening server socket</p></li>
-<li><p>PORT: Port number of the listening server socket</p></li>
-</ul>
 </div>
 <div class="section" id="free">
 <h3>FREE<a class="headerlink" href="#free" title="Permalink to this headline">¶</a></h3>
 <p>Request to free an instrument from the reservation.</p>
+<dl class="simple">
+<dt>Received from</dt><dd><p>RestApi</p>
+</dd>
+</dl>
 </div>
 <div class="section" id="kill">
 <h3>KILL<a class="headerlink" href="#kill" title="Permalink to this headline">¶</a></h3>
 <p>Request the termination of an actor, sent when a device gets disconnected
 from the accessable network.</p>
+<dl class="simple">
+<dt>Received from</dt><dd><p>MdnsListener/MqttSubscriber</p>
+</dd>
+</dl>
 </div>
 </div>
 <div class="section" id="cmds-handled-by-the-deviceactor">
@@ -145,6 +156,10 @@ from the accessable network.</p>
 <h3>SEND<a class="headerlink" href="#send" title="Permalink to this headline">¶</a></h3>
 <p>Request from the Redirector Actor to a Device Actor to send a binary message to
 the Instrument Server.</p>
+<dl class="simple">
+<dt>Received from</dt><dd><p>RedirectorActor</p>
+</dd>
+</dl>
 <p>Parameters:</p>
 <ul class="simple">
 <li><p>DATA: Contains the DATA so be sent</p></li>
@@ -157,14 +172,23 @@ reponse</p></li>
 </ul>
 </div>
 </div>
-<div class="section" id="cmds-of-the-redirector-actor">
-<h2>CMDs of the Redirector Actor<a class="headerlink" href="#cmds-of-the-redirector-actor" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="cmds-handled-by-the-redirector-actor">
+<h2>CMDs handled by the Redirector Actor<a class="headerlink" href="#cmds-handled-by-the-redirector-actor" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="id1">
 <h3>SETUP<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
 <p>Request to initialize the Redirector Actor with the globalName of its parent Device Actor.</p>
+<dl class="simple">
+<dt>Received from</dt><dd><p>BaseDeviceActor</p>
+</dd>
+</dl>
 <p>Parameter:</p>
 <ul class="simple">
 <li><p>PARENT_NAME: globalName of the Device Actor that created this Redirector Actor</p></li>
+</ul>
+<p>RESULT attributes:</p>
+<ul class="simple">
+<li><p>IP: IP address of the listening server socket</p></li>
+<li><p>PORT: Port number of the listening server socket</p></li>
 </ul>
 </div>
 </div>
@@ -196,25 +220,25 @@ reponse</p></li>
 <h3>Navigation</h3>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="use_case.html">Overview and Use Case</a></li>
-<li class="toctree-l1"><a class="reference internal" href="classes.html">UML Class Diagram</a></li>
-<li class="toctree-l1"><a class="reference internal" href="folder_structure.html">Folder Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">Modules</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Actor Messages</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#general-message-structure">General message structure</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#cmds-handled-by-the-devicebaseactor">CMDs handled by the DeviceBaseActor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#cmds-handled-by-the-deviceactor">CMDs handled by the DeviceActor</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#cmds-of-the-redirector-actor">CMDs of the Redirector Actor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cmds-handled-by-the-redirector-actor">CMDs handled by the Redirector Actor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#misc-cmds-all">Misc CMDs (all)</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="modules.html">Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="folder_structure.html">Folder Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="classes.html">UML Class Diagram</a></li>
 </ul>
 
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
-      <li>Previous: <a href="folder_structure.html" title="previous chapter">Folder Structure</a></li>
-      <li>Next: <a href="modules.html" title="next chapter">Modules</a></li>
+      <li>Previous: <a href="modules.html" title="previous chapter">Modules</a></li>
+      <li>Next: <a href="folder_structure.html" title="next chapter">Folder Structure</a></li>
   </ul></li>
 </ul>
 </div>

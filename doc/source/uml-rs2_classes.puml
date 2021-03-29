@@ -9,12 +9,12 @@ class registrationserver2.modules.rfc2217.rfc2217_actor.Rfc2217Actor {
   _Rfc2217Actor__port_ident: str
   _Rfc2217Actor__port: serial.rfc2217.Serial
 }
-class registrationserver2.modules.rfc2217.mdns_listener.SaradMdnsListener {
-  _SaradMdnsListener__zeroconf: zeroconf.Zeroconf
-  _SaradMdnsListener__browser: zeroconf.ServiceBrowser
-  _SaradMdnsListener__folder_history: str
-  _SaradMdnsListener__folder_available: str
-  _SaradMdnsListener__type: str
+class registrationserver2.modules.rfc2217.mdns_listener.MdnsListener {
+  _MdnsListener__zeroconf: zeroconf.Zeroconf
+  _MdnsListener__browser: zeroconf.ServiceBrowser
+  _MdnsListener__folder_history: str
+  _MdnsListener__folder_available: str
+  _MdnsListener__type: str
 }
 class registrationserver2.redirector_actor.RedirectorActor {
   _sock: <module 'socket' from '/usr/lib/python3.9/socket.py'>

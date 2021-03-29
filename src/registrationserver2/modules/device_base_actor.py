@@ -1,7 +1,13 @@
-"""
-Created on 13.10.2020
+"""Main actor of the Registration Server
 
-@author: rfoerster
+Created
+    2020-10-13
+
+Authors
+    Riccardo Förster <foerster@sarad.de>,
+    Michael Strey <strey@sarad.de>
+
+.. uml :: uml-device_base_actor.puml
 """
 import os
 from builtins import staticmethod
@@ -19,28 +25,35 @@ theLogger.info("%s -> %s", __package__, __file__)
 
 
 class DeviceBaseActor(Actor):
-    """
-    .. uml :: uml-device_base_actor.puml
+    """Base class for protocol specific device actors.
+
+    Implements all methods that all device actors have in common.
+    Handles the following actor messages:
+
+    * SETUP:
+
+    * RESERVE: is being called when the end-user-application wants to
+        reserve the directly or indirectly connected device for exclusive
+        communication, should return if a reservation is currently possible
+
+    * SEND: is being called when the end-user-application wants to send
+        data, should return the direct or indirect response from the device,
+        None in case the device is not reachable (so the end application can
+        set the timeout itself)
+
+    * FREE: is being called when the end-user-application is done requesting or
+        sending data, should return true as soon the freeing process has been
+        initialized
+
+    * KILL:
+
+    * ECHO: should return what was sent, mainly used for testing.
     """
 
-    # Defines magic methods that are called when the specific message is
-    # received by the actor
-    ACCEPTED_COMMANDS = {  # Those needs implementing
-        # SEND is being called when the end-user-application wants to send data,
-        # should return the direct or indirect response from the device, None in
-        # case the device is not reachable (so the end application can set the
-        # timeout itself)
+    ACCEPTED_COMMANDS = {
         "SEND": "_send",
-        # RESERVE is being called when the end-user-application wants to reserve the
-        # directly or indirectly connected device for exclusive communication,
-        # should return if a reservation is currently possible
         "RESERVE": "_reserve",
-        # Those are implemented by the base class (this class)
-        # ECHO should return what is send, main use is for testing purpose at this point
         "ECHO": "_echo",
-        # is being called when the end-user-application is done requesting /
-        # sending data, should return true as soon the freeing process has been
-        # initialized
         "FREE": "_free",
         "SETUP": "_setup",
         "KILL": "_kill",
@@ -62,26 +75,20 @@ class DeviceBaseActor(Actor):
         """
         if isinstance(msg, thespian.actors.ActorExitRequest):
             return
-
         if not isinstance(msg, dict):
             self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGTYPE"])
             return
-
         cmd_key = msg.get("CMD", None)
-
         if cmd_key is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"])
             return
-
         cmd = self.ACCEPTED_COMMANDS.get(cmd_key, None)
         if cmd is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"])
             return
-
         if getattr(self, cmd, None) is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"])
             return
-
         self.send(sender, getattr(self, cmd)(msg))
 
     @staticmethod

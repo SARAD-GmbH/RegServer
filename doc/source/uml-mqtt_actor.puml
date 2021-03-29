@@ -1,0 +1,39 @@
+@startuml
+box "Registration Server 2"
+	      entity "REST API" as api
+	      entity "device actor" as deviceactor
+        database "device files" as files
+        entity "redirector actor" as redirector
+        entity "mDNS listener" as listener
+end box
+entity "Instrument Server" as is
+
+group setup
+        is -> listener: mDNS multicast message
+        listener -> deviceactor: create actor
+        listener -> deviceactor: SETUP message
+        deviceactor -> files: create file/link,\nwrite Identification section
+end
+group reservation
+	      api -> deviceactor: RESERVE message
+        deviceactor -> is: HTTP request GET /list/<id>/reserve?who="..."
+        is -> deviceactor: HTTP response
+        deviceactor -> redirector: create actor
+        deviceactor -> redirector: SETUP message
+        deviceactor -> files: write Reservation section
+end
+group data transfer
+	      app -> redirector: send binary paket\n to listening server socket
+        redirector -> deviceactor: SEND message
+        deviceactor -> is: send binary paket\n to listening server socket
+        is -> deviceactor: send binary response from instrument
+        deviceactor -> redirector: forward response as RETURN message
+end
+group free
+	      api -> deviceactor: FREE message
+        deviceactor -> is: HTTP request GET /list/<id>/free
+        is -> deviceactor: HTTP response
+        deviceactor -> redirector: KILL message
+        deviceactor -> files: write Free section\n remove Reservation section
+end
+@enduml

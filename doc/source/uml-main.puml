@@ -6,8 +6,8 @@ entity "mDNS" as mdns
 entity "Rest API" as api
 database "Instrument Server Connectors" as modules
 end box
-main -> config : Loads with config.py
-main -> api : restapi.py
-main -> mdns : mdnsListener.py
-main -> modules : modules/*/
+main -> config : read config.py
+main -> api : start
+main -> mdns : start
+mdns -> modules : import required modules/*/
 @enduml
