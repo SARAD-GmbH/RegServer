@@ -542,8 +542,42 @@ a RFC2217Protocol handler and relays messages towards it
 <h2>MQTT specific modules<a class="headerlink" href="#mqtt-specific-modules" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="module-registrationserver2.modules.mqtt.mqtt_subscriber">
 <span id="mqtt-subscriber"></span><h3>mqtt_subscriber<a class="headerlink" href="#module-registrationserver2.modules.mqtt.mqtt_subscriber" title="Permalink to this headline">¶</a></h3>
-<p>Created on 2021-03-10</p>
-<p>&#64;author: Yixiang</p>
+<p>Listening for MQTT topics announcing the existance of a new SARAD instrument
+in the MQTT network</p>
+<dl class="simple">
+<dt>Created</dt><dd><p>2021-03-10</p>
+</dd>
+<dt>Author</dt><dd><p>Yang Yixiang</p>
+</dd>
+</dl>
+<p class="plantuml">
+<img src="_images/plantuml-13187caba813c05005d03c18b9869e46a3d68751.png" alt="&#64;startuml
+actor &quot;Service Employee&quot; as user
+entity &quot;Device with Instrument Server&quot; as is
+box &quot;RegistrationServer 2&quot;
+entity &quot;MdnsListener&quot; as listener
+entity &quot;device actor&quot; as deviceactor
+end box
+user -&gt; is : attach instrument to local network
+is -&gt; listener : sends mDNS over multicast
+listener -&gt; deviceactor : create device actor
+listener -&gt; deviceactor : SETUP message
+listener &lt;- deviceactor : RETURN message
+is -&gt; user : unattach from network
+is -&gt; listener : sends disconnect over mDNS
+listener -&gt; deviceactor : KILL message
+listener &lt;- deviceactor : RETURN message
+&#64;enduml
+"/>
+</p>
+<dl class="simple">
+<dt>Todo:</dt><dd><ul class="simple">
+<li><p>uml-mqtt_subscriber.puml is only a copy of uml-mdns_listener.puml. It has to
+be updated.</p></li>
+<li><p>too many lines of code</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py class">
 <dt id="registrationserver2.modules.mqtt.mqtt_subscriber.MqttParser">
 <em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">registrationserver2.modules.mqtt.mqtt_subscriber.</span></code><code class="sig-name descname"><span class="pre">MqttParser</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.modules.mqtt.mqtt_subscriber.MqttParser" title="Permalink to this definition">¶</a></dt>
@@ -670,8 +704,63 @@ from the MQTT self.mqtt_broker.</p>
 </div>
 <div class="section" id="module-registrationserver2.modules.mqtt.mqtt_actor">
 <span id="mqtt-actor"></span><h3>mqtt_actor<a class="headerlink" href="#module-registrationserver2.modules.mqtt.mqtt_actor" title="Permalink to this headline">¶</a></h3>
-<p>Created on 2021-02-16</p>
-<p>&#64;author: Yixiang</p>
+<p>Main actor of the Registration Server – implementation for MQTT</p>
+<dl class="simple">
+<dt>Created</dt><dd><p>2021-02-16</p>
+</dd>
+<dt>Author</dt><dd><p>Yang Yixiang</p>
+</dd>
+</dl>
+<p class="plantuml">
+<img src="_images/plantuml-77681430991c28074fcb45594619d3ebfefa1cb4.png" alt="&#64;startuml
+box &quot;Registration Server 2&quot;
+	      entity &quot;REST API&quot; as api
+	      entity &quot;device actor&quot; as deviceactor
+        database &quot;device files&quot; as files
+        entity &quot;redirector actor&quot; as redirector
+        entity &quot;mDNS listener&quot; as listener
+end box
+entity &quot;Instrument Server&quot; as is
+
+group setup
+        is -&gt; listener: mDNS multicast message
+        listener -&gt; deviceactor: create actor
+        listener -&gt; deviceactor: SETUP message
+        deviceactor -&gt; files: create file/link,\nwrite Identification section
+end
+group reservation
+	      api -&gt; deviceactor: RESERVE message
+        deviceactor -&gt; is: HTTP request GET /list/&lt;id&gt;/reserve?who=&quot;...&quot;
+        is -&gt; deviceactor: HTTP response
+        deviceactor -&gt; redirector: create actor
+        deviceactor -&gt; redirector: SETUP message
+        deviceactor -&gt; files: write Reservation section
+end
+group data transfer
+	      app -&gt; redirector: send binary paket\n to listening server socket
+        redirector -&gt; deviceactor: SEND message
+        deviceactor -&gt; is: send binary paket\n to listening server socket
+        is -&gt; deviceactor: send binary response from instrument
+        deviceactor -&gt; redirector: forward response as RETURN message
+end
+group free
+	      api -&gt; deviceactor: FREE message
+        deviceactor -&gt; is: HTTP request GET /list/&lt;id&gt;/free
+        is -&gt; deviceactor: HTTP response
+        deviceactor -&gt; redirector: KILL message
+        deviceactor -&gt; files: write Free section\n remove Reservation section
+end
+&#64;enduml
+"/>
+</p>
+<dl class="simple">
+<dt>Todo:</dt><dd><ul class="simple">
+<li><p>uml-mqtt_actor.puml is only a copy of uml-rfc2217_actor.puml. It has to
+be updated.</p></li>
+<li><p>use lazy formatting in theLogger</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py class">
 <dt id="registrationserver2.modules.mqtt.mqtt_actor.MqttActor">
 <em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">registrationserver2.modules.mqtt.mqtt_actor.</span></code><code class="sig-name descname"><span class="pre">MqttActor</span></code><a class="headerlink" href="#registrationserver2.modules.mqtt.mqtt_actor.MqttActor" title="Permalink to this definition">¶</a></dt>

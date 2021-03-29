@@ -1,7 +1,19 @@
-"""
-Created on 2021-03-10
+"""Listening for MQTT topics announcing the existance of a new SARAD instrument
+in the MQTT network
 
-@author: Yixiang
+Created
+    2021-03-10
+
+Author
+    Yang Yixiang
+
+.. uml :: uml-mqtt_subscriber.puml
+
+Todo:
+    * uml-mqtt_subscriber.puml is only a copy of uml-mdns_listener.puml. It has to
+      be updated.
+    * too many lines of code
+
 """
 import ctypes
 # import json

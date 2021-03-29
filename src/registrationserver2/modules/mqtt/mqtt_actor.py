@@ -1,7 +1,17 @@
-"""
-Created on 2021-02-16
+"""Main actor of the Registration Server -- implementation for MQTT
 
-@author: Yixiang
+Created
+    2021-02-16
+
+Author
+    Yang Yixiang
+
+.. uml :: uml-mqtt_actor.puml
+
+Todo:
+    * uml-mqtt_actor.puml is only a copy of uml-rfc2217_actor.puml. It has to
+      be updated.
+    * use lazy formatting in theLogger
 """
 import json
 from enum import Enum, unique
