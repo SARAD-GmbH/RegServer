@@ -397,8 +397,8 @@ class SaradMqttSubscriber(Actor):
             return RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN")
         if msg.get("Data", None).get("payload", None) is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        family_ = msg.get("Identification", None).get("Family", None)
-        type_ = msg.get("Identification", None).get("Type", None)
+        family_ = msg.get("payload", None).get("Identification", None).get("Family", None)
+        type_ = msg.get("payload", None).get("Identification", None).get("Type", None)
         if family_ is None or type_ is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         if family_ == 1:
@@ -491,8 +491,8 @@ class SaradMqttSubscriber(Actor):
             return RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN")
         if msg.get("Data", None).get("payload", None) is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        family_ = msg.get("Identification", None).get("Family", None)
-        type_ = msg.get("Identification", None).get("Type", None)
+        family_ = msg.get("payload", None).get("Identification", None).get("Family", None)
+        type_ = msg.get("payload", None).get("Identification", None).get("Type", None)
         if family_ is None or type_ is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         if family_ == 1:
@@ -530,8 +530,8 @@ class SaradMqttSubscriber(Actor):
             return RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN")
         if msg.get("Data", None).get("payload", None) is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        family_ = msg.get("Identification", None).get("Family", None)
-        type_ = msg.get("Identification", None).get("Type", None)
+        family_ = msg.get("payload", None).get("Identification", None).get("Family", None)
+        type_ = msg.get("payload", None).get("Identification", None).get("Type", None)
         if family_ is None or type_ is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         if family_ == 1:
