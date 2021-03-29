@@ -4,11 +4,11 @@ Created on 2021-03-12
 @author: Yixiang
 """
 import json
-#from typing import Dict
+from typing import Dict
 
-#MQTT_ACTOR_REQUESTs: Dict[
+# MQTT_ACTOR_REQUESTs: Dict[
 #    str, str
-#] = {}  # A dictionary for storing the request statuses of MQTT Actors
+# ] = {}  # A dictionary for storing the request statuses of MQTT Actors
 """
 Struture of MQTT_ACTOR_REQUESTs:
 MQTT_ACTOR_REQUESTs = {
@@ -22,9 +22,9 @@ MQTT_ACTOR_REQUESTs = {
 }
 """
 
-#MQTT_ACTOR_ADRs: Dict[
+# MQTT_ACTOR_ADRs: Dict[
 #    str, str
-#] = {}  # A dictionary for storing the addresses of MQTT Actors
+# ] = {}  # A dictionary for storing the addresses of MQTT Actors
 """
 Struture of MQTT_ACTOR_ADRs:
 MQTT_ACTOR_ADRs = {
@@ -42,7 +42,7 @@ MQTT_ACTOR_ADRs = {
 }
 """
 
-#IS_ID_LIST: list = []  # A list for storing the ID of IS MQTT
+# IS_ID_LIST: list = []  # A list for storing the ID of IS MQTT
 
 Instr_CONN_HISTORY: Dict[
     str, str
@@ -171,6 +171,7 @@ RETURN_MESSAGES = {
         "ERROR_CODE": 0,
     },
 }
+
 
 def is_JSON(myJSON):
     try:

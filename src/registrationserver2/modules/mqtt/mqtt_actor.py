@@ -10,7 +10,6 @@ import paho.mqtt.client as MQTT  # type: ignore
 from registrationserver2 import actor_system, theLogger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES, is_JSON
-from enum import Enum
 
 mqtt_req_status = Enum(
     "REQ_STATUS",
@@ -34,11 +33,11 @@ class MqttActor(DeviceBaseActor):
 
     mqtt_client_adr = None
 
-    # "copy" ACCEPTED_MESSAGES of the DeviceBaseActor 
-    ACCEPTED_MESSAGES = DeviceBaseActor.ACCEPTED_MESSAGES
+    # "copy" ACCEPTED_COMMANDS of the DeviceBaseActor
+    ACCEPTED_COMMANDS = DeviceBaseActor.ACCEPTED_COMMANDS
     # add some new accessible methods
-    ACCEPTED_MESSAGES["PREPARE"] = "_prepare"
-    
+    ACCEPTED_COMMANDS["PREPARE"] = "_prepare"
+
     def __init__(self):
         super().__init__()
         self.rc_conn = 2
@@ -51,7 +50,7 @@ class MqttActor(DeviceBaseActor):
         self.binary_reply = b""
         self.mqtt_cid = self.globalName + ".client"
         self.instr_id = self.globalName.split("/")[1]
- 
+
     # The receiveMessage() is defined in the DeviceBaseActor class
 
     # Definition of callback functions for the MQTT client, namely the on_* functions
@@ -105,8 +104,10 @@ class MqttActor(DeviceBaseActor):
         theLogger.info(f"message qos: {message.qos}")
         theLogger.info(f"message retain flag: {message.retain}")
         topic_buf = message.split("/")
-        if len(topic_buf) !=3:
-            theLogger.warning(f"[MQTT_Message]\tReceived an illegal message whose topic length is illegal: topic is {message.topic} and payload is {message.payload}")
+        if len(topic_buf) != 3:
+            theLogger.warning(
+                f"[MQTT_Message]\tReceived an illegal message whose topic length is illegal: topic is {message.topic} and payload is {message.payload}"
+            )
         else:
             if topic_buf[0] != self.is_id or topic_buf[1] != self.instr_id:
                 theLogger.warning(
@@ -121,17 +122,24 @@ class MqttActor(DeviceBaseActor):
                     if self.req_status == mqtt_req_status.reserve_sent:
                         payload_json = is_JSON(payload_str)
                         if payload_json is None:
-                            theLogger.warning(f"[MQTT_Message]\tReceived an illegal MQTT message in non-JSON format: topic is {message.topic} and payload is {payload_str}")
-                        elif payload_json.get("Reservation", None).get("Active", None) == True:
+                            theLogger.warning(
+                                f"[MQTT_Message]\tReceived an illegal MQTT message in non-JSON format: topic is {message.topic} and payload is {payload_str}"
+                            )
+                        elif (
+                            payload_json.get("Reservation", None).get("Active", None)
+                            == True
+                        ):
                             self.req_status = mqtt_req_status.reserve_accepted
                         else:
                             self.req_status = mqtt_req_status.reserve_refused
                 elif topic_buf[2] == "msg":
                     self.binary_reply = message.payload
-                    if not (self.binary_reply is None): 
+                    if not (self.binary_reply is None):
                         self.send_status = mqtt_send_status.send_replied
                     else:
-                        theLogger.warning(f"[MQTT_Message]\tReceived an illegal binary reply that is empty: topic is {message.topic}")
+                        theLogger.warning(
+                            f"[MQTT_Message]\tReceived an illegal binary reply that is empty: topic is {message.topic}"
+                        )
 
     # Definition of methods accessible for the actor system and other actors -> referred to ACCEPTED_COMMANDS
     def _send(self, msg: dict):
@@ -174,7 +182,7 @@ class MqttActor(DeviceBaseActor):
                 self.send_status = mqtt_send_status.idle
                 break
             else:
-                time.sleep(0.01) # check the send_status every 0.01s
+                time.sleep(0.01)  # check the send_status every 0.01s
                 wait_cnt5 = wait_cnt5 - 1
         else:
             self.send_status = mqtt_send_status.idle
@@ -291,7 +299,7 @@ class MqttActor(DeviceBaseActor):
             return RETURN_MESSAGES.get("ILLEGAL_STATE")
         self.mqtt_cid = self.globalName + ".client"
         self.instr_id = self.globalName.split(".")[0]
-        self.mqtt_broker = 'localhost'
+        self.mqtt_broker = "localhost"
         self.mqttc = MQTT.Client(self.mqtt_cid)
         self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
