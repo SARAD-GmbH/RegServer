@@ -979,11 +979,12 @@ def __test__():
     SaradMqttSubscriber = actor_system.createActor(
         SaradMqttSubscriber, globalName="SARAD_Subscriber"
     )
-    setup_return = actor_system.ask(SARAD_MQTT_SUBSCRIBER, "SETUP")
-    if setup_return is RETURN_MESSAGES.get("OK"):
+    ask_return = actor_system.ask(SARAD_MQTT_SUBSCRIBER, "SETUP")
+    if ask_return is RETURN_MESSAGES.get("OK"):
         theLogger.info("SARAD MQTT Subscriber is setup correctly!\n")
     else:
         theLogger.warning("SARAD MQTT Subscriber is not setup!\n")
+        theLogger.error(ask_return)
 
 
 if "__name__" == "__main__":
