@@ -11,6 +11,7 @@ Authors
 """
 import os
 from builtins import staticmethod
+from datetime import datetime
 
 import registrationserver2
 import thespian.actors  # type: ignore
@@ -151,14 +152,28 @@ class DeviceBaseActor(Actor):
         if self.my_redirector is None:
             short_id = self.globalName.split(".")[0]
             self.my_redirector = self.createActor(RedirectorActor, globalName=short_id)
-            actor_system.ask(
+            redirector_result = actor_system.ask(
                 self.my_redirector,
                 {"CMD": "SETUP", "PAR": {"PARENT_NAME": self.globalName}},
             )
             theLogger.info("Redirector actor created.")
-            # Write into device file
-
-            # TODO Return RESULT attributs IP and PORT
+            # Write Reservation section into device file
+            reservation = {
+                "Active": True,
+                "App": msg["PAR"]["APP"],
+                "Host": msg["PAR"]["HOST"],
+                "User": msg["PAR"]["USER"],
+                "IP": redirector_result["RESULT"]["IP"],
+                "Port": redirector_result["RESULT"]["PORT"],
+                "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            }
+            theLogger.info("Reservation: %s", reservation)
+            df_content = json.loads(self._file)
+            df_content["Reservation"] = reservation
+            self._file = json.dumps(df_content)
+            theLogger.info("self._file: %s", self._file)
+            with open(self.link, "w+") as file_stream:
+                file_stream.write(self._file)
             return RETURN_MESSAGES["OK"]
         return RETURN_MESSAGES["OK_SKIPPED"]
 
@@ -167,8 +182,26 @@ class DeviceBaseActor(Actor):
         theLogger.info("Device actor received a FREE command.")
         if self.my_redirector is not None:
             kill_return = registrationserver2.actor_system.ask(
-                self.my_redirector, thespian.actors.ActorExitRequest()
+                self.my_redirector, {"CMD": "KILL"}
             )
             theLogger.info(kill_return)
+            # Write Free section into device file
+            df_content = json.loads(self._file)
+            free = {
+                "Active": False,
+                "App": df_content["Reservation"]["App"],
+                "Host": df_content["Reservation"]["Host"],
+                "User": df_content["Reservation"]["User"],
+                "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            }
+            theLogger.info("Free: %s", free)
+            df_content["Free"] = free
+            # Remove Reservation section
+            df_content.pop("Reservation", None)
+            self._file = json.dumps(df_content)
+            theLogger.info("self._file: %s", self._file)
+            with open(self.link, "w+") as file_stream:
+                file_stream.write(self._file)
+            self.my_redirector = None
             return RETURN_MESSAGES["OK"]
         return RETURN_MESSAGES["OK_SKIPPED"]
