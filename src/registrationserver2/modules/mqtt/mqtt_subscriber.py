@@ -1002,5 +1002,5 @@ def __test__():
     theLogger.info("!")
 
 
-if "__name__" == "__main__":
+if __name__ == "__main__":
     __test__()
