@@ -997,6 +997,9 @@ def __test__():
     else:
         theLogger.warning("SARAD MQTT Subscriber is not setup!\n")
         theLogger.error(ask_return)
+    input("Press Enter to End\n")
+    actor_system.ask(SARAD_MQTT_SUBSCRIBER, "KILL")
+    theLogger.info("!")
 
 
 if "__name__" == "__main__":
