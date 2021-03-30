@@ -114,7 +114,7 @@ class RedirectorActor(Actor):
                 theLogger.info("%s from %s", data, socket_info)
                 if not data:
                     break
-                actor_system.ask(self.my_parent, {"CMD": "SEND", "DATA": data})
+                actor_system.ask(self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}})
         except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
                 "[Send data]:\t%s\t%s\t%s\t%s",
