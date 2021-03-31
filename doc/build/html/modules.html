@@ -16,22 +16,22 @@
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Actor Messages" href="actor_messages.html" />
     <link rel="prev" title="Overview and Use Case" href="use_case.html" />
-
+   
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
-
-
+  
+  
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
   </head><body>
-
+  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-
+          
 
           <div class="body" role="main">
-
+            
   <div class="section" id="modules">
 <h1>Modules<a class="headerlink" href="#modules" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="base-modules">
@@ -67,7 +67,7 @@ mdns -&gt; modules : import required modules/*/
 <code class="sig-prename descclassname"><span class="pre">registrationserver2.main.</span></code><code class="sig-name descname"><span class="pre">main</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registrationserver2.main.main" title="Permalink to this definition">¶</a></dt>
 <dd><p>Starting the RegistrationServer2</p>
 <ul class="simple">
-<li><p>starts the actor system</p></li>
+<li><p>starts the actor system by importing registrationserver2</p></li>
 <li><p>starts the API thread</p></li>
 <li><p>starts the MdnsListener</p></li>
 </ul>
@@ -119,6 +119,13 @@ end
 &#64;enduml
 "/>
 </p>
+<dl class="simple">
+<dt>Todo:</dt><dd><ul class="simple">
+<li><p>_free: Freigabe fehlgeschlagen – Aready reserved by other party</p></li>
+<li><p>_free: Freigabe fehlgeschlagen – No reservation found</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="py class">
 <dt id="registrationserver2.restapi.RestApi">
 <em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">registrationserver2.restapi.</span></code><code class="sig-name descname"><span class="pre">RestApi</span></code><a class="headerlink" href="#registrationserver2.restapi.RestApi" title="Permalink to this definition">¶</a></dt>
@@ -255,7 +262,13 @@ end
 <p>Implements all methods that all device actors have in common.
 Handles the following actor messages:</p>
 <ul class="simple">
-<li><p>SETUP:</p></li>
+<li><p>SETUP: is used to initialize the actor right after its creation. This is
+needed because some parts of the initialization cannot be done in
+__init__() (because for instance self.globalName is not available yet in
+__init__()), other initialization steps require data from the
+MdnsListener/MqttSubscriber creating the device actor. The same method is
+used for updates of the device state comming from the
+MdnsListener/MqttSubscriber.</p></li>
 <li><dl class="simple">
 <dt>RESERVE: is being called when the end-user-application wants to</dt><dd><p>reserve the directly or indirectly connected device for exclusive
 communication, should return if a reservation is currently possible</p>
@@ -275,7 +288,8 @@ initialized</p>
 </dd>
 </dl>
 </li>
-<li><p>KILL:</p></li>
+<li><p>KILL: similar to SETUP, this is used to do everything that has to be done
+before performing the ActorExitRequest.</p></li>
 <li><p>ECHO: should return what was sent, mainly used for testing.</p></li>
 </ul>
 <dl class="py attribute">
@@ -839,16 +853,18 @@ from the MQTT self.mqtt_broker.</p>
 <h2>Helper modules<a class="headerlink" href="#helper-modules" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="module-registrationserver2.config">
 <span id="config"></span><h3>config<a class="headerlink" href="#module-registrationserver2.config" title="Permalink to this headline">¶</a></h3>
-<p>Module for handing the configuration
-Created on 30.09.2020</p>
-<p>&#64;author: rfoerster</p>
-<dl class="py data">
-<dt id="registrationserver2.config.config">
-<code class="sig-prename descclassname"><span class="pre">registrationserver2.config.</span></code><code class="sig-name descname"><span class="pre">config</span></code><em class="property"><span class="pre">:</span> <span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">{'FOLDER':</span> <span class="pre">'/home/strey/SARAD/devices',</span> <span class="pre">'FOLDER2':</span> <span class="pre">'/home/strey/SARAD/hosts',</span> <span class="pre">'LEVEL':</span> <span class="pre">10,</span> <span class="pre">'MDNS_TIMEOUT':</span> <span class="pre">3000,</span> <span class="pre">'TYPE':</span> <span class="pre">'_rfc2217._tcp.local.'}</span></em><a class="headerlink" href="#registrationserver2.config.config" title="Permalink to this definition">¶</a></dt>
-<dd><p>Configuration Object
-TODO: Load from yaml file instead of a ‘executable’ file format</p>
-</dd></dl>
-
+<p>Module for handing the configuration</p>
+<dl class="simple">
+<dt>Created</dt><dd><p>2020-09-30</p>
+</dd>
+<dt>Authors</dt><dd><p>Riccardo Förster &lt;<a class="reference external" href="mailto:foerster&#37;&#52;&#48;sarad&#46;de">foerster<span>&#64;</span>sarad<span>&#46;</span>de</a>&gt;,
+Michael Strey &lt;<a class="reference external" href="mailto:strey&#37;&#52;&#48;sarad&#46;de">strey<span>&#64;</span>sarad<span>&#46;</span>de</a>&gt;</p>
+</dd>
+<dt>Todo:</dt><dd><ul class="simple">
+<li><p>Load from yaml file instead of a ‘executable’ file format</p></li>
+</ul>
+</dd>
+</dl>
 </div>
 <div class="section" id="module-registrationserver2.test">
 <span id="test"></span><h3>test<a class="headerlink" href="#module-registrationserver2.test" title="Permalink to this headline">¶</a></h3>
@@ -868,7 +884,7 @@ TODO: Load from yaml file instead of a ‘executable’ file format</p>
 
 
           </div>
-
+          
         </div>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
@@ -930,18 +946,18 @@ TODO: Load from yaml file instead of a ‘executable’ file format</p>
     </div>
     <div class="footer">
       &copy;2021, Riccardo Förster.
-
+      
       |
       Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.2</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
-
+      
       |
       <a href="_sources/modules.rst.txt"
           rel="nofollow">Page source</a>
     </div>
 
+    
 
-
-
+    
   </body>
 </html>
