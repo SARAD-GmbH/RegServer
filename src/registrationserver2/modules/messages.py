@@ -35,6 +35,10 @@ RETURN_MESSAGES = {
         "RETURN": "Actor not setup correctly, make sure to send SETUP message first",
         "ERROR_CODE": 5,
     },
+    "OCCUPIED": {
+        "RETURN": "Device occupied",
+        "ERROR_CODE": 6,
+    },
     "OK_SKIPPED": {
         "RETURN": "OK, skipped",
         "ERROR_CODE": 10,

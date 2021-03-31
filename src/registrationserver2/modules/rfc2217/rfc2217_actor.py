@@ -14,6 +14,7 @@ import traceback
 
 import serial.rfc2217  # type: ignore
 import thespian  # type: ignore
+from overrides import overrides
 from registrationserver2 import theLogger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
@@ -26,6 +27,7 @@ class Rfc2217Actor(DeviceBaseActor):
     a RFC2217Protocol handler and relays messages towards it
     https://pythonhosted.org/pyserial/pyserial_api.html#module-serial.aio"""
 
+    @overrides
     def __init__(self):
         super().__init__()
         self.__port: serial.rfc2217.Serial = None
@@ -57,23 +59,22 @@ class Rfc2217Actor(DeviceBaseActor):
 
     def _send(self, msg: dict):
         if self._connect() is RETURN_MESSAGES["OK"]["RETURN"]:
-            theLogger.info("Actor %s received: %s", self.globalName, msg.get("DATA"))
-            data = msg.get("DATA", None)
-            if data:
-                self.__port.write(data)
-                _return = b""
-                while True:
-                    time.sleep(0.5)
-                    _return_part = (
-                        self.__port.read_all() if self.__port.inWaiting() else ""
-                    )
-                    if _return_part == "":
-                        break
-                    _return = _return + _return_part
-                return {"RETURN": "OK", "DATA": _return}
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            data = msg["PAR"]["DATA"]
+            theLogger.info("Actor %s received: %s", self.globalName, data)
+            self.__port.write(data)
+            _return = b""
+            while True:
+                time.sleep(0.5)
+                _return_part = self.__port.read_all() if self.__port.inWaiting() else ""
+                if _return_part == "":
+                    break
+                _return = _return + _return_part
+            full_return = RETURN_MESSAGES["OK"]
+            full_return["RESULT"] = _return
+            return full_return
         return RETURN_MESSAGES.get("ILLEGAL_STATE")
 
+    @overrides
     def _free(self, msg: dict):
         if self.__port is not None:
             if self.__port.isOpen():
@@ -81,6 +82,7 @@ class Rfc2217Actor(DeviceBaseActor):
             self.__port = None
         return super()._free(msg)
 
+    @overrides
     def _kill(self, msg: dict):
         if self.__port is not None:
             if self.__port.isOpen():
@@ -88,15 +90,24 @@ class Rfc2217Actor(DeviceBaseActor):
             self.__port = None
         return super()._kill(msg)
 
+    @overrides
+    def _reserve_at_is(self, app, host, user) -> bool:
+        # pylint: disable=unused-argument, no-self-use
+        """Reserve the requested instrument at the instrument server. This function has
+        to be implemented (overridden) in the protocol specific modules."""
+        return True
+
 
 def _test():
     sys = thespian.actors.ActorSystem()
     act = sys.createActor(
-        Rfc2217Actor, globalName="SARAD_0ghMF8Y._sarad-1688._rfc2217._tcp.local"
+        Rfc2217Actor, globalName="0ghMF8Y.sarad-1688._rfc2217._tcp.local."
     )
     sys.ask(act, {"CMD": "SETUP"})
-    print(sys.ask(act, {"CMD": "SEND", "DATA": b"\x42\x80\x7f\x01\x01\x00\x45"}))
-    print(sys.ask(act, {"CMD": "FREE", "DATA": b"\x42\x80\x7f\x0c\x00\x0c\x45"}))
+    print(
+        sys.ask(act, {"CMD": "SEND", "PAR": {"DATA": b"\x42\x80\x7f\x01\x01\x00\x45"}})
+    )
+    # print(sys.ask(act, {"CMD": "FREE", "DATA": b"\x42\x80\x7f\x0c\x00\x0c\x45"}))
     input("Press Enter to End\n")
     theLogger.info("!")
 

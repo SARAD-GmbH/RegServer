@@ -69,30 +69,40 @@ class RedirectorActor(Actor):
         Handles received Actor messages / verification of the message format
         """
         if isinstance(msg, thespian.actors.ActorExitRequest):
-            return
-
+            self._socket.close()
+            return RETURN_MESSAGES["OK"]
         if not isinstance(msg, dict):
             self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGTYPE"])
-            return
+            return RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]
         cmd_key = msg.get("CMD", None)
         if cmd_key is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"])
-            return
+            return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
         cmd = self.ACCEPTED_COMMANDS.get(cmd_key, None)
         if cmd is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"])
-            return
+            return RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"]
         if getattr(self, cmd, None) is None:
             self.send(sender, RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"])
-            return
+            return RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"]
         self.send(sender, getattr(self, cmd)(msg))
+        return RETURN_MESSAGES["OK"]
 
     def _setup(self, msg):
         if self.my_parent is None:
             parent_name = msg["PAR"]["PARENT_NAME"]
             self.my_parent = self.createActor(Actor, globalName=parent_name)
-            return RETURN_MESSAGES["OK"]
+            return_msg = RETURN_MESSAGES["OK"]
+            return_msg["RESULT"] = {"IP": self.HOST, "PORT": self.PORT}
+            return return_msg
         return RETURN_MESSAGES["OK_SKIPPED"]
+
+    def _kill(self, _):
+        self._socket.close()
+        kill_return = actor_system.ask(
+            self.myAddress, thespian.actors.ActorExitRequest()
+        )
+        return kill_return
 
     def receive(self):
         """Listen to Port and redirect any messages"""
@@ -104,7 +114,7 @@ class RedirectorActor(Actor):
                 theLogger.info("%s from %s", data, socket_info)
                 if not data:
                     break
-                actor_system.ask(self.my_parent, {"CMD": "SEND", "DATA": data})
+                actor_system.ask(self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}})
         except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
                 "[Send data]:\t%s\t%s\t%s\t%s",

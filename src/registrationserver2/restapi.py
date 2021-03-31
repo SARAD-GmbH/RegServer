@@ -69,6 +69,9 @@ class RestApi(Actor):
                             "Identification", None
                         )
                     }
+                    reservation = json.load(open(file)).get("Reservation", None)
+                    if reservation is not None:
+                        answer[dir_entry]["Reservation"] = reservation
         except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
                 "! %s\t%s\t%s\t%s",
@@ -92,12 +95,16 @@ class RestApi(Actor):
             return json.dumps({"Error": "Wronly formated ID"})
         answer = {}
         try:
-            if os.path.isfile(f"{FOLDER_AVAILABLE}{os.path.sep}{did}"):
+            filename = f"{FOLDER_AVAILABLE}{os.path.sep}{did}"
+            if os.path.isfile(filename):
                 answer[did] = {
-                    "Identification": json.load(
-                        open(f"{FOLDER_AVAILABLE}{os.path.sep}{did}")
-                    ).get("Identification", None)
+                    "Identification": json.load(open(filename)).get(
+                        "Identification", None
+                    )
                 }
+                reservation = json.load(open(filename)).get("Reservation", None)
+                if reservation is not None:
+                    answer[did]["Reservation"] = reservation
         except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
                 "! %s\t%s\t%s\t%s",
@@ -124,6 +131,9 @@ class RestApi(Actor):
                             open(f"{FOLDER_HISTORY}{os.path.sep}{dir_entry}")
                         ).get("Identification", None)
                     }
+                    reservation = json.load(open(file)).get("Reservation", None)
+                    if reservation is not None:
+                        answer[dir_entry]["Reservation"] = reservation
         except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
                 "! %s\t%s\t%s\t%s",
@@ -146,12 +156,16 @@ class RestApi(Actor):
             return json.dumps({"Error": "Wronly formated ID"})
         answer = {}
         try:
-            if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
+            filename = f"{FOLDER_AVAILABLE}{os.path.sep}{did}"
+            if os.path.isfile(filename):
                 answer[did] = {
-                    "Identification": json.load(
-                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
-                    ).get("Identification", None)
+                    "Identification": json.load(open(filename)).get(
+                        "Identification", None
+                    )
                 }
+                reservation = json.load(open(filename)).get("Reservation", None)
+                if reservation is not None:
+                    answer[did]["Reservation"] = reservation
         except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
                 "! %s\t%s\t%s\t%s",
@@ -223,22 +237,15 @@ class RestApi(Actor):
         )
         theLogger.info(reserve_return)
         answer = {}
-        reservation = {
-            "Active": True,
-            "Host": request_host,
-            "App": app,
-            "User": user,
-            "Timestamp": "2020-10-09T08:22:43Z",
-            "IP": "123.123.123.123",
-            "Port": 2345,
-        }
-
         try:
             if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
                 answer[did] = {
                     "Identification": json.load(
                         open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
-                    ).get("Identification", None)
+                    ).get("Identification", None),
+                    "Reservation": json.load(
+                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
+                    ).get("Reservation", None),
                 }
         except Exception as error:  # pylint: disable=broad-except
             theLogger.error(
@@ -248,7 +255,6 @@ class RestApi(Actor):
                 vars(error) if isinstance(error, dict) else "-",
                 traceback.format_exc(),
             )
-        answer[did]["Reservation"] = reservation
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -278,9 +284,8 @@ class RestApi(Actor):
                     ).get("Identification", None),
                     "Reservation": json.load(
                         open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
-                    ).get("Reservation", None),
+                    ).get("Free", None),
                 }
-            answer[did]["Reservation"]["Active"] = False
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
