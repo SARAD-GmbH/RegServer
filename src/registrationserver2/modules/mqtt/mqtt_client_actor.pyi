@@ -1,18 +1,7 @@
+"""Stub file for type checking with Mypy"""
 from typing import Any
 
-from appdirs import AppDirs as AppDirs
-from registrationserver2 import actor_system as actor_system
-from registrationserver2 import theLogger as theLogger
-from registrationserver2.modules.mqtt import MQTT_ACTOR_ADRs as MQTT_ACTOR_ADRs
-from registrationserver2.modules.mqtt import \
-    MQTT_CLIENT_RESULTs as MQTT_CLIENT_RESULTs
-from registrationserver2.modules.mqtt.message import \
-    RETURN_MESSAGES as RETURN_MESSAGES
-from registrationserver2.modules.mqtt.mqtt_subscriber import \
-    SARAD_MQTT_SUBSCRIBER as SARAD_MQTT_SUBSCRIBER
-from thespian.actors import Actor
-from thespian.actors import ActorAddress as ActorAddress
-from thespian.actors import ActorExitRequest as ActorExitRequest
+from thespian.actors import Actor, ActorAddress  # type: ignore
 
 
 class SaradMqttClient(Actor):

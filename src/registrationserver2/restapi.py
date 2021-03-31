@@ -8,9 +8,14 @@ Authors
     Michael Strey <strey@sarad.de>
 
 .. uml:: uml-restapi.puml
+
+Todo:
+    * _free: Freigabe fehlgeschlagen -- Aready reserved by other party
+    * _free: Freigabe fehlgeschlagen -- No reservation found
 """
 
 import os
+import re
 import socket
 import sys
 import traceback
@@ -39,6 +44,8 @@ class RestApi(Actor):
 
     api = Flask(__name__)
 
+    MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
+
     class Dummy:
         """Dummy output which just ignored messages"""
 
@@ -61,9 +68,7 @@ class RestApi(Actor):
         try:
             for dir_entry in os.listdir(FOLDER_AVAILABLE):
                 file = fr"{FOLDER_AVAILABLE}{os.path.sep}{dir_entry}"
-                theLogger.debug(file)
                 if os.path.isfile(file):
-                    theLogger.debug(file)
                     answer[dir_entry] = {
                         "Identification": json.load(open(file)).get(
                             "Identification", None
@@ -84,14 +89,13 @@ class RestApi(Actor):
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
-    @staticmethod
     @api.route("/list/<did>", methods=["GET"])
     @api.route("/list/<did>/", methods=["GET"])
     @api.route(f"/{PATH_AVAILABLE}/<did>", methods=["GET"])
     @api.route(f"/{PATH_AVAILABLE}/<did>/", methods=["GET"])
-    def get_device(did):
+    def get_device(self, did):
         """Path for getting information for a single active device"""
-        if not registrationserver2.matchid.fullmatch(did):
+        if not self.MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
         answer = {}
         try:
@@ -125,11 +129,12 @@ class RestApi(Actor):
         answer = {}
         try:
             for dir_entry in os.listdir(f"{FOLDER_HISTORY}"):
-                if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{dir_entry}"):
+                file = fr"{FOLDER_HISTORY}{os.path.sep}{dir_entry}"
+                if os.path.isfile(file):
                     answer[dir_entry] = {
-                        "Identification": json.load(
-                            open(f"{FOLDER_HISTORY}{os.path.sep}{dir_entry}")
-                        ).get("Identification", None)
+                        "Identification": json.load(open(file)).get(
+                            "Identification", None
+                        )
                     }
                     reservation = json.load(open(file)).get("Reservation", None)
                     if reservation is not None:
@@ -146,13 +151,12 @@ class RestApi(Actor):
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
-    @staticmethod
     @api.route(f"/{PATH_HISTORY}/<did>", methods=["GET"])
     @api.route(f"/{PATH_HISTORY}/<did>/", methods=["GET"])
-    def get_device_old(did):
+    def get_device_old(self, did):
         """Path for getting information about a single
         previously or currently detected device"""
-        if not registrationserver2.matchid.fullmatch(did):
+        if not self.MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
         answer = {}
         try:
@@ -178,13 +182,12 @@ class RestApi(Actor):
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
-    @staticmethod
     @api.route(f"/list/<did>/{RESERVE_KEYWORD}", methods=["GET"])
     @api.route(
         f"/{PATH_AVAILABLE}/<did>/{RESERVE_KEYWORD}",
         methods=["GET"],
     )
-    def reserve_device(did):
+    def reserve_device(self, did):
         """Path for reserving a single active device"""
         # Collect information about who sent the request.
         try:
@@ -214,7 +217,7 @@ class RestApi(Actor):
         else:
             request_host = request.environ["REMOTE_ADDR"]
         theLogger.info("%s: %s --> %s", did, attribute_who, request_host)
-        if not registrationserver2.matchid.fullmatch(did):
+        if not self.MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
         # send RESERVE message to device actor
         if "_rfc2217" in did:
@@ -293,9 +296,6 @@ class RestApi(Actor):
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
-        # TODO Timestamp
-        # TODO Freigabe fehlgeschlagen -- Aready reserved by other party
-        # TODO Freigabe fehlgeschlagen -- No reservation found
 
     def run(self, host=None, port=None, debug=None, load_dotenv=True):
         """Start the API"""

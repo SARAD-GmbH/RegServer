@@ -29,7 +29,7 @@ config.setdefault(
 )
 config.setdefault("LEVEL", logging.CRITICAL)
 config.setdefault("MDNS_TIMEOUT", 3000)
-config.setdefault("TYPE", "_sarad-1688._rfc2217._tcp.local.")
+config.setdefault("TYPE", "_rfc2217._tcp.local.")
 config.setdefault(
     "FOLDER2",
     f'{os.environ.get("HOME", None) or os.environ.get("LOCALAPPDATA",None)}{os.path.sep}SARAD{os.path.sep}hosts',
@@ -44,24 +44,15 @@ config.setdefault(
 # TODO: configuration still gets overwritten by one of the imports
 # ==========================================
 theLogger: Any = logging.getLogger("Instrument Server V2")
-# theLogger = logging.getLogger()
-werklog: Any = logging.getLogger("werkzeug")
 formatter: Any = logging.Formatter("[%(name)s]\t[%(levelname)s]:\t%(message)s")
-if werklog.handlers:
-    for handler in werklog.handlers:
-        werklog.removeHandler(handler)
 if theLogger.handlers:
     for handler in theLogger.handlers:
         theLogger.removeHandler(handler)
 
 streamh: Any = logging.StreamHandler()
 logging.basicConfig(level=logging.CRITICAL)
-streamh.setFormatter(formatter)
-werklog.addHandler(streamh)
-werklog.addHandler(streamh)
 
 theLogger.setLevel(config["LEVEL"])
-werklog.setLevel(logging.CRITICAL)
 
 theLogger.info("Logging system initialized.")
 
@@ -69,7 +60,6 @@ theLogger.info("Logging system initialized.")
 # Folders structure / API names for devices and device history
 # TODO: move to configuration instead
 # ==========================================
-matchid: Pattern[str] = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 
 # How the sub folder for available instrument/host description files is called
 FILE_PATH_AVAILABLE: str = "available"

@@ -1,17 +1,7 @@
+"""Stub file for type checking with Mypy"""
 from typing import Any
 
-from _testmultiphase import Str as Str
-from _testmultiphase import str_const as str_const
-from appdirs import AppDirs as AppDirs
-from pip._internal.utils.compat import str_to_display as str_to_display
-from registrationserver2 import theLogger as theLogger
-from registrationserver2.modules.device_base_actor import \
-    DeviceBaseActor as DeviceBaseActor
-from registrationserver2.modules.mqtt.message import \
-    RETURN_MESSAGES as RETURN_MESSAGES
-from registrationserver2.modules.mqtt.mqtt_client_actor import \
-    SARAD_MQTT_CLIENT as SARAD_MQTT_CLIENT
-from thespian.actors import ActorAddress as ActorAddress
+from registrationserver2.modules.device_base_actor import DeviceBaseActor
 
 
 class MqttActor(DeviceBaseActor):

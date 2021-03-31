@@ -1,18 +1,20 @@
-"""
-Module for handing the configuration
-Created on 30.09.2020
+"""Module for handing the configuration
 
-@author: rfoerster
+Created
+    2020-09-30
+
+Authors
+    Riccardo Förster <foerster@sarad.de>,
+    Michael Strey <strey@sarad.de>
+
+Todo:
+    * Load from yaml file instead of a 'executable' file format
 """
-from logging import DEBUG
+import logging
 from typing import Any, Dict
 
 config: Dict[str, Any] = {
     "MDNS_TIMEOUT": 3000,
     "TYPE": "_rfc2217._tcp.local.",
-    "LEVEL": DEBUG,
+    "LEVEL": logging.DEBUG,
 }
-"""
-    Configuration Object
-    TODO: Load from yaml file instead of a 'executable' file format
-"""

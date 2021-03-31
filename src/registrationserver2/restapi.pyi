@@ -1,3 +1,4 @@
+"""Stub file for type checking with Mypy"""
 from typing import Any, Optional
 
 from thespian.actors import Actor  # type: ignore
