@@ -39,110 +39,6 @@ class MdnsListener(ServiceListener):
 
     __lock = threading.Lock()
 
-    def __init__(self, _type):
-        """
-        Initialize a mdns Listener for a specific device group
-        """
-        with self.__lock:
-            self.__type: str = type
-            self.__zeroconf = Zeroconf()
-            self.__browser = ServiceBrowser(self.__zeroconf, _type, self)
-            self.__folder_history: str = FOLDER_HISTORY + os.path.sep
-            self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
-            if not os.path.exists(self.__folder_history):
-                os.makedirs(self.__folder_history)
-            if not os.path.exists(self.__folder_available):
-                os.makedirs(self.__folder_available)
-            theLogger.debug("Output to: %s", self.__folder_history)
-        # Clean __folder_available for a fresh start
-        self.remove_all_services()
-
-    def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
-        """Hook, being called when a new service
-        representing a device is being detected"""
-        with self.__lock:
-            theLogger.info("[Add]:\tFound: Service of type %s. Name: %s", type_, name)
-            info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
-            if info is not None:
-                theLogger.info("[Add]:\t%s", info.properties)
-            # If an actor already exists, this will return
-            # the address of the excisting one, else it will create a new one.
-            this_actor = registrationserver2.actor_system.createActor(
-                Rfc2217Actor, globalName=name
-            )
-            data = self.convert_properties(name=name, info=info)
-            setup_return = registrationserver2.actor_system.ask(
-                this_actor, {"CMD": "SETUP", "PAR": data}
-            )
-            theLogger.info(setup_return)
-            if not (
-                setup_return is RETURN_MESSAGES["OK"]
-                or setup_return is RETURN_MESSAGES["OK_UPDATED"]
-            ):
-                registrationserver2.actor_system.tell(this_actor, {"CMD": "KILL"})
-
-    def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
-        """Hook, being called when a regular shutdown of a service
-        representing a device is being detected"""
-        with self.__lock:
-            theLogger.info("[Del]:\tRemoved: Service of type %s. Name: %s", type_, name)
-            info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
-            link = fr"{self.__folder_available}{name}"
-            theLogger.debug("[Del]:\tInfo: %s", info)
-            if os.path.exists(link):
-                os.unlink(link)
-            this_actor = registrationserver2.actor_system.createActor(
-                Rfc2217Actor, globalName=name
-            )
-            theLogger.info(
-                registrationserver2.actor_system.ask(this_actor, {"CMD": "KILL"})
-            )
-
-    def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
-        # pylint: disable=C0103
-        """Hook, being called when a service
-        representing a device is being updated"""
-        with self.__lock:
-            theLogger.info("[Update]:\tService of type %s. Name: %s", type_, name)
-            info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
-            if not info:
-                return
-            theLogger.info("[Update]:\tGot Info: %s", info)
-            # If an actor already exists, this will return
-            # the address of the excisting one, else it will create a new one.
-            this_actor = registrationserver2.actor_system.createActor(
-                Rfc2217Actor, globalName=name
-            )
-            data = self.convert_properties(name=name, info=info)
-            setup_return = registrationserver2.actor_system.ask(
-                this_actor, {"CMD": "SETUP", "PAR": data}
-            )
-            theLogger.info(setup_return)
-            if not (
-                setup_return is RETURN_MESSAGES["OK"]
-                or setup_return is RETURN_MESSAGES["OK_UPDATED"]
-            ):
-                registrationserver2.actor_system.tell(this_actor, {"CMD": "KILL"})
-
-    def remove_all_services(self) -> None:
-        """Kill all device actors and remove all links to device file from FOLDER_AVAILABLE."""
-        with self.__lock:
-            if os.path.exists(self.__folder_available):
-                for root, _, files in os.walk(self.__folder_available):
-                    for name in files:
-                        if "_rfc2217" in name:
-                            link = os.path.join(root, name)
-                            theLogger.debug("[Del]:\tRemoved: %s", name)
-                            os.unlink(link)
-                            this_actor = registrationserver2.actor_system.createActor(
-                                Rfc2217Actor, globalName=name
-                            )
-                            theLogger.info(
-                                registrationserver2.actor_system.ask(
-                                    this_actor, {"CMD": "KILL"}
-                                )
-                            )
-
     @staticmethod
     def convert_properties(info=None, name=""):
         """Helper function to convert mdns service information
@@ -195,3 +91,107 @@ class MdnsListener(ServiceListener):
         }
         theLogger.debug(out)
         return json.dumps(out)
+
+    def __init__(self, _type):
+        """
+        Initialize a mdns Listener for a specific device group
+        """
+        with self.__lock:
+            self.__type: str = type
+            self.__zeroconf = Zeroconf()
+            self.__browser = ServiceBrowser(self.__zeroconf, _type, self)
+            self.__folder_history: str = FOLDER_HISTORY + os.path.sep
+            self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
+            if not os.path.exists(self.__folder_history):
+                os.makedirs(self.__folder_history)
+            if not os.path.exists(self.__folder_available):
+                os.makedirs(self.__folder_available)
+            theLogger.debug("Output to: %s", self.__folder_history)
+        # Clean __folder_available for a fresh start
+        self.remove_all_services()
+
+    def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        """Hook, being called when a new service
+        representing a device is being detected"""
+        with self.__lock:
+            theLogger.info("[Add]:\tFound: Service of type %s. Name: %s", type_, name)
+            info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
+            if info is not None:
+                theLogger.info("[Add]:\t%s", info.properties)
+            # If an actor already exists, this will return
+            # the address of the excisting one, else it will create a new one.
+            this_actor = registrationserver2.actor_system.createActor(
+                Rfc2217Actor, globalName=name
+            )
+            data = self.convert_properties(name=name, info=info)
+            setup_return = registrationserver2.actor_system.ask(
+                this_actor, {"CMD": "SETUP", "PAR": data}
+            )
+            theLogger.info(setup_return)
+            if not (
+                setup_return is RETURN_MESSAGES["OK"]
+                or setup_return is RETURN_MESSAGES["OK_UPDATED"]
+            ):
+                registrationserver2.actor_system.tell(this_actor, {"CMD": "KILL"})
+
+    def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        # pylint: disable=C0103
+        """Hook, being called when a service
+        representing a device is being updated"""
+        with self.__lock:
+            theLogger.info("[Update]:\tService of type %s. Name: %s", type_, name)
+            info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
+            if not info:
+                return
+            theLogger.info("[Update]:\tGot Info: %s", info)
+            # If an actor already exists, this will return
+            # the address of the excisting one, else it will create a new one.
+            this_actor = registrationserver2.actor_system.createActor(
+                Rfc2217Actor, globalName=name
+            )
+            data = self.convert_properties(name=name, info=info)
+            setup_return = registrationserver2.actor_system.ask(
+                this_actor, {"CMD": "SETUP", "PAR": data}
+            )
+            theLogger.info(setup_return)
+            if not (
+                setup_return is RETURN_MESSAGES["OK"]
+                or setup_return is RETURN_MESSAGES["OK_UPDATED"]
+            ):
+                registrationserver2.actor_system.tell(this_actor, {"CMD": "KILL"})
+
+    def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        """Hook, being called when a regular shutdown of a service
+        representing a device is being detected"""
+        with self.__lock:
+            theLogger.info("[Del]:\tRemoved: Service of type %s. Name: %s", type_, name)
+            info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
+            link = fr"{self.__folder_available}{name}"
+            theLogger.debug("[Del]:\tInfo: %s", info)
+            if os.path.exists(link):
+                os.unlink(link)
+            this_actor = registrationserver2.actor_system.createActor(
+                Rfc2217Actor, globalName=name
+            )
+            theLogger.info(
+                registrationserver2.actor_system.ask(this_actor, {"CMD": "KILL"})
+            )
+
+    def remove_all_services(self) -> None:
+        """Kill all device actors and remove all links to device file from FOLDER_AVAILABLE."""
+        with self.__lock:
+            if os.path.exists(self.__folder_available):
+                for root, _, files in os.walk(self.__folder_available):
+                    for name in files:
+                        if "_rfc2217" in name:
+                            link = os.path.join(root, name)
+                            theLogger.debug("[Del]:\tRemoved: %s", name)
+                            os.unlink(link)
+                            this_actor = registrationserver2.actor_system.createActor(
+                                Rfc2217Actor, globalName=name
+                            )
+                            theLogger.info(
+                                registrationserver2.actor_system.ask(
+                                    this_actor, {"CMD": "KILL"}
+                                )
+                            )
