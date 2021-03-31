@@ -17,12 +17,12 @@ import registrationserver2
 import thespian.actors  # type: ignore
 from flask import json
 from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
-                                 actor_system, theLogger)
+                                 actor_system, logger)
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.redirector_actor import RedirectorActor
 from thespian.actors import Actor  # type: ignore
 
-theLogger.info("%s -> %s", __package__, __file__)
+logger.info("%s -> %s", __package__, __file__)
 
 
 class DeviceBaseActor(Actor):
@@ -83,7 +83,7 @@ class DeviceBaseActor(Actor):
         self.__folder_history: str = FOLDER_HISTORY + os.path.sep
         self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
         self.my_redirector = None
-        theLogger.info("Device actor created.")
+        logger.info("Device actor created.")
 
     def receiveMessage(self, msg, sender):
         """
@@ -114,7 +114,7 @@ class DeviceBaseActor(Actor):
             if not os.path.exists(filename):
                 os.mknod(filename)
             if not os.path.exists(self.link):
-                theLogger.info("Linking %s to %s", self.link, filename)
+                logger.info("Linking %s to %s", self.link, filename)
                 os.link(filename, self.link)
             self._file = msg["PAR"]
             with open(filename, "w+") as file_stream:
@@ -125,7 +125,7 @@ class DeviceBaseActor(Actor):
         return RETURN_MESSAGES["OK_UPDATED"]
 
     def _kill(self, msg: dict):
-        theLogger.info("Shutting down actor %s, Message: %s", self.globalName, msg)
+        logger.info("Shutting down actor %s, Message: %s", self.globalName, msg)
         filename = fr"{self.__folder_history}{self.globalName}"
         self.link = fr"{self.__folder_available}{self.globalName}"
         if os.path.exists(self.link):
@@ -136,30 +136,30 @@ class DeviceBaseActor(Actor):
             kill_return = registrationserver2.actor_system.ask(
                 self.my_redirector, thespian.actors.ActorExitRequest()
             )
-            theLogger.info(kill_return)
+            logger.info(kill_return)
         kill_return = registrationserver2.actor_system.ask(
             self.myAddress, thespian.actors.ActorExitRequest()
         )
-        theLogger.info(kill_return)
+        logger.info(kill_return)
         return RETURN_MESSAGES["OK"]
 
     def _reserve(self, msg: dict) -> dict:
         """Handler for RESERVE message from REST API."""
-        theLogger.info("Device actor received a RESERVE command with message: %s", msg)
+        logger.info("Device actor received a RESERVE command with message: %s", msg)
         try:
             app = msg["PAR"]["APP"]
         except LookupError:
-            theLogger.error("ERROR: there is no APP name!")
+            logger.error("ERROR: there is no APP name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
         try:
             host = msg["PAR"]["HOST"]
         except LookupError:
-            theLogger.error("ERROR: there is no HOST name!")
+            logger.error("ERROR: there is no HOST name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
         try:
             user = msg["PAR"]["USER"]
         except LookupError:
-            theLogger.error("ERROR: there is no USER name!")
+            logger.error("ERROR: there is no USER name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
         if self._reserve_at_is(app, host, user):
             return self._create_redirector(app, host, user)
@@ -180,7 +180,7 @@ class DeviceBaseActor(Actor):
                 self.my_redirector,
                 {"CMD": "SETUP", "PAR": {"PARENT_NAME": self.globalName}},
             )
-            theLogger.info("Redirector actor created.")
+            logger.info("Redirector actor created.")
             # Write Reservation section into device file
             reservation = {
                 "Active": True,
@@ -191,11 +191,11 @@ class DeviceBaseActor(Actor):
                 "Port": redirector_result["RESULT"]["PORT"],
                 "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
             }
-            theLogger.info("Reservation: %s", reservation)
+            logger.info("Reservation: %s", reservation)
             df_content = json.loads(self._file)
             df_content["Reservation"] = reservation
             self._file = json.dumps(df_content)
-            theLogger.info("self._file: %s", self._file)
+            logger.info("self._file: %s", self._file)
             with open(self.link, "w+") as file_stream:
                 file_stream.write(self._file)
             return RETURN_MESSAGES["OK"]
@@ -203,12 +203,12 @@ class DeviceBaseActor(Actor):
 
     def _free(self, _: dict) -> dict:
         """Handler for FREE message from REST API."""
-        theLogger.info("Device actor received a FREE command.")
+        logger.info("Device actor received a FREE command.")
         if self.my_redirector is not None:
             kill_return = registrationserver2.actor_system.ask(
                 self.my_redirector, {"CMD": "KILL"}
             )
-            theLogger.info(kill_return)
+            logger.info(kill_return)
             # Write Free section into device file
             df_content = json.loads(self._file)
             free = {
@@ -218,12 +218,12 @@ class DeviceBaseActor(Actor):
                 "User": df_content["Reservation"]["User"],
                 "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
             }
-            theLogger.info("Free: %s", free)
+            logger.info("Free: %s", free)
             df_content["Free"] = free
             # Remove Reservation section
             df_content.pop("Reservation", None)
             self._file = json.dumps(df_content)
-            theLogger.info("self._file: %s", self._file)
+            logger.info("self._file: %s", self._file)
             with open(self.link, "w+") as file_stream:
                 file_stream.write(self._file)
             self.my_redirector = None

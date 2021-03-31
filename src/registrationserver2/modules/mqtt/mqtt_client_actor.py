@@ -12,7 +12,7 @@ import traceback
 import paho.mqtt.client  as MQTT# type: ignore
 
 import registrationserver2
-from registrationserver2 import actor_system, theLogger
+from registrationserver2 import actor_system, logger
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
 from registrationserver2.modules.mqtt import MQTT_ACTOR_ADRs
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
@@ -45,12 +45,12 @@ class SaradMqttClient(object):
         """Will be carried out when the client connected to the MQTT self.mqtt_broker."""
         self.rc_conn = result_code
         if self.rc_conn == 1:
-            theLogger.info(
+            logger.info(
                 "Connection to MQTT self.mqtt_broker failed. result_code=%s",
                 result_code,
             )
         else:
-            theLogger.info("Connected with MQTT self.mqtt_broker.")
+            logger.info("Connected with MQTT self.mqtt_broker.")
         # return self.result_code
 
     def on_disconnect(
@@ -60,25 +60,25 @@ class SaradMqttClient(object):
         from the MQTT self.mqtt_broker."""
         self.rc_disc = result_code
         if self.rc_disc == 1:
-            theLogger.info(
+            logger.info(
                 "Disconnection from MQTT-broker failed. result_code=%s", result_code
             )
         else:
-            theLogger.info("Gracefully disconnected from MQTT-broker.")
+            logger.info("Gracefully disconnected from MQTT-broker.")
 
     def on_publish(self, client, userdata, mid):
         self.rc_pub = 0
-        theLogger.info(
+        logger.info(
             "The message with Message-ID %d is published to the broker!\n", mid
         )
 
     def on_subscribe(self, client, userdata, mid, grant_qos):
         self.rc_sub = 0
-        theLogger.info("Subscribed to the topic successfully!\n")
+        logger.info("Subscribed to the topic successfully!\n")
 
     def on_unsubscribe(self, client, userdata, mid):
         self.rc_uns = 0
-        theLogger.info("Unsubscribed to the topic successfully!\n")
+        logger.info("Unsubscribed to the topic successfully!\n")
 
     def on_message(self, client, userdata, message):
         self.topic_parts = []
@@ -135,13 +135,13 @@ class SaradMqttClient(object):
                 # in another word, for example, if the IS MQTT sends a byte-string,
                 # would this MQTT Client Actor receives a byte-string or a string?
             else:
-                theLogger.info(
+                logger.info(
                     'Receive unknown message "%s" under the topic "%"',
                     str(message.payload.decode("utf-8")),
                     str(message.topic.decode("utf-8")),
                 )
         else:
-            theLogger.info(
+            logger.info(
                 'Receive unknown message "%s" under the topic "%"',
                 str(message.payload.decode("utf-8")),
                 str(message.topic.decode("utf-8")),
@@ -149,25 +149,25 @@ class SaradMqttClient(object):
 
     def _add_instr(self, instr_id : str, msg)->dict:
         with self.__lock:
-            theLogger.info(f"[Add]:\tFound: A new connected instrument with instrument ID : {instr_id}")
+            logger.info(f"[Add]:\tFound: A new connected instrument with instrument ID : {instr_id}")
             filename = fr"{self.__folder_history}{instr_id}"
             link = fr"{self.__folder_available}{instr_id}"
             try:
                 data = msg
                 if data:
                     with open(filename, "w+") as file_stream:
-                        file_stream.write(data) if data else theLogger.error(
+                        file_stream.write(data) if data else logger.error(
                             f"[Add]:\tFailed to get Properties from {msg}, {instr_id}"
                         )  # pylint: disable=W0106
                     if not os.path.exists(link):
-                        theLogger.info(f"Linking {link} to {filename}")
+                        logger.info(f"Linking {link} to {filename}")
                         os.link(filename, link)
             except BaseException as error:  # pylint: disable=W0703
-                theLogger.error(
+                logger.error(
                     f'[Add]:\t {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
                 )
             except:  # pylint: disable=W0702
-                theLogger.error(
+                logger.error(
                     f"[Add]:\tCould not write properties of device with ID: {instr_id}"
                 )
             # if an actor already exists this will return
@@ -179,9 +179,9 @@ class SaradMqttClient(object):
                 setup_return = registrationserver2.actor_system.ask(
                     this_actor, {"CMD": "SETUP"}
                 )
-                theLogger.info(setup_return)
+                logger.info(setup_return)
                 if setup_return is RETURN_MESSAGES.get("OK"):
-                    theLogger.info(
+                    logger.info(
                         registrationserver2.actor_system.ask(
                             this_actor,
                             {"CMD": "SEND", "DATA": b"\x42\x80\x7f\x0c\x0c\x00\x45"},
@@ -236,9 +236,9 @@ class SaradMqttClient(object):
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
     def _disconnect(self, msg: dict) -> dict:
-        theLogger.info("To disconnect from the MQTT-broker!\n")
+        logger.info("To disconnect from the MQTT-broker!\n")
         self.mqttc.disconnect()
-        theLogger.info("To stop the MQTT thread!\n")
+        logger.info("To stop the MQTT thread!\n")
         self.mqttc.loop_stop()
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
@@ -255,12 +255,12 @@ class SaradMqttClient(object):
             if self.rc_pub == 1:
                 time.sleep(2)
                 self.wait_cnt = self.wait_cnt - 1
-                theLogger.info("Waiting for the on_publish being called\n")
+                logger.info("Waiting for the on_publish being called\n")
             else:
                 self.rc_pub = 1
                 break
         else:
-            theLogger.info("on_publish not called: PUBLISH FAILURE!\n")
+            logger.info("on_publish not called: PUBLISH FAILURE!\n")
             return RETURN_MESSAGES.get("PUBLISH_FAILURE")
 
         self.mqttc.loop_start()
@@ -280,12 +280,12 @@ class SaradMqttClient(object):
             if self.rc_sub == 1:
                 time.sleep(2)
                 self.wait_cnt = self.wait_cnt - 1
-                theLogger.info("Waiting for the on_subscribe being called\n")
+                logger.info("Waiting for the on_subscribe being called\n")
             else:
                 self.rc_sub = 1
                 break
         else:
-            theLogger.info("on_subscribe not called: SUBSCRIBE FAILURE!\n")
+            logger.info("on_subscribe not called: SUBSCRIBE FAILURE!\n")
             return RETURN_MESSAGES.get("SUBSCRIBE_FAILURE")
 
         self.mqttc.loop_start()
@@ -302,12 +302,12 @@ class SaradMqttClient(object):
             if self.rc_uns == 1:
                 time.sleep(2)
                 self.wait_cnt = self.wait_cnt - 1
-                theLogger.info("Waiting for the on_unsubscribe being called\n")
+                logger.info("Waiting for the on_unsubscribe being called\n")
             else:
                 self.rc_uns = 1
                 break
         else:
-            theLogger.info("on_unsubscribe not called: UNSUBSCRIBE FAILURE!\n")
+            logger.info("on_unsubscribe not called: UNSUBSCRIBE FAILURE!\n")
             return RETURN_MESSAGES.get("UNSUBSCRIBE_FAILURE")
 
         self.mqttc.loop_start()
@@ -318,7 +318,7 @@ class SaradMqttClient(object):
         """On Ctrl+C:
         - stop all cycles
         - disconnect from MQTT self.mqtt_broker"""
-        theLogger.info("You pressed Ctrl+C!\n")
+        logger.info("You pressed Ctrl+C!\n")
         self.mqttc.disconnect()
         self.mqttc.loop_stop()
         sys.exit(0)
@@ -346,12 +346,12 @@ class SaradMqttClient(object):
             if not os.path.exists(self.__folder_available):
                 os.makedirs(self.__folder_available)
 
-            theLogger.debug(f"Output to: {self.__folder_history}")
+            logger.debug(f"Output to: {self.__folder_history}")
         setup_return = actor_system.ask(self.SARAD_MQTT_SUBSCRIBER, "SETUP")
         if setup_return == RETURN_MESSAGES.get("OK"):
-            theLogger.info("SARAD MQTT Subscriber is setup correctly!\n")
+            logger.info("SARAD MQTT Subscriber is setup correctly!\n")
         else:
-            theLogger.warning("SARAD MQTT Subscriber is not setup!\n")
+            logger.warning("SARAD MQTT Subscriber is not setup!\n")
 #SARAD_MQTT_CLIENT: ActorAddress = actor_system.createActor(
 #    SaradMqttClient, type(SaradMqttClient).__name__
 #)
@@ -367,7 +367,7 @@ def test():
     connect_status = actor_system.ask(SARAD_MQTT_CLIENT, {"CMD" : "CONNECT", "Data" : {"client_id" : "Test_client1", "mqtt_broker" : "localhost"}})
     print (connect_status)
     input("Press Enter to End\n")
-    theLogger.info("!")
+    logger.info("!")
 
 if __name__ == "__main__":
     test()

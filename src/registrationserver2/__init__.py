@@ -5,24 +5,16 @@ connects all kinds of Instrument Server 2 with the user applications
 # standard libraries
 import logging
 import os
-import re
-from typing import Any, Optional, Pattern
 
-# 3rd party
 from thespian.actors import ActorSystem  # type: ignore
 
-# local
 from registrationserver2.config import config
-
-# actor_system :ActorSystem = ActorSystem('multiprocTCPBase')
-actor_system: ActorSystem = ActorSystem()
-
 
 # =======================
 # Default values for configuration,
 # is applied if a value is not set in config.py
 # =======================
-home: Optional[str] = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
+home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
 config.setdefault(
     "FOLDER",
     f"{home}{os.path.sep}SARAD{os.path.sep}devices",
@@ -35,26 +27,21 @@ config.setdefault(
     f'{os.environ.get("HOME", None) or os.environ.get("LOCALAPPDATA",None)}{os.path.sep}SARAD{os.path.sep}hosts',
 )
 
+# =======================
 # Initialization of the actor system,
 # can be changed to a distributed system here.
 # TODO:  Setup ActorSystem with values from the configuration
+# =======================
+actor_system: ActorSystem = ActorSystem()
 
-# ==========================================
-# Logging configuration,
-# TODO: configuration still gets overwritten by one of the imports
-# ==========================================
-theLogger: Any = logging.getLogger("Instrument Server V2")
-formatter: Any = logging.Formatter("[%(name)s]\t[%(levelname)s]:\t%(message)s")
-if theLogger.handlers:
-    for handler in theLogger.handlers:
-        theLogger.removeHandler(handler)
-
-streamh: Any = logging.StreamHandler()
-logging.basicConfig(level=logging.CRITICAL)
-
-theLogger.setLevel(config["LEVEL"])
-
-theLogger.info("Logging system initialized.")
+# =======================
+# Logging configuration
+# =======================
+logger = logging.getLogger("Reg. Server 2")
+FORMATTER = "[%(name)s]\t[%(levelname)s]\t%(message)s"
+logging.basicConfig(format=FORMATTER, force=True)
+logger.setLevel(config["LEVEL"])
+logger.info("Logging system initialized.")
 
 # ==========================================
 # Folders structure / API names for devices and device history

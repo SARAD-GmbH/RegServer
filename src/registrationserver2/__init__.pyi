@@ -5,7 +5,7 @@ from thespian.actors import ActorSystem  # type: ignore
 
 actor_system: ActorSystem
 home: Optional[str]
-theLogger: Any
+logger: Any
 formatter: Any
 matchid: Pattern[str]
 FILE_PATH_AVAILABLE: str

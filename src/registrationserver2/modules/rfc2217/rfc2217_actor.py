@@ -15,11 +15,11 @@ import traceback
 import serial.rfc2217  # type: ignore
 import thespian  # type: ignore
 from overrides import overrides
-from registrationserver2 import theLogger
+from registrationserver2 import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
 
-theLogger.info("%s -> %s", __package__, __file__)
+logger.info("%s -> %s", __package__, __file__)
 
 
 class Rfc2217Actor(DeviceBaseActor):
@@ -46,7 +46,7 @@ class Rfc2217Actor(DeviceBaseActor):
                 self.__port = serial.rfc2217.Serial(port_ident)
                 # move the send ( test if connection is up and if not create)
             except Exception as error:  # pylint: disable=broad-except
-                theLogger.error(
+                logger.error(
                     "! %s\t%s\t%s\t%s",
                     type(error),
                     error,
@@ -60,7 +60,7 @@ class Rfc2217Actor(DeviceBaseActor):
     def _send(self, msg: dict):
         if self._connect() is RETURN_MESSAGES["OK"]["RETURN"]:
             data = msg["PAR"]["DATA"]
-            theLogger.info("Actor %s received: %s", self.globalName, data)
+            logger.info("Actor %s received: %s", self.globalName, data)
             self.__port.write(data)
             _return = b""
             while True:
@@ -109,7 +109,7 @@ def _test():
     )
     # print(sys.ask(act, {"CMD": "FREE", "DATA": b"\x42\x80\x7f\x0c\x00\x0c\x45"}))
     input("Press Enter to End\n")
-    theLogger.info("!")
+    logger.info("!")
 
 
 if __name__ == "__main__":

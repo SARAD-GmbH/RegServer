@@ -98,7 +98,4 @@ Family, Type, Serial number.
 
 
 ## TODO:
-- [ ] fix logging
-- [ ] create actors when device connection is detected
-- [ ] reservation / freeing of devices
 - [ ] automatic unit test cases

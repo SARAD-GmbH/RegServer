@@ -11,13 +11,13 @@ Author
 Todo:
     * uml-mqtt_actor.puml is only a copy of uml-rfc2217_actor.puml. It has to
       be updated.
-    * use lazy formatting in theLogger
+    * use lazy formatting in logger
 """
 import json
 from enum import Enum, unique
 
 import paho.mqtt.client as MQTT  # type: ignore
-from registrationserver2 import actor_system, theLogger
+from registrationserver2 import actor_system, logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES, is_JSON
 
@@ -28,7 +28,7 @@ mqtt_req_status = Enum(
 
 mqtt_send_status = Enum("SEND_STATUS", ("idle", "to_send", "sent", "send_replied"))
 
-theLogger.info("%s -> %s", __package__, __file__)
+logger.info("%s -> %s", __package__, __file__)
 
 
 class MqttActor(DeviceBaseActor):
@@ -71,12 +71,12 @@ class MqttActor(DeviceBaseActor):
         """Will be carried out when the client connected to the MQTT self.mqtt_broker."""
         self.rc_conn = result_code
         if self.rc_conn == 1:
-            theLogger.info(
+            logger.info(
                 "Connection to MQTT self.mqtt_broker failed. result_code=%s",
                 result_code,
             )
         else:
-            theLogger.info("Connected with MQTT self.mqtt_broker.")
+            logger.info("Connected with MQTT self.mqtt_broker.")
         # return self.result_code
 
     def on_disconnect(
@@ -86,53 +86,51 @@ class MqttActor(DeviceBaseActor):
         from the MQTT self.mqtt_broker."""
         self.rc_disc = result_code
         if self.rc_disc == 1:
-            theLogger.info(
+            logger.info(
                 "Disconnection from MQTT-broker failed. result_code=%s", result_code
             )
         else:
-            theLogger.info("Gracefully disconnected from MQTT-broker.")
+            logger.info("Gracefully disconnected from MQTT-broker.")
 
     def on_publish(self, client, userdata, mid):
         self.rc_pub = 0
-        theLogger.info(
-            "The message with Message-ID %d is published to the broker!\n", mid
-        )
+        logger.info("The message with Message-ID %d is published to the broker!\n", mid)
 
     def on_subscribe(self, client, userdata, mid, grant_qos):
         self.rc_sub = 0
-        theLogger.info("Subscribed to the topic successfully!\n")
+        logger.info("Subscribed to the topic successfully!\n")
 
     def on_unsubscribe(self, client, userdata, mid):
         self.rc_uns = 0
-        theLogger.info("Unsubscribed to the topic successfully!\n")
+        logger.info("Unsubscribed to the topic successfully!\n")
 
     def on_message(self, client, userdata, message):
         topic_buf = {}
         payload_str = str(message.payload.decode("utf-8", "ignore"))
-        theLogger.info(f"message received: {payload_str}")
-        theLogger.info(f"message topic: {message.topic}")
-        theLogger.info(f"message qos: {message.qos}")
-        theLogger.info(f"message retain flag: {message.retain}")
+        logger.info(f"message received: {payload_str}")
+        logger.info(f"message topic: {message.topic}")
+        logger.info(f"message qos: {message.qos}")
+        logger.info(f"message retain flag: {message.retain}")
         topic_buf = message.split("/")
         if len(topic_buf) != 3:
-            theLogger.warning(
+            logger.warning(
                 f"[MQTT_Message]\tReceived an illegal message whose topic length is illegal: topic is {message.topic} and payload is {message.payload}"
             )
         else:
             if topic_buf[0] != self.is_id or topic_buf[1] != self.instr_id:
-                theLogger.warning(
+                logger.warning(
                     f"[MQTT_Message]\tReceived illegal message: topic is {message.topic} and payload is {message.payload}"
                 )
             else:
                 if topic_buf[2] != "meta" and topic_buf[2] != "msg":
-                    theLogger.warning(
+                    logger.warning(
                         f"[MQTT_Message]\tReceived illegal message: topic is {message.topic} and payload is {message.payload}"
                     )
                 elif topic_buf[2] == "meta":
                     if self.req_status == mqtt_req_status.reserve_sent:
                         payload_json = is_JSON(payload_str)
                         if payload_json is None:
-                            theLogger.warning(
+                            logger.warning(
                                 f"[MQTT_Message]\tReceived an illegal MQTT message in non-JSON format: topic is {message.topic} and payload is {payload_str}"
                             )
                         elif (
@@ -147,7 +145,7 @@ class MqttActor(DeviceBaseActor):
                     if not (self.binary_reply is None):
                         self.send_status = mqtt_send_status.send_replied
                     else:
-                        theLogger.warning(
+                        logger.warning(
                             f"[MQTT_Message]\tReceived an illegal binary reply that is empty: topic is {message.topic}"
                         )
 
@@ -164,7 +162,7 @@ class MqttActor(DeviceBaseActor):
 
         pub_req_msg["payload"] = msg.get("payload", None)
         if pub_req_msg["payload"] is None:
-            theLogger.info("ERROR: there is no payload of SARAD CMD!\n")
+            logger.info("ERROR: there is no payload of SARAD CMD!\n")
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         pub_req_msg["qos"] = msg.get("qos", None)
         if pub_req_msg["qos"] is None:
@@ -236,7 +234,7 @@ class MqttActor(DeviceBaseActor):
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
     def _free(self, msg):
-        theLogger.info("Free-Request\n")
+        logger.info("Free-Request\n")
         if msg is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         self.free_req_msg["Req"] = msg.get("Req", None)
@@ -267,10 +265,10 @@ class MqttActor(DeviceBaseActor):
     def _prepare(self, msg: dict):
         self.is_id = msg.get("Data", None).get("is_id", None)
         if self.is_id is None:
-            theLogger.info("ERROR: No Instrument Server ID received!\n")
+            logger.info("ERROR: No Instrument Server ID received!\n")
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         conn_re = self.__connect()
-        theLogger.info(f"[CONN]\tThe client ({self.mqtt_cid}): {conn_re}")
+        logger.info(f"[CONN]\tThe client ({self.mqtt_cid}): {conn_re}")
         if conn_re is RETURN_MESSAGES.get("OK_SKIPPED"):
             self.mqttc.loop_start()
         else:
@@ -346,12 +344,12 @@ class MqttActor(DeviceBaseActor):
             if self.rc_pub == 1:
                 time.sleep(2)
                 wait_cnt1 = wait_cnt1 - 1
-                theLogger.info("Waiting for the on_publish being called\n")
+                logger.info("Waiting for the on_publish being called\n")
             else:
                 self.rc_pub = 1
                 break
         else:
-            theLogger.info("on_publish not called: PUBLISH FAILURE!\n")
+            logger.info("on_publish not called: PUBLISH FAILURE!\n")
             return RETURN_MESSAGES.get("PUBLISH_FAILURE")
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
@@ -368,12 +366,12 @@ class MqttActor(DeviceBaseActor):
             if self.rc_sub == 1:
                 time.sleep(2)
                 wait_cnt2 = wait_cnt2 - 1
-                theLogger.info("Waiting for the on_subscribe being called\n")
+                logger.info("Waiting for the on_subscribe being called\n")
             else:
                 self.rc_sub = 1
                 break
         else:
-            theLogger.info("on_subscribe not called: SUBSCRIBE FAILURE!\n")
+            logger.info("on_subscribe not called: SUBSCRIBE FAILURE!\n")
             return RETURN_MESSAGES.get("SUBSCRIBE_FAILURE")
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
@@ -387,11 +385,11 @@ class MqttActor(DeviceBaseActor):
             if self.rc_uns == 1:
                 time.sleep(2)
                 wait_cnt3 = wait_cnt3 - 1
-                theLogger.info("Waiting for the on_unsubscribe being called\n")
+                logger.info("Waiting for the on_unsubscribe being called\n")
             else:
                 self.rc_uns = 1
                 break
         else:
-            theLogger.info("on_unsubscribe not called: UNSUBSCRIBE FAILURE!\n")
+            logger.info("on_unsubscribe not called: UNSUBSCRIBE FAILURE!\n")
             return RETURN_MESSAGES.get("UNSUBSCRIBE_FAILURE")
         return RETURN_MESSAGES.get("OK_SKIPPED")

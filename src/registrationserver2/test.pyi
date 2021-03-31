@@ -1,5 +1,4 @@
-from registrationserver2 import theLogger as theLogger
-
+"""Stub file for type checking with Mypy"""
 port: tuple
 
 def testingServ() -> None: ...

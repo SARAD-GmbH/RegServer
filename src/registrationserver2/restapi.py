@@ -26,12 +26,14 @@ from thespian.actors import Actor  # type: ignore
 import registrationserver2
 from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
                                  FREE_KEYWORD, PATH_AVAILABLE, PATH_HISTORY,
-                                 RESERVE_KEYWORD, theLogger)
+                                 RESERVE_KEYWORD, logger)
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
 from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
 
-theLogger.info("%s -> %s", __package__, __file__)
+logger.info("%s -> %s", __package__, __file__)
+
+MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 
 
 class RestApi(Actor):
@@ -43,8 +45,6 @@ class RestApi(Actor):
     """
 
     api = Flask(__name__)
-
-    MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 
     class Dummy:
         """Dummy output which just ignored messages"""
@@ -78,7 +78,7 @@ class RestApi(Actor):
                     if reservation is not None:
                         answer[dir_entry]["Reservation"] = reservation
         except Exception as error:  # pylint: disable=broad-except
-            theLogger.error(
+            logger.error(
                 "! %s\t%s\t%s\t%s",
                 type(error),
                 error,
@@ -89,13 +89,14 @@ class RestApi(Actor):
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
+    @staticmethod
     @api.route("/list/<did>", methods=["GET"])
     @api.route("/list/<did>/", methods=["GET"])
     @api.route(f"/{PATH_AVAILABLE}/<did>", methods=["GET"])
     @api.route(f"/{PATH_AVAILABLE}/<did>/", methods=["GET"])
-    def get_device(self, did):
+    def get_device(did):
         """Path for getting information for a single active device"""
-        if not self.MATCHID.fullmatch(did):
+        if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
         answer = {}
         try:
@@ -110,7 +111,7 @@ class RestApi(Actor):
                 if reservation is not None:
                     answer[did]["Reservation"] = reservation
         except Exception as error:  # pylint: disable=broad-except
-            theLogger.error(
+            logger.error(
                 "! %s\t%s\t%s\t%s",
                 type(error),
                 error,
@@ -140,7 +141,7 @@ class RestApi(Actor):
                     if reservation is not None:
                         answer[dir_entry]["Reservation"] = reservation
         except Exception as error:  # pylint: disable=broad-except
-            theLogger.error(
+            logger.error(
                 "! %s\t%s\t%s\t%s",
                 type(error),
                 error,
@@ -151,12 +152,13 @@ class RestApi(Actor):
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
+    @staticmethod
     @api.route(f"/{PATH_HISTORY}/<did>", methods=["GET"])
     @api.route(f"/{PATH_HISTORY}/<did>/", methods=["GET"])
-    def get_device_old(self, did):
+    def get_device_old(did):
         """Path for getting information about a single
         previously or currently detected device"""
-        if not self.MATCHID.fullmatch(did):
+        if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
         answer = {}
         try:
@@ -171,7 +173,7 @@ class RestApi(Actor):
                 if reservation is not None:
                     answer[did]["Reservation"] = reservation
         except Exception as error:  # pylint: disable=broad-except
-            theLogger.error(
+            logger.error(
                 "! %s\t%s\t%s\t%s",
                 type(error),
                 error,
@@ -182,12 +184,13 @@ class RestApi(Actor):
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
+    @staticmethod
     @api.route(f"/list/<did>/{RESERVE_KEYWORD}", methods=["GET"])
     @api.route(
         f"/{PATH_AVAILABLE}/<did>/{RESERVE_KEYWORD}",
         methods=["GET"],
     )
-    def reserve_device(self, did):
+    def reserve_device(did):
         """Path for reserving a single active device"""
         # Collect information about who sent the request.
         try:
@@ -195,7 +198,7 @@ class RestApi(Actor):
             app = attribute_who.split(" - ")[0]
             user = attribute_who.split(" - ")[1]
         except (IndexError, AttributeError):
-            theLogger.error("Reserve request without proper who attribute.")
+            logger.error("Reserve request without proper who attribute.")
             answer = {
                 "Error code": "13",
                 "Error": "No or incomplete attributes.",
@@ -207,7 +210,7 @@ class RestApi(Actor):
         try:
             request_host = socket.gethostbyaddr(request.environ["REMOTE_ADDR"])[0]
         except Exception as error:  # pylint: disable=broad-except
-            theLogger.error(
+            logger.error(
                 "! %s\t%s\t%s\t%s",
                 type(error),
                 error,
@@ -216,8 +219,8 @@ class RestApi(Actor):
             )
         else:
             request_host = request.environ["REMOTE_ADDR"]
-        theLogger.info("%s: %s --> %s", did, attribute_who, request_host)
-        if not self.MATCHID.fullmatch(did):
+        logger.info("%s: %s --> %s", did, attribute_who, request_host)
+        if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
         # send RESERVE message to device actor
         if "_rfc2217" in did:
@@ -229,7 +232,7 @@ class RestApi(Actor):
                 MqttActor, globalName=did
             )
         else:
-            theLogger.error("Requested service not supported by actor system.")
+            logger.error("Requested service not supported by actor system.")
             answer = {"Error code": "11", "Error": "Device not found", did: {}}
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
@@ -238,7 +241,7 @@ class RestApi(Actor):
             device_actor,
             {"CMD": "RESERVE", "PAR": {"HOST": request_host, "USER": user, "APP": app}},
         )
-        theLogger.info(reserve_return)
+        logger.info(reserve_return)
         answer = {}
         try:
             if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
@@ -251,7 +254,7 @@ class RestApi(Actor):
                     ).get("Reservation", None),
                 }
         except Exception as error:  # pylint: disable=broad-except
-            theLogger.error(
+            logger.error(
                 "! %s\t%s\t%s\t%s",
                 type(error),
                 error,
@@ -277,7 +280,7 @@ class RestApi(Actor):
             device_actor,
             {"CMD": "FREE"},
         )
-        theLogger.info("[Free] returned %s", free_return)
+        logger.info("[Free] returned %s", free_return)
         if free_return is RETURN_MESSAGES["OK"] or RETURN_MESSAGES["OK_SKIPPED"]:
             answer = {}
             if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
@@ -299,7 +302,7 @@ class RestApi(Actor):
 
     def run(self, host=None, port=None, debug=None, load_dotenv=True):
         """Start the API"""
-        theLogger.info("Starting API at %s:%d", host, port)
+        logger.info("Starting API at %s:%d", host, port)
         std = sys.stdout
         sys.stdout = RestApi.Dummy
         self.api.run(host=host, port=port, debug=debug, load_dotenv=load_dotenv)

@@ -1,10 +1,7 @@
+"""Stub file for type checking with Mypy"""
 from typing import Any
 
-from registrationserver2 import theLogger as theLogger
-from registrationserver2.modules.device_base_actor import \
-    DeviceBaseActor as DeviceBaseActor
-from registrationserver2.modules.messages import \
-    RETURN_MESSAGES as RETURN_MESSAGES
+from registrationserver2.modules.device_base_actor import DeviceBaseActor
 
 
 class Rfc2217Actor(DeviceBaseActor):

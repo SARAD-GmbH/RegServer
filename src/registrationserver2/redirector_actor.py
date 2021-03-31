@@ -19,10 +19,10 @@ from dataclasses import dataclass
 import thespian.actors  # type: ignore
 from thespian.actors import Actor  # type: ignore
 
-from registrationserver2 import actor_system, theLogger
+from registrationserver2 import actor_system, logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 
-theLogger.info("%s -> %s", __package__, __file__)
+logger.info("%s -> %s", __package__, __file__)
 
 
 @dataclass
@@ -62,7 +62,7 @@ class RedirectorActor(Actor):
         self._socket.bind((self.HOST, self.PORT))
         self._socket.listen()
         self.my_parent = None
-        theLogger.info("Socket listening on port %d", self.PORT)
+        logger.info("Socket listening on port %d", self.PORT)
 
     def receiveMessage(self, msg, sender):
         """
@@ -111,12 +111,12 @@ class RedirectorActor(Actor):
             client_socket, socket_info = self._socket.accept()
             while True:
                 data = client_socket.recv(9002)
-                theLogger.info("%s from %s", data, socket_info)
+                logger.info("%s from %s", data, socket_info)
                 if not data:
                     break
                 actor_system.ask(self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}})
         except Exception as error:  # pylint: disable=broad-except
-            theLogger.error(
+            logger.error(
                 "[Send data]:\t%s\t%s\t%s\t%s",
                 type(error),
                 error,

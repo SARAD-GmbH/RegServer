@@ -1,10 +1,11 @@
 # pylint: skip-file
-import socket
-import traceback
-import time
 import logging
-from registrationserver2 import theLogger
+import socket
+import time
+import traceback
+
 import registrationserver2
+from registrationserver2 import logger
 
 port: tuple = ("127.0.0.1", 54626)
 _csock: socket.socket
@@ -17,7 +18,7 @@ def testingServ():
     _sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     _sock.bind(("", 0))
     port = _sock.getsockname()
-    theLogger.info(port)
+    logger.info(port)
     _sock.settimeout(0.5)
     _sock.listen()
     cs: socket
@@ -26,11 +27,11 @@ def testingServ():
             (cs, csi) = _sock.accept()
             while True:
                 data = cs.recv(9002)
-                theLogger.info(data)
+                logger.info(data)
                 if not data:
                     break
         except BaseException as error:  # pylint: disable=W0703
-            theLogger.error(
+            logger.error(
                 f'! {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
             )
         finally:
