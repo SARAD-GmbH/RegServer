@@ -503,11 +503,11 @@ class SaradMqttSubscriber(Actor):
         if family_ is None or type_ is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         if family_ == 1:
-            sarad_type = "SARAD-Doseman"
+            sarad_type = "sarad-1688"
         elif family_ == 2:
-            sarad_type = "SARAD-RadonScout"
+            sarad_type = "sarad-1688"
         elif family_ == 5:
-            sarad_type = "SARAD-DACM"
+            sarad_type = "sarad-dacm"
         else:
             theLogger.warning(
                 f"[Add]:\tFound: Unknown family (index: {family_}) of instrument"
@@ -599,11 +599,11 @@ class SaradMqttSubscriber(Actor):
         if family_ is None or type_ is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         if family_ == 1:
-            sarad_type = "SARAD-Doseman"
+            sarad_type = "sarad-1688"
         elif family_ == 2:
-            sarad_type = "SARAD-RadonScout"
+            sarad_type = "sarad-1688"
         elif family_ == 5:
-            sarad_type = "SARAD-DACM"
+            sarad_type = "sarad-dacm"
         else:
             theLogger.warning(
                 f"[Add]:\tFound: Unknown family (index: {family_}) of instrument"
@@ -644,11 +644,11 @@ class SaradMqttSubscriber(Actor):
         if family_ is None or type_ is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         if family_ == 1:
-            sarad_type = "SARAD-Doseman"
+            sarad_type = "sarad-1688"
         elif family_ == 2:
-            sarad_type = "SARAD-RadonScout"
+            sarad_type = "sarad-1688"
         elif family_ == 5:
-            sarad_type = "SARAD-DACM"
+            sarad_type = "sarad-dacm"
         else:
             theLogger.warning(
                 f"[Add]:\tFound: Unknown family (index: {family_}) of instrument"
@@ -994,9 +994,11 @@ def __test__():
     ask_return = actor_system.ask(SARAD_MQTT_SUBSCRIBER, "SETUP")
     if ask_return is RETURN_MESSAGES.get("OK"):
         theLogger.info("SARAD MQTT Subscriber is setup correctly!\n")
+        print("SARAD MQTT Subscriber is setup correctly!\n")
     else:
         theLogger.warning("SARAD MQTT Subscriber is not setup!\n")
         theLogger.error(ask_return)
+        print("SARAD MQTT Subscriber is not setup!\n")
     input("Press Enter to End\n")
     actor_system.ask(SARAD_MQTT_SUBSCRIBER, "KILL")
     theLogger.info("!")
