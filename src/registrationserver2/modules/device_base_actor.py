@@ -31,7 +31,13 @@ class DeviceBaseActor(Actor):
     Implements all methods that all device actors have in common.
     Handles the following actor messages:
 
-    * SETUP:
+    * SETUP: is used to initialize the actor right after its creation. This is
+      needed because some parts of the initialization cannot be done in
+      __init__() (because for instance self.globalName is not available yet in
+      __init__()), other initialization steps require data from the
+      MdnsListener/MqttSubscriber creating the device actor. The same method is
+      used for updates of the device state comming from the
+      MdnsListener/MqttSubscriber.
 
     * RESERVE: is being called when the end-user-application wants to
         reserve the directly or indirectly connected device for exclusive
@@ -46,9 +52,11 @@ class DeviceBaseActor(Actor):
         sending data, should return true as soon the freeing process has been
         initialized
 
-    * KILL:
+    * KILL: similar to SETUP, this is used to do everything that has to be done
+      before performing the ActorExitRequest.
 
     * ECHO: should return what was sent, mainly used for testing.
+
     """
 
     ACCEPTED_COMMANDS = {
@@ -59,6 +67,13 @@ class DeviceBaseActor(Actor):
         "SETUP": "_setup",
         "KILL": "_kill",
     }
+
+    @staticmethod
+    def _echo(msg: dict) -> dict:
+        msg.pop("CMD", None)
+        msg.pop("RETURN", None)
+        msg["RETURN"] = True
+        return msg
 
     def __init__(self):
         super().__init__()
@@ -91,13 +106,6 @@ class DeviceBaseActor(Actor):
             self.send(sender, RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"])
             return
         self.send(sender, getattr(self, cmd)(msg))
-
-    @staticmethod
-    def _echo(msg: dict) -> dict:
-        msg.pop("CMD", None)
-        msg.pop("RETURN", None)
-        msg["RETURN"] = True
-        return msg
 
     def _setup(self, msg: dict) -> dict:
         filename = fr"{self.__folder_history}{self.globalName}"
@@ -138,17 +146,33 @@ class DeviceBaseActor(Actor):
     def _reserve(self, msg: dict) -> dict:
         """Handler for RESERVE message from REST API."""
         theLogger.info("Device actor received a RESERVE command with message: %s", msg)
-        if msg["PAR"]["APP"] is None:
+        try:
+            app = msg["PAR"]["APP"]
+        except LookupError:
             theLogger.error("ERROR: there is no APP name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
-        if msg["PAR"]["HOST"] is None:
+        try:
+            host = msg["PAR"]["HOST"]
+        except LookupError:
             theLogger.error("ERROR: there is no HOST name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
-        if msg["PAR"]["USER"] is None:
+        try:
+            user = msg["PAR"]["USER"]
+        except LookupError:
             theLogger.error("ERROR: there is no USER name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
-        # TODO: Check instrument server for availability of requested instrument
-        # Create redirector actor
+        if self._reserve_at_is(app, host, user):
+            return self._create_redirector(app, host, user)
+        return RETURN_MESSAGES["OCCUPIED"]
+
+    def _reserve_at_is(self, app, host, user) -> bool:
+        # pylint: disable=unused-argument, no-self-use
+        """Reserve the requested instrument at the instrument server. This function has
+        to be implemented (overridden) in the protocol specific modules."""
+        return True
+
+    def _create_redirector(self, app, host, user):
+        """Create redirector actor"""
         if self.my_redirector is None:
             short_id = self.globalName.split(".")[0]
             self.my_redirector = self.createActor(RedirectorActor, globalName=short_id)
@@ -160,9 +184,9 @@ class DeviceBaseActor(Actor):
             # Write Reservation section into device file
             reservation = {
                 "Active": True,
-                "App": msg["PAR"]["APP"],
-                "Host": msg["PAR"]["HOST"],
-                "User": msg["PAR"]["USER"],
+                "App": app,
+                "Host": host,
+                "User": user,
                 "IP": redirector_result["RESULT"]["IP"],
                 "Port": redirector_result["RESULT"]["PORT"],
                 "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",

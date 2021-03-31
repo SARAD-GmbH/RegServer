@@ -14,6 +14,7 @@ import traceback
 
 import serial.rfc2217  # type: ignore
 import thespian  # type: ignore
+from overrides import overrides
 from registrationserver2 import theLogger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
@@ -26,6 +27,7 @@ class Rfc2217Actor(DeviceBaseActor):
     a RFC2217Protocol handler and relays messages towards it
     https://pythonhosted.org/pyserial/pyserial_api.html#module-serial.aio"""
 
+    @overrides
     def __init__(self):
         super().__init__()
         self.__port: serial.rfc2217.Serial = None
@@ -72,6 +74,7 @@ class Rfc2217Actor(DeviceBaseActor):
             return full_return
         return RETURN_MESSAGES.get("ILLEGAL_STATE")
 
+    @overrides
     def _free(self, msg: dict):
         if self.__port is not None:
             if self.__port.isOpen():
@@ -79,12 +82,20 @@ class Rfc2217Actor(DeviceBaseActor):
             self.__port = None
         return super()._free(msg)
 
+    @overrides
     def _kill(self, msg: dict):
         if self.__port is not None:
             if self.__port.isOpen():
                 self.__port.close()
             self.__port = None
         return super()._kill(msg)
+
+    @overrides
+    def _reserve_at_is(self, app, host, user) -> bool:
+        # pylint: disable=unused-argument, no-self-use
+        """Reserve the requested instrument at the instrument server. This function has
+        to be implemented (overridden) in the protocol specific modules."""
+        return True
 
 
 def _test():
