@@ -38,7 +38,8 @@ actor_system: ActorSystem = ActorSystem()
 # Logging configuration
 # =======================
 logger = logging.getLogger("Reg. Server 2")
-FORMATTER = "[%(name)s]\t[%(levelname)s]\t%(message)s"
+FORMATTER = "%(asctime)-15s %(levelname)-6s %(module)-15s %(message)s"
+# FORMATTER = "[%(name)s]\t[%(levelname)s]\t%(message)s"
 logging.basicConfig(format=FORMATTER, force=True)
 logger.setLevel(config["LEVEL"])
 logger.info("Logging system initialized.")

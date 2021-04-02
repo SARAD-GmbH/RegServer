@@ -237,11 +237,16 @@ class RestApi(Actor):
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
+        msg = {
+            "CMD": "RESERVE",
+            "PAR": {"HOST": request_host, "USER": user, "APP": app},
+        }
+        logger.debug("Ask device actor %s", msg)
         reserve_return = registrationserver2.actor_system.ask(
             device_actor,
-            {"CMD": "RESERVE", "PAR": {"HOST": request_host, "USER": user, "APP": app}},
+            msg,
         )
-        logger.info(reserve_return)
+        logger.debug("returned with %s", reserve_return)
         answer = {}
         try:
             if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
@@ -276,11 +281,12 @@ class RestApi(Actor):
         device_actor = registrationserver2.actor_system.createActor(
             Actor, globalName=did
         )
+        logger.debug("Ask device actor to FREE...")
         free_return = registrationserver2.actor_system.ask(
             device_actor,
             {"CMD": "FREE"},
         )
-        logger.info("[Free] returned %s", free_return)
+        logger.info("returned with %s", free_return)
         if free_return is RETURN_MESSAGES["OK"] or RETURN_MESSAGES["OK_SKIPPED"]:
             answer = {}
             if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):

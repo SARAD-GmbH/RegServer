@@ -14,7 +14,7 @@ import traceback
 
 import serial.rfc2217  # type: ignore
 import thespian  # type: ignore
-from overrides import overrides
+from overrides import overrides  # type: ignore
 from registrationserver2 import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
@@ -70,7 +70,7 @@ class Rfc2217Actor(DeviceBaseActor):
                     break
                 _return = _return + _return_part
             full_return = RETURN_MESSAGES["OK"]
-            full_return["RESULT"] = _return
+            full_return["RESULT"] = {"DATA": _return}
             return full_return
         return RETURN_MESSAGES.get("ILLEGAL_STATE")
 

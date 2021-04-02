@@ -17,4 +17,6 @@ config: Dict[str, Any] = {
     "MDNS_TIMEOUT": 3000,
     "TYPE": "_rfc2217._tcp.local.",
     "LEVEL": logging.DEBUG,
+    "PORT_RANGE": range(50000, 50500),
+    "HOST": "192.168.178.20",
 }
