@@ -19,8 +19,8 @@ import threading
 import traceback
 
 import hashids  # type: ignore
-import registrationserver2
-from registrationserver2 import FOLDER_AVAILABLE, FOLDER_HISTORY, logger
+from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
+                                 actor_system, logger)
 from registrationserver2.config import config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
@@ -112,19 +112,15 @@ class MdnsListener(ServiceListener):
                 logger.info("[Add]:\t%s", info.properties)
             # If an actor already exists, this will return
             # the address of the excisting one, else it will create a new one.
-            this_actor = registrationserver2.actor_system.createActor(
-                Rfc2217Actor, globalName=name
-            )
+            this_actor = actor_system.createActor(Rfc2217Actor, globalName=name)
             data = self.convert_properties(name=name, info=info)
-            setup_return = registrationserver2.actor_system.ask(
-                this_actor, {"CMD": "SETUP", "PAR": data}
-            )
+            setup_return = actor_system.ask(this_actor, {"CMD": "SETUP", "PAR": data})
             logger.info(setup_return)
             if not (
                 setup_return is RETURN_MESSAGES["OK"]
                 or setup_return is RETURN_MESSAGES["OK_UPDATED"]
             ):
-                registrationserver2.actor_system.tell(this_actor, {"CMD": "KILL"})
+                actor_system.tell(this_actor, {"CMD": "KILL"})
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=C0103
@@ -138,19 +134,15 @@ class MdnsListener(ServiceListener):
             logger.info("[Update]:\tGot Info: %s", info)
             # If an actor already exists, this will return
             # the address of the excisting one, else it will create a new one.
-            this_actor = registrationserver2.actor_system.createActor(
-                Rfc2217Actor, globalName=name
-            )
+            this_actor = actor_system.createActor(Rfc2217Actor, globalName=name)
             data = self.convert_properties(name=name, info=info)
-            setup_return = registrationserver2.actor_system.ask(
-                this_actor, {"CMD": "SETUP", "PAR": data}
-            )
+            setup_return = actor_system.ask(this_actor, {"CMD": "SETUP", "PAR": data})
             logger.info(setup_return)
             if not (
                 setup_return is RETURN_MESSAGES["OK"]
                 or setup_return is RETURN_MESSAGES["OK_UPDATED"]
             ):
-                registrationserver2.actor_system.tell(this_actor, {"CMD": "KILL"})
+                actor_system.tell(this_actor, {"CMD": "KILL"})
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Hook, being called when a regular shutdown of a service
@@ -162,12 +154,8 @@ class MdnsListener(ServiceListener):
             logger.debug("[Del]:\tInfo: %s", info)
             if os.path.exists(link):
                 os.unlink(link)
-            this_actor = registrationserver2.actor_system.createActor(
-                Rfc2217Actor, globalName=name
-            )
-            logger.info(
-                registrationserver2.actor_system.ask(this_actor, {"CMD": "KILL"})
-            )
+            this_actor = actor_system.createActor(Rfc2217Actor, globalName=name)
+            logger.info(actor_system.ask(this_actor, {"CMD": "KILL"}))
 
     def remove_all_services(self) -> None:
         """Kill all device actors and remove all links to device file from FOLDER_AVAILABLE."""
@@ -179,11 +167,7 @@ class MdnsListener(ServiceListener):
                             link = os.path.join(root, name)
                             logger.debug("[Del]:\tRemoved: %s", name)
                             os.unlink(link)
-                            this_actor = registrationserver2.actor_system.createActor(
+                            this_actor = actor_system.createActor(
                                 Rfc2217Actor, globalName=name
                             )
-                            logger.info(
-                                registrationserver2.actor_system.ask(
-                                    this_actor, {"CMD": "KILL"}
-                                )
-                            )
+                            logger.info(actor_system.ask(this_actor, {"CMD": "KILL"}))

@@ -21,12 +21,11 @@ import sys
 import traceback
 
 from flask import Flask, Response, json, request
-from thespian.actors import Actor  # type: ignore
 
-import registrationserver2
 from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
                                  FREE_KEYWORD, PATH_AVAILABLE, PATH_HISTORY,
-                                 RESERVE_KEYWORD, logger)
+                                 RESERVE_KEYWORD, actor_system, logger)
+from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
 from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
@@ -36,7 +35,7 @@ logger.info("%s -> %s", __package__, __file__)
 MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 
 
-class RestApi(Actor):
+class RestApi:
     """REST API
     delivers lists and info for devices
     relays reservation and free requests to the device actors.
@@ -224,13 +223,9 @@ class RestApi(Actor):
             return json.dumps({"Error": "Wronly formated ID"})
         # send RESERVE message to device actor
         if "_rfc2217" in did:
-            device_actor = registrationserver2.actor_system.createActor(
-                Rfc2217Actor, globalName=did
-            )
+            device_actor = actor_system.createActor(Rfc2217Actor, globalName=did)
         elif "mqtt" in did:
-            device_actor = registrationserver2.actor_system.createActor(
-                MqttActor, globalName=did
-            )
+            device_actor = actor_system.createActor(MqttActor, globalName=did)
         else:
             logger.error("Requested service not supported by actor system.")
             answer = {"Error code": "11", "Error": "Device not found", did: {}}
@@ -242,7 +237,7 @@ class RestApi(Actor):
             "PAR": {"HOST": request_host, "USER": user, "APP": app},
         }
         logger.debug("Ask device actor %s", msg)
-        reserve_return = registrationserver2.actor_system.ask(
+        reserve_return = actor_system.ask(
             device_actor,
             msg,
         )
@@ -278,11 +273,9 @@ class RestApi(Actor):
     )
     def free_device(did):
         """Path for freeing a single active device"""
-        device_actor = registrationserver2.actor_system.createActor(
-            Actor, globalName=did
-        )
+        device_actor = actor_system.createActor(DeviceBaseActor, globalName=did)
         logger.debug("Ask device actor to FREE...")
-        free_return = registrationserver2.actor_system.ask(
+        free_return = actor_system.ask(
             device_actor,
             {"CMD": "FREE"},
         )

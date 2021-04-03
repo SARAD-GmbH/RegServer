@@ -15,8 +15,7 @@ import os
 import signal
 import threading
 
-import registrationserver2
-from registrationserver2 import FOLDER_AVAILABLE, logger
+from registrationserver2 import FOLDER_AVAILABLE, actor_system, logger
 from registrationserver2.config import config
 from registrationserver2.modules.rfc2217.mdns_listener import MdnsListener
 from registrationserver2.restapi import RestApi
@@ -45,7 +44,7 @@ def main():
     def cleanup():  # pylint: disable=unused-variable
         """Make sure all sub threads are stopped, including the REST API"""
         logger.info("Cleaning up before closing.")
-        registrationserver2.actor_system.shutdown()
+        actor_system.shutdown()
         if os.path.exists(FOLDER_AVAILABLE):
             for root, _, files in os.walk(FOLDER_AVAILABLE):
                 for name in files:

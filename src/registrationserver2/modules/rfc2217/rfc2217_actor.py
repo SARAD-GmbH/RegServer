@@ -29,8 +29,10 @@ class Rfc2217Actor(DeviceBaseActor):
 
     @overrides
     def __init__(self):
+        logger.debug("Initialize a new RFC2217 actor.")
         super().__init__()
         self.__port: serial.rfc2217.Serial = None
+        logger.debug("RFC2217 actor created.")
 
     def _connect(self):
         """internal Function to connect to instrument server 2 over rfc2217"""

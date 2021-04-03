@@ -13,7 +13,6 @@ import os
 from builtins import staticmethod
 from datetime import datetime
 
-import registrationserver2
 import thespian.actors  # type: ignore
 from flask import json
 from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
@@ -76,6 +75,7 @@ class DeviceBaseActor(Actor):
         return msg
 
     def __init__(self):
+        logger.debug("Initialize a new device actor.")
         super().__init__()
         self._config: dict = {}
         self._file: json
@@ -145,12 +145,12 @@ class DeviceBaseActor(Actor):
             os.remove(filename)
         if self.my_redirector is not None:
             logger.debug("Ask to kill redirector...")
-            kill_return = registrationserver2.actor_system.ask(
+            kill_return = actor_system.ask(
                 self.my_redirector, thespian.actors.ActorExitRequest()
             )
             logger.info("returned with %s", kill_return)
         logger.debug("Ask to kill myself...")
-        kill_return = registrationserver2.actor_system.ask(
+        kill_return = actor_system.ask(
             self.myAddress, thespian.actors.ActorExitRequest()
         )
         logger.info("returned with: %s", kill_return)
@@ -225,9 +225,7 @@ class DeviceBaseActor(Actor):
         logger.info("Device actor received a FREE command.")
         if self.my_redirector is not None:
             logger.debug("Ask to kill redirecot...")
-            kill_return = registrationserver2.actor_system.ask(
-                self.my_redirector, {"CMD": "KILL"}
-            )
+            kill_return = actor_system.ask(self.my_redirector, {"CMD": "KILL"})
             logger.debug("returned with %s", kill_return)
             # Write Free section into device file
             df_content = json.loads(self._file)

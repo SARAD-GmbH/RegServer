@@ -27,15 +27,20 @@ config.setdefault(
     f'{os.environ.get("HOME", None) or os.environ.get("LOCALAPPDATA",None)}{os.path.sep}SARAD{os.path.sep}hosts',
 )
 
+
 # =======================
 # Initialization of the actor system,
 # can be changed to a distributed system here.
 # TODO:  Setup ActorSystem with values from the configuration
 # =======================
-actor_system: ActorSystem = ActorSystem()
+actor_system = ActorSystem(
+    # systemBase="multiprocTCPBase",
+    # capabilities={"Admin Port": 1901, "Process Startup Method": "fork"},
+)
 
 # =======================
 # Logging configuration
+# The order is important! Setup logger after the actor system.
 # =======================
 logger = logging.getLogger("Reg. Server 2")
 FORMATTER = "%(asctime)-15s %(levelname)-6s %(module)-15s %(message)s"
