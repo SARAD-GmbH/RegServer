@@ -158,6 +158,10 @@ RETURN_MESSAGES = {
         "ERROR": "Failed to setup the actor",
         "ERROR_CODE": 24,
     },
+    "ILLEGAL_REPLY": {
+        "ERROR": "The reply from IS in wrong format or missed important message",
+        "ERROR_CODE": 25,
+    },
     "OK_SKIPPED": {
         "RETURN": "OK, skipped",
         "ERROR_CODE": 10,
