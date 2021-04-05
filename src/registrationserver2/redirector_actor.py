@@ -17,9 +17,9 @@ import socket
 
 import thespian.actors  # type: ignore
 from overrides import overrides  # type: ignore
-from thespian.actors import Actor  # type: ignore
+from thespian.actors import Actor, ActorSystem  # type: ignore
 
-from registrationserver2 import actor_system, logger
+from registrationserver2 import logger
 from registrationserver2.config import config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 
@@ -53,6 +53,10 @@ class RedirectorActor(Actor):
                 pass
         self._socket.listen()
         self.my_parent = None
+        self.actor_system = ActorSystem(
+            systemBase="multiprocTCPBase",
+            capabilities={"Admin Port": 1901, "Process Startup Method": "fork"},
+        )
         logger.info("Socket listening on port %d", self._port)
 
     @overrides
@@ -111,7 +115,7 @@ class RedirectorActor(Actor):
     def _kill(self, _):
         self._socket.close()
         logger.debug("Ask myself to exit...")
-        kill_return = actor_system.ask(
+        kill_return = self.actor_system.ask(
             self.myAddress, thespian.actors.ActorExitRequest()
         )
         logger.debug("returned with %s", kill_return)
@@ -140,7 +144,7 @@ class RedirectorActor(Actor):
         if not data:
             return
         logger.debug("Ask device actor to SEND data...")
-        send_response = actor_system.ask(
+        send_response = self.actor_system.ask(
             self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}}
         )
         logger.debug("returned with %s", send_response)

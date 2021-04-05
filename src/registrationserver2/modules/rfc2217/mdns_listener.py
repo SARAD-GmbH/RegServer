@@ -19,11 +19,11 @@ import threading
 import traceback
 
 import hashids  # type: ignore
-from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
-                                 actor_system, logger)
+from registrationserver2 import FOLDER_AVAILABLE, FOLDER_HISTORY, logger
 from registrationserver2.config import config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
+from thespian.actors import ActorSystem  # type: ignore
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
 logger.info("%s -> %s", __package__, __file__)
@@ -46,15 +46,19 @@ class MdnsListener(ServiceListener):
         if not info or not name:
             return None
         properties = info.properties
-        if not properties or not (_model := properties.get(b"MODEL_ENC", None)):
-            return None
+        if properties is not None:
+            _model = properties.get(b"MODEL_ENC", None)
+            if _model is None:
+                return None
         _model = _model.decode("utf-8")
-        if not (_serial_short := properties.get(b"SERIAL_SHORT", None)):
+        _serial_short = properties.get(b"SERIAL_SHORT", None)
+        if _serial_short is None:
             return None
         _device_id = _serial_short.decode("utf-8").split(".")[0]
         _sarad_protocol = _serial_short.decode("utf-8").split(".")[1]
         hids = hashids.Hashids()
-        if not (_ids := hids.decode(_device_id)):
+        _ids = hids.decode(_device_id)
+        if _ids is None:
             return None
         if not (len(_ids) == 3) or not info.port:
             return None
@@ -99,6 +103,10 @@ class MdnsListener(ServiceListener):
             if not os.path.exists(self.__folder_available):
                 os.makedirs(self.__folder_available)
             logger.debug("Output to: %s", self.__folder_history)
+        self.actor_system = ActorSystem(
+            systemBase="multiprocTCPBase",
+            capabilities={"Admin Port": 1901, "Process Startup Method": "fork"},
+        )
         # Clean __folder_available for a fresh start
         self.remove_all_services()
 
@@ -112,15 +120,18 @@ class MdnsListener(ServiceListener):
                 logger.info("[Add]:\t%s", info.properties)
             # If an actor already exists, this will return
             # the address of the excisting one, else it will create a new one.
-            this_actor = actor_system.createActor(Rfc2217Actor, globalName=name)
+            this_actor = self.actor_system.createActor(Rfc2217Actor, globalName=name)
             data = self.convert_properties(name=name, info=info)
-            setup_return = actor_system.ask(this_actor, {"CMD": "SETUP", "PAR": data})
+            setup_return = self.actor_system.ask(
+                this_actor, {"CMD": "SETUP", "PAR": data}
+            )
             logger.info(setup_return)
-            if not (
-                setup_return is RETURN_MESSAGES["OK"]
-                or setup_return is RETURN_MESSAGES["OK_UPDATED"]
+            if not setup_return in (
+                RETURN_MESSAGES["OK"],
+                RETURN_MESSAGES["OK_UPDATED"],
             ):
-                actor_system.tell(this_actor, {"CMD": "KILL"})
+                logger.debug("Kill device actor")
+                self.actor_system.tell(this_actor, {"CMD": "KILL"})
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=C0103
@@ -134,15 +145,17 @@ class MdnsListener(ServiceListener):
             logger.info("[Update]:\tGot Info: %s", info)
             # If an actor already exists, this will return
             # the address of the excisting one, else it will create a new one.
-            this_actor = actor_system.createActor(Rfc2217Actor, globalName=name)
+            this_actor = self.actor_system.createActor(Rfc2217Actor, globalName=name)
             data = self.convert_properties(name=name, info=info)
-            setup_return = actor_system.ask(this_actor, {"CMD": "SETUP", "PAR": data})
+            setup_return = self.actor_system.ask(
+                this_actor, {"CMD": "SETUP", "PAR": data}
+            )
             logger.info(setup_return)
-            if not (
-                setup_return is RETURN_MESSAGES["OK"]
-                or setup_return is RETURN_MESSAGES["OK_UPDATED"]
+            if not setup_return in (
+                RETURN_MESSAGES["OK"],
+                RETURN_MESSAGES["OK_UPDATED"],
             ):
-                actor_system.tell(this_actor, {"CMD": "KILL"})
+                self.actor_system.tell(this_actor, {"CMD": "KILL"})
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Hook, being called when a regular shutdown of a service
@@ -154,8 +167,8 @@ class MdnsListener(ServiceListener):
             logger.debug("[Del]:\tInfo: %s", info)
             if os.path.exists(link):
                 os.unlink(link)
-            this_actor = actor_system.createActor(Rfc2217Actor, globalName=name)
-            logger.info(actor_system.ask(this_actor, {"CMD": "KILL"}))
+            this_actor = self.actor_system.createActor(Rfc2217Actor, globalName=name)
+            logger.info(self.actor_system.ask(this_actor, {"CMD": "KILL"}))
 
     def remove_all_services(self) -> None:
         """Kill all device actors and remove all links to device file from FOLDER_AVAILABLE."""
@@ -167,7 +180,9 @@ class MdnsListener(ServiceListener):
                             link = os.path.join(root, name)
                             logger.debug("[Del]:\tRemoved: %s", name)
                             os.unlink(link)
-                            this_actor = actor_system.createActor(
+                            this_actor = self.actor_system.createActor(
                                 Rfc2217Actor, globalName=name
                             )
-                            logger.info(actor_system.ask(this_actor, {"CMD": "KILL"}))
+                            logger.info(
+                                self.actor_system.ask(this_actor, {"CMD": "KILL"})
+                            )

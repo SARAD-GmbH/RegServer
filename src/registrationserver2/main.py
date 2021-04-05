@@ -15,7 +15,9 @@ import os
 import signal
 import threading
 
-from registrationserver2 import FOLDER_AVAILABLE, actor_system, logger
+from thespian.actors import ActorSystem  # type: ignore
+
+from registrationserver2 import FOLDER_AVAILABLE, logger
 from registrationserver2.config import config
 from registrationserver2.modules.rfc2217.mdns_listener import MdnsListener
 from registrationserver2.restapi import RestApi
@@ -28,6 +30,15 @@ def main():
     * starts the API thread
     * starts the MdnsListener
     """
+    # =======================
+    # Initialization of the actor system,
+    # can be changed to a distributed system here.
+    # TODO:  Setup ActorSystem with values from the configuration
+    # =======================
+    actor_system = ActorSystem(
+        systemBase="multiprocTCPBase",
+        capabilities={"Admin Port": 1901, "Process Startup Method": "fork"},
+    )
     restapi = RestApi()
     apithread = threading.Thread(
         target=restapi.run,

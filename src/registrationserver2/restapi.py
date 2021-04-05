@@ -21,14 +21,12 @@ import sys
 import traceback
 
 from flask import Flask, Response, json, request
+from thespian.actors import Actor, ActorSystem  # type: ignore
 
 from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
                                  FREE_KEYWORD, PATH_AVAILABLE, PATH_HISTORY,
-                                 RESERVE_KEYWORD, actor_system, logger)
-from registrationserver2.modules.device_base_actor import DeviceBaseActor
+                                 RESERVE_KEYWORD, logger)
 from registrationserver2.modules.messages import RETURN_MESSAGES
-from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
-from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
 
 logger.info("%s -> %s", __package__, __file__)
 
@@ -191,6 +189,10 @@ class RestApi:
     )
     def reserve_device(did):
         """Path for reserving a single active device"""
+        actor_system = ActorSystem(
+            systemBase="multiprocTCPBase",
+            capabilities={"Admin Port": 1901, "Process Startup Method": "fork"},
+        )
         # Collect information about who sent the request.
         try:
             attribute_who = request.args.get("who").strip('"')
@@ -222,10 +224,8 @@ class RestApi:
         if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
         # send RESERVE message to device actor
-        if "_rfc2217" in did:
-            device_actor = actor_system.createActor(Rfc2217Actor, globalName=did)
-        elif "mqtt" in did:
-            device_actor = actor_system.createActor(MqttActor, globalName=did)
+        if ("_rfc2217" in did) or ("mqtt" in did):
+            device_actor = actor_system.createActor(Actor, globalName=did)
         else:
             logger.error("Requested service not supported by actor system.")
             answer = {"Error code": "11", "Error": "Device not found", did: {}}
@@ -273,7 +273,11 @@ class RestApi:
     )
     def free_device(did):
         """Path for freeing a single active device"""
-        device_actor = actor_system.createActor(DeviceBaseActor, globalName=did)
+        actor_system = ActorSystem(
+            systemBase="multiprocTCPBase",
+            capabilities={"Admin Port": 1901, "Process Startup Method": "fork"},
+        )
+        device_actor = actor_system.createActor(Actor, globalName=did)
         logger.debug("Ask device actor to FREE...")
         free_return = actor_system.ask(
             device_actor,

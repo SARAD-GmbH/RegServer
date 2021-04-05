@@ -6,8 +6,6 @@ connects all kinds of Instrument Server 2 with the user applications
 import logging
 import os
 
-from thespian.actors import ActorSystem  # type: ignore
-
 from registrationserver2.config import config
 
 # =======================
@@ -27,16 +25,6 @@ config.setdefault(
     f'{os.environ.get("HOME", None) or os.environ.get("LOCALAPPDATA",None)}{os.path.sep}SARAD{os.path.sep}hosts',
 )
 
-
-# =======================
-# Initialization of the actor system,
-# can be changed to a distributed system here.
-# TODO:  Setup ActorSystem with values from the configuration
-# =======================
-actor_system = ActorSystem(
-    # systemBase="multiprocTCPBase",
-    # capabilities={"Admin Port": 1901, "Process Startup Method": "fork"},
-)
 
 # =======================
 # Logging configuration
@@ -76,3 +64,4 @@ FOLDER2_HISTORY = f'{config["FOLDER2"]}{os.path.sep}{FILE_PATH_HISTORY}'
 
 RESERVE_KEYWORD: str = "reserve"
 FREE_KEYWORD: str = "free"
+logger.debug("Registrationserver2 initialized.")
