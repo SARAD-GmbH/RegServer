@@ -233,11 +233,10 @@ class DeviceBaseActor(Actor):
 
     def _free(self, msg, sender) -> None:
         """Handler for FREE message from REST API."""
-        logger.info("Device actor received a FREE command.")
+        logger.info("Device actor received a FREE command. %s", msg)
         if self.my_redirector is not None:
-            logger.debug("Ask to kill redirecot...")
-            kill_return = ActorSystem().ask(self.my_redirector, {"CMD": "KILL"})
-            logger.debug("returned with %s", kill_return)
+            logger.debug("Ask to kill redirector")
+            self.send(self.my_redirector, {"CMD": "KILL"})
             # Write Free section into device file
             df_content = json.loads(self._file)
             free = {

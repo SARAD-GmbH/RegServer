@@ -77,20 +77,20 @@ class Rfc2217Actor(DeviceBaseActor):
         return RETURN_MESSAGES.get("ILLEGAL_STATE")
 
     @overrides
-    def _free(self, msg: dict):
+    def _free(self, msg: dict, sender):
         if self.__port is not None:
             if self.__port.isOpen():
                 self.__port.close()
             self.__port = None
-        return super()._free(msg)
+        return super()._free(msg, sender)
 
     @overrides
-    def _kill(self, msg: dict):
+    def _kill(self, msg: dict, sender):
         if self.__port is not None:
             if self.__port.isOpen():
                 self.__port.close()
             self.__port = None
-        return super()._kill(msg)
+        return super()._kill(msg, sender)
 
     @overrides
     def _reserve_at_is(self, app, host, user) -> bool:

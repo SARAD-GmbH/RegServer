@@ -115,11 +115,8 @@ class RedirectorActor(Actor):
     def _kill(self, _):
         self._socket.close()
         logger.debug("Ask myself to exit...")
-        kill_return = ActorSystem().ask(
-            self.myAddress, thespian.actors.ActorExitRequest()
-        )
-        logger.debug("returned with %s", kill_return)
-        return kill_return
+        self.send(self.myAddress, thespian.actors.ActorExitRequest())
+        return RETURN_MESSAGES["OK"]
 
     def _connect_loop(self, _):
         """Listen to Port and redirect any messages"""
