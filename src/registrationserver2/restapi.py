@@ -19,6 +19,7 @@ import re
 import socket
 import sys
 import traceback
+from datetime import timedelta
 
 from flask import Flask, Response, json, request
 from thespian.actors import Actor, ActorSystem  # type: ignore
@@ -189,10 +190,6 @@ class RestApi:
     )
     def reserve_device(did):
         """Path for reserving a single active device"""
-        actor_system = ActorSystem(
-            systemBase="multiprocTCPBase",
-            capabilities={"Admin Port": 1901, "Process Startup Method": "fork"},
-        )
         # Collect information about who sent the request.
         try:
             attribute_who = request.args.get("who").strip('"')
@@ -225,7 +222,7 @@ class RestApi:
             return json.dumps({"Error": "Wronly formated ID"})
         # send RESERVE message to device actor
         if ("_rfc2217" in did) or ("mqtt" in did):
-            device_actor = actor_system.createActor(Actor, globalName=did)
+            device_actor = ActorSystem().createActor(Actor, globalName=did)
         else:
             logger.error("Requested service not supported by actor system.")
             answer = {"Error code": "11", "Error": "Device not found", did: {}}
@@ -237,10 +234,7 @@ class RestApi:
             "PAR": {"HOST": request_host, "USER": user, "APP": app},
         }
         logger.debug("Ask device actor %s", msg)
-        reserve_return = actor_system.ask(
-            device_actor,
-            msg,
-        )
+        reserve_return = ActorSystem().ask(device_actor, msg, timedelta(seconds=3))
         logger.debug("returned with %s", reserve_return)
         answer = {}
         try:
@@ -273,13 +267,9 @@ class RestApi:
     )
     def free_device(did):
         """Path for freeing a single active device"""
-        actor_system = ActorSystem(
-            systemBase="multiprocTCPBase",
-            capabilities={"Admin Port": 1901, "Process Startup Method": "fork"},
-        )
-        device_actor = actor_system.createActor(Actor, globalName=did)
+        device_actor = ActorSystem().createActor(Actor, globalName=did)
         logger.debug("Ask device actor to FREE...")
-        free_return = actor_system.ask(
+        free_return = ActorSystem().ask(
             device_actor,
             {"CMD": "FREE"},
         )

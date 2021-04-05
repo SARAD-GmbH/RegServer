@@ -19,4 +19,6 @@ config: Dict[str, Any] = {
     "LEVEL": logging.DEBUG,
     "PORT_RANGE": range(50000, 50500),
     "HOST": "192.168.178.20",
+    "systemBase": "multiprocTCPBase",
+    "capabilities": {"Admin Port": 1901, "Process Startup Method": "fork"},
 }

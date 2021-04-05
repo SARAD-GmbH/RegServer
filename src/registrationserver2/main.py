@@ -33,12 +33,12 @@ def main():
     # =======================
     # Initialization of the actor system,
     # can be changed to a distributed system here.
-    # TODO:  Setup ActorSystem with values from the configuration
     # =======================
-    actor_system = ActorSystem(
-        systemBase="multiprocTCPBase",
-        capabilities={"Admin Port": 1901, "Process Startup Method": "fork"},
+    ActorSystem(
+        systemBase=config["systemBase"],
+        capabilities=config["capabilities"],
     )
+    logger.debug("Actor system started.")
     restapi = RestApi()
     apithread = threading.Thread(
         target=restapi.run,
@@ -55,7 +55,8 @@ def main():
     def cleanup():  # pylint: disable=unused-variable
         """Make sure all sub threads are stopped, including the REST API"""
         logger.info("Cleaning up before closing.")
-        actor_system.shutdown()
+        ActorSystem().shutdown()
+        logger.debug("Actor system shut down finished.")
         if os.path.exists(FOLDER_AVAILABLE):
             for root, _, files in os.walk(FOLDER_AVAILABLE):
                 for name in files:

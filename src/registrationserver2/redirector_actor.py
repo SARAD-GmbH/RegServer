@@ -53,10 +53,6 @@ class RedirectorActor(Actor):
                 pass
         self._socket.listen()
         self.my_parent = None
-        self.actor_system = ActorSystem(
-            systemBase="multiprocTCPBase",
-            capabilities={"Admin Port": 1901, "Process Startup Method": "fork"},
-        )
         logger.info("Socket listening on port %d", self._port)
 
     @overrides
@@ -76,6 +72,8 @@ class RedirectorActor(Actor):
             return_msg = RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]
             logger.debug("Send %s back to %s", return_msg, sender)
             self.send(sender, return_msg)
+            return
+        if msg.get("RETURN", None) is not None:
             return
         cmd_key = msg.get("CMD", None)
         logger.debug("%s command received", cmd_key)
@@ -104,18 +102,20 @@ class RedirectorActor(Actor):
         self.send(sender, return_msg)
 
     def _setup(self, msg):
+        logger.debug("Setup redirector actor")
         if self.my_parent is None:
             parent_name = msg["PAR"]["PARENT_NAME"]
             self.my_parent = self.createActor(Actor, globalName=parent_name)
-            return_msg = RETURN_MESSAGES["OK"]
+            return_msg = {"CMD": "RETURN"}
             return_msg["RESULT"] = {"IP": self._host, "PORT": self._port}
+            logger.debug("Setup finished with %s", return_msg)
             return return_msg
         return RETURN_MESSAGES["OK_SKIPPED"]
 
     def _kill(self, _):
         self._socket.close()
         logger.debug("Ask myself to exit...")
-        kill_return = self.actor_system.ask(
+        kill_return = ActorSystem().ask(
             self.myAddress, thespian.actors.ActorExitRequest()
         )
         logger.debug("returned with %s", kill_return)
@@ -125,7 +125,7 @@ class RedirectorActor(Actor):
         """Listen to Port and redirect any messages"""
         logger.debug("Waiting for connect at %s port %s", self._host, self._port)
         # (self._client_socket, self._socket_info) = self._socket.accept()
-        self.wakeupAfter(datetime.timedelta(seconds=1), payload="Hallo")
+        # self.wakeupAfter(datetime.timedelta(seconds=1), payload="Hallo")
 
         """
         if self._client_socket is not None:
@@ -144,7 +144,7 @@ class RedirectorActor(Actor):
         if not data:
             return
         logger.debug("Ask device actor to SEND data...")
-        send_response = self.actor_system.ask(
+        send_response = ActorSystem().ask(
             self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}}
         )
         logger.debug("returned with %s", send_response)

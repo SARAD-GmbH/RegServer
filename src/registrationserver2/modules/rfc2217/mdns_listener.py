@@ -103,10 +103,6 @@ class MdnsListener(ServiceListener):
             if not os.path.exists(self.__folder_available):
                 os.makedirs(self.__folder_available)
             logger.debug("Output to: %s", self.__folder_history)
-        self.actor_system = ActorSystem(
-            systemBase="multiprocTCPBase",
-            capabilities={"Admin Port": 1901, "Process Startup Method": "fork"},
-        )
         # Clean __folder_available for a fresh start
         self.remove_all_services()
 
@@ -120,18 +116,16 @@ class MdnsListener(ServiceListener):
                 logger.info("[Add]:\t%s", info.properties)
             # If an actor already exists, this will return
             # the address of the excisting one, else it will create a new one.
-            this_actor = self.actor_system.createActor(Rfc2217Actor, globalName=name)
+            this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=name)
             data = self.convert_properties(name=name, info=info)
-            setup_return = self.actor_system.ask(
-                this_actor, {"CMD": "SETUP", "PAR": data}
-            )
+            setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": data})
             logger.info(setup_return)
             if not setup_return in (
                 RETURN_MESSAGES["OK"],
                 RETURN_MESSAGES["OK_UPDATED"],
             ):
                 logger.debug("Kill device actor")
-                self.actor_system.tell(this_actor, {"CMD": "KILL"})
+                ActorSystem().tell(this_actor, {"CMD": "KILL"})
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=C0103
@@ -145,17 +139,15 @@ class MdnsListener(ServiceListener):
             logger.info("[Update]:\tGot Info: %s", info)
             # If an actor already exists, this will return
             # the address of the excisting one, else it will create a new one.
-            this_actor = self.actor_system.createActor(Rfc2217Actor, globalName=name)
+            this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=name)
             data = self.convert_properties(name=name, info=info)
-            setup_return = self.actor_system.ask(
-                this_actor, {"CMD": "SETUP", "PAR": data}
-            )
+            setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": data})
             logger.info(setup_return)
             if not setup_return in (
                 RETURN_MESSAGES["OK"],
                 RETURN_MESSAGES["OK_UPDATED"],
             ):
-                self.actor_system.tell(this_actor, {"CMD": "KILL"})
+                ActorSystem().tell(this_actor, {"CMD": "KILL"})
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Hook, being called when a regular shutdown of a service
@@ -167,8 +159,8 @@ class MdnsListener(ServiceListener):
             logger.debug("[Del]:\tInfo: %s", info)
             if os.path.exists(link):
                 os.unlink(link)
-            this_actor = self.actor_system.createActor(Rfc2217Actor, globalName=name)
-            logger.info(self.actor_system.ask(this_actor, {"CMD": "KILL"}))
+            this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=name)
+            logger.info(ActorSystem().ask(this_actor, {"CMD": "KILL"}))
 
     def remove_all_services(self) -> None:
         """Kill all device actors and remove all links to device file from FOLDER_AVAILABLE."""
@@ -180,9 +172,7 @@ class MdnsListener(ServiceListener):
                             link = os.path.join(root, name)
                             logger.debug("[Del]:\tRemoved: %s", name)
                             os.unlink(link)
-                            this_actor = self.actor_system.createActor(
+                            this_actor = ActorSystem().createActor(
                                 Rfc2217Actor, globalName=name
                             )
-                            logger.info(
-                                self.actor_system.ask(this_actor, {"CMD": "KILL"})
-                            )
+                            logger.info(ActorSystem().ask(this_actor, {"CMD": "KILL"}))

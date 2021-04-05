@@ -11,11 +11,12 @@ Authors
 """
 import os
 from builtins import staticmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import thespian.actors  # type: ignore
 from flask import json
 from registrationserver2 import FOLDER_AVAILABLE, FOLDER_HISTORY, logger
+from registrationserver2.config import config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.redirector_actor import RedirectorActor
 from thespian.actors import Actor, ActorSystem  # type: ignore
@@ -64,6 +65,7 @@ class DeviceBaseActor(Actor):
         "FREE": "_free",
         "SETUP": "_setup",
         "KILL": "_kill",
+        "RETURN": "_return_with_socket",
     }
 
     @staticmethod
@@ -82,10 +84,6 @@ class DeviceBaseActor(Actor):
         self.__folder_history: str = FOLDER_HISTORY + os.path.sep
         self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
         self.my_redirector = None
-        self.actor_system = ActorSystem(
-            systemBase="multiprocTCPBase",
-            capabilities={"Admin Port": 1901, "Process Startup Method": "fork"},
-        )
         logger.info("Device actor created.")
 
     def receiveMessage(self, msg, sender):
@@ -99,6 +97,8 @@ class DeviceBaseActor(Actor):
             return_msg = RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]
             logger.debug("Send %s back to %s", return_msg, sender)
             self.send(sender, return_msg)
+            return
+        if msg.get("RETURN", None) is not None:
             return
         cmd_key = msg.get("CMD", None)
         if cmd_key is None:
@@ -148,37 +148,34 @@ class DeviceBaseActor(Actor):
             os.remove(filename)
         if self.my_redirector is not None:
             logger.debug("Ask to kill redirector...")
-            kill_return = self.actor_system.ask(
+            kill_return = ActorSystem().ask(
                 self.my_redirector, thespian.actors.ActorExitRequest()
             )
             logger.info("returned with %s", kill_return)
         logger.debug("Ask to kill myself...")
-        kill_return = self.actor_system.ask(
-            self.myAddress, thespian.actors.ActorExitRequest()
-        )
-        logger.info("returned with: %s", kill_return)
+        self.send(self.myAddress, thespian.actors.ActorExitRequest())
         return RETURN_MESSAGES["OK"]
 
     def _reserve(self, msg: dict) -> dict:
         """Handler for RESERVE message from REST API."""
         logger.info("Device actor received a RESERVE command with message: %s", msg)
         try:
-            app = msg["PAR"]["APP"]
+            self.app = msg["PAR"]["APP"]
         except LookupError:
             logger.error("ERROR: there is no APP name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
         try:
-            host = msg["PAR"]["HOST"]
+            self.host = msg["PAR"]["HOST"]
         except LookupError:
             logger.error("ERROR: there is no HOST name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
         try:
-            user = msg["PAR"]["USER"]
+            self.user = msg["PAR"]["USER"]
         except LookupError:
             logger.error("ERROR: there is no USER name!")
             return RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
-        if self._reserve_at_is(app, host, user):
-            return self._create_redirector(app, host, user)
+        if self._reserve_at_is(self.app, self.host, self.user):
+            return self._create_redirector(self.app, self.host, self.user)
         return RETURN_MESSAGES["OCCUPIED"]
 
     def _reserve_at_is(self, app, host, user) -> bool:
@@ -190,45 +187,48 @@ class DeviceBaseActor(Actor):
     def _create_redirector(self, app, host, user):
         """Create redirector actor"""
         if self.my_redirector is None:
-            logger.debug("Trying to create a redirector actor...")
             short_id = self.globalName.split(".")[0]
-            self.my_redirector = self.createActor(RedirectorActor, globalName=short_id)
-            logger.debug("Ask to setup redirector...")
-            redirector_result = self.actor_system.ask(
-                self.my_redirector,
-                {"CMD": "SETUP", "PAR": {"PARENT_NAME": self.globalName}},
+            logger.debug(
+                "Trying to create a redirector actor with globalName %s", short_id
             )
-            logger.debug("returned with %s", redirector_result)
-            # Write Reservation section into device file
-            ip_address = redirector_result["RESULT"]["IP"]
-            port = redirector_result["RESULT"]["PORT"]
-            reservation = {
-                "Active": True,
-                "App": app,
-                "Host": host,
-                "User": user,
-                "IP": ip_address,
-                "Port": port,
-                "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
-            }
-            logger.info("Reservation: %s", reservation)
-            df_content = json.loads(self._file)
-            df_content["Reservation"] = reservation
-            self._file = json.dumps(df_content)
-            logger.info("self._file: %s", self._file)
-            with open(self.link, "w+") as file_stream:
-                file_stream.write(self._file)
-            logger.debug("Send CONNECT command to redirector")
-            self.send(self.my_redirector, {"CMD": "CONNECT"})
-            return RETURN_MESSAGES["OK"]
+            self.my_redirector = self.createActor(RedirectorActor, globalName=short_id)
+            msg = {"CMD": "SETUP", "PAR": {"PARENT_NAME": self.globalName}}
+            logger.debug("Ask to setup redirector with msg %s", msg)
+            self.send(self.my_redirector, msg)
+            return
         return RETURN_MESSAGES["OK_SKIPPED"]
+
+    def _return_with_socket(self, msg):
+        logger.debug("returned with %s", msg)
+        # Write Reservation section into device file
+        ip_address = msg["RESULT"]["IP"]
+        port = msg["RESULT"]["PORT"]
+        reservation = {
+            "Active": True,
+            "App": self.app,
+            "Host": self.host,
+            "User": self.user,
+            "IP": ip_address,
+            "Port": port,
+            "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        }
+        logger.info("Reservation: %s", reservation)
+        df_content = json.loads(self._file)
+        df_content["Reservation"] = reservation
+        self._file = json.dumps(df_content)
+        logger.info("self._file: %s", self._file)
+        with open(self.link, "w+") as file_stream:
+            file_stream.write(self._file)
+        logger.debug("Send CONNECT command to redirector")
+        self.send(self.my_redirector, {"CMD": "CONNECT"})
+        self.send(self.) RETURN_MESSAGES["OK"]
 
     def _free(self, _: dict) -> dict:
         """Handler for FREE message from REST API."""
         logger.info("Device actor received a FREE command.")
         if self.my_redirector is not None:
             logger.debug("Ask to kill redirecot...")
-            kill_return = self.actor_system.ask(self.my_redirector, {"CMD": "KILL"})
+            kill_return = ActorSystem().ask(self.my_redirector, {"CMD": "KILL"})
             logger.debug("returned with %s", kill_return)
             # Write Free section into device file
             df_content = json.loads(self._file)

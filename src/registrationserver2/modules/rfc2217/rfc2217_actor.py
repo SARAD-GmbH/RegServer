@@ -13,11 +13,11 @@ import time
 import traceback
 
 import serial.rfc2217  # type: ignore
-import thespian  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver2 import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
+from thespian.actors import ActorSystem  # type: ignore
 
 logger.info("%s -> %s", __package__, __file__)
 
@@ -101,13 +101,14 @@ class Rfc2217Actor(DeviceBaseActor):
 
 
 def _test():
-    sys = thespian.actors.ActorSystem()
-    act = sys.createActor(
+    act = ActorSystem().createActor(
         Rfc2217Actor, globalName="0ghMF8Y.sarad-1688._rfc2217._tcp.local."
     )
-    sys.ask(act, {"CMD": "SETUP"})
+    ActorSystem().ask(act, {"CMD": "SETUP"})
     print(
-        sys.ask(act, {"CMD": "SEND", "PAR": {"DATA": b"\x42\x80\x7f\x01\x01\x00\x45"}})
+        ActorSystem().ask(
+            act, {"CMD": "SEND", "PAR": {"DATA": b"\x42\x80\x7f\x01\x01\x00\x45"}}
+        )
     )
     # print(sys.ask(act, {"CMD": "FREE", "DATA": b"\x42\x80\x7f\x0c\x00\x0c\x45"}))
     input("Press Enter to End\n")
