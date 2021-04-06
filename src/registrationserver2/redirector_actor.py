@@ -61,9 +61,13 @@ class RedirectorActor(Actor):
         Handles received Actor messages / verification of the message format
         """
         logger.debug("Msg: %s, Sender: %s", msg, sender)
-        if str(msg) == "WakeupMessage(0:00:01, Hallo)":
-            logger.debug("Wakeup my little Susie, wakeup!")
-            self._connect_loop(msg)
+        if str(msg) == "WakeupMessage(0:00:01, Connect)":
+            logger.debug("Connect loop.")
+            self._connect_loop()
+            return
+        if str(msg) == "WakeupMessage(0:00:01, Receive)":
+            logger.debug("Receive loop.")
+            self._receive_loop()
             return
         if isinstance(msg, thespian.actors.ActorExitRequest):
             self._socket.close()
@@ -84,7 +88,11 @@ class RedirectorActor(Actor):
             return
         if cmd_key == "CONNECT":
             logger.debug("Start _connect_loop")
-            self._connect_loop(msg)
+            self._connect_loop()
+            return
+        if cmd_key == "RECEIVE":
+            logger.debug("Start _receive_loop")
+            self._receive_loop()
             return
         cmd = self.ACCEPTED_COMMANDS.get(cmd_key, None)
         if cmd is None:
@@ -97,11 +105,9 @@ class RedirectorActor(Actor):
             logger.debug("Send %s back to %s", return_msg, sender)
             self.send(sender, return_msg)
             return
-        return_msg = getattr(self, cmd)(msg)
-        logger.debug("Send %s back to %s", return_msg, sender)
-        self.send(sender, return_msg)
+        getattr(self, cmd)(msg, sender)
 
-    def _setup(self, msg):
+    def _setup(self, msg, sender):
         logger.debug("Setup redirector actor")
         if self.my_parent is None:
             parent_name = msg["PAR"]["PARENT_NAME"]
@@ -109,33 +115,29 @@ class RedirectorActor(Actor):
             return_msg = {"CMD": "RETURN"}
             return_msg["RESULT"] = {"IP": self._host, "PORT": self._port}
             logger.debug("Setup finished with %s", return_msg)
-            return return_msg
-        return RETURN_MESSAGES["OK_SKIPPED"]
+            self.send(sender, return_msg)
+            return
+        self.send(sender, RETURN_MESSAGES["OK_SKIPPED"])
 
-    def _kill(self, _):
+    def _kill(self, _, sender):
         self._socket.close()
         logger.debug("Ask myself to exit...")
         self.send(self.myAddress, thespian.actors.ActorExitRequest())
-        return RETURN_MESSAGES["OK"]
+        self.send(sender, RETURN_MESSAGES["OK"])
 
-    def _connect_loop(self, _):
+    def _connect_loop(self):
         """Listen to Port and redirect any messages"""
         logger.debug("Waiting for connect at %s port %s", self._host, self._port)
-        # (self._client_socket, self._socket_info) = self._socket.accept()
-        # self.wakeupAfter(datetime.timedelta(seconds=1), payload="Hallo")
-
-        """
+        self._client_socket, self._socket_info = self._socket.accept()
         if self._client_socket is not None:
             self._connected = True
             logger.debug("Connected to %s", self._socket_info)
             self.send(self.myAddress, {"CMD": "RECEIVE"})
         else:
             logger.debug("Going round and round")
-            time.sleep(1)
-            self.send(self.myAddress, {"CMD": "CONNECT"})
-        """
+            self.wakeupAfter(datetime.timedelta(seconds=1), payload="Connect")
 
-    def _receive_loop(self, _):
+    def _receive_loop(self):
         data = self._client_socket.recv(9002)
         logger.info("%s from %s", data, self._socket_info)
         if not data:
