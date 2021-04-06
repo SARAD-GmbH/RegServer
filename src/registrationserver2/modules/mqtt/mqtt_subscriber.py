@@ -31,11 +31,11 @@ import registrationserver2
 # import traceback
 # import traceback
 import thespian
-from registrationserver2 import actor_system, logger
+from registrationserver2 import logger
 from registrationserver2.modules.mqtt.message import (  # , MQTT_ACTOR_REQUESTs, MQTT_ACTOR_ADRs, IS_ID_LIST
     RETURN_MESSAGES, Instr_CONN_HISTORY)
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
-from thespian.actors import Actor
+from thespian.actors import Actor, ActorSystem  # type: ignore
 
 # from typing import Dict
 
@@ -102,7 +102,7 @@ class MqttParser(threading.Thread):
             self.topic_parts = message.get("topic").split("/")
             self.len = len(self.topic_parts)
             if self.len == 2:
-                SARAD_MQTT_SUBSCRIBER = actor_system.createActor(
+                SARAD_MQTT_SUBSCRIBER = ActorSystem().createActor(
                     SaradMqttSubscriber, globalName="SARAD_Subscriber"
                 )
                 if self.topic_parts[1] == "connected":
@@ -120,7 +120,7 @@ class MqttParser(threading.Thread):
                                     "is_id": self.topic_parts[0],
                                 },
                             }
-                            ask_return = actor_system.ask(
+                            ask_return = ActorSystem().ask(
                                 SARAD_MQTT_SUBSCRIBER, ask_msg
                             )
                             logger.info(ask_return)
@@ -153,7 +153,7 @@ class MqttParser(threading.Thread):
                                     "payload": message.get("payload"),
                                 },
                             }
-                            ask_return = actor_system.ask(
+                            ask_return = ActorSystem().ask(
                                 SARAD_MQTT_SUBSCRIBER, ask_msg
                             )
                             logger.info(ask_return)
@@ -175,7 +175,7 @@ class MqttParser(threading.Thread):
                                     "payload": message.get("payload"),
                                 },
                             }
-                            ask_return = actor_system.ask(
+                            ask_return = ActorSystem().ask(
                                 SARAD_MQTT_SUBSCRIBER, ask_msg
                             )
                             logger.info(ask_return)
@@ -233,7 +233,7 @@ class MqttParser(threading.Thread):
                                     "instr_id": self.topic_parts[1],
                                 },
                             }
-                            ask_return = actor_system.ask(
+                            ask_return = ActorSystem().ask(
                                 SARAD_MQTT_SUBSCRIBER, ask_msg
                             )
                             logger.info(ask_return)
@@ -272,7 +272,7 @@ class MqttParser(threading.Thread):
                                     "payload": message.get("payload"),
                                 },
                             }
-                            ask_return = actor_system.ask(
+                            ask_return = ActorSystem().ask(
                                 SARAD_MQTT_SUBSCRIBER, ask_msg
                             )
                             logger.info(ask_return)
@@ -298,7 +298,7 @@ class MqttParser(threading.Thread):
                                     "payload": message.get("payload"),
                                 },
                             }
-                            ask_return = actor_system.ask(
+                            ask_return = ActorSystem().ask(
                                 SARAD_MQTT_SUBSCRIBER, ask_msg
                             )
                             logger.info(ask_return)
@@ -441,7 +441,7 @@ class SaradMqttSubscriber(Actor):
         else:
             logger.info("Connected with MQTT self.mqtt_broker.")
         # return self.result_code
-    
+
     # Definition of callback functions for the MQTT client, namely the on_* functions
     # these callback functions are called in the new thread that is created through loo_start() of Client()
     def on_disconnect(
@@ -494,8 +494,18 @@ class SaradMqttSubscriber(Actor):
             return RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN")
         if msg.get("PAR", None).get("payload", None) is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        family_ = msg.get("PAR", None).get("payload", None).get("Identification", None).get("Family", None)
-        type_ = msg.get("PAR", None).get("payload", None).get("Identification", None).get("Type", None)
+        family_ = (
+            msg.get("PAR", None)
+            .get("payload", None)
+            .get("Identification", None)
+            .get("Family", None)
+        )
+        type_ = (
+            msg.get("PAR", None)
+            .get("payload", None)
+            .get("Identification", None)
+            .get("Type", None)
+        )
         if family_ is None or type_ is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         if family_ == 1:
@@ -514,14 +524,14 @@ class SaradMqttSubscriber(Actor):
         # if an actor already exists this will return
         # the address of the excisting one, else it will create a new one
         if data:
-            this_actor = actor_system.createActor(MqttActor, globalName=name_)
-            setup_return = actor_system.ask(this_actor, {"CMD": "SETUP", "PAR": data})
+            this_actor = ActorSystem().createActor(MqttActor, globalName=name_)
+            setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": data})
             logger.info(setup_return)
             if not (
                 setup_return is RETURN_MESSAGES.get("OK")
                 or setup_return is RETURN_MESSAGES.get("OK_SKIPPED")
             ):
-                actor_system.ask(this_actor, {"CMD": "KILL"})
+                ActorSystem().ask(this_actor, {"CMD": "KILL"})
                 # After the device actor is killed because it is not setup correctly in __add_service__ method:
                 # how to deal with the description file and the link?
                 # how can the instrument server know this situation and handle with it?
@@ -535,12 +545,12 @@ class SaradMqttSubscriber(Actor):
                         "is_id": is_id,
                     },
                 }
-                prep_return = actor_system.ask(this_actor, prep_msg)
+                prep_return = ActorSystem().ask(this_actor, prep_msg)
                 if not (
                     prep_return is RETURN_MESSAGES.get("OK")
                     or prep_return is RETURN_MESSAGES.get("OK_SKIPPED")
                 ):
-                    actor_system.ask(this_actor, {"CMD": "KILL"})
+                    ActorSystem().ask(this_actor, {"CMD": "KILL"})
                     # After the device actor is killed because it hasn't prepared correctly in __add_service__ method:
                     # how to deal with the description file and the link?
                     # how can the instrument server know this situation and handle with it?
@@ -560,8 +570,18 @@ class SaradMqttSubscriber(Actor):
             return RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN")
         if msg.get("PAR", None).get("payload", None) is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        family_ = msg.get("PAR", None).get("payload", None).get("Identification", None).get("Family", None)
-        type_ = msg.get("PAR", None).get("payload", None).get("Identification", None).get("Type", None)
+        family_ = (
+            msg.get("PAR", None)
+            .get("payload", None)
+            .get("Identification", None)
+            .get("Family", None)
+        )
+        type_ = (
+            msg.get("PAR", None)
+            .get("payload", None)
+            .get("Identification", None)
+            .get("Type", None)
+        )
         if family_ is None or type_ is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         if family_ == 1:
@@ -576,12 +596,8 @@ class SaradMqttSubscriber(Actor):
             )
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         name_ = instr_id + "." + sarad_type + ".mqtt"
-        this_actor = registrationserver2.actor_system.createActor(
-            MqttActor, globalName=name_
-        )
-        logger.info(
-            registrationserver2.actor_system.ask(this_actor, {"CMD": "KILL"})
-        )
+        this_actor = ActorSystem().createActor(MqttActor, globalName=name_)
+        logger.info(ActorSystem().ask(this_actor, {"CMD": "KILL"}))
         del Instr_CONN_HISTORY[is_id + "/" + instr_id]
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
@@ -596,8 +612,18 @@ class SaradMqttSubscriber(Actor):
             return RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN")
         if msg.get("PAR", None).get("payload", None) is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        family_ = msg.get("PAR", None).get("payload", None).get("Identification", None).get("Family", None)
-        type_ = msg.get("PAR", None).get("payload", None).get("Identification", None).get("Type", None)
+        family_ = (
+            msg.get("PAR", None)
+            .get("payload", None)
+            .get("Identification", None)
+            .get("Family", None)
+        )
+        type_ = (
+            msg.get("PAR", None)
+            .get("payload", None)
+            .get("Identification", None)
+            .get("Type", None)
+        )
         if family_ is None or type_ is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         if family_ == 1:
@@ -930,10 +956,10 @@ class SaradMqttSubscriber(Actor):
 
 
 def __test__():
-    SaradMqttSubscriber = actor_system.createActor(
+    SaradMqttSubscriber = ActorSystem().createActor(
         SaradMqttSubscriber, globalName="SARAD_Subscriber"
     )
-    ask_return = actor_system.ask(SARAD_MQTT_SUBSCRIBER, "SETUP")
+    ask_return = ActorSystem().ask(SARAD_MQTT_SUBSCRIBER, "SETUP")
     if ask_return is RETURN_MESSAGES.get("OK"):
         logger.info("SARAD MQTT Subscriber is setup correctly!")
         print("SARAD MQTT Subscriber is setup correctly!")
@@ -942,7 +968,7 @@ def __test__():
         logger.error(ask_return)
         print("SARAD MQTT Subscriber is not setup!")
     input("Press Enter to End")
-    actor_system.ask(SARAD_MQTT_SUBSCRIBER, "KILL")
+    ActorSystem().ask(SARAD_MQTT_SUBSCRIBER, "KILL")
     logger.info("!")
 
 

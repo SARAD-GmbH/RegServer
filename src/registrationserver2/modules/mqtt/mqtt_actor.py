@@ -17,16 +17,25 @@ import json
 from enum import Enum, unique
 
 import paho.mqtt.client as MQTT  # type: ignore
-from registrationserver2 import actor_system, logger
+from registrationserver2 import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES, is_JSON
 
 mqtt_req_status = Enum(
     "REQ_STATUS",
-    ("idle", "send_reserve", "reserve_sent", "reserve_accepted", "reserve_refused", "illegal_reply"),
+    (
+        "idle",
+        "send_reserve",
+        "reserve_sent",
+        "reserve_accepted",
+        "reserve_refused",
+        "illegal_reply",
+    ),
 )
 
-mqtt_send_status = Enum("SEND_STATUS", ("idle", "to_send", "sent", "send_replied", "illegal_reply"))
+mqtt_send_status = Enum(
+    "SEND_STATUS", ("idle", "to_send", "sent", "send_replied", "illegal_reply")
+)
 
 logger.info("%s -> %s", __package__, __file__)
 
@@ -116,7 +125,10 @@ class MqttActor(DeviceBaseActor):
         logger.info(f"message qos: {message.qos}")
         logger.info(f"message retain flag: {message.retain}")
         topic_buf = message.split("/")
-        if message.topic != self.allowed_sys_topics["META"] and message.topic != self.allowed_sys_topics["MSG"]:
+        if (
+            message.topic != self.allowed_sys_topics["META"]
+            and message.topic != self.allowed_sys_topics["MSG"]
+        ):
             logger.warning(
                 f"[MQTT_Message]\tReceived an illegal message whose topic is illegal: topic is {message.topic} and payload is {message.payload}"
             )
@@ -124,30 +136,50 @@ class MqttActor(DeviceBaseActor):
             logger.warning(
                 f"[MQTT_Message]\tReceived an illegal message whose payload is none: topic is {message.topic} and payload is {message.payload}"
             )
-            if self.req_status == mqtt_req_status.reserve_sent and message.topic == self.allowed_sys_topics["META"]:
+            if (
+                self.req_status == mqtt_req_status.reserve_sent
+                and message.topic == self.allowed_sys_topics["META"]
+            ):
                 self.req_status = mqtt_req_status.illegal_reply
-            if self.send_status == mqtt_send_status.sent and message.topic == self.allowed_sys_topics["MSG"]:
+            if (
+                self.send_status == mqtt_send_status.sent
+                and message.topic == self.allowed_sys_topics["MSG"]
+            ):
                 self.send_status = mqtt_send_status.illegal_reply
         else:
             if topic_buf[2] == "meta":
                 if self.req_status == mqtt_req_status.reserve_sent:
-                    if message.payload.get("Reservation", None).get("Active", None) == True:
+                    if (
+                        message.payload.get("Reservation", None).get("Active", None)
+                        == True
+                    ):
                         self.req_status = mqtt_req_status.reserve_accepted
-                    elif message.payload.get("Reservation", None).get("Active", None) == False:
+                    elif (
+                        message.payload.get("Reservation", None).get("Active", None)
+                        == False
+                    ):
                         self.req_status = mqtt_req_status.reserve_refused
                     else:
-                        logger.warning(f"[MQTT_Message]\tReceived an illegal reply for the reservation request")
+                        logger.warning(
+                            f"[MQTT_Message]\tReceived an illegal reply for the reservation request"
+                        )
                         self.req_status = mqtt_req_status.illegal_reply
             elif topic_buf[2] == "msg":
                 self.binary_reply = message.payload
                 self.send_status = mqtt_send_status.send_replied
-                logger.info(f"[MQTT_Message]\tReceived a binary reply: {self.binary_reply}")
+                logger.info(
+                    f"[MQTT_Message]\tReceived a binary reply: {self.binary_reply}"
+                )
 
     # Definition of methods accessible for the actor system and other actors -> referred to ACCEPTED_COMMANDS
     def _send(self, msg: dict):
         if msg is None:
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        if msg.get("PAR", None) is None or msg.get("PAR", None).get("Data", None) is None or msg.get("PAR", None).get("Host", None):
+        if (
+            msg.get("PAR", None) is None
+            or msg.get("PAR", None).get("Data", None) is None
+            or msg.get("PAR", None).get("Host", None)
+        ):
             return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
         pub_req_msg["payload"] = {}
         pub_req_msg["payload"]["Data"] = msg.get("PAR", None).get("Data", None)
@@ -297,8 +329,8 @@ class MqttActor(DeviceBaseActor):
             or subscribe_status is RETURN_MESSAGES.get("OK_SKIPPED")
         ):
             return RETURN_MESSAGES.get("PREPARE_FAILURE")
-        
-        #TODO: set LWT message
+
+        # TODO: set LWT message
 
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
@@ -332,14 +364,14 @@ class MqttActor(DeviceBaseActor):
         else:
             return RETURN_MESSAGES.get("CONNECTION_NO_RESPONSE")
         return RETURN_MESSAGES.get("OK_SKIPPED")
-    
+
     def __disconnect(self) -> dict:
         logger.info("To disconnect from the MQTT-broker!")
         self.mqttc.disconnect()
         logger.info("To stop the MQTT thread!")
         self.mqttc.loop_stop()
         return RETURN_MESSAGES.get("OK_SKIPPED")
-    
+
     def __publish(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("PAR", None).get("topic", None)
         if self.mqtt_topic is None:
