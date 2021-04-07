@@ -1,9 +1,6 @@
 """Stub for type checking of registrationsserver2"""
 from typing import Any, Optional, Pattern
 
-from thespian.actors import ActorSystem  # type: ignore
-
-actor_system: ActorSystem
 home: Optional[str]
 logger: Any
 formatter: Any

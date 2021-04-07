@@ -15,7 +15,8 @@ import os
 import signal
 import threading
 
-import registrationserver2
+from thespian.actors import ActorSystem  # type: ignore
+
 from registrationserver2 import FOLDER_AVAILABLE, logger
 from registrationserver2.config import config
 from registrationserver2.modules.rfc2217.mdns_listener import MdnsListener
@@ -29,6 +30,15 @@ def main():
     * starts the API thread
     * starts the MdnsListener
     """
+    # =======================
+    # Initialization of the actor system,
+    # can be changed to a distributed system here.
+    # =======================
+    ActorSystem(
+        systemBase=config["systemBase"],
+        capabilities=config["capabilities"],
+    )
+    logger.debug("Actor system started.")
     restapi = RestApi()
     apithread = threading.Thread(
         target=restapi.run,
@@ -45,7 +55,8 @@ def main():
     def cleanup():  # pylint: disable=unused-variable
         """Make sure all sub threads are stopped, including the REST API"""
         logger.info("Cleaning up before closing.")
-        registrationserver2.actor_system.shutdown()
+        ActorSystem().shutdown()
+        logger.debug("Actor system shut down finished.")
         if os.path.exists(FOLDER_AVAILABLE):
             for root, _, files in os.walk(FOLDER_AVAILABLE):
                 for name in files:

@@ -12,11 +12,12 @@ import traceback
 import paho.mqtt.client  as MQTT# type: ignore
 
 import registrationserver2
-from registrationserver2 import actor_system, logger
+from registrationserver2 import logger
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
 from registrationserver2.modules.mqtt import MQTT_ACTOR_ADRs
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
 from registrationserver2.modules.mqtt.mqtt_subscriber import SaradMqttSubscriber
+from thespian.actors import ActorSystem  # type: ignore
 
 logging.getLogger("Registration Server V2").info(f"{__package__}->{__file__}")
 
@@ -173,16 +174,16 @@ class SaradMqttClient(object):
             # if an actor already exists this will return
             # the address of the excisting one, else it will create a new one
             if data:
-                this_actor = registrationserver2.actor_system.createActor(
+                this_actor = ActorSystem().createActor(
                     MqttActor, globalName=instr_id
                 )
-                setup_return = registrationserver2.actor_system.ask(
+                setup_return = ActorSystem().ask(
                     this_actor, {"CMD": "SETUP"}
                 )
                 logger.info(setup_return)
                 if setup_return is RETURN_MESSAGES.get("OK"):
                     logger.info(
-                        registrationserver2.actor_system.ask(
+                        ActorSystem().ask(
                             this_actor,
                             {"CMD": "SEND", "DATA": b"\x42\x80\x7f\x0c\x0c\x00\x45"},
                         )
@@ -191,7 +192,7 @@ class SaradMqttClient(object):
                     setup_return is RETURN_MESSAGES.get("OK")
                     or setup_return is RETURN_MESSAGES.get("OK_SKIPPED")
                 ):
-                    registrationserver2.actor_system.ask(this_actor, {"CMD": "KILL"})
+                    ActorSystem().ask(this_actor, {"CMD": "KILL"})
 
     def _connect(self, msg: dict) -> dict:
         self.mqtt_cid = msg.get("Data", None).get("client_id", None)
@@ -333,7 +334,7 @@ class SaradMqttClient(object):
         self.rc_pub = 1
         self.rc_sub = 1
         self.rc_uns = 1
-        self.SARAD_MQTT_SUBSCRIBER = actor_system.createActor(
+        self.SARAD_MQTT_SUBSCRIBER = ActorSystem().createActor(
             SaradMqttSubscriber, globalName="MQTT_SUBSCRIBER"
         )
         with self.__lock:
@@ -347,24 +348,24 @@ class SaradMqttClient(object):
                 os.makedirs(self.__folder_available)
 
             logger.debug(f"Output to: {self.__folder_history}")
-        setup_return = actor_system.ask(self.SARAD_MQTT_SUBSCRIBER, "SETUP")
+        setup_return = ActorSystem().ask(self.SARAD_MQTT_SUBSCRIBER, "SETUP")
         if setup_return == RETURN_MESSAGES.get("OK"):
             logger.info("SARAD MQTT Subscriber is setup correctly!\n")
         else:
             logger.warning("SARAD MQTT Subscriber is not setup!\n")
-#SARAD_MQTT_CLIENT: ActorAddress = actor_system.createActor(
+#SARAD_MQTT_CLIENT: ActorAddress = ActorSystem().createActor(
 #    SaradMqttClient, type(SaradMqttClient).__name__
 #)
 '''
 # Plan A:
-# SARAD_MQTT_CLIENT = registrationserver2.actor_system.createActor(SaradMqttClient, globalName="sarad_mqtt_client")
+# SARAD_MQTT_CLIENT = ActorSystem().createActor(SaradMqttClient, globalName="sarad_mqtt_client")
 # Plan B:
-# SARAD_MQTT_CLIENT: ActorAddress = actor_system.createActor(
+# SARAD_MQTT_CLIENT: ActorAddress = ActorSystem().createActor(
 #    SaradMqttClient, globalName=type(SaradMqttClient).__name__
 # )
 """
 def test():
-    connect_status = actor_system.ask(SARAD_MQTT_CLIENT, {"CMD" : "CONNECT", "Data" : {"client_id" : "Test_client1", "mqtt_broker" : "localhost"}})
+    connect_status = ActorSystem().ask(SARAD_MQTT_CLIENT, {"CMD" : "CONNECT", "Data" : {"client_id" : "Test_client1", "mqtt_broker" : "localhost"}})
     print (connect_status)
     input("Press Enter to End\n")
     logger.info("!")

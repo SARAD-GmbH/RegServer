@@ -13,11 +13,11 @@ import time
 import traceback
 
 import serial.rfc2217  # type: ignore
-import thespian  # type: ignore
-from overrides import overrides
+from overrides import overrides  # type: ignore
 from registrationserver2 import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
+from thespian.actors import ActorSystem  # type: ignore
 
 logger.info("%s -> %s", __package__, __file__)
 
@@ -29,8 +29,10 @@ class Rfc2217Actor(DeviceBaseActor):
 
     @overrides
     def __init__(self):
+        logger.debug("Initialize a new RFC2217 actor.")
         super().__init__()
         self.__port: serial.rfc2217.Serial = None
+        logger.debug("RFC2217 actor created.")
 
     def _connect(self):
         """internal Function to connect to instrument server 2 over rfc2217"""
@@ -70,25 +72,25 @@ class Rfc2217Actor(DeviceBaseActor):
                     break
                 _return = _return + _return_part
             full_return = RETURN_MESSAGES["OK"]
-            full_return["RESULT"] = _return
+            full_return["RESULT"] = {"DATA": _return}
             return full_return
         return RETURN_MESSAGES.get("ILLEGAL_STATE")
 
     @overrides
-    def _free(self, msg: dict):
+    def _free(self, msg: dict, sender):
         if self.__port is not None:
             if self.__port.isOpen():
                 self.__port.close()
             self.__port = None
-        return super()._free(msg)
+        return super()._free(msg, sender)
 
     @overrides
-    def _kill(self, msg: dict):
+    def _kill(self, msg: dict, sender):
         if self.__port is not None:
             if self.__port.isOpen():
                 self.__port.close()
             self.__port = None
-        return super()._kill(msg)
+        return super()._kill(msg, sender)
 
     @overrides
     def _reserve_at_is(self, app, host, user) -> bool:
@@ -99,13 +101,14 @@ class Rfc2217Actor(DeviceBaseActor):
 
 
 def _test():
-    sys = thespian.actors.ActorSystem()
-    act = sys.createActor(
+    act = ActorSystem().createActor(
         Rfc2217Actor, globalName="0ghMF8Y.sarad-1688._rfc2217._tcp.local."
     )
-    sys.ask(act, {"CMD": "SETUP"})
+    ActorSystem().ask(act, {"CMD": "SETUP"})
     print(
-        sys.ask(act, {"CMD": "SEND", "PAR": {"DATA": b"\x42\x80\x7f\x01\x01\x00\x45"}})
+        ActorSystem().ask(
+            act, {"CMD": "SEND", "PAR": {"DATA": b"\x42\x80\x7f\x01\x01\x00\x45"}}
+        )
     )
     # print(sys.ask(act, {"CMD": "FREE", "DATA": b"\x42\x80\x7f\x0c\x00\x0c\x45"}))
     input("Press Enter to End\n")

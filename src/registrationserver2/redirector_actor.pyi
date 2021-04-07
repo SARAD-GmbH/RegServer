@@ -1,19 +1,8 @@
 """Stub for type checking with mypy"""
-import socket
 from typing import Any
 
 from thespian.actors import Actor  # type: ignore
 
-
-class SockInfo:
-    address: str
-    port: int
-    def __init__(self, address: Any, port: Any) -> None: ...
-
-class SocketClient:
-    client_socket: socket
-    client_address: SockInfo
-    def __init__(self, client_socket: Any, client_address: Any) -> None: ...
 
 class RedirectorActor(Actor):
     ILLEGAL_STATE: Any = ...
