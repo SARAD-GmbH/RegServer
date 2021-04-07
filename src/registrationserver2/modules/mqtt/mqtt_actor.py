@@ -176,17 +176,19 @@ class MqttActor(DeviceBaseActor):
         ):  # Wait max. 2000*0.01s = 20s -> check the reply in on_message()
             if self.send_status == mqtt_send_status.send_replied:
                 self.send_status = mqtt_send_status.idle
+                send_return = RETURN_MESSAGES.get("OK")
+                send_return["RESULT"] = self.binary_reply
                 break
             elif self.send_status == mqtt_send_status.illegal_reply:
                 self.send_status = mqtt_send_status.idle
-                return RETURN_MESSAGES.get("ILLEGAL_REPLY")
+                send_return = RETURN_MESSAGES.get("ILLEGAL_REPLY")
             else:
                 time.sleep(0.01)  # check the send_status every 0.01s
                 wait_cnt5 = wait_cnt5 - 1
         else:
             self.send_status = mqtt_send_status.idle
-            return RETURN_MESSAGES.get("SEND_NO_REPLY")
-        return {"RETURN": "OK", "PAR": self.binary_reply}
+            send_return = RETURN_MESSAGES.get("SEND_NO_REPLY")
+        return send_return
 
     def _reserve_at_is(self, msg):
         self.req_status = mqtt_req_status.send_reserve
@@ -205,9 +207,13 @@ class MqttActor(DeviceBaseActor):
                 },
             }
         )
-        if send_reserve_status is RETURN_MESSAGES.get("PUBLISH_FAILURE"):
+        if not (
+            send_reserve_status is RETURN_MESSAGES.get("OK_SKIPPED")
+            or send_reserve_status is RETURN_MESSAGES.get("OK")
+        ):
             self.req_status = mqtt_req_status.idle
-            return RETURN_MESSAGES.get("SEND_RESERVE_FAILURE")
+            logger.error(RETURN_MESSAGES.get("SEND_RESERVE_FAILURE"))
+            return False
         self.req_status = mqtt_req_status.reserve_sent
         wait_cnt4 = 2000
         while (
@@ -219,17 +225,20 @@ class MqttActor(DeviceBaseActor):
             elif self.req_status == mqtt_req_status.reserve_refused:
                 self.rc_conn = 2
                 self.req_status = mqtt_req_status.idle
-                return RETURN_MESSAGES.get("RESERVE_REFUSED")
+                logger.info(RETURN_MESSAGES.get("RESERVE_REFUSED"))
+                return False
             elif self.req_status == mqtt_req_status.illegal_reply:
                 self.req_status = mqtt_req_status.idle
-                return RETURN_MESSAGES.get("ILLEGAL_REPLY")
+                logger.warning(RETURN_MESSAGES.get("ILLEGAL_REPLY"))
+                return False
             else:
                 time.sleep(0.01)
                 wait_cnt4 = wait_cnt4 - 1
         else:
             self.req_status = mqtt_req_status.idle
-            return RETURN_MESSAGES.get("RESERVE_NO_REPLY")
-        return RETURN_MESSAGES.get("OK_SKIPPED")
+            logger.info(RETURN_MESSAGES.get("RESERVE_NO_REPLY"))
+            return False
+        return True
 
     def _free(self, msg):
         logger.info("Free-Request")
@@ -248,18 +257,32 @@ class MqttActor(DeviceBaseActor):
                 },
             }
         )
+        logger.info(send_free_status)
         if not (
             send_free_status is RETURN_MESSAGES.get("OK")
             or send_free_status is RETURN_MESSAGES.get("OK_SKIPPED")
         ):
             return RETURN_MESSAGES.get("SEND_FREE_FAILURE")
-        return RETURN_MESSAGES.get("OK_SKIPPED")
+        return super()._free(msg)
 
     def _kill(self, msg: dict):
+        for topic_k in self.allowed_sys_topics.keys():
+            uns_req_msg = {
+                # "CMD": "UNSUBSCRIBE",
+                "PAR": {"topic": self.allowed_sys_topics[topic_k]},
+            }
+            unsubscribe_status = self.__unsubscribe(uns_req_msg)
+            logger.info(unsubscribe_status)
+            if not (
+                unsubscribe_status is RETURN_MESSAGES.get("OK")
+                or unsubscribe_status is RETURN_MESSAGES.get("OK_SKIPPED")
+            ):
+                logger.warning(f"[UNSUB]\tFailed to unsubscribe to the topic {self.allowed_sys_topics[topic_k]}")
+                #return RETURN_MESSAGES.get("UNSUBSCRIBE_FAILURE")
         self.__disconnect()
-        super()._kill(msg)
+        return super()._kill(msg)
         # TODO: clear the used memory space
-        # TODO: let sender know this actor is killed
+        # TODO: let others like the other actors and this actor's IS MQTT know this actor is killed
 
     def _prepare(self, msg: dict):
         self.is_id = msg.get("PAR", None).get("is_id", None)
@@ -333,12 +356,11 @@ class MqttActor(DeviceBaseActor):
             return RETURN_MESSAGES.get("CONNECTION_NO_RESPONSE")
         return RETURN_MESSAGES.get("OK_SKIPPED")
     
-    def __disconnect(self) -> dict:
+    def __disconnect(self):
         logger.info("To disconnect from the MQTT-broker!")
         self.mqttc.disconnect()
         logger.info("To stop the MQTT thread!")
         self.mqttc.loop_stop()
-        return RETURN_MESSAGES.get("OK_SKIPPED")
     
     def __publish(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("PAR", None).get("topic", None)
