@@ -42,7 +42,6 @@ class Rfc2217Actor(DeviceBaseActor):
             if not address or not port:
                 return RETURN_MESSAGES.get("ILLEGAL_STATE")
             port_ident = fr"rfc2217://{address}:{port}"
-
         if port_ident and not (self.__port and self.__port.is_open):
             try:
                 self.__port = serial.rfc2217.Serial(port_ident)
@@ -59,7 +58,7 @@ class Rfc2217Actor(DeviceBaseActor):
             return RETURN_MESSAGES.get("OK")
         return RETURN_MESSAGES.get("ILLEGAL_STATE")
 
-    def _send(self, msg: dict):
+    def _send(self, msg: dict, sender) -> None:
         if self._connect() is RETURN_MESSAGES["OK"]["RETURN"]:
             data = msg["PAR"]["DATA"]
             logger.info("Actor %s received: %s", self.globalName, data)
@@ -71,18 +70,28 @@ class Rfc2217Actor(DeviceBaseActor):
                 if _return_part == "":
                     break
                 _return = _return + _return_part
-            full_return = RETURN_MESSAGES["OK"]
-            full_return["RESULT"] = {"DATA": _return}
-            return full_return
-        return RETURN_MESSAGES.get("ILLEGAL_STATE")
+            return_message = {
+                "RETURN": "SEND",
+                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                "RESULT": {"DATA": _return},
+            }
+            self.send(sender, return_message)
+            return
+        return_message = {
+            "RETURN": "SEND",
+            "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_STATE"]["ERROR_CODE"],
+        }
+        self.send(sender, return_message)
+        return
 
     @overrides
     def _free(self, msg: dict, sender):
+        logger.debug("Start to cleanup RFC2217")
         if self.__port is not None:
             if self.__port.isOpen():
                 self.__port.close()
             self.__port = None
-        return super()._free(msg, sender)
+        super()._free(msg, sender)
 
     @overrides
     def _kill(self, msg: dict, sender):
@@ -90,7 +99,7 @@ class Rfc2217Actor(DeviceBaseActor):
             if self.__port.isOpen():
                 self.__port.close()
             self.__port = None
-        return super()._kill(msg, sender)
+        super()._kill(msg, sender)
 
     @overrides
     def _reserve_at_is(self, app, host, user) -> bool:

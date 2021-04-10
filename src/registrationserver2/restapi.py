@@ -19,7 +19,6 @@ import re
 import socket
 import sys
 import traceback
-from datetime import timedelta
 
 from flask import Flask, Response, json, request
 from thespian.actors import Actor, ActorSystem  # type: ignore
@@ -234,7 +233,8 @@ class RestApi:
             "PAR": {"HOST": request_host, "USER": user, "APP": app},
         }
         logger.debug("Ask device actor %s", msg)
-        reserve_return = ActorSystem().ask(device_actor, msg, timedelta(seconds=3))
+        with ActorSystem().private() as asy:
+            reserve_return = asy.ask(device_actor, msg)
         logger.debug("returned with %s", reserve_return)
         answer = {}
         try:
@@ -269,10 +269,8 @@ class RestApi:
         """Path for freeing a single active device"""
         device_actor = ActorSystem().createActor(Actor, globalName=did)
         logger.debug("Ask device actor to FREE...")
-        free_return = ActorSystem().ask(
-            device_actor,
-            {"CMD": "FREE"},
-        )
+        with ActorSystem().private() as asy:
+            free_return = asy.ask(device_actor, {"CMD": "FREE"})
         logger.info("returned with %s", free_return)
         if free_return is RETURN_MESSAGES["OK"] or RETURN_MESSAGES["OK_SKIPPED"]:
             answer = {}
