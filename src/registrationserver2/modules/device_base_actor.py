@@ -167,13 +167,8 @@ class DeviceBaseActor(Actor):
         if os.path.exists(filename):
             os.remove(filename)
         if self.my_redirector is not None:
-            logger.debug("Ask to kill redirector %s", self.my_redirector)
-            with ActorSystem().private() as asys:
-                kill_return = asys.ask(self.my_redirector, ActorExitRequest())
-            if not kill_return["ERROR_CODE"]:
-                logger.critical(
-                    "Killing the redirector actor failed with %s", kill_return
-                )
+            logger.debug("Send KILL to redirector %s", self.my_redirector)
+            self.send(self.my_redirector, ActorExitRequest())
         return_message = {
             "RETURN": "KILL",
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
