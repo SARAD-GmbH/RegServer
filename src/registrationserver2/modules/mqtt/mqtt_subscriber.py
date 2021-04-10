@@ -332,9 +332,9 @@ class SaradMqttSubscriber(Actor):
 
     __lock = threading.Lock()
 
-    SARAD_MQTT_PARSER = MqttParser(self.myAddress, TName="RS_MQTT_Parser-000")
-
     def __init__(self, client_id, broker):
+        super().__init__()
+        self.SARAD_MQTT_PARSER = MqttParser(self.myAddress, TName="RS_MQTT_Parser-000")
         self.rc_conn = 2
         self.rc_disc = 2
         self.rc_pub = 1
