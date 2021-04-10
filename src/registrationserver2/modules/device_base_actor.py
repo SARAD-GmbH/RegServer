@@ -167,8 +167,9 @@ class DeviceBaseActor(Actor):
         if os.path.exists(filename):
             os.remove(filename)
         if self.my_redirector is not None:
-            logger.debug("Ask to kill redirector...")
-            kill_return = ActorSystem().ask(self.my_redirector, ActorExitRequest())
+            logger.debug("Ask to kill redirector %s", self.my_redirector)
+            with ActorSystem().private() as asys:
+                kill_return = asys.ask(self.my_redirector, ActorExitRequest())
             if not kill_return["ERROR_CODE"]:
                 logger.critical(
                     "Killing the redirector actor failed with %s", kill_return
@@ -255,7 +256,7 @@ class DeviceBaseActor(Actor):
         logger.info("self._file: %s", self._file)
         with open(self.link, "w+") as file_stream:
             file_stream.write(self._file)
-        logger.debug("Send CONNECT command to redirector")
+        logger.debug("Send CONNECT command to redirector %s", self.my_redirector)
         self.send(self.my_redirector, {"CMD": "CONNECT"})
         return_message = {
             "RETURN": "RESERVE",
@@ -269,7 +270,8 @@ class DeviceBaseActor(Actor):
         logger.info("Device actor received a FREE command. %s", msg)
         if self.my_redirector is not None:
             logger.debug("Ask to kill redirector %s", self.my_redirector)
-            kill_return = ActorSystem().ask(self.my_redirector, ActorExitRequest())
+            with ActorSystem().private() as asys:
+                kill_return = asys.ask(self.my_redirector, ActorExitRequest())
             if not kill_return["ERROR_CODE"]:
                 # Write Free section into device file
                 df_content = json.loads(self._file)
