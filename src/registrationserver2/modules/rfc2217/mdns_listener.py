@@ -88,13 +88,27 @@ class MdnsListener(ServiceListener):
         logger.debug(out)
         return json.dumps(out)
 
+    @staticmethod
+    def get_ip():
+        """Find my own IP address"""
+        test_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            # doesn't even have to be reachable
+            test_socket.connect(("10.255.255.255", 1))
+            ip_address = test_socket.getsockname()[0]
+        except Exception:  # pylint: disable=broad-except
+            ip_address = "127.0.0.1"
+        finally:
+            test_socket.close()
+        return ip_address
+
     def __init__(self, _type):
         """
         Initialize a mdns Listener for a specific device group
         """
         with self.__lock:
             self.__type: str = type
-            self.__zeroconf = Zeroconf()
+            self.__zeroconf = Zeroconf(interfaces=[self.get_ip()])
             self.__browser = ServiceBrowser(self.__zeroconf, _type, self)
             self.__folder_history: str = FOLDER_HISTORY + os.path.sep
             self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
