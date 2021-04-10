@@ -18,7 +18,7 @@ from registrationserver2 import FOLDER_AVAILABLE, FOLDER_HISTORY, logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.redirector_actor import RedirectorActor
 from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
-                             ActorSystem)
+                             ChildActorExited)
 
 logger.info("%s -> %s", __package__, __file__)
 
@@ -59,6 +59,7 @@ class DeviceBaseActor(Actor):
     }
     ACCEPTED_RETURNS = {
         "SETUP": "_return_with_socket",
+        "KILL": "_return_from_kill",
     }
 
     @overrides
@@ -85,6 +86,9 @@ class DeviceBaseActor(Actor):
         logger.debug("Msg: %s, Sender: %s", msg, sender)
         if isinstance(msg, ActorExitRequest):
             self._kill(msg, sender)
+            return
+        if isinstance(msg, ChildActorExited):
+            # TODO error handling code could be placed here
             return
         if not isinstance(msg, dict):
             logger.critical(
@@ -263,38 +267,50 @@ class DeviceBaseActor(Actor):
     def _free(self, msg, sender):
         """Handler for FREE message from REST API."""
         logger.info("Device actor received a FREE command. %s", msg)
+        self.sender_api = sender
         if self.my_redirector is not None:
-            logger.debug("Ask to kill redirector %s", self.my_redirector)
-            with ActorSystem().private() as asys:
-                kill_return = asys.ask(self.my_redirector, ActorExitRequest())
-            if not kill_return["ERROR_CODE"]:
-                # Write Free section into device file
-                df_content = json.loads(self._file)
-                free = {
-                    "Active": False,
-                    "App": df_content["Reservation"]["App"],
-                    "Host": df_content["Reservation"]["Host"],
-                    "User": df_content["Reservation"]["User"],
-                    "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
-                }
-                logger.info("Free: %s", free)
-                df_content["Free"] = free
-                # Remove Reservation section
-                df_content.pop("Reservation", None)
-                self._file = json.dumps(df_content)
-                logger.info("self._file: %s", self._file)
-                with open(self.link, "w+") as file_stream:
-                    file_stream.write(self._file)
-                self.my_redirector = None
-                return_message = {
-                    "RETURN": "FREE",
-                    "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                }
-                self.send(sender, return_message)
-                return
-            logger.critical("Killing the redirector actor failed with %s", kill_return)
+            logger.debug("Send KILL to redirector %s", self.my_redirector)
+            self.send(self.my_redirector, ActorExitRequest())
+            return
         return_message = {
             "RETURN": "FREE",
             "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
         }
         self.send(sender, return_message)
+        return
+
+    def _return_from_kill(self, msg, _sender):
+        """Completes the _free function with the reply from the redirector actor after
+        it received the KILL command."""
+        if not msg["ERROR_CODE"]:
+            # Write Free section into device file
+            df_content = json.loads(self._file)
+            free = {
+                "Active": False,
+                "App": df_content["Reservation"]["App"],
+                "Host": df_content["Reservation"]["Host"],
+                "User": df_content["Reservation"]["User"],
+                "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            }
+            logger.info("Free: %s", free)
+            df_content["Free"] = free
+            # Remove Reservation section
+            df_content.pop("Reservation", None)
+            self._file = json.dumps(df_content)
+            logger.info("self._file: %s", self._file)
+            with open(self.link, "w+") as file_stream:
+                file_stream.write(self._file)
+            self.my_redirector = None
+            return_message = {
+                "RETURN": "FREE",
+                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+            }
+            self.send(self.sender_api, return_message)
+            return
+        logger.critical("Killing the redirector actor failed with %s", msg)
+        return_message = {
+            "RETURN": "FREE",
+            "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+        }
+        self.send(self.sender_api, return_message)
+        return
