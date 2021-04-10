@@ -34,7 +34,7 @@ from registrationserver2 import logger
 from registrationserver2.modules.mqtt.message import (  # , MQTT_ACTOR_REQUESTs, MQTT_ACTOR_ADRs, IS_ID_LIST
     RETURN_MESSAGES, Instr_CONN_HISTORY)
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
-from thespian.actors import Actor, ActorAddress
+from thespian.actors import Actor, ActorAddress, ActorSystem
 
 # from typing import Dict
 
@@ -62,11 +62,11 @@ def add_2d_dict(actor_adr_dict, is_id_, instr_id_, val):
 
 
 class MqttParser(threading.Thread):
-    def __init__(self, SARAD_MQTT_SUBSCRIBER : ActorAddress, TName="Mqtt-Parser"):
+    def __init__(self, SARAD_MQTT_SUBSCRIBER: ActorAddress, TName="Mqtt-Parser"):
         super().__init__(name=TName)
         logger.info(f"The thread ({TName}) is created")
         self.SARAD_MQTT_SUBSCRIBER = SARAD_MQTT_SUBSCRIBER
-        self.split_len= 0
+        self.split_len = 0
         self.topic_parts = []
         self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
         self.__folder2_history = f"{registrationserver2.FOLDER2_HISTORY}{os.path.sep}"
@@ -100,8 +100,8 @@ class MqttParser(threading.Thread):
         if not mqtt_msg_queue.empty():
             message = mqtt_msg_queue.get()
             self.topic_parts = message.get("topic").split("/")
-            self.split_len= len(self.topic_parts)
-            if self.split_len== 2: # topics related to a cluster namely IS MQTT
+            self.split_len = len(self.topic_parts)
+            if self.split_len == 2:  # topics related to a cluster namely IS MQTT
                 if self.topic_parts[1] == "connected":
                     if message.get("payload") == "2" or message.get("payload") == "1":
                         filename_ = fr"{self.__folder2_history}{self.topic_parts[0]}"
@@ -117,7 +117,7 @@ class MqttParser(threading.Thread):
                                     "is_id": self.topic_parts[0],
                                 },
                             }
-                            ask_return = actor_system.ask(
+                            ask_return = ActorSystem().ask(
                                 self.SARAD_MQTT_SUBSCRIBER, ask_msg
                             )
                             logger.info(ask_return)
@@ -153,7 +153,7 @@ class MqttParser(threading.Thread):
                             ask_msg["CMD"] = "ADD_HOST"
                         else:
                             ask_msg["CMD"] = "UP_HOST"
-                        ask_return = actor_system.ask(
+                        ask_return = ActorSystem().ask(
                             self.SARAD_MQTT_SUBSCRIBER, ask_msg
                         )
                         logger.info(ask_return)
@@ -162,7 +162,7 @@ class MqttParser(threading.Thread):
                         ):
                             logger.info(
                                 f"[{ask_msg['CMD']}]\tSARAD_Subscriber has written the properties of this cluster ({self.topic_parts[0]}) into file system"
-                                )
+                            )
                         else:
                             logger.warning(
                                 f"[{ask_msg['CMD']}]\tSARAD_Subscriber has problems with writing the properties of this cluster ({self.topic_parts[0]}) into file system"
@@ -171,7 +171,7 @@ class MqttParser(threading.Thread):
                         logger.warning(
                             f"SARAD_Subscriber has received meta message of an unknown cluster ({self.topic_parts[0]})"
                         )
-            elif self.split_len== 3: # topics related to an instrument
+            elif self.split_len == 3:  # topics related to an instrument
                 if self.topic_parts[2] == "connected":
                     if message.get("payload") == "2" or message.get("payload") == "1":
                         if (
@@ -211,7 +211,7 @@ class MqttParser(threading.Thread):
                                     "instr_id": self.topic_parts[1],
                                 },
                             }
-                            ask_return = actor_system.ask(
+                            ask_return = ActorSystem().ask(
                                 self.SARAD_MQTT_SUBSCRIBER, ask_msg
                             )
                             logger.info(ask_return)
@@ -238,11 +238,18 @@ class MqttParser(threading.Thread):
                         self.topic_parts[1]
                         in Instr_CONN_HISTORY[self.topic_parts[0]].keys()
                     ):
-                        if Instr_CONN_HISTORY[self.topic_parts[0]][self.topic_parts[1]] != "Not_added" and Instr_CONN_HISTORY[self.topic_parts[0]][self.topic_parts[1]] != "Added":
+                        if (
+                            Instr_CONN_HISTORY[self.topic_parts[0]][self.topic_parts[1]]
+                            != "Not_added"
+                            and Instr_CONN_HISTORY[self.topic_parts[0]][
+                                self.topic_parts[1]
+                            ]
+                            != "Added"
+                        ):
                             logger.warning(
                                 f"Receive unknown message {message.get('payload')} under the topic {message.get('topic')}"
                             )
-                            #break
+                            # break
                         else:
                             ask_msg = {
                                 "CMD": None,
@@ -252,11 +259,16 @@ class MqttParser(threading.Thread):
                                     "payload": message.get("payload"),
                                 },
                             }
-                            if Instr_CONN_HISTORY[self.topic_parts[0]][self.topic_parts[1]] == "Not_added":
+                            if (
+                                Instr_CONN_HISTORY[self.topic_parts[0]][
+                                    self.topic_parts[1]
+                                ]
+                                == "Not_added"
+                            ):
                                 ask_msg["CMD"] = "ADD_DEVICE"
                             else:
                                 ask_msg["CMD"] = "UP_DEVICE"
-                            ask_return = actor_system.ask(
+                            ask_return = ActorSystem().ask(
                                 self.SARAD_MQTT_SUBSCRIBER, ask_msg
                             )
                             logger.info(ask_return)
@@ -671,7 +683,9 @@ class SaradMqttSubscriber(Actor):
                 )
                 logger.info(_re)
         else:
-            logger.warning(f"[RM_HOST]\tThe given IS ID ({is_id}) is not found in the connection history of the IS MQTT")
+            logger.warning(
+                f"[RM_HOST]\tThe given IS ID ({is_id}) is not found in the connection history of the IS MQTT"
+            )
             return RETURN_MESSAGES.get("NO_INSTRUMENT_SERVER")
         with self.__lock:
             logger.info(f"[Del]:\tRemoved the host with Instrument Server ID: {is_id}")
