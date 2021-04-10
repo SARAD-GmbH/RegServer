@@ -67,22 +67,22 @@ MQTT_ACTOR_ADRs = {
 RETURN_MESSAGES = {
     # The message received by the actor was not in an expected format
     "ILLEGAL_WRONGFORMAT": {
-        "RESULT": "Misformatted or no message sent",
+        "RETURN": "Misformatted or no message sent",
         "ERROR_CODE": 1,
     },
     # The command received by the actor was not yet implemented by the implementing class
     "ILLEGAL_NOTIMPLEMENTED": {
-        "RESULT": "Not implemented",
+        "RETURN": "Not implemented",
         "ERROR_CODE": 2,
     },
     # The message received by the actor was not in an expected type
     "ILLEGAL_WRONGTYPE": {
-        "RESULT": "Wrong Message Type, dictionary Expected",
+        "RETURN": "Wrong Message Type, dictionary Expected",
         "ERROR_CODE": 3,
     },
     # The message received by the actor was not in an expected type
     "ILLEGAL_UNKNOWN_COMMAND": {
-        "RESULT": "Unknown Command",
+        "RETURN": "Unknown Command",
         "ERROR_CODE": 4,
     },
     # The actor was in an wrong state.
@@ -91,76 +91,80 @@ RETURN_MESSAGES = {
         "ERROR_CODE": 5,
     },
     "CONNECTION_FAILURE": {
-        "RESULT": "MQTT client failed to connect to MQTT-broker",
+        "RETURN": "MQTT client failed to connect to MQTT-broker",
         "ERROR_CODE": 6,
     },
     "CONNECTION_NO_RESPONSE": {
-        "RESULT": "No response to connection request",
+        "RETURN": "No response to connection request",
         "ERROR_CODE": 7,
     },
     # "DISCONNECTION_FAILURE": {
-    #     "RESULT": "MQTT client failed to disconnect with MQTT-broker",
+    #     "RETURN": "MQTT client failed to disconnect with MQTT-broker",
     #     "ERROR_CODE": 8,
     # },
     # "DISCONNECTION_NO_RESPONSE": {
-    #     "RESULT": "No response to disconnection request",
+    #     "RETURN": "No response to disconnection request",
     #     "ERROR_CODE": 9,
     # },
     "PUBLISH_FAILURE": {
-        "RESULT": "Failed to publish the message",
+        "RETURN": "Failed to publish the message",
         "ERROR_CODE": 11,
     },
     "SUBSCRIBE_FAILURE": {
-        "RESULT": "Failed to subscribe to the topic",
+        "RETURN": "Failed to subscribe to the topic",
         "ERROR_CODE": 12,
     },
     "UNSUBSCRIBE_FAILURE": {
-        "RESULT": "Failed to unsubscribe to the topic",
+        "RETURN": "Failed to unsubscribe to the topic",
         "ERROR_CODE": 13,
     },
     "NO_MQTT_ACTOR": {
-        "RESULT": "There is no such MQTT Actor created",
+        "RETURN": "There is no such MQTT Actor created",
         "ERROR_CODE": 14,
     },
     "PREPARE_FAILURE": {
-        "RESULT": "Failed to make the MQTT Actor prepared",
+        "RETURN": "Failed to make the MQTT Actor prepared",
         "ERROR_CODE": 15,
     },
     "SEND_RESERVE_FAILURE": {
-        "ERROR": "Failed to send reservation request",
+        "RETURN": "Failed to send reservation request",
         "ERROR_CODE": 16,
     },
     "RESERVE_NO_REPLY": {
-        "ERROR": "Got no reply for the reservation request",
+        "RETURN": "Got no reply for the reservation request",
         "ERROR_CODE": 17,
     },
     "RESERVE_REFUSED": {
-        "ERROR": "Reservation request is refused",
+        "RETURN": "Reservation request is refused",
         "ERROR_CODE": 18,
     },
     "SEND_FREE_FAILURE": {
-        "ERROR": "Failed to send free request",
+        "RETURN": "Failed to send free request",
         "ERROR_CODE": 19,
     },
     "SEND_FAILURE": {
-        "ERROR": "Failed to send binary CMD",
+        "RETURN": "Failed to send binary CMD",
         "ERROR_CODE": 21,
     },
     "SEND_NO_REPLY": {
-        "ERROR": "Got no binary reply",
+        "RETURN": "Got no binary reply",
         "ERROR_CODE": 22,
     },
     "INSTRUMENT_UNKNOWN": {
-        "ERROR": "Unknown instrument that is not registered",
+        "RETURN": "Unknown instrument that is not registered",
         "ERROR_CODE": 23,
     },
     "SETUP_FAILURE": {
-        "ERROR": "Failed to setup the actor",
+        "RETURN": "Failed to setup the actor",
         "ERROR_CODE": 24,
     },
     "ILLEGAL_REPLY": {
-        "ERROR": "The reply from IS in wrong format or missed important message",
+        "RETURN": "The reply from IS in wrong format or missed important message",
         "ERROR_CODE": 25,
+    },
+    "NO_INSTRUMENT_SERVER": {
+        "RETURN": "No such an instrument server in history",
+        "ERROR_CODE": 26,
     },
     "OK_SKIPPED": {
         "RETURN": "OK, skipped",
