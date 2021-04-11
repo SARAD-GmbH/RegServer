@@ -19,7 +19,7 @@ import ctypes
 # import json
 import os
 import queue
-import signal
+#import signal
 import sys
 import threading
 import time
@@ -30,6 +30,7 @@ import paho.mqtt.client as MQTT  # type: ignore
 import registrationserver2
 # import traceback
 import thespian
+from thespian.actors import ActorSystem  # type: ignore
 from registrationserver2 import logger
 from registrationserver2.modules.mqtt.message import (  # , MQTT_ACTOR_REQUESTs, MQTT_ACTOR_ADRs, IS_ID_LIST
     RETURN_MESSAGES, Instr_CONN_HISTORY)
@@ -62,10 +63,10 @@ def add_2d_dict(actor_adr_dict, is_id_, instr_id_, val):
 
 
 class MqttParser(threading.Thread):
-    def __init__(self, SARAD_MQTT_SUBSCRIBER : ActorAddress, TName="Mqtt-Parser"):
+    def __init__(self, sarad_mqtt_subscriber : ActorAddress, TName="Mqtt-Parser"):
         super().__init__(name=TName)
         logger.info(f"The thread ({TName}) is created")
-        self.SARAD_MQTT_SUBSCRIBER = SARAD_MQTT_SUBSCRIBER
+        self.sarad_mqtt_subscriber = sarad_mqtt_subscriber
         self.split_len= 0
         self.topic_parts = []
         self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
@@ -117,20 +118,13 @@ class MqttParser(threading.Thread):
                                     "is_id": self.topic_parts[0],
                                 },
                             }
+                            logger.info(
+                                f"[RM_HOST]\tTo remove the cluster ({self.topic_parts[0]}) from file system"
+                            )
                             ask_return = actor_system.ask(
-                                self.SARAD_MQTT_SUBSCRIBER, ask_msg
+                                self.sarad_mqtt_subscriber, ask_msg
                             )
                             logger.info(ask_return)
-                            if (ask_return is RETURN_MESSAGES.get("OK")) or (
-                                ask_return is RETURN_MESSAGES.get("OK_SKIPPED")
-                            ):
-                                logger.info(
-                                    f"SARAD_Subscriber has removed this cluster ({self.topic_parts[0]}) from file system"
-                                )
-                            else:
-                                logger.warning(
-                                    f"SARAD_Subscriber has problems with removing this cluster ({self.topic_parts[0]}) from file system"
-                                )
                         else:
                             logger.warning(
                                 f"SARAD_Subscriber has received disconnection message from an unknown instrument server ({self.topic_parts[0]})"
@@ -153,20 +147,13 @@ class MqttParser(threading.Thread):
                             ask_msg["CMD"] = "ADD_HOST"
                         else:
                             ask_msg["CMD"] = "UP_HOST"
+                        logger.info(
+                            f"[{ask_msg['CMD']}]\tTo write the properties of this cluster ({self.topic_parts[0]}) into file system"
+                        )    
                         ask_return = actor_system.ask(
-                            self.SARAD_MQTT_SUBSCRIBER, ask_msg
+                            self.sarad_mqtt_subscriber, ask_msg
                         )
                         logger.info(ask_return)
-                        if (ask_return is RETURN_MESSAGES.get("OK")) or (
-                            ask_return is RETURN_MESSAGES.get("OK_SKIPPED")
-                        ):
-                            logger.info(
-                                f"[{ask_msg['CMD']}]\tSARAD_Subscriber has written the properties of this cluster ({self.topic_parts[0]}) into file system"
-                                )
-                        else:
-                            logger.warning(
-                                f"[{ask_msg['CMD']}]\tSARAD_Subscriber has problems with writing the properties of this cluster ({self.topic_parts[0]}) into file system"
-                            )
                     else:
                         logger.warning(
                             f"SARAD_Subscriber has received meta message of an unknown cluster ({self.topic_parts[0]})"
@@ -211,20 +198,11 @@ class MqttParser(threading.Thread):
                                     "instr_id": self.topic_parts[1],
                                 },
                             }
+                            logger.info(f"[RM_DEVICE]\tTo remove the instrument: {self.topic_parts[1]} under the IS: {self.topic_parts[0]}")
                             ask_return = actor_system.ask(
-                                self.SARAD_MQTT_SUBSCRIBER, ask_msg
+                                self.sarad_mqtt_subscriber, ask_msg
                             )
                             logger.info(ask_return)
-                            if (ask_return is RETURN_MESSAGES.get("OK")) or (
-                                ask_return is RETURN_MESSAGES.get("OK_SKIPPED")
-                            ):
-                                logger.info(
-                                    f"SARAD_Subscriber has killed the MQTT actor ({self.topic_parts[1]})"
-                                )
-                            else:
-                                logger.warning(
-                                    f"SARAD_Subscriber has problems with killing the MQTT actor ({self.topic_parts[1]})"
-                                )
                         else:
                             logger.warning(
                                 f"SARAD_Subscriber has received disconnection message from an unknown instrument ({self.topic_parts[1]}) controlled by the IS ({self.topic_parts[0]})"
@@ -256,20 +234,13 @@ class MqttParser(threading.Thread):
                                 ask_msg["CMD"] = "ADD_DEVICE"
                             else:
                                 ask_msg["CMD"] = "UP_DEVICE"
+                            logger.info(
+                                f"[{ask_msg['CMD']}]\tTo write the properties of this instrument ({self.topic_parts[1]}) into file system"
+                            )
                             ask_return = actor_system.ask(
-                                self.SARAD_MQTT_SUBSCRIBER, ask_msg
+                                self.sarad_mqtt_subscriber, ask_msg
                             )
                             logger.info(ask_return)
-                            if (ask_return is RETURN_MESSAGES.get("OK")) or (
-                                ask_return is RETURN_MESSAGES.get("OK_SKIPPED")
-                            ):
-                                logger.info(
-                                    f"[{ask_msg['CMD']}]\tSARAD_Subscriber has written the properties of this instrument ({self.topic_parts[1]}) into file system"
-                                )
-                            else:
-                                logger.warning(
-                                    f"[{ask_msg['CMD']}]\tSARAD_Subscriber has problems with writing the properties of this instrument ({self.topic_parts[1]}) into file system"
-                                )
                     else:
                         logger.warning(
                             f"Receive unknown meta message {message.get('payload')} under the topic {message.get('topic')}"
@@ -320,16 +291,15 @@ class SaradMqttSubscriber(Actor):
 
     __lock = threading.Lock()
 
-    SARAD_MQTT_PARSER = MqttParser(self.myAddress, TName="RS_MQTT_Parser-000")
-
-    def __init__(self, client_id, broker):
+    def __init__(self):
         self.rc_conn = 2
         self.rc_disc = 2
         self.rc_pub = 1
         self.rc_sub = 1
         self.rc_uns = 1
-        self.mqtt_cid = client_id
-        self.mqtt_broker = broker
+        self.mqtt_cid = None
+        self.mqtt_broker = None
+        self.SARAD_MQTT_PARSER = MqttParser(self.myAddress, TName="RS_MQTT_Parser-000")
         with self.__lock:
             self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
             self.__folder_available = (
@@ -358,28 +328,27 @@ class SaradMqttSubscriber(Actor):
         """
         if isinstance(msg, thespian.actors.ActorExitRequest):
             return
-
         if not isinstance(msg, dict):
             self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGTYPE"))
             return
-
-        cmd_string = msg.get("CMD", None)
-
-        if not cmd_string:
-            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+        cmd_key = msg.get("CMD", None)
+        if cmd_key is None:
+            return_msg = RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
+            logger.debug("Send %s back to %s", return_msg, sender)
+            self.send(sender, return_msg)
             return
-
-        cmd = self.ACCEPTED_COMMANDS.get(cmd_string, None)
-
-        if not cmd:
-            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_UNKNOWN_COMMAND"))
+        cmd = self.ACCEPTED_COMMANDS.get(cmd_key, None)
+        if cmd is None:
+            return_msg = RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"]
+            logger.debug("Send %s back to %s", return_msg, sender)
+            self.send(sender, return_msg)
             return
-
-        if not getattr(self, cmd, None):
-            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_NOTIMPLEMENTED"))
+        if getattr(self, cmd, None) is None:
+            return_msg = RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"]
+            logger.debug("Send %s back to %s", return_msg, sender)
+            self.send(sender, return_msg)
             return
-
-        self.send(sender, getattr(self, cmd)(msg))
+        getattr(self, cmd)(msg, sender)
 
     # Definition of callback functions for the MQTT client, namely the on_* functions
     # these callback functions are called in the new thread that is created through loo_start() of Client()
@@ -387,13 +356,14 @@ class SaradMqttSubscriber(Actor):
         self, client, userdata, flags, result_code
     ):  # pylint: disable=unused-argument
         """Will be carried out when the client connected to the MQTT self.mqtt_broker."""
-        self.rc_conn = result_code
-        if self.rc_conn == 1:
+        if result_code == 0:
+            logger.info("Connected with MQTT self.mqtt_broker.")
+            self.rc_conn == 0
+        else:
             logger.info(
                 f"Connection to MQTT self.mqtt_broker failed. result_code={result_code}"
             )
-        else:
-            logger.info("Connected with MQTT self.mqtt_broker.")
+            self.rc_conn = 1
         # return self.result_code
 
     # Definition of callback functions for the MQTT client, namely the on_* functions
@@ -403,13 +373,16 @@ class SaradMqttSubscriber(Actor):
     ):  # pylint: disable=unused-argument
         """Will be carried out when the client disconnected
         from the MQTT self.mqtt_broker."""
-        self.rc_disc = result_code
-        if self.rc_disc == 1:
+        if result_code >= 1:
+            self.rc_disc = 1
             logger.info(
-                f"Disconnection from MQTT-broker failed. result_code={result_code}"
+                f"Disconnection from MQTT-broker ungracefully. result_code={result_code}"
             )
         else:
+            self.rc_disc = 0
             logger.info("Gracefully disconnected from MQTT-broker.")
+        logger.info("[Subscriber]\tTo kill the subscriber")
+        self._kill(None)
 
     def on_publish(self, client, userdata, mid):
         self.rc_pub = 0
@@ -437,17 +410,21 @@ class SaradMqttSubscriber(Actor):
         mqtt_msg_queue.put(self.msg_buf)
 
     # Definition of methods accessible for the actor system and other actors -> referred to ACCEPTED_COMMANDS
-    def _add_instr(self, msg: dict) -> dict:
+    def _add_instr(self, msg: dict, sender):
         is_id = msg.get("PAR", None).get("is_id", None)
         if is_id is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         instr_id = msg.get("PAR", None).get("instr_id", None)
         if instr_id is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        if not is_id + "/" + instr_id in Instr_CONN_HISTORY:
-            return RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
+        if is_id not in Instr_CONN_HISTORY.keys() or instr_id not in Instr_CONN_HISTORY[is_id].keys():
+            self.send(sender, RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN"))
+            return
         if msg.get("PAR", None).get("payload", None) is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         family_ = (
             msg.get("PAR", None)
             .get("payload", None)
@@ -461,7 +438,8 @@ class SaradMqttSubscriber(Actor):
             .get("Type", None)
         )
         if family_ is None or type_ is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         if family_ == 1:
             sarad_type = "sarad-1688"
         elif family_ == 2:
@@ -472,7 +450,8 @@ class SaradMqttSubscriber(Actor):
             logger.warning(
                 f"[Add]:\tFound: Unknown family (index: {family_}) of instrument"
             )
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         name_ = instr_id + "." + sarad_type + ".mqtt"
         data = msg.get("PAR", None).get("payload")
         # if an actor already exists this will return
@@ -491,7 +470,8 @@ class SaradMqttSubscriber(Actor):
                 # how can the instrument server know this situation and handle with it?
                 # IMO, MQTT Subscriber should ask the IS MQTT to send the ".../.../connected=2" and ".../.../meta" one by one again.
                 Instr_CONN_HISTORY[is_id][instr_id] = "Removed"
-                return setup_return
+                self.send(sender, setup_return)
+                return
             else:
                 prep_msg = {
                     "CMD": "PREPARE",
@@ -510,20 +490,26 @@ class SaradMqttSubscriber(Actor):
                     # how can the instrument server know this situation and handle with it?
                     # IMO, MQTT Subscriber should ask the IS MQTT to send the ".../.../connected=2" and ".../.../meta" one by one again.
                     Instr_CONN_HISTORY[is_id][instr_id] = "Removed"
-                    return prep_return
-            return RETURN_MESSAGES.get("OK_SKIPPED")
+                    self.send(sender, prep_return)
+                    return
+            self.send(sender, RETURN_MESSAGES.get("OK_SKIPPED"))
+            return
 
-    def _rm_instr(self, msg: dict) -> dict:
-        instr_id = msg.get("PAR", None).get("instr_id", None)
+    def _rm_instr(self, msg: dict, sender):
         is_id = msg.get("PAR", None).get("is_id", None)
         if is_id is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
+        instr_id = msg.get("PAR", None).get("instr_id", None)
         if instr_id is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        if not is_id + "/" + instr_id in Instr_CONN_HISTORY:
-            return RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
+        if is_id not in Instr_CONN_HISTORY.keys() or instr_id not in Instr_CONN_HISTORY[is_id].keys():
+            self.send(sender, RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN"))
+            return
         if msg.get("PAR", None).get("payload", None) is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         family_ = (
             msg.get("PAR", None)
             .get("payload", None)
@@ -537,7 +523,8 @@ class SaradMqttSubscriber(Actor):
             .get("Type", None)
         )
         if family_ is None or type_ is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         if family_ == 1:
             sarad_type = "sarad-1688"
         elif family_ == 2:
@@ -548,24 +535,30 @@ class SaradMqttSubscriber(Actor):
             logger.warning(
                 f"[Add]:\tFound: Unknown family (index: {family_}) of instrument"
             )
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         name_ = instr_id + "." + sarad_type + ".mqtt"
         this_actor = ActorSystem().createActor(MqttActor, globalName=name_)
         logger.info(ActorSystem().ask(this_actor, {"CMD": "KILL"}))
         del Instr_CONN_HISTORY[is_id + "/" + instr_id]
-        return RETURN_MESSAGES.get("OK_SKIPPED")
+        self.send(sender, RETURN_MESSAGES.get("OK_SKIPPED"))
+        return
 
-    def _update_instr(self, msg: dict) -> dict:
-        instr_id = msg.get("PAR", None).get("instr_id", None)
+    def _update_instr(self, msg: dict, sender):
         is_id = msg.get("PAR", None).get("is_id", None)
         if is_id is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
+        instr_id = msg.get("PAR", None).get("instr_id", None)
         if instr_id is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        if not is_id + "/" + instr_id in Instr_CONN_HISTORY:
-            return RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
+        if is_id not in Instr_CONN_HISTORY.keys() or instr_id not in Instr_CONN_HISTORY[is_id].keys():
+            self.send(sender, RETURN_MESSAGES.get("INSTRUMENT_UNKNOWN"))
+            return
         if msg.get("PAR", None).get("payload", None) is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         family_ = (
             msg.get("PAR", None)
             .get("payload", None)
@@ -579,7 +572,8 @@ class SaradMqttSubscriber(Actor):
             .get("Type", None)
         )
         if family_ is None or type_ is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         if family_ == 1:
             sarad_type = "sarad-1688"
         elif family_ == 2:
@@ -590,7 +584,8 @@ class SaradMqttSubscriber(Actor):
             logger.warning(
                 f"[Add]:\tFound: Unknown family (index: {family_}) of instrument"
             )
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         name_ = instr_id + "." + sarad_type + ".mqtt"
         with self.__lock:
             logger.info(f"[Update]:\tUpdate: Instrument ID: {instr_id}")
@@ -608,24 +603,29 @@ class SaradMqttSubscriber(Actor):
                     logger.error(
                         f"[Update]:\tFailed to get Properties from {msg}, {instr_id}"
                     )  # pylint: disable=W0106
-                    return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+                    self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+                    return
             except BaseException as error:  # pylint: disable=W0703
                 logger.error(
                     f'[Update]:\t {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
                 )
-                return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+                self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+                return
             except:  # pylint: disable=W0702
                 logger.error(
                     f"[Update]:\tCould not write properties of device with ID: {instr_id}"
                 )
-                return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+                self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+                return
 
-        return RETURN_MESSAGES.get("OK_SKIPPED")
+        self.send(sender, RETURN_MESSAGES.get("OK_SKIPPED"))
+        return
 
-    def _add_host(self, msg: dict) -> dict:
+    def _add_host(self, msg: dict, sender):
         is_id = msg.get("PAR", None).get("is_id", None)
         if is_id is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         with self.__lock:
             logger.info(
                 f"[Add]:\tFound: A new connected host with Instrument Server ID: {is_id}"
@@ -644,46 +644,53 @@ class SaradMqttSubscriber(Actor):
                     logger.error(
                         f"[Add]:\tFailed to get Properties from {msg}, {is_id}"
                     )  # pylint: disable=W0106
-                    return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+                    self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+                    return
             except BaseException as error:  # pylint: disable=W0703
                 logger.error(
                     f'[Add]:\t {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
                 )
-                return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+                self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+                return
             except:  # pylint: disable=W0702
                 logger.error(
                     f"[Add]:\tCould not write properties of instrument server with ID: {is_id}"
                 )
-                return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        return RETURN_MESSAGES.get("OK_SKIPPED")
+                self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+                return
+        self.send(sender, RETURN_MESSAGES.get("OK_SKIPPED"))
+        return
 
-    def _rm_host(self, msg: dict) -> dict:
+    def _rm_host(self, msg: dict, sender):
         is_id = msg.get("PAR", None).get("is_id", None)
         if is_id is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         if is_id in Instr_CONN_HISTORY.keys():
             for instr in Instr_CONN_HISTORY[is_id].keys():
-                _re = self._rm_instr(
+                self._rm_instr(
                     {
                         "CMD": "RM_DEVICE",
                         "PAR": {"is_id": is_id, "instr_id": instr},
                     }
                 )
-                logger.info(_re)
         else:
             logger.warning(f"[RM_HOST]\tThe given IS ID ({is_id}) is not found in the connection history of the IS MQTT")
-            return RETURN_MESSAGES.get("NO_INSTRUMENT_SERVER")
+            self.send(sender, RETURN_MESSAGES.get("NO_INSTRUMENT_SERVER"))
+            return
         with self.__lock:
             logger.info(f"[Del]:\tRemoved the host with Instrument Server ID: {is_id}")
             link = fr"{self.__folder2_available}{is_id}"
             if os.path.exists(link):
                 os.unlink(link)
-        return RETURN_MESSAGES.get("OK_SKIPPED")
+        self.send(sender, RETURN_MESSAGES.get("OK_SKIPPED"))
+        return
 
-    def _update_host(self, msg: dict) -> dict:
+    def _update_host(self, msg: dict, sender):
         is_id = msg.get("PAR", None).get("is_id", None)
         if is_id is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         with self.__lock:
             logger.info(
                 f"[Update]:\tFound: A new connected host with Instrument Server ID : {is_id}"
@@ -702,79 +709,96 @@ class SaradMqttSubscriber(Actor):
                     logger.error(
                         f"[Update]:\tFailed to get Properties from {msg}, {is_id}"
                     )  # pylint: disable=W0106
-                    return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+                    self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+                    return
             except BaseException as error:  # pylint: disable=W0703
                 logger.error(
                     f'[Update]:\t {type(error)}\t{error}\t{vars(error) if isinstance(error, dict) else "-"}\t{traceback.format_exc()}'
                 )
-                return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+                self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+                return
             except:  # pylint: disable=W0702
                 logger.error(
                     f"[Update]:\tCould not write properties of instrument server with ID: {is_id}"
                 )
-                return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        return RETURN_MESSAGES.get("OK_SKIPPED")
+                self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+                return
+        self.send(sender, RETURN_MESSAGES.get("OK_SKIPPED"))
+        return
 
-    def _kill(self, msg) -> dict:
-        self.__disconnect(msg)
+    def _kill(self, msg, sender):
+        self.__disconnect()
         for IS_ID in Instr_CONN_HISTORY.keys():
             rm_return = self._rm_host({"CMD": "RM_HOST", "PAR": {"is_id": IS_ID}})
             logger.info(rm_return)
         del Instr_CONN_HISTORY
-        return RETURN_MESSAGES.get("OK_SKIPPED")
+        self.send(sender, RETURN_MESSAGES.get("OK_SKIPPED"))
 
-    def _setup(self, msg: dict) -> dict:
-        conn_re = self.__connect()
+    def _setup(self, msg: dict, sender) -> None:
+        self.mqtt_cid = msg.get("PAR", None).get("client_id", None)
+        self.mqtt_broker = msg.get("PAR", None).get("mqtt_broker", None)
+        if self.mqtt_cid is None or self.mqtt_broker is None:
+            logger.error("[Setup]\tThe client ID of the MQTT Subscriber or the MQTT-broker is not given")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
+        
+        _re = self.__connect()
         logger.info(f"[CONN]\tThe client ({self.mqtt_cid}): {conn_re}")
-        if conn_re is RETURN_MESSAGES.get("OK_SKIPPED"):
+        if _re is RETURN_MESSAGES.get("OK_SKIPPED"):
             self.mqttc.loop_start()
             self.SARAD_MQTT_PARSER.start()
         else:
-            return conn_re
+            self.send(sender, _re)
+            return
         sub_req_msg = {
             # "CMD": "SUBSCRIBE",
             "PAR": {"topic": "+/connected", "qos": 0},
         }
-        subscribe_status = self.__subscribe(sub_req_msg)
+        _re = self.__subscribe(sub_req_msg)
         if not (
-            subscribe_status is RETURN_MESSAGES.get("OK")
-            or subscribe_status is RETURN_MESSAGES.get("OK_SKIPPED")
+            _re is RETURN_MESSAGES.get("OK")
+            or _re is RETURN_MESSAGES.get("OK_SKIPPED")
         ):
-            return RETURN_MESSAGES.get("SETUP_FAILURE")
+            self.send(sender, RETURN_MESSAGES.get("SETUP_FAILURE"))
+            return
 
         sub_req_msg = {
             # "CMD": "SUBSCRIBE",
             "PAR": {"topic": "+/meta", "qos": 0},
         }
-        subscribe_status = self.__subscribe(sub_req_msg)
+        _re = self.__subscribe(sub_req_msg)
         if not (
-            subscribe_status is RETURN_MESSAGES.get("OK")
-            or subscribe_status is RETURN_MESSAGES.get("OK_SKIPPED")
+            _re is RETURN_MESSAGES.get("OK")
+            or _re is RETURN_MESSAGES.get("OK_SKIPPED")
         ):
-            return RETURN_MESSAGES.get("SETUP_FAILURE")
+            self.send(sender, RETURN_MESSAGES.get("SETUP_FAILURE"))
+            return
         sub_req_msg = {
             # "CMD": "SUBSCRIBE",
             "PAR": {"topic": "+/+/connected", "qos": 0},
         }
-        subscribe_status = self.__subscribe(sub_req_msg)
+        _re = self.__subscribe(sub_req_msg)
         if not (
-            subscribe_status is RETURN_MESSAGES.get("OK")
-            or subscribe_status is RETURN_MESSAGES.get("OK_SKIPPED")
+            _re is RETURN_MESSAGES.get("OK")
+            or _re is RETURN_MESSAGES.get("OK_SKIPPED")
         ):
-            return RETURN_MESSAGES.get("SETUP_FAILURE")
+            self.send(sender, RETURN_MESSAGES.get("SETUP_FAILURE"))
+            return
 
         sub_req_msg = {
             # "CMD": "SUBSCRIBE",
             "PAR": {"topic": "+/+/meta", "qos": 0},
         }
-        subscribe_status = self.__subscribe(sub_req_msg)
+        _re = self.__subscribe(sub_req_msg)
         if not (
-            subscribe_status is RETURN_MESSAGES.get("OK")
-            or subscribe_status is RETURN_MESSAGES.get("OK_SKIPPED")
+            _re is RETURN_MESSAGES.get("OK")
+            or _re is RETURN_MESSAGES.get("OK_SKIPPED")
         ):
-            return RETURN_MESSAGES.get("SETUP_FAILURE")
+            self.send(sender, RETURN_MESSAGES.get("SETUP_FAILURE"))
+            return
 
-        return RETURN_MESSAGES.get("OK_SKIPPED")
+        self.send(sender, RETURN_MESSAGES.get("OK_SKIPPED"))
+        return
 
     # Definition of methods, namely __*(), not accessible for the actor system and other actors
     def __connect(self) -> dict:
@@ -821,15 +845,19 @@ class SaradMqttSubscriber(Actor):
 
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
-    def __disconnect(self) -> dict:
-        logger.info("To disconnect from the MQTT-broker!")
-        self.mqttc.disconnect()
+    def __disconnect(self):
+        if self.rc_disc == 2:
+            logger.info("To disconnect from the MQTT-broker!")
+            self.mqttc.disconnect()
+        elif self.rc_disc == 1 or self.rc_disc == 0:
+            self.rc_disc = 2
+            logger.info("[Subscriber]\tAlready disconnected")
         logger.info("To stop the MQTT thread!")
         self.mqttc.loop_stop()
         logger.info("To stop the MQTT parser thread!")
         self.SARAD_MQTT_PARSER.raise_exception()
         self.SARAD_MQTT_PARSER.join()
-        return RETURN_MESSAGES.get("OK_SKIPPED")
+        logger.info("[Subscriber]\tDisconnection gracefully: "+RETURN_MESSAGES.get("OK_SKIPPED"))
 
     def __publish(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("PAR", None).get("topic", None)
@@ -899,24 +927,24 @@ class SaradMqttSubscriber(Actor):
         return RETURN_MESSAGES.get("OK_SKIPPED")
 
     # * Handling of Ctrl+C:
-    def signal_handler(self, sig, frame):  # pylint: disable=unused-argument
+    #def signal_handler(self, sig, frame):  # pylint: disable=unused-argument
         """On Ctrl+C:
         - stop all cycles
         - disconnect from MQTT self.mqtt_broker"""
-        logger.info("You pressed Ctrl+C!")
-        self._disconnect()
-        sys.exit(0)
+    #    logger.info("You pressed Ctrl+C!")
+    #    self._disconnect()
+    #    sys.exit(0)
 
-    signal.signal(
-        signal.SIGINT, signal_handler
-    )  # SIGINT: By default, interrupt is Ctrl+C
+    #signal.signal(
+    #    signal.SIGINT, signal_handler
+    #)  # SIGINT: By default, interrupt is Ctrl+C
 
 
 def __test__():
-    SaradMqttSubscriber = ActorSystem().createActor(
+    sarad_mqtt_subscriber = ActorSystem().createActor(
         SaradMqttSubscriber, globalName="SARAD_Subscriber"
     )
-    ask_return = ActorSystem().ask(SARAD_MQTT_SUBSCRIBER, "SETUP")
+    ask_return = ActorSystem().ask(sarad_mqtt_subscriber, {"CMD": "SETUP", "PAR": {"client_id": "sarad-mqtt_subscriber-client", "mqtt_broker": "localhost"}})
     if ask_return is RETURN_MESSAGES.get("OK"):
         logger.info("SARAD MQTT Subscriber is setup correctly!")
         print("SARAD MQTT Subscriber is setup correctly!")
@@ -925,7 +953,7 @@ def __test__():
         logger.error(ask_return)
         print("SARAD MQTT Subscriber is not setup!")
     input("Press Enter to End")
-    ActorSystem().ask(SARAD_MQTT_SUBSCRIBER, "KILL")
+    ActorSystem().ask(sarad_mqtt_subscriber, "KILL")
     logger.info("!")
 
 

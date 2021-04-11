@@ -172,15 +172,17 @@ class MqttActor(DeviceBaseActor):
                 )
 
     # Definition of methods accessible for the actor system and other actors -> referred to ACCEPTED_COMMANDS
-    def _send(self, msg: dict):
+    def _send(self, msg: dict, sender) -> None:
         if msg is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         if (
             msg.get("PAR", None) is None
             or msg.get("PAR", None).get("Data", None) is None
             or msg.get("PAR", None).get("Host", None)
         ):
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         pub_req_msg["payload"] = {}
         pub_req_msg["payload"]["Data"] = msg.get("PAR", None).get("Data", None)
         pub_req_msg["payload"]["Host"] = msg.get("PAR", None).get("Host", None)
@@ -200,7 +202,8 @@ class MqttActor(DeviceBaseActor):
         )
         if send_status is RETURN_MESSAGES.get("PUBLISH_FAILURE"):
             self.req_status = mqtt_req_status.idle
-            return RETURN_MESSAGES.get("SEND_RESERVE_FAILURE")
+            self.send(sender, RETURN_MESSAGES.get("SEND_RESERVE_FAILURE"))
+            return
         self.send_status = mqtt_send_status.sent
         wait_cnt5 = 2000
         while (
@@ -220,9 +223,22 @@ class MqttActor(DeviceBaseActor):
         else:
             self.send_status = mqtt_send_status.idle
             send_return = RETURN_MESSAGES.get("SEND_NO_REPLY")
-        return send_return
+        self.send(sender, send_return)
+        return
 
-    def _reserve_at_is(self, msg):
+    def _reserve_at_is(self, app, host, user) -> bool:
+        logger.info(f"[Reserve]\tThe MQTT actor '{self.globalName}' is to susbcribe to the 'meta' topic")
+        sub_req_msg = {
+            # "CMD": "SUBSCRIBE",
+            "PAR": {"topic": self.allowed_sys_topics["META"], "qos": 0},
+        }
+        subscribe_status = self.__subscribe(sub_req_msg)
+        if not (
+            subscribe_status is RETURN_MESSAGES.get("OK")
+            or subscribe_status is RETURN_MESSAGES.get("OK_SKIPPED")
+        ):
+            self.send(sender, RETURN_MESSAGES.get("SUBSCRIBE_FAILURE"))
+            return False
         self.req_status = mqtt_req_status.send_reserve
         send_reserve_status = self.__publish(
             {
@@ -247,10 +263,10 @@ class MqttActor(DeviceBaseActor):
             logger.error(RETURN_MESSAGES.get("SEND_RESERVE_FAILURE"))
             return False
         self.req_status = mqtt_req_status.reserve_sent
-        wait_cnt4 = 2000
+        wait_cnt4 = 200
         while (
             wait_cnt4 != 0
-        ):  # Wait max. 2000*0.01s = 20s -> check the reply in on_message()
+        ):  # Wait max. 200*0.01s = 2s -> check the reply in on_message()
             if self.req_status == mqtt_req_status.reserve_accepted:
                 self.req_status = mqtt_req_status.idle
                 break
@@ -270,21 +286,35 @@ class MqttActor(DeviceBaseActor):
             self.req_status = mqtt_req_status.idle
             logger.info(RETURN_MESSAGES.get("RESERVE_NO_REPLY"))
             return False
+        logger.info(f"[Reserve]\tThe MQTT actor '{self.globalName}' is to susbcribe to the 'msg' topic")
+        sub_req_msg = {
+            # "CMD": "SUBSCRIBE",
+            "PAR": {"topic": self.allowed_sys_topics["MSG"], "qos": 0},
+        }
+        subscribe_status = self.__subscribe(sub_req_msg)
+        if not (
+            subscribe_status is RETURN_MESSAGES.get("OK")
+            or subscribe_status is RETURN_MESSAGES.get("OK_SKIPPED")
+        ):
+            logger.warning(RETURN_MESSAGES.get("SUBSCRIBE_FAILURE"))
+            return False
         return True
 
-    def _free(self, msg):
+    def _free(self, msg, sender) -> None:
         logger.info("Free-Request")
+        free_req_msg = {}
         if msg is None:
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
-        self.free_req_msg["Req"] = msg.get("Req", None)
-        if self.free_req_msg["Req"] is None:
-            self.free_req_msg["Req"] = "free"
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
+        free_req_msg["Req"] = msg.get("Req", None)
+        if free_req_msg["Req"] is None:
+            free_req_msg["Req"] = "free"
         send_free_status = self.__publish(
             {
                 # "CMD": "PUBLISH",
                 "PAR": {
                     "topic": self.allowed_sys_topics["CTRL"],
-                    "payload": json.dump(self.free_req_msg),
+                    "payload": free_req_msg,
                     "qos": 0,
                 },
             }
@@ -294,10 +324,35 @@ class MqttActor(DeviceBaseActor):
             send_free_status is RETURN_MESSAGES.get("OK")
             or send_free_status is RETURN_MESSAGES.get("OK_SKIPPED")
         ):
-            return RETURN_MESSAGES.get("SEND_FREE_FAILURE")
-        return super()._free(msg)
+            self.send(sender, RETURN_MESSAGES.get("SEND_FREE_FAILURE"))
+            return
+        logger.info(f"[Free]\tThe MQTT actor '{self.globalName}' is to unsusbcribe to the 'meta' topic")
+        uns_req_msg = {
+            # "CMD": "SUBSCRIBE",
+            "PAR": {"topic": self.allowed_sys_topics["META"]},
+        }
+        unsubscribe_status = self.__unsubscribe(uns_req_msg)
+        if not (
+            unsubscribe_status is RETURN_MESSAGES.get("OK")
+            or unsubscribe_status is RETURN_MESSAGES.get("OK_SKIPPED")
+        ):
+            self.send(sender, RETURN_MESSAGES.get("UNSUBSCRIBE_FAILURE"))
+            return False
+        logger.info(f"[Free]\tThe MQTT actor '{self.globalName}' is to unsusbcribe to the 'msg' topic")
+        uns_req_msg = {
+            # "CMD": "SUBSCRIBE",
+            "PAR": {"topic": self.allowed_sys_topics["MSG"]},
+        }
+        unsubscribe_status = self.__unsubscribe(uns_req_msg)
+        if not (
+            unsubscribe_status is RETURN_MESSAGES.get("OK")
+            or unsubscribe_status is RETURN_MESSAGES.get("OK_SKIPPED")
+        ):
+            self.send(sender, RETURN_MESSAGES.get("UNSUBSCRIBE_FAILURE"))
+            return False
+        super()._free(msg, sender)
 
-    def _kill(self, msg: dict):
+    def _kill(self, msg: dict, sender):
         for topic_k in self.allowed_sys_topics.keys():
             uns_req_msg = {
                 # "CMD": "UNSUBSCRIBE",
@@ -312,50 +367,33 @@ class MqttActor(DeviceBaseActor):
                 logger.warning(f"[UNSUB]\tFailed to unsubscribe to the topic {self.allowed_sys_topics[topic_k]}")
                 #return RETURN_MESSAGES.get("UNSUBSCRIBE_FAILURE")
         self.__disconnect()
-        return super()._kill(msg)
+        super()._kill(msg, sender)
         # TODO: clear the used memory space
         # TODO: let others like the other actors and this actor's IS MQTT know this actor is killed
 
-    def _prepare(self, msg: dict):
+    def _prepare(self, msg: dict, sender):
         self.is_id = msg.get("PAR", None).get("is_id", None)
         if self.is_id is None:
             logger.info("ERROR: No Instrument Server ID received!")
-            return RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
         conn_re = self.__connect()
         logger.info(f"[CONN]\tThe client ({self.mqtt_cid}): {conn_re}")
         if conn_re is RETURN_MESSAGES.get("OK_SKIPPED"):
             self.mqttc.loop_start()
         else:
-            return conn_re
+            self.send(sender, conn_re)
+            return
         for k in self.allowed_sys_topics.keys():
             self.allowed_sys_topics[k] = (
                 self.is_id + "/" + self.instr_id + self.allowed_sys_topics[k]
             )
-        sub_req_msg = {
-            # "CMD": "SUBSCRIBE",
-            "PAR": {"topic": self.allowed_sys_topics["MSG"], "qos": 0},
-        }
-        subscribe_status = self.__subscribe(sub_req_msg)
-        if not (
-            subscribe_status is RETURN_MESSAGES.get("OK")
-            or subscribe_status is RETURN_MESSAGES.get("OK_SKIPPED")
-        ):
-            return RETURN_MESSAGES.get("PREPARE_FAILURE")
 
-        sub_req_msg = {
-            # "CMD": "SUBSCRIBE",
-            "PAR": {"topic": self.allowed_sys_topics["META"], "qos": 0},
-        }
-        subscribe_status = self.__subscribe(sub_req_msg)
-        if not (
-            subscribe_status is RETURN_MESSAGES.get("OK")
-            or subscribe_status is RETURN_MESSAGES.get("OK_SKIPPED")
-        ):
-            return RETURN_MESSAGES.get("PREPARE_FAILURE")
+        # set LWT message
+        self.mqttc.will_set(self.allowed_sys_topics["CTRL"], payload={"Req": "free"}, qos=0, retain=True)
 
-        # TODO: set LWT message
-
-        return RETURN_MESSAGES.get("OK_SKIPPED")
+        self.send(sender, RETURN_MESSAGES.get("OK_SKIPPED"))
+        return
 
     # Definition of methods, namely __*(), not accessible for the actor system and other actors
     def __connect(self) -> dict:

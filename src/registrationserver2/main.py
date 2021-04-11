@@ -19,7 +19,7 @@ from thespian.actors import ActorSystem  # type: ignore
 
 from registrationserver2 import FOLDER_AVAILABLE, logger
 from registrationserver2.config import config
-from registrationserver2.modules.rfc2217.mdns_listener import MdnsListener
+#from registrationserver2.modules.rfc2217.mdns_listener import MdnsListener
 from registrationserver2.restapi import RestApi
 
 
@@ -48,7 +48,7 @@ def main():
         ),
     )
     apithread.start()
-    _ = MdnsListener(_type=config["TYPE"])
+    #_ = MdnsListener(_type=config["TYPE"])
 
     # Prepare for closing
     @atexit.register
