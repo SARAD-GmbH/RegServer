@@ -17,7 +17,9 @@ Commands
 Commands consist of the keys:
 
 CMD
-    contains the message type.
+    The CMD key indicates that the message is a command that shall trigger the
+    receiving actor to do something. The value of the CMD key contains the
+    command type.
 
 PAR (optional)
     contains optional parameters that differ from command to command.
@@ -38,11 +40,13 @@ Return messages
 
 Return messages consist of the following keys:
 
+RETURN
+    The RETURN key indicates that this message is a return value belonging to a
+    p bbreviously received command. The value contains the command type that caused
+    the return message.
+
 ERROR_CODE
     integer to clearly identify the error.
-
-RETURN
-    contains a text reporting the outcome or error message corresponding with ERROR_CODE
 
 RESULT (optional)
     contains additional result attributes that differ from command to command.
@@ -50,8 +54,8 @@ RESULT (optional)
 Examples::
 
   return_dict = {
+      "RETURN": "RESERVE",
       "ERROR_CODE": 0,
-      "RETURN": "OK",
       "RESULT": {
           "IP": 127.0.0.1,
           "PORT": 50000,
@@ -60,7 +64,7 @@ Examples::
 
   return_dict = {
       "ERROR_CODE": 10,
-      "RETURN": "OK, skipped",
+      "RETURN": "RESERVE",
   }
 
 CMDs handled by the DeviceBaseActor
@@ -71,7 +75,7 @@ SETUP
 
 Request to create the device file that is linked to the actor via its file name.
 
-Received from
+Sent from
     MdnsListener/MqttSubscriber
 
 Parameters:
@@ -92,12 +96,15 @@ Example::
          "Port": 5580,
          "Name": "0ghMF8Y.sarad-1688._rfc2217._tcp.local."}}
 
+Expected RETURN
+    ERROR_CODE expected to be "OK" or "OK_UPDATED"
+
 RESERVE
 -------
 
 Request to reserve an instrument.
 
-Received from
+Sent from
     RestApi
 
 Parameters:
@@ -106,22 +113,32 @@ Parameters:
 * USER: Username requesting the reservation
 * APP: Application requesting the reservation
 
+Expected RETURN
+    ERROR_CODE expected to be "OK", "OK_SKIPPED", "OCCUPIED"
+
+
 FREE
 ----
 
 Request to free an instrument from the reservation.
 
-Received from
+Sent from
     RestApi
 
-KILL
-----
+Expected RETURN
+    ERROR_CODE expected to be "OK", "OK_SKIPPED"
+
+ActorExitRequest
+----------------
 
 Request the termination of an actor, sent when a device gets disconnected
 from the accessable network.
 
-Received from
+Sent from
     MdnsListener/MqttSubscriber
+
+Expected RETURN
+    ERROR_CODE expected to be "OK"
 
 
 
@@ -134,7 +151,7 @@ SEND
 Request from the Redirector Actor to a Device Actor to send a binary message to
 the Instrument Server.
 
-Received from
+Sent from
     RedirectorActor
 
 Parameters:
@@ -142,10 +159,13 @@ Parameters:
 * DATA: Contains the DATA so be sent
 * HOST: Host requesting the DATA to be sent (for reservation checks at the Instrument Server)
 
+Expected RETURN
+    ERROR_CODE expected to be "OK", RESULT
+
 RESULT attributes:
 
-* DATA: Contains DATA that the device sent back, not set in case there is no
-  reponse
+* DATA: containing DATA that the device sent back, None if ERROR_CODE is not "OK"
+
 
 CMDs handled by the Redirector Actor
 ====================================
@@ -155,7 +175,7 @@ SETUP
 
 Request to initialize the Redirector Actor with the globalName of its parent Device Actor.
 
-Received from
+Sent from
     BaseDeviceActor
 
 Parameter:
@@ -167,11 +187,36 @@ RESULT attributes:
 * IP: IP address of the listening server socket
 * PORT: Port number of the listening server socket
 
+ActorExitRequest
+----------------
 
-Misc CMDs (all)
-===============
+Request the termination of the actor. Sent from the device actor when a the
+reservation of a device gets cancelled by the FREE command from the REST API.
 
-ECHO
-----
+Sent from
+    DeviceBaseActor
 
-Responds with the message send, used for debugging of actors.
+Expected RETURN
+    ERROR_CODE expected to be "OK"
+
+CONNECT
+-------
+
+Request to accept incomming messages at the listening server socket.
+
+Sent from
+    DeviceBaseActor or from self
+
+Expected RETURN
+    No
+
+RECEIVE
+-------
+
+Request to start another loop of the _receive_loop function.
+
+Sent from
+    self
+
+Expected RETURN
+    No

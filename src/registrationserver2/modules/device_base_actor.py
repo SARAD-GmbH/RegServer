@@ -10,15 +10,15 @@ Authors
 .. uml :: uml-device_base_actor.puml
 """
 import os
-from builtins import staticmethod
-from datetime import datetime, timedelta
+from datetime import datetime
 
-import thespian.actors  # type: ignore
 from flask import json
+from overrides import overrides  # type: ignore
 from registrationserver2 import FOLDER_AVAILABLE, FOLDER_HISTORY, logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.redirector_actor import RedirectorActor
-from thespian.actors import Actor, ActorSystem  # type: ignore
+from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
+                             ChildActorExited)
 
 logger.info("%s -> %s", __package__, __file__)
 
@@ -49,31 +49,20 @@ class DeviceBaseActor(Actor):
     * FREE: is being called when the end-user-application is done requesting or
         sending data, should return true as soon the freeing process has been
         initialized
-
-    * KILL: similar to SETUP, this is used to do everything that has to be done
-      before performing the ActorExitRequest.
-
-    * ECHO: should return what was sent, mainly used for testing.
-
     """
 
     ACCEPTED_COMMANDS = {
         "SEND": "_send",
         "RESERVE": "_reserve",
-        "ECHO": "_echo",
         "FREE": "_free",
         "SETUP": "_setup",
-        "KILL": "_kill",
-        "RETURN": "_return_with_socket",
+    }
+    ACCEPTED_RETURNS = {
+        "SETUP": "_return_with_socket",
+        "KILL": "_return_from_kill",
     }
 
-    @staticmethod
-    def _echo(msg: dict) -> dict:
-        msg.pop("CMD", None)
-        msg.pop("RETURN", None)
-        msg["RETURN"] = True
-        return msg
-
+    @overrides
     def __init__(self):
         logger.debug("Initialize a new device actor.")
         super().__init__()
@@ -86,40 +75,65 @@ class DeviceBaseActor(Actor):
         self.app = None
         self.user = None
         self.host = None
+        self.sender_api = None
         logger.info("Device actor created.")
 
+    @overrides
     def receiveMessage(self, msg, sender):
         """
         Handles received Actor messages / verification of the message format
         """
         logger.debug("Msg: %s, Sender: %s", msg, sender)
-        if isinstance(msg, thespian.actors.ActorExitRequest):
+        if isinstance(msg, ActorExitRequest):
+            self._kill(msg, sender)
+            return
+        if isinstance(msg, ChildActorExited):
+            # TODO error handling code could be placed here
             return
         if not isinstance(msg, dict):
-            return_msg = RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]
-            logger.debug("Send %s back to %s", return_msg, sender)
-            self.send(sender, return_msg)
+            logger.critical(
+                "Received %s from %s. This should never happen.", msg, sender
+            )
+            logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
             return
-        if msg.get("RETURN", None) is not None:
-            return
+        return_key = msg.get("RETURN", None)
         cmd_key = msg.get("CMD", None)
-        if cmd_key is None:
-            return_msg = RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]
-            logger.debug("Send %s back to %s", return_msg, sender)
-            self.send(sender, return_msg)
+        if ((return_key is None) and (cmd_key is None)) or (
+            (return_key is not None) and (cmd_key is not None)
+        ):
+            logger.critical(
+                "Received %s from %s. This should never happen.", msg, sender
+            )
+            logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_MESSAGE"])
             return
-        cmd = self.ACCEPTED_COMMANDS.get(cmd_key, None)
-        if cmd is None:
-            return_msg = RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"]
-            logger.debug("Send %s back to %s", return_msg, sender)
-            self.send(sender, return_msg)
-            return
-        if getattr(self, cmd, None) is None:
-            return_msg = RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"]
-            logger.debug("Send %s back to %s", return_msg, sender)
-            self.send(sender, return_msg)
-            return
-        getattr(self, cmd)(msg, sender)
+        if cmd_key is not None:
+            cmd_function = self.ACCEPTED_COMMANDS.get(cmd_key, None)
+            if cmd_function is None:
+                logger.critical(
+                    "Received %s from %s. This should never happen.", msg, sender
+                )
+                logger.critical(
+                    RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"]["ERROR_MESSAGE"]
+                )
+                return
+            if getattr(self, cmd_function, None) is None:
+                logger.critical(
+                    "Received %s from %s. This should never happen.", msg, sender
+                )
+                logger.critical(
+                    RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"]["ERROR_MESSAGE"]
+                )
+                return
+            getattr(self, cmd_function)(msg, sender)
+        elif return_key is not None:
+            return_function = self.ACCEPTED_RETURNS.get(return_key, None)
+            if return_function is None:
+                logger.debug("Ask received the return %s from %s.", msg, sender)
+                return
+            if getattr(self, return_function, None) is None:
+                logger.debug("Ask received the return %s from %s.", msg, sender)
+                return
+            getattr(self, return_function)(msg, sender)
 
     def _setup(self, msg: dict, sender) -> None:
         filename = fr"{self.__folder_history}{self.globalName}"
@@ -133,11 +147,19 @@ class DeviceBaseActor(Actor):
             self._file = msg["PAR"]
             with open(filename, "w+") as file_stream:
                 file_stream.write(self._file)
-            self.send(sender, RETURN_MESSAGES["OK"])
+            return_message = {
+                "RETURN": "SETUP",
+                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+            }
+            self.send(sender, return_message)
             return
         with open(filename, "w+") as file_stream:
             file_stream.write(self._file)
-        self.send(sender, RETURN_MESSAGES["OK_UPDATED"])
+        return_message = {
+            "RETURN": "SETUP",
+            "ERROR_CODE": RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
+        }
+        self.send(sender, return_message)
         return
 
     def _kill(self, msg: dict, sender):
@@ -149,40 +171,42 @@ class DeviceBaseActor(Actor):
         if os.path.exists(filename):
             os.remove(filename)
         if self.my_redirector is not None:
-            logger.debug("Ask to kill redirector...")
-            kill_return = ActorSystem().ask(
-                self.my_redirector, thespian.actors.ActorExitRequest()
-            )
-            logger.info("returned with %s", kill_return)
-        logger.debug("Ask to kill myself...")
-        self.send(self.myAddress, thespian.actors.ActorExitRequest())
-        self.send(sender, RETURN_MESSAGES["OK"])
+            logger.debug("Send KILL to redirector %s", self.my_redirector)
+            self.send(self.my_redirector, ActorExitRequest())
+        return_message = {
+            "RETURN": "KILL",
+            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+        }
+        self.send(sender, return_message)
+        logger.debug("Cleanup done before finally killing me.")
 
     def _reserve(self, msg: dict, sender) -> None:
         """Handler for RESERVE message from REST API."""
         logger.info("Device actor received a RESERVE command with message: %s", msg)
+        self.sender_api = sender
         try:
             self.app = msg["PAR"]["APP"]
         except LookupError:
             logger.error("ERROR: there is no APP name!")
-            self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"])
             return
         try:
             self.host = msg["PAR"]["HOST"]
         except LookupError:
             logger.error("ERROR: there is no HOST name!")
-            self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"])
             return
         try:
             self.user = msg["PAR"]["USER"]
         except LookupError:
             logger.error("ERROR: there is no USER name!")
-            self.send(sender, RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"])
             return
         if self._reserve_at_is(self.app, self.host, self.user):
             self._create_redirector(sender)
             return
-        self.send(sender, RETURN_MESSAGES["OCCUPIED"])
+        return_message = {
+            "RETURN": "RESERVE",
+            "ERROR_CODE": RETURN_MESSAGES["OCCUPIED"]["ERROR_CODE"],
+        }
+        self.send(sender, return_message)
         return
 
     def _reserve_at_is(self, app, host, user) -> bool:
@@ -200,10 +224,14 @@ class DeviceBaseActor(Actor):
             )
             self.my_redirector = self.createActor(RedirectorActor, globalName=short_id)
             msg = {"CMD": "SETUP", "PAR": {"PARENT_NAME": self.globalName}}
-            logger.debug("Ask to setup redirector with msg %s", msg)
+            logger.debug("Send SETUP command to redirector with msg %s", msg)
             self.send(self.my_redirector, msg)
             return
-        self.send(sender, RETURN_MESSAGES["OK_SKIPPED"])
+        return_message = {
+            "RETURN": "RESERVE",
+            "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+        }
+        self.send(sender, return_message)
         return
 
     def _return_with_socket(self, msg, sender):
@@ -227,16 +255,34 @@ class DeviceBaseActor(Actor):
         logger.info("self._file: %s", self._file)
         with open(self.link, "w+") as file_stream:
             file_stream.write(self._file)
-        logger.debug("Send CONNECT command to redirector")
+        logger.debug("Send CONNECT command to redirector %s", self.my_redirector)
         self.send(self.my_redirector, {"CMD": "CONNECT"})
-        self.send(sender, RETURN_MESSAGES["OK"])
+        return_message = {
+            "RETURN": "RESERVE",
+            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+        }
+        logger.debug("Return %s to %s", return_message, sender)
+        self.send(self.sender_api, return_message)
 
-    def _free(self, msg, sender) -> None:
+    def _free(self, msg, sender):
         """Handler for FREE message from REST API."""
         logger.info("Device actor received a FREE command. %s", msg)
+        self.sender_api = sender
         if self.my_redirector is not None:
-            logger.debug("Ask to kill redirector")
-            self.send(self.my_redirector, {"CMD": "KILL"})
+            logger.debug("Send KILL to redirector %s", self.my_redirector)
+            self.send(self.my_redirector, ActorExitRequest())
+            return
+        return_message = {
+            "RETURN": "FREE",
+            "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+        }
+        self.send(sender, return_message)
+        return
+
+    def _return_from_kill(self, msg, _sender):
+        """Completes the _free function with the reply from the redirector actor after
+        it received the KILL command."""
+        if not msg["ERROR_CODE"]:
             # Write Free section into device file
             df_content = json.loads(self._file)
             free = {
@@ -255,7 +301,16 @@ class DeviceBaseActor(Actor):
             with open(self.link, "w+") as file_stream:
                 file_stream.write(self._file)
             self.my_redirector = None
-            self.send(sender, RETURN_MESSAGES["OK"])
+            return_message = {
+                "RETURN": "FREE",
+                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+            }
+            self.send(self.sender_api, return_message)
             return
-        self.send(sender, RETURN_MESSAGES["OK_SKIPPED"])
+        logger.critical("Killing the redirector actor failed with %s", msg)
+        return_message = {
+            "RETURN": "FREE",
+            "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+        }
+        self.send(self.sender_api, return_message)
         return

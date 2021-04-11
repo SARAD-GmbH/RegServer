@@ -23,7 +23,7 @@ from registrationserver2 import FOLDER_AVAILABLE, FOLDER_HISTORY, logger
 from registrationserver2.config import config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
-from thespian.actors import ActorSystem  # type: ignore
+from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
 logger.info("%s -> %s", __package__, __file__)
@@ -88,13 +88,27 @@ class MdnsListener(ServiceListener):
         logger.debug(out)
         return json.dumps(out)
 
+    @staticmethod
+    def get_ip():
+        """Find my own IP address"""
+        test_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            # doesn't even have to be reachable
+            test_socket.connect(("10.255.255.255", 1))
+            ip_address = test_socket.getsockname()[0]
+        except Exception:  # pylint: disable=broad-except
+            ip_address = "127.0.0.1"
+        finally:
+            test_socket.close()
+        return ip_address
+
     def __init__(self, _type):
         """
         Initialize a mdns Listener for a specific device group
         """
         with self.__lock:
             self.__type: str = type
-            self.__zeroconf = Zeroconf()
+            self.__zeroconf = Zeroconf(interfaces=[self.get_ip()])
             self.__browser = ServiceBrowser(self.__zeroconf, _type, self)
             self.__folder_history: str = FOLDER_HISTORY + os.path.sep
             self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
@@ -118,14 +132,16 @@ class MdnsListener(ServiceListener):
             # the address of the excisting one, else it will create a new one.
             this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=name)
             data = self.convert_properties(name=name, info=info)
-            setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": data})
-            logger.info(setup_return)
-            if not setup_return in (
-                RETURN_MESSAGES["OK"],
-                RETURN_MESSAGES["OK_UPDATED"],
+            msg = {"CMD": "SETUP", "PAR": data}
+            logger.debug("Ask to setup the device actor with %s...", msg)
+            with ActorSystem().private() as asy:
+                setup_return = asy.ask(this_actor, msg)
+            if not setup_return["ERROR_CODE"] in (
+                RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
             ):
-                logger.debug("Kill device actor")
-                ActorSystem().tell(this_actor, {"CMD": "KILL"})
+                logger.critical("Adding a new service failed. Kill device actor.")
+                ActorSystem().tell(this_actor, ActorExitRequest())
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=C0103
@@ -141,13 +157,17 @@ class MdnsListener(ServiceListener):
             # the address of the excisting one, else it will create a new one.
             this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=name)
             data = self.convert_properties(name=name, info=info)
-            setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": data})
+            msg = {"CMD": "SETUP", "PAR": data}
+            logger.debug("Ask to setup the device actor with %s...", msg)
+            with ActorSystem().private() as asy:
+                setup_return = asy.ask(this_actor, msg)
             logger.info(setup_return)
-            if not setup_return in (
-                RETURN_MESSAGES["OK"],
-                RETURN_MESSAGES["OK_UPDATED"],
+            if not setup_return["ERROR_CODE"] in (
+                RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
             ):
-                ActorSystem().tell(this_actor, {"CMD": "KILL"})
+                logger.critical("Adding a new service failed. Kill device actor.")
+                ActorSystem().tell(this_actor, ActorExitRequest())
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Hook, being called when a regular shutdown of a service
@@ -160,7 +180,11 @@ class MdnsListener(ServiceListener):
             if os.path.exists(link):
                 os.unlink(link)
             this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=name)
-            logger.info(ActorSystem().ask(this_actor, {"CMD": "KILL"}))
+            logger.debug("Ask to kill the device actor...")
+            with ActorSystem().private() as asy:
+                kill_return = asy.ask(this_actor, ActorExitRequest())
+            if not kill_return["ERROR_CODE"] == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
+                logger.critical("Killing the device actor failed.")
 
     def remove_all_services(self) -> None:
         """Kill all device actors and remove all links to device file from FOLDER_AVAILABLE."""
@@ -175,4 +199,11 @@ class MdnsListener(ServiceListener):
                             this_actor = ActorSystem().createActor(
                                 Rfc2217Actor, globalName=name
                             )
-                            logger.info(ActorSystem().ask(this_actor, {"CMD": "KILL"}))
+                            logger.debug("Ask to kill the device actor...")
+                            with ActorSystem().private() as asy:
+                                kill_return = asy.ask(this_actor, ActorExitRequest())
+                            if (
+                                not kill_return["ERROR_CODE"]
+                                == RETURN_MESSAGES["OK"]["ERROR_CODE"]
+                            ):
+                                logger.critical("Killing the device actor failed.")
