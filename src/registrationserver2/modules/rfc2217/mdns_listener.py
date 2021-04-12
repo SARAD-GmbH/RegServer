@@ -100,6 +100,7 @@ class MdnsListener(ServiceListener):
             ip_address = "127.0.0.1"
         finally:
             test_socket.close()
+        logger.debug("My IP address is %s", ip_address)
         return ip_address
 
     def __init__(self, _type):
@@ -108,7 +109,7 @@ class MdnsListener(ServiceListener):
         """
         with self.__lock:
             self.__type: str = type
-            self.__zeroconf = Zeroconf(interfaces=[self.get_ip()])
+            self.__zeroconf = Zeroconf(interfaces=[self.get_ip(), "127.0.0.1"])
             self.__browser = ServiceBrowser(self.__zeroconf, _type, self)
             self.__folder_history: str = FOLDER_HISTORY + os.path.sep
             self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
