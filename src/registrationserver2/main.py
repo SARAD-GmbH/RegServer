@@ -66,7 +66,8 @@ def main():
     _ = MdnsListener(_type=config["TYPE"])
 
     try:
-        input("Press any key to end\n")
+        logger.info("Press ENTER to end!")
+        input("Press ENTER to end\n")
     finally:
         cleanup()
 
