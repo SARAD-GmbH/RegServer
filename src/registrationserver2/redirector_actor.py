@@ -166,7 +166,6 @@ class RedirectorActor(Actor):
                 else:
                     s.close()
                     self.read_list.remove(s)
-        logger.debug("Going round and round")
         self.wakeupAfter(datetime.timedelta(seconds=1), payload="Connect")
 
     def _receive_loop(self, _msg, _sender):
