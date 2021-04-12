@@ -50,9 +50,8 @@ def main():
     # can be changed to a distributed system here.
     # =======================
     ActorSystem(
-        systemBase="multiprocQueueBase",
-        # systemBase=config["systemBase"],
-        # capabilities=config["capabilities"],
+        systemBase=config["systemBase"],
+        capabilities=config["capabilities"],
     )
     logger.debug("Actor system started.")
     restapi = RestApi()
