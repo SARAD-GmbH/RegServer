@@ -13,6 +13,8 @@ Todo:
 import logging
 from typing import Any, Dict
 
+from zeroconf import IPVersion
+
 config: Dict[str, Any] = {
     "MDNS_TIMEOUT": 3000,
     "TYPE": "_rfc2217._tcp.local.",
@@ -21,4 +23,5 @@ config: Dict[str, Any] = {
     "HOST": "192.168.10.19",
     "systemBase": "multiprocTCPBase",
     "capabilities": {"Admin Port": 1901, "Process Startup Method": "fork"},
+    "ip_version": IPVersion.All,
 }

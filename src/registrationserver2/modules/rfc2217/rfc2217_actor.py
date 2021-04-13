@@ -36,9 +36,9 @@ class Rfc2217Actor(DeviceBaseActor):
 
     def _connect(self):
         """internal Function to connect to instrument server 2 over rfc2217"""
-        if self._file:
-            address = self._file.get("Remote", {}).get("Address", None)
-            port = self._file.get("Remote", {}).get("Port", None)
+        if self.df_content:
+            address = self.df_content.get("Remote", {}).get("Address", None)
+            port = self.df_content.get("Remote", {}).get("Port", None)
             if not address or not port:
                 return RETURN_MESSAGES.get("ILLEGAL_STATE")
             port_ident = fr"rfc2217://{address}:{port}"
@@ -55,11 +55,11 @@ class Rfc2217Actor(DeviceBaseActor):
                     traceback.format_exc(),
                 )
         if self.__port and self.__port.is_open:
-            return RETURN_MESSAGES.get("OK")
-        return RETURN_MESSAGES.get("ILLEGAL_STATE")
+            return True
+        return False
 
     def _send(self, msg: dict, sender) -> None:
-        if self._connect() is RETURN_MESSAGES["OK"]["RETURN"]:
+        if self._connect():
             data = msg["PAR"]["DATA"]
             logger.info("Actor %s received: %s", self.globalName, data)
             self.__port.write(data)

@@ -19,7 +19,7 @@ from thespian.actors import ActorSystem  # type: ignore
 
 from registrationserver2 import FOLDER_AVAILABLE, logger
 from registrationserver2.config import config
-#from registrationserver2.modules.rfc2217.mdns_listener import MdnsListener
+from registrationserver2.modules.rfc2217.mdns_listener import MdnsListener
 from registrationserver2.restapi import RestApi
 
 
@@ -30,6 +30,21 @@ def main():
     * starts the API thread
     * starts the MdnsListener
     """
+    # Prepare for closing
+    @atexit.register
+    def cleanup():  # pylint: disable=unused-variable
+        """Make sure all sub threads are stopped, including the REST API"""
+        logger.info("Cleaning up before closing.")
+        ActorSystem().shutdown()
+        logger.debug("Actor system shut down finished.")
+        if os.path.exists(FOLDER_AVAILABLE):
+            for root, _, files in os.walk(FOLDER_AVAILABLE):
+                for name in files:
+                    link = os.path.join(root, name)
+                    logger.debug("[Del]:\tRemoved: %s", name)
+                    os.unlink(link)
+        os.kill(os.getpid(), signal.SIGTERM)
+
     # =======================
     # Initialization of the actor system,
     # can be changed to a distributed system here.
@@ -48,22 +63,13 @@ def main():
         ),
     )
     apithread.start()
-    #_ = MdnsListener(_type=config["TYPE"])
+    _ = MdnsListener(_type=config["TYPE"])
 
-    # Prepare for closing
-    @atexit.register
-    def cleanup():  # pylint: disable=unused-variable
-        """Make sure all sub threads are stopped, including the REST API"""
-        logger.info("Cleaning up before closing.")
-        ActorSystem().shutdown()
-        logger.debug("Actor system shut down finished.")
-        if os.path.exists(FOLDER_AVAILABLE):
-            for root, _, files in os.walk(FOLDER_AVAILABLE):
-                for name in files:
-                    link = os.path.join(root, name)
-                    logger.debug("[Del]:\tRemoved: %s", name)
-                    os.unlink(link)
-        os.kill(os.getpid(), signal.SIGTERM)
+    try:
+        logger.info("Press ENTER to end!")
+        input("Press ENTER to end\n")
+    finally:
+        cleanup()
 
 
 if __name__ == "__main__":

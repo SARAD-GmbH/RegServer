@@ -67,7 +67,8 @@ class DeviceBaseActor(Actor):
         logger.debug("Initialize a new device actor.")
         super().__init__()
         self._config: dict = {}
-        self._file: json
+        self._file: json = None
+        self.df_content = {}
         self.link = None
         self.__folder_history: str = FOLDER_HISTORY + os.path.sep
         self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
@@ -249,9 +250,9 @@ class DeviceBaseActor(Actor):
             "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         }
         logger.info("Reservation: %s", reservation)
-        df_content = json.loads(self._file)
-        df_content["Reservation"] = reservation
-        self._file = json.dumps(df_content)
+        self.df_content = json.loads(self._file)
+        self.df_content["Reservation"] = reservation
+        self._file = json.dumps(self.df_content)
         logger.info("self._file: %s", self._file)
         with open(self.link, "w+") as file_stream:
             file_stream.write(self._file)
@@ -284,19 +285,19 @@ class DeviceBaseActor(Actor):
         it received the KILL command."""
         if not msg["ERROR_CODE"]:
             # Write Free section into device file
-            df_content = json.loads(self._file)
+            self.df_content = json.loads(self._file)
             free = {
                 "Active": False,
-                "App": df_content["Reservation"]["App"],
-                "Host": df_content["Reservation"]["Host"],
-                "User": df_content["Reservation"]["User"],
+                "App": self.df_content["Reservation"]["App"],
+                "Host": self.df_content["Reservation"]["Host"],
+                "User": self.df_content["Reservation"]["User"],
                 "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
             }
             logger.info("Free: %s", free)
-            df_content["Free"] = free
+            self.df_content["Free"] = free
             # Remove Reservation section
-            df_content.pop("Reservation", None)
-            self._file = json.dumps(df_content)
+            self.df_content.pop("Reservation", None)
+            self._file = json.dumps(self.df_content)
             logger.info("self._file: %s", self._file)
             with open(self.link, "w+") as file_stream:
                 file_stream.write(self._file)

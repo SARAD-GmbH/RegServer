@@ -33,9 +33,10 @@ class RedirectorActor(Actor):
     ACCEPTED_COMMANDS = {
         "SETUP": "_setup",
         "CONNECT": "_connect_loop",
-        "RECEIVE": "_receive_loop",
     }
-    ACCEPTED_RETURNS = {}
+    ACCEPTED_RETURNS = {
+        "SEND": "_receive_loop",
+    }
 
     @overrides
     def __init__(self):
@@ -44,6 +45,7 @@ class RedirectorActor(Actor):
         self._connected = False
         self._client_socket = None
         self._socket_info = None
+        self.conn = None
         self._host = config["HOST"]
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         for self._port in config["PORT_RANGE"]:
@@ -95,10 +97,10 @@ class RedirectorActor(Actor):
             elif return_key is not None:
                 return_function = self.ACCEPTED_RETURNS.get(return_key, None)
                 if return_function is None:
-                    logger.debug("Ask received the return %s from %s.", msg, sender)
+                    logger.debug("Received return %s from %s.", msg, sender)
                     return
                 if getattr(self, return_function, None) is None:
-                    logger.debug("Ask received the return %s from %s.", msg, sender)
+                    logger.debug("Received return %s from %s.", msg, sender)
                     return
                 getattr(self, return_function)(msg, sender)
         else:
@@ -151,37 +153,37 @@ class RedirectorActor(Actor):
         logger.debug("Waiting for connect at %s port %s", self._host, self._port)
         server_socket = self.read_list[0]
         timeout = 1
+        switcher = {
+            b"B\x80\x7f\xe0\xe0\x00E": b"B\xa6\x59\xe3\x0c\x09\x09\x13\x03\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x19\x01E",
+            b"B\x80\x7f\xe1\xe1\x00E": b"B\x80\x7f\xe4\xe4\x00E",
+            b"B\x81\x7e\xe2\x0c\xee\x00E": b"B\x80\x7f\xe5\xe5\x00E",
+        }
         readable, writable, errored = select.select(self.read_list, [], [], timeout)
-        for s in readable:
-            if s is server_socket:
+        for self.conn in readable:
+            if self.conn is server_socket:
                 self._client_socket, self._socket_info = server_socket.accept()
                 self.read_list.append(self._client_socket)
                 self._connected = True
                 logger.debug("Connection from %s", self._socket_info)
                 self.send(self.myAddress, {"CMD": "RECEIVE"})
             else:
-                data = s.recv(1024)
+                data = self.conn.recv(1024)
                 if data:
-                    s.send(data)
+                    logger.info("%s from %s", data, self._socket_info)
+                    try:
+                        reply = switcher[data]
+                        self.conn.sendall(reply)
+                    except KeyError:
+                        self.send(
+                            self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}}
+                        )
                 else:
-                    s.close()
-                    self.read_list.remove(s)
-        logger.debug("Going round and round")
+                    self.conn.close()
+                    self.read_list.remove(self.conn)
         self.wakeupAfter(datetime.timedelta(seconds=1), payload="Connect")
 
-    def _receive_loop(self, _msg, _sender):
-        data = self._client_socket.recv(9002)
-        logger.info("%s from %s", data, self._socket_info)
-        if not data:
-            return
-        logger.debug("Ask device actor to SEND data...")
-        send_response = ActorSystem().ask(
-            self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}}
-        )
-        if not send_response["ERROR_CODE"]:
-            response_data = send_response["RESULT"]["DATA"]
-            logger.debug("%s to %s", response_data, self._socket_info)
-        else:
-            logger.error("Response error %s", send_response)
-        logger.debug("Send RECEIVE command to redirector")
-        self.send(self.myAddress, {"CMD": "RECEIVE"})
+    def _receive_loop(self, msg, _sender):
+        """Redirect any received reply to the socket."""
+        data = msg["RESULT"]["DATA"]
+        self.conn.sendall(data)
+        logger.debug("Redirect %s to %s", data, self._socket_info)

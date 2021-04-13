@@ -100,6 +100,7 @@ class MdnsListener(ServiceListener):
             ip_address = "127.0.0.1"
         finally:
             test_socket.close()
+        logger.debug("My IP address is %s", ip_address)
         return ip_address
 
     def __init__(self, _type):
@@ -108,7 +109,9 @@ class MdnsListener(ServiceListener):
         """
         with self.__lock:
             self.__type: str = type
-            self.__zeroconf = Zeroconf(interfaces=[self.get_ip()])
+            self.__zeroconf = Zeroconf(
+                ip_version=config["ip_version"], interfaces=[self.get_ip(), "127.0.0.1"]
+            )
             self.__browser = ServiceBrowser(self.__zeroconf, _type, self)
             self.__folder_history: str = FOLDER_HISTORY + os.path.sep
             self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
@@ -134,8 +137,7 @@ class MdnsListener(ServiceListener):
             data = self.convert_properties(name=name, info=info)
             msg = {"CMD": "SETUP", "PAR": data}
             logger.debug("Ask to setup the device actor with %s...", msg)
-            with ActorSystem().private() as asy:
-                setup_return = asy.ask(this_actor, msg)
+            setup_return = ActorSystem().ask(this_actor, msg)
             if not setup_return["ERROR_CODE"] in (
                 RETURN_MESSAGES["OK"]["ERROR_CODE"],
                 RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
@@ -159,8 +161,7 @@ class MdnsListener(ServiceListener):
             data = self.convert_properties(name=name, info=info)
             msg = {"CMD": "SETUP", "PAR": data}
             logger.debug("Ask to setup the device actor with %s...", msg)
-            with ActorSystem().private() as asy:
-                setup_return = asy.ask(this_actor, msg)
+            setup_return = ActorSystem().ask(this_actor, msg)
             logger.info(setup_return)
             if not setup_return["ERROR_CODE"] in (
                 RETURN_MESSAGES["OK"]["ERROR_CODE"],
@@ -181,8 +182,7 @@ class MdnsListener(ServiceListener):
                 os.unlink(link)
             this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=name)
             logger.debug("Ask to kill the device actor...")
-            with ActorSystem().private() as asy:
-                kill_return = asy.ask(this_actor, ActorExitRequest())
+            kill_return = ActorSystem().ask(this_actor, ActorExitRequest())
             if not kill_return["ERROR_CODE"] == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
                 logger.critical("Killing the device actor failed.")
 
@@ -200,8 +200,9 @@ class MdnsListener(ServiceListener):
                                 Rfc2217Actor, globalName=name
                             )
                             logger.debug("Ask to kill the device actor...")
-                            with ActorSystem().private() as asy:
-                                kill_return = asy.ask(this_actor, ActorExitRequest())
+                            kill_return = ActorSystem().ask(
+                                this_actor, ActorExitRequest()
+                            )
                             if (
                                 not kill_return["ERROR_CODE"]
                                 == RETURN_MESSAGES["OK"]["ERROR_CODE"]

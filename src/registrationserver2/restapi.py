@@ -233,8 +233,7 @@ class RestApi:
             "PAR": {"HOST": request_host, "USER": user, "APP": app},
         }
         logger.debug("Ask device actor %s", msg)
-        with ActorSystem().private() as asy:
-            reserve_return = asy.ask(device_actor, msg)
+        reserve_return = ActorSystem().ask(device_actor, msg)
         logger.debug("returned with %s", reserve_return)
         answer = {}
         try:
@@ -269,8 +268,7 @@ class RestApi:
         """Path for freeing a single active device"""
         device_actor = ActorSystem().createActor(Actor, globalName=did)
         logger.debug("Ask device actor to FREE...")
-        with ActorSystem().private() as asy:
-            free_return = asy.ask(device_actor, {"CMD": "FREE"})
+        free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"})
         logger.info("returned with %s", free_return)
         if free_return is RETURN_MESSAGES["OK"] or RETURN_MESSAGES["OK_SKIPPED"]:
             answer = {}
