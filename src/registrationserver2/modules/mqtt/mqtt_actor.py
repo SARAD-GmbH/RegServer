@@ -50,8 +50,6 @@ class MqttActor(DeviceBaseActor):
 
     instr_id: str
 
-    mqtt_client_adr = None
-
     # "copy" ACCEPTED_COMMANDS of the DeviceBaseActor
     ACCEPTED_COMMANDS = DeviceBaseActor.ACCEPTED_COMMANDS
     # add some new accessible methods
@@ -59,7 +57,6 @@ class MqttActor(DeviceBaseActor):
 
     def __init__(self):
         super().__init__()
-        self.rc_conn = 2
         self.rc_disc = 2
         self.rc_pub = 1
         self.rc_sub = 1
@@ -74,6 +71,7 @@ class MqttActor(DeviceBaseActor):
         self.binary_reply = b""
         self.mqtt_cid = self.globalName + ".client"
         self.instr_id = self.globalName.split("/")[1]
+        self.subscriber_addr = None
 
     # The receiveMessage() is defined in the DeviceBaseActor class
 
@@ -83,13 +81,12 @@ class MqttActor(DeviceBaseActor):
         self, client, userdata, flags, result_code
     ):  # pylint: disable=unused-argument
         """Will be carried out when the client connected to the MQTT self.mqtt_broker."""
-        self.rc_conn = result_code
-        if self.rc_conn == 1:
+        if result_code == 0:
+            logger.info("Connected with MQTT self.mqtt_broker.")
+        else:
             logger.info(
                 f"Connection to MQTT self.mqtt_broker failed. result_code={result_code}"
             )
-        else:
-            logger.info("Connected with MQTT self.mqtt_broker.")
         # return self.result_code
 
     def on_disconnect(
@@ -271,7 +268,6 @@ class MqttActor(DeviceBaseActor):
                 self.req_status = mqtt_req_status.idle
                 break
             elif self.req_status == mqtt_req_status.reserve_refused:
-                self.rc_conn = 2
                 self.req_status = mqtt_req_status.idle
                 logger.info(RETURN_MESSAGES.get("RESERVE_REFUSED"))
                 return False
@@ -373,14 +369,23 @@ class MqttActor(DeviceBaseActor):
 
     def _prepare(self, msg: dict, sender):
         self.is_id = msg.get("PAR", None).get("is_id", None)
+        self.mqtt_broker = msg.get("PAR", None).get("mqtt_broker", None)
+        self.subscriber_addr = msg.get("PAR", None).get("subscriber_addr", None)
         if self.is_id is None:
-            logger.info("ERROR: No Instrument Server ID received!")
+            logger.error("No Instrument Server ID received!")
             self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
             return
+        if self.subscriber_addr is None:
+            logger.error("No address of the subscriber received!")
+            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            return
+        if self.mqtt_broker is None:
+            self.mqtt_broker = "127.0.0.1"
+            logger.infor("Using the local host: 127.0.0.1")
         conn_re = self.__connect()
         logger.info(f"[CONN]\tThe client ({self.mqtt_cid}): {conn_re}")
         if conn_re is RETURN_MESSAGES.get("OK_SKIPPED"):
-            self.mqttc.loop_start()
+            pass
         else:
             self.send(sender, conn_re)
             return
@@ -391,6 +396,7 @@ class MqttActor(DeviceBaseActor):
 
         # set LWT message
         self.mqttc.will_set(self.allowed_sys_topics["CTRL"], payload={"Req": "free"}, qos=0, retain=True)
+        self.mqttc.loop_forever()
 
         self.send(sender, RETURN_MESSAGES.get("OK_SKIPPED"))
         return
@@ -411,19 +417,6 @@ class MqttActor(DeviceBaseActor):
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
         self.mqttc.connect(self.mqtt_broker)
-        wait_cnt0 = 3
-        while wait_cnt0 != 0:  # Wait only 3*2s = 6s
-            if self.rc_conn == 0:
-                self.rc_conn = 2
-                break
-            elif self.rc_conn == 1:
-                self.rc_conn = 2
-                return RETURN_MESSAGES.get("CONNECTION_FAILURE")
-            else:
-                time.sleep(2)
-                wait_cnt0 = wait_cnt0 - 1
-        else:
-            return RETURN_MESSAGES.get("CONNECTION_NO_RESPONSE")
         return RETURN_MESSAGES.get("OK_SKIPPED")
     
     def __disconnect(self):
