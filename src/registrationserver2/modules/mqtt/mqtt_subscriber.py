@@ -30,12 +30,12 @@ import paho.mqtt.client as MQTT  # type: ignore
 import registrationserver2
 # import traceback
 import thespian
+from thespian.actors import ActorSystem, Actor, ActorAddress  # type: ignore
 from registrationserver2 import logger
+from registrationserver2.config import config
 from registrationserver2.modules.mqtt.message import (  # , MQTT_ACTOR_REQUESTs, MQTT_ACTOR_ADRs, IS_ID_LIST
     RETURN_MESSAGES, Instr_CONN_HISTORY)
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
-from thespian.actors import ActorSystem  # type: ignore
-from thespian.actors import Actor, ActorAddress
 
 # from typing import Dict
 
@@ -48,7 +48,6 @@ from thespian.actors import Actor, ActorAddress
 logger.info("%s -> %s", __package__, __file__)
 
 mqtt_msg_queue = queue.Queue()
-
 
 def add_2d_dict(actor_adr_dict, is_id_, instr_id_, val):
     if is_id_ in actor_adr_dict.keys():
@@ -63,14 +62,16 @@ def add_2d_dict(actor_adr_dict, is_id_, instr_id_, val):
 
 
 class MqttParser(threading.Thread):
-    def __init__(self, sarad_mqtt_subscriber: ActorAddress, TName="Mqtt-Parser"):
-        super().__init__(name=TName)
+    def __init__(self,  TName="Mqtt-Parser"):
+        super().__init__(self, name=TName)
         logger.info(f"The thread ({TName}) is created")
-        self.sarad_mqtt_subscriber = sarad_mqtt_subscriber
-        self.split_len = 0
+        self.split_len= 0
         self.topic_parts = []
         self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
         self.__folder2_history = f"{registrationserver2.FOLDER2_HISTORY}{os.path.sep}"
+        self.sarad_mqtt_subscriber = ActorSystem().createActor(
+            SaradMqttSubscriber, globalName="SARAD_Subscriber"
+        )
 
     def run(self):
         try:
@@ -307,14 +308,13 @@ class SaradMqttSubscriber(Actor):
 
     def __init__(self):
         super().__init__()
-        self.rc_conn = 2
         self.rc_disc = 2
         self.rc_pub = 1
         self.rc_sub = 1
         self.rc_uns = 1
         self.mqtt_cid = None
         self.mqtt_broker = None
-        self.SARAD_MQTT_PARSER = MqttParser(self.myAddress, TName="RS_MQTT_Parser-000")
+        #self.SARAD_MQTT_PARSER = MqttParser(TName="RS_MQTT_Parser-000")
         with self.__lock:
             self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
             self.__folder_available = (
@@ -363,6 +363,7 @@ class SaradMqttSubscriber(Actor):
             logger.debug("Send %s back to %s", return_msg, sender)
             self.send(sender, return_msg)
             return
+        logger.info("Great!")
         getattr(self, cmd)(msg, sender)
 
     # Definition of callback functions for the MQTT client, namely the on_* functions
@@ -373,13 +374,11 @@ class SaradMqttSubscriber(Actor):
         """Will be carried out when the client connected to the MQTT self.mqtt_broker."""
         if result_code == 0:
             logger.info("Connected with MQTT self.mqtt_broker.")
-            self.rc_conn == 0
         else:
             logger.info(
                 f"Connection to MQTT self.mqtt_broker failed. result_code={result_code}"
             )
-            self.rc_conn = 1
-        # return self.result_code
+            self._kill()
 
     # Definition of callback functions for the MQTT client, namely the on_* functions
     # these callback functions are called in the new thread that is created through loo_start() of Client()
@@ -495,6 +494,8 @@ class SaradMqttSubscriber(Actor):
                     "CMD": "PREPARE",
                     "PAR": {
                         "is_id": is_id,
+                        "mqtt_broker": self.mqtt_broker,
+                        "subscriber_addr": self.myAddress,
                     },
                 }
                 prep_return = ActorSystem().ask(this_actor, prep_msg)
@@ -758,26 +759,21 @@ class SaradMqttSubscriber(Actor):
             rm_return = self._rm_host({"CMD": "RM_HOST", "PAR": {"is_id": IS_ID}})
             logger.info(rm_return)
         del Instr_CONN_HISTORY
-        self.send(sender, RETURN_MESSAGES.get("OK_SKIPPED"))
+        if sender is not None:
+            self.send(sender, RETURN_MESSAGES.get("OK_SKIPPED"))
+        logger.info("Already killed the subscriber")
 
     def _setup(self, msg: dict, sender) -> None:
         self.mqtt_cid = msg.get("PAR", None).get("client_id", None)
         self.mqtt_broker = msg.get("PAR", None).get("mqtt_broker", None)
-        if self.mqtt_cid is None or self.mqtt_broker is None:
-            logger.error(
-                "[Setup]\tThe client ID of the MQTT Subscriber or the MQTT-broker is not given"
-            )
+        if self.mqtt_cid is None:
+            logger.error("[Setup]\tThe client ID of the MQTT Subscriber is not given")
             self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
             return
-
-        _re = self.__connect()
-        logger.info(f"[CONN]\tThe client ({self.mqtt_cid}): {conn_re}")
-        if _re is RETURN_MESSAGES.get("OK_SKIPPED"):
-            self.mqttc.loop_start()
-            self.SARAD_MQTT_PARSER.start()
-        else:
-            self.send(sender, _re)
-            return
+        if self.mqtt_broker is None:
+            self.mqtt_broker = "127.0.0.1"
+            logger.infor("Using the local host: 127.0.0.1")
+        self.__connect()
         sub_req_msg = {
             # "CMD": "SUBSCRIBE",
             "PAR": {"topic": "+/connected", "qos": 0},
@@ -820,25 +816,13 @@ class SaradMqttSubscriber(Actor):
         ):
             self.send(sender, RETURN_MESSAGES.get("SETUP_FAILURE"))
             return
-
+        logger.info("To start the loop function in the subscriber")
+        self.mqttc.loop_forever()
         self.send(sender, RETURN_MESSAGES.get("OK_SKIPPED"))
         return
 
     # Definition of methods, namely __*(), not accessible for the actor system and other actors
-    def __connect(self) -> dict:
-        # self.mqtt_cid = msg.get("PAR", None).get("client_id", None)
-
-        # if self.mqtt_cid is None:
-        #    return RETURN_MESSAGES.get("ILLEGAL_STATE")
-
-        if self.mqtt_cid is None:
-            self.mqtt_cid = "SARAD-Subscriber-000"
-
-        # self.mqtt_broker = msg.get("PAR", None).get("mqtt_broker", None)
-
-        if self.mqtt_broker is None:
-            self.mqtt_broker = "localhost"
-
+    def __connect(self):
         self.mqttc = MQTT.Client(self.mqtt_cid)
 
         self.mqttc.reinitialise()
@@ -852,23 +836,6 @@ class SaradMqttSubscriber(Actor):
 
         self.mqttc.connect(self.mqtt_broker)
 
-        self.wait_cnt = 3
-
-        while self.wait_cnt != 0:  # Wait only 3*2s = 6s
-            if self.rc_conn == 0:
-                self.rc_conn = 2
-                break
-            elif self.rc_conn == 1:
-                self.rc_conn = 2
-                return RETURN_MESSAGES.get("CONNECTION_FAILURE")
-            else:
-                time.sleep(2)
-                self.wait_cnt = self.wait_cnt - 1
-        else:
-            return RETURN_MESSAGES.get("CONNECTION_NO_RESPONSE")
-
-        return RETURN_MESSAGES.get("OK_SKIPPED")
-
     def __disconnect(self):
         if self.rc_disc == 2:
             logger.info("To disconnect from the MQTT-broker!")
@@ -879,12 +846,9 @@ class SaradMqttSubscriber(Actor):
         logger.info("To stop the MQTT thread!")
         self.mqttc.loop_stop()
         logger.info("To stop the MQTT parser thread!")
-        self.SARAD_MQTT_PARSER.raise_exception()
-        self.SARAD_MQTT_PARSER.join()
-        logger.info(
-            "[Subscriber]\tDisconnection gracefully: "
-            + RETURN_MESSAGES.get("OK_SKIPPED")
-        )
+        #self.SARAD_MQTT_PARSER.raise_exception()
+        #self.SARAD_MQTT_PARSER.join()
+        logger.info("[Subscriber]\tDisconnection gracefully: "+RETURN_MESSAGES.get("OK_SKIPPED"))
 
     def __publish(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("PAR", None).get("topic", None)
@@ -969,29 +933,28 @@ class SaradMqttSubscriber(Actor):
 
 
 def __test__():
+    ActorSystem(
+        systemBase=config["systemBase"],
+        capabilities=config["capabilities"],
+    )
     sarad_mqtt_subscriber = ActorSystem().createActor(
         SaradMqttSubscriber, globalName="SARAD_Subscriber"
     )
-    ask_return = ActorSystem().ask(
-        sarad_mqtt_subscriber,
-        {
-            "CMD": "SETUP",
-            "PAR": {
-                "client_id": "sarad-mqtt_subscriber-client",
-                "mqtt_broker": "localhost",
-            },
-        },
-    )
+    ask_return = ActorSystem().ask(sarad_mqtt_subscriber, {"CMD": "SETUP", "PAR": {"client_id": "sarad-mqtt_subscriber-client", "mqtt_broker": "127.0.0.1"}}, timeout=2000)
+    SARAD_MQTT_PARSER = MqttParser(TName="RS_MQTT_Parser-000")
     if ask_return is RETURN_MESSAGES.get("OK"):
         logger.info("SARAD MQTT Subscriber is setup correctly!")
-        print("SARAD MQTT Subscriber is setup correctly!")
+        logger.info("To start MQTT parser for SARAD MQTT Subscriber")
+        SARAD_MQTT_PARSER.start()
+        input("Press Enter to End")
+        ActorSystem().ask(sarad_mqtt_subscriber, "KILL")
+        SARAD_MQTT_PARSER.raise_exception()
+        SARAD_MQTT_PARSER.join()
+        logger.info("!")
     else:
         logger.warning("SARAD MQTT Subscriber is not setup!")
         logger.error(ask_return)
-        print("SARAD MQTT Subscriber is not setup!")
-    input("Press Enter to End")
-    ActorSystem().ask(sarad_mqtt_subscriber, "KILL")
-    logger.info("!")
+        input("Press Enter to End")
 
 
 if __name__ == "__main__":
