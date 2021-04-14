@@ -21,6 +21,8 @@ from thespian.actors import ActorSystem  # type: ignore
 
 logger.info("%s -> %s", __package__, __file__)
 
+CMD_CYCLE_TIMEOUT = 1
+
 
 class Rfc2217Actor(DeviceBaseActor):
     """Actor for dealing with RFC2217 Connections, creates and maintains
@@ -58,30 +60,42 @@ class Rfc2217Actor(DeviceBaseActor):
             return True
         return False
 
-    def _send(self, msg: dict, sender) -> None:
+    def _send(self, msg: dict, _sender) -> None:
         if self._connect():
             data = msg["PAR"]["DATA"]
             logger.info("Actor %s received: %s", self.globalName, data)
             self.__port.write(data)
+            logger.debug("and wrote it to serial.rfc2217.Serial")
             _return = b""
+            perf_time_0 = time.perf_counter()
             while True:
-                time.sleep(0.5)
-                _return_part = self.__port.read_all() if self.__port.inWaiting() else ""
-                if _return_part == "":
-                    break
+                _return_part = (
+                    self.__port.read_all() if self.__port.inWaiting() else b""
+                )
+                if _return_part != b"":
+                    if chr(_return_part[-1]) == "E":
+                        _return = _return + _return_part
+                        break
                 _return = _return + _return_part
+                perf_time_1 = time.perf_counter()
+                if perf_time_1 - perf_time_0 > CMD_CYCLE_TIMEOUT:
+                    logger.debug("Timeout receiving a reply. Retrying...")
+                    # TODO This is an ugly workaround for a problem that's
+                    # most probably between the Instrument Server and the instrument.
+                    self.send(self.myAddress, msg)
+                    break
             return_message = {
                 "RETURN": "SEND",
                 "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
                 "RESULT": {"DATA": _return},
             }
-            self.send(sender, return_message)
+            self.send(self.my_redirector, return_message)
             return
         return_message = {
             "RETURN": "SEND",
             "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_STATE"]["ERROR_CODE"],
         }
-        self.send(sender, return_message)
+        self.send(self.my_redirector, return_message)
         return
 
     @overrides
