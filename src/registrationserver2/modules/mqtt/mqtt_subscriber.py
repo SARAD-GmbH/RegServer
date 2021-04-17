@@ -30,12 +30,12 @@ import paho.mqtt.client as MQTT  # type: ignore
 import registrationserver2
 # import traceback
 import thespian
-from thespian.actors import ActorSystem, Actor, ActorAddress  # type: ignore
 from registrationserver2 import logger
 from registrationserver2.config import config
 from registrationserver2.modules.mqtt.message import (  # , MQTT_ACTOR_REQUESTs, MQTT_ACTOR_ADRs, IS_ID_LIST
     RETURN_MESSAGES, Instr_CONN_HISTORY)
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
+from thespian.actors import Actor, ActorAddress, ActorSystem  # type: ignore
 
 # from typing import Dict
 
@@ -48,6 +48,7 @@ from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
 logger.info("%s -> %s", __package__, __file__)
 
 mqtt_msg_queue = queue.Queue()
+
 
 def add_2d_dict(actor_adr_dict, is_id_, instr_id_, val):
     if is_id_ in actor_adr_dict.keys():
@@ -62,13 +63,15 @@ def add_2d_dict(actor_adr_dict, is_id_, instr_id_, val):
 
 
 class MqttParser(threading.Thread):
-    def __init__(self,  TName="Mqtt-Parser"):
+    def __init__(self, TName="Mqtt-Parser"):
         super().__init__(self, name=TName)
         logger.info(f"The thread ({TName}) is created")
-        self.split_len= 0
+        self.split_len = 0
         self.topic_parts = []
         self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
-        self.__folder2_history = f"{registrationserver2.FOLDER2_HISTORY}{os.path.sep}"
+        self.__folder2_history = (
+            f"{registrationserver2.HOSTS_FOLDER_HISTORY}{os.path.sep}"
+        )
         self.sarad_mqtt_subscriber = ActorSystem().createActor(
             SaradMqttSubscriber, globalName="SARAD_Subscriber"
         )
@@ -314,17 +317,17 @@ class SaradMqttSubscriber(Actor):
         self.rc_uns = 1
         self.mqtt_cid = None
         self.mqtt_broker = None
-        #self.SARAD_MQTT_PARSER = MqttParser(TName="RS_MQTT_Parser-000")
+        # self.SARAD_MQTT_PARSER = MqttParser(TName="RS_MQTT_Parser-000")
         with self.__lock:
             self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
             self.__folder_available = (
                 f"{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}"
             )
             self.__folder2_history = (
-                f"{registrationserver2.FOLDER2_HISTORY}{os.path.sep}"
+                f"{registrationserver2.HOSTS_FOLDER_HISTORY}{os.path.sep}"
             )
             self.__folder2_available = (
-                f"{registrationserver2.FOLDER2_AVAILABLE}{os.path.sep}"
+                f"{registrationserver2.HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
             )
             if not os.path.exists(self.__folder_history):
                 os.makedirs(self.__folder_history)
@@ -846,9 +849,12 @@ class SaradMqttSubscriber(Actor):
         logger.info("To stop the MQTT thread!")
         self.mqttc.loop_stop()
         logger.info("To stop the MQTT parser thread!")
-        #self.SARAD_MQTT_PARSER.raise_exception()
-        #self.SARAD_MQTT_PARSER.join()
-        logger.info("[Subscriber]\tDisconnection gracefully: "+RETURN_MESSAGES.get("OK_SKIPPED"))
+        # self.SARAD_MQTT_PARSER.raise_exception()
+        # self.SARAD_MQTT_PARSER.join()
+        logger.info(
+            "[Subscriber]\tDisconnection gracefully: "
+            + RETURN_MESSAGES.get("OK_SKIPPED")
+        )
 
     def __publish(self, msg: dict) -> dict:
         self.mqtt_topic = msg.get("PAR", None).get("topic", None)
@@ -940,7 +946,17 @@ def __test__():
     sarad_mqtt_subscriber = ActorSystem().createActor(
         SaradMqttSubscriber, globalName="SARAD_Subscriber"
     )
-    ask_return = ActorSystem().ask(sarad_mqtt_subscriber, {"CMD": "SETUP", "PAR": {"client_id": "sarad-mqtt_subscriber-client", "mqtt_broker": "127.0.0.1"}}, timeout=2000)
+    ask_return = ActorSystem().ask(
+        sarad_mqtt_subscriber,
+        {
+            "CMD": "SETUP",
+            "PAR": {
+                "client_id": "sarad-mqtt_subscriber-client",
+                "mqtt_broker": "127.0.0.1",
+            },
+        },
+        timeout=2000,
+    )
     SARAD_MQTT_PARSER = MqttParser(TName="RS_MQTT_Parser-000")
     if ask_return is RETURN_MESSAGES.get("OK"):
         logger.info("SARAD MQTT Subscriber is setup correctly!")
