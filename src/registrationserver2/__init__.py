@@ -3,6 +3,7 @@ Registration Server module,
 connects all kinds of Instrument Server with the user applications
 """
 import logging
+import logging.handlers
 import os
 
 from zeroconf import IPVersion
@@ -45,9 +46,12 @@ if config["LOG_FILE"] is not None:
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, "w") as f:
         pass
-    handler = logging.FileHandler(filename)
+    handler = logging.handlers.RotatingFileHandler(
+        filename, maxBytes=1000000, backupCount=5
+    )
     handler.setLevel(config["LEVEL"])
     handler.setFormatter(logging.Formatter(FORMATTER))
+    handler.doRollover()
     logger.addHandler(handler)
 logger.info("Logging system initialized.")
 
