@@ -18,7 +18,6 @@ import os
 import re
 import socket
 import sys
-import traceback
 
 from flask import Flask, Response, json, request
 from thespian.actors import Actor, ActorSystem  # type: ignore
@@ -74,14 +73,8 @@ class RestApi:
                     reservation = json.load(open(file)).get("Reservation", None)
                     if reservation is not None:
                         answer[dir_entry]["Reservation"] = reservation
-        except Exception as error:  # pylint: disable=broad-except
-            logger.error(
-                "! %s\t%s\t%s\t%s",
-                type(error),
-                error,
-                vars(error) if isinstance(error, dict) else "-",
-                traceback.format_exc(),
-            )
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("Fatal error")
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -107,14 +100,8 @@ class RestApi:
                 reservation = json.load(open(filename)).get("Reservation", None)
                 if reservation is not None:
                     answer[did]["Reservation"] = reservation
-        except Exception as error:  # pylint: disable=broad-except
-            logger.error(
-                "! %s\t%s\t%s\t%s",
-                type(error),
-                error,
-                vars(error) if isinstance(error, dict) else "-",
-                traceback.format_exc(),
-            )
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("Fatal error")
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -137,14 +124,8 @@ class RestApi:
                     reservation = json.load(open(file)).get("Reservation", None)
                     if reservation is not None:
                         answer[dir_entry]["Reservation"] = reservation
-        except Exception as error:  # pylint: disable=broad-except
-            logger.error(
-                "! %s\t%s\t%s\t%s",
-                type(error),
-                error,
-                vars(error) if isinstance(error, dict) else "-",
-                traceback.format_exc(),
-            )
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("Fatal error")
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -169,14 +150,8 @@ class RestApi:
                 reservation = json.load(open(filename)).get("Reservation", None)
                 if reservation is not None:
                     answer[did]["Reservation"] = reservation
-        except Exception as error:  # pylint: disable=broad-except
-            logger.error(
-                "! %s\t%s\t%s\t%s",
-                type(error),
-                error,
-                vars(error) if isinstance(error, dict) else "-",
-                traceback.format_exc(),
-            )
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("Fatal error")
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -206,14 +181,8 @@ class RestApi:
             )
         try:
             request_host = socket.gethostbyaddr(request.environ["REMOTE_ADDR"])[0]
-        except Exception as error:  # pylint: disable=broad-except
-            logger.error(
-                "! %s\t%s\t%s\t%s",
-                type(error),
-                error,
-                vars(error) if isinstance(error, dict) else "-",
-                traceback.format_exc(),
-            )
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("Fatal error")
         else:
             request_host = request.environ["REMOTE_ADDR"]
         logger.info("%s: %s --> %s", did, attribute_who, request_host)
@@ -246,14 +215,8 @@ class RestApi:
                         open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
                     ).get("Reservation", None),
                 }
-        except Exception as error:  # pylint: disable=broad-except
-            logger.error(
-                "! %s\t%s\t%s\t%s",
-                type(error),
-                error,
-                vars(error) if isinstance(error, dict) else "-",
-                traceback.format_exc(),
-            )
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("Fatal error")
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )

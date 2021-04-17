@@ -10,7 +10,6 @@ Authors
 .. uml :: uml-rfc2217_actor.puml
 """
 import time
-import traceback
 
 import serial.rfc2217  # type: ignore
 from overrides import overrides  # type: ignore
@@ -48,14 +47,8 @@ class Rfc2217Actor(DeviceBaseActor):
             try:
                 self.__port = serial.rfc2217.Serial(port_ident)
                 # move the send ( test if connection is up and if not create)
-            except Exception as error:  # pylint: disable=broad-except
-                logger.error(
-                    "! %s\t%s\t%s\t%s",
-                    type(error),
-                    error,
-                    vars(error) if isinstance(error, dict) else "-",
-                    traceback.format_exc(),
-                )
+            except Exception:  # pylint: disable=broad-except
+                logger.exception("Fatal error")
         if self.__port and self.__port.is_open:
             return True
         return False
