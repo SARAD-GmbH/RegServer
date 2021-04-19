@@ -1,11 +1,15 @@
 """
-Registration Server 2 module,
-connects all kinds of Instrument Server 2 with the user applications
+Registration Server module,
+connects all kinds of Instrument Server with the user applications
 """
-# standard libraries
 import logging
+import logging.config
+import logging.handlers
 import os
 
+from zeroconf import IPVersion
+
+import registrationserver2.logdef
 from registrationserver2.config import config
 
 # =======================
@@ -13,28 +17,24 @@ from registrationserver2.config import config
 # is applied if a value is not set in config.py
 # =======================
 home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
-config.setdefault(
-    "FOLDER",
-    f"{home}{os.path.sep}SARAD{os.path.sep}devices",
-)
-config.setdefault("LEVEL", logging.CRITICAL)
-config.setdefault("MDNS_TIMEOUT", 3000)
+app_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
+config.setdefault("FOLDER", f"{app_folder}devices")
+config.setdefault("HOSTS_FOLDER", f"{app_folder}hosts")
 config.setdefault("TYPE", "_rfc2217._tcp.local.")
-config.setdefault(
-    "FOLDER2",
-    f'{os.environ.get("HOME", None) or os.environ.get("LOCALAPPDATA",None)}{os.path.sep}SARAD{os.path.sep}hosts',
-)
+config.setdefault("MDNS_TIMEOUT", 3000)
+config.setdefault("PORT_RANGE", range(50000, 50500))
+config.setdefault("HOST", "127.0.0.1")
+config.setdefault("systemBase", "multiprocTCPBase")
+config.setdefault("capabilities", "{'Admin Port': 1901}")
+config.setdefault("ip_version", IPVersion.All)
 
 
 # =======================
 # Logging configuration
 # The order is important! Setup logger after the actor system.
 # =======================
-logger = logging.getLogger("Reg. Server 2")
-FORMATTER = "%(asctime)-15s %(levelname)-6s %(module)-15s %(message)s"
-# FORMATTER = "[%(name)s]\t[%(levelname)s]\t%(message)s"
-logging.basicConfig(format=FORMATTER, force=True)
-logger.setLevel(config["LEVEL"])
+logging.config.dictConfig(registrationserver2.logdef.logcfg)
+logger = logging.getLogger("Reg. Server")
 logger.info("Logging system initialized.")
 
 # ==========================================
@@ -59,9 +59,9 @@ FOLDER_AVAILABLE: str = f'{config["FOLDER"]}{os.path.sep}{FILE_PATH_AVAILABLE}'
 FOLDER_HISTORY: str = f'{config["FOLDER"]}{os.path.sep}{FILE_PATH_HISTORY}'
 
 # "available" and "history" under "hosts"
-FOLDER2_AVAILABLE = f'{config["FOLDER2"]}{os.path.sep}{FILE_PATH_AVAILABLE}'
-FOLDER2_HISTORY = f'{config["FOLDER2"]}{os.path.sep}{FILE_PATH_HISTORY}'
+HOSTS_FOLDER_AVAILABLE = f'{config["HOSTS_FOLDER"]}{os.path.sep}{FILE_PATH_AVAILABLE}'
+HOSTS_FOLDER_HISTORY = f'{config["HOSTS_FOLDER"]}{os.path.sep}{FILE_PATH_HISTORY}'
 
 RESERVE_KEYWORD: str = "reserve"
 FREE_KEYWORD: str = "free"
-logger.debug("Registrationserver2 initialized.")
+logger.debug("Registrationserver initialized.")
