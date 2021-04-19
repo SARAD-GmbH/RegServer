@@ -7,6 +7,10 @@ Authors
     copied from Thespian documentation
 """
 import logging
+import logging.handlers
+import os
+
+from registrationserver2.config import config
 
 
 class actorLogFilter(logging.Filter):
@@ -19,11 +23,27 @@ class notActorLogFilter(logging.Filter):
         return "actorAddress" not in logrecord.__dict__
 
 
+LOGLEVEL = config["LEVEL"]
+
+if config["LOG_FILE"] is not None:
+    log_folder = config["LOG_FOLDER"]
+    log_file = config["LOG_FILE"]
+    FILENAME = log_folder + log_file
+    os.makedirs(os.path.dirname(FILENAME), exist_ok=True)
+    with open(FILENAME, "w") as f:
+        pass
+else:
+    FILENAME = "registrationserver.log"
+
 logcfg = {
     "version": 1,
     "formatters": {
-        "normal": {"format": "%(levelname)-8s %(message)s"},
-        "actor": {"format": "%(levelname)-8s %(actorAddress)s => %(message)s"},
+        "normal": {
+            "format": "%(asctime)-15s %(levelname)-6s %(module)-15s %(message)s"
+        },
+        "actor": {
+            "format": "%(asctime)-15s %(levelname)-6s %(actorAddress)-15s %(message)s"
+        },
     },
     "filters": {
         "isActorLog": {"()": actorLogFilter},
@@ -31,19 +51,27 @@ logcfg = {
     },
     "handlers": {
         "h1": {
-            "class": "logging.FileHandler",
-            "filename": "example.log",
+            "class": "logging.handlers.RotatingFileHandler",
             "formatter": "normal",
+            "filename": FILENAME,
+            "maxBytes": 8192,
+            "backupCount": 5,
             "filters": ["notActorLog"],
-            "level": logging.INFO,
+            "mode": "w",
+            "encoding": "utf-8",
+            "level": LOGLEVEL,
         },
         "h2": {
-            "class": "logging.FileHandler",
-            "filename": "example.log",
+            "class": "logging.handlers.RotatingFileHandler",
             "formatter": "actor",
+            "filename": FILENAME,
+            "maxBytes": 8192,
+            "backupCount": 5,
             "filters": ["isActorLog"],
-            "level": logging.INFO,
+            "mode": "w",
+            "encoding": "utf-8",
+            "level": LOGLEVEL,
         },
     },
-    "loggers": {"": {"handlers": ["h1", "h2"], "level": logging.DEBUG}},
+    "loggers": {"": {"handlers": ["h1", "h2"], "level": LOGLEVEL}},
 }
