@@ -25,6 +25,12 @@ class notActorLogFilter(logging.Filter):
 
 LOGLEVEL = config["LEVEL"]
 
+home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
+app_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
+config.setdefault("LEVEL", logging.CRITICAL)
+config.setdefault("LOG_FOLDER", f"{app_folder}log{os.path.sep}")
+config.setdefault("LOG_FILE", "registrationserver.log")
+
 if config["LOG_FILE"] is not None:
     log_folder = config["LOG_FOLDER"]
     log_file = config["LOG_FILE"]
@@ -50,28 +56,35 @@ logcfg = {
         "notActorLog": {"()": notActorLogFilter},
     },
     "handlers": {
-        "h1": {
+        "f1": {
             "class": "logging.handlers.RotatingFileHandler",
             "formatter": "normal",
             "filename": FILENAME,
-            "maxBytes": 8192,
+            "maxBytes": 81920,
             "backupCount": 5,
             "filters": ["notActorLog"],
-            "mode": "w",
+            "mode": "a",
             "encoding": "utf-8",
             "level": LOGLEVEL,
         },
-        "h2": {
+        "f2": {
             "class": "logging.handlers.RotatingFileHandler",
             "formatter": "actor",
             "filename": FILENAME,
-            "maxBytes": 8192,
+            "maxBytes": 81920,
             "backupCount": 5,
             "filters": ["isActorLog"],
-            "mode": "w",
+            "mode": "a",
             "encoding": "utf-8",
             "level": LOGLEVEL,
         },
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "normal",
+            # "filters": ["isActorLog", "notActorLog"],
+            "level": LOGLEVEL,
+            "stream": "ext://sys.stdout",
+        },
     },
-    "loggers": {"": {"handlers": ["h1", "h2"], "level": LOGLEVEL}},
+    "loggers": {"": {"handlers": ["f1", "f2", "console"], "level": LOGLEVEL}},
 }

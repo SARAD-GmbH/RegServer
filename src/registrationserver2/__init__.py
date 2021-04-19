@@ -3,11 +3,13 @@ Registration Server module,
 connects all kinds of Instrument Server with the user applications
 """
 import logging
+import logging.config
 import logging.handlers
 import os
 
 from zeroconf import IPVersion
 
+import registrationserver2.logdef
 from registrationserver2.config import config
 
 # =======================
@@ -18,9 +20,6 @@ home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
 app_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
 config.setdefault("FOLDER", f"{app_folder}devices")
 config.setdefault("HOSTS_FOLDER", f"{app_folder}hosts")
-config.setdefault("LEVEL", logging.CRITICAL)
-config.setdefault("LOG_FOLDER", f"{app_folder}log{os.path.sep}")
-config.setdefault("LOG_FILE", "registrationserver.log")
 config.setdefault("TYPE", "_rfc2217._tcp.local.")
 config.setdefault("MDNS_TIMEOUT", 3000)
 config.setdefault("PORT_RANGE", range(50000, 50500))
@@ -34,25 +33,8 @@ config.setdefault("ip_version", IPVersion.All)
 # Logging configuration
 # The order is important! Setup logger after the actor system.
 # =======================
+logging.config.dictConfig(registrationserver2.logdef.logcfg)
 logger = logging.getLogger("Reg. Server")
-FORMATTER = "%(asctime)-15s %(levelname)-6s %(module)-15s %(message)s"
-# FORMATTER = "[%(name)s]\t[%(levelname)s]\t%(message)s"
-logging.basicConfig(format=FORMATTER, force=True)
-logger.setLevel(config["LEVEL"])
-if config["LOG_FILE"] is not None:
-    log_folder = config["LOG_FOLDER"]
-    log_file = config["LOG_FILE"]
-    filename = log_folder + log_file
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
-    with open(filename, "w") as f:
-        pass
-    handler = logging.handlers.RotatingFileHandler(
-        filename, maxBytes=1000000, backupCount=5
-    )
-    handler.setLevel(config["LEVEL"])
-    handler.setFormatter(logging.Formatter(FORMATTER))
-    handler.doRollover()
-    logger.addHandler(handler)
 logger.info("Logging system initialized.")
 
 # ==========================================
