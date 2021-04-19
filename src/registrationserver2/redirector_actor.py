@@ -53,6 +53,7 @@ class RedirectorActor(Actor):
                 server_socket.bind((self._host, self._port))
                 break
             except OSError:
+                logger.critical("Cannot find a valid port in the given PORT_RANGE")
                 pass
         server_socket.listen()  # listen(5) maybe???
         self.read_list = [server_socket]
