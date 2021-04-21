@@ -145,7 +145,7 @@ class MqttClientActor(Actor):
                 return
             if isinstance(msg, WakeupMessage):
                 if msg.payload == "STANDBY":
-                    self._standby(msg, sender)
+                    self._standby()
                 else:
                     logger.debug("Received an unknown wakeup message")
                 return
@@ -216,10 +216,11 @@ class MqttClientActor(Actor):
         if self.work_state == "SUBSCRIBE" and mid == self.mid[self.work_state]:
             logger.info("Subscribed to the topic successfully!\n")
             self.flag_switcher[self.work_state] = True
+        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
 
     def on_unsubscribe(self, client, userdata, mid):
         #self.rc_uns = 0
-        logger.inf("on_unsubscribe")
+        logger.info("on_unsubscribe")
         logger.info("mid is %s", mid)
         logger.info("work state = %s", self.work_state)
         logger.info("stored mid is %s", self.mid[self.work_state])
@@ -239,6 +240,15 @@ class MqttClientActor(Actor):
         self.queue_to_parse.put(msg_buf)
         #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
         #self.send(self.myParent, {"CMD": "PARSE", "PAR": msg_buf})
+    
+    def _standby(self):
+        logger.info("Here is standby")
+        if self.work_state == "STANDBY":
+            logger.info("The client actor is at standby state")
+            if not self.queue_to_parse.empty():
+                logger.info("send the mqtt message to the parent actor")
+                self.send(self.myParent, {"CMD": "PARSE", "PAR": self.queue_to_parse.get()})
+    
     """
     def _standby(self):
         logger.info("STANDBY")
@@ -434,7 +444,7 @@ class MqttClientActor(Actor):
         #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
         #return
         self.work_state = "STANDBY"
-        
+        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
         '''
         info = self.mqttc.publish(self.mqtt_topic, payload=self.mqtt_payload, qos=self.mqtt_qos, retain=self.retain)
         info.wait_for_publish()
@@ -498,10 +508,13 @@ class MqttClientActor(Actor):
                         break
             #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             self.work_state = "STANDBY"
+            self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return
 
     def _unsubscribe(self, msg: dict, sender) -> dict:
+        self.work_state = "UNSUBSCRIBE"
         self.mqtt_topic = msg.get("PAR", None).get("INFO", None)
+        logger.info(self.mqtt_topic)
         if not self.flag_switcher["CONNECT"]:
             logger.warning("Failed to unsubscribe to the topic(s) because of disconnection")
             self.send(sender, {"RETURN": self.work_state, "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"]})
@@ -509,23 +522,30 @@ class MqttClientActor(Actor):
             self.work_state = "STANDBY"
             self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return
-        if self.mqtt_topic is None or not isinstance(self.mqtt_topic, list) or not isinstance(self.mqtt_topic, str):
+        if self.mqtt_topic is None and not isinstance(self.mqtt_topic, list) and not isinstance(self.mqtt_topic, str):
             logger.warning("[Unsubscribe]: The topic is none or it is neither a string nor a list ")
             self.send(sender, {"RETURN": self.work_state, "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"]})
             self.work_state = "STANDBY"
             self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return
         info = self.mqttc.unsubscribe(self.mqtt_topic)
-        if info.rc != MQTT.MQTT_ERR_SUCCESS:
+        logger.info("Subscribe return: %s", info)
+        if info[0] != MQTT.MQTT_ERR_SUCCESS:
             logger.warning("Unsubscribe failed; result code is: %s", info.rc)
             self.send(sender, {"RETURN": self.work_state, "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"]})
             self.work_state = "STANDBY"
         else:
-            self.task_start_time[self.work_state] = time.time()
-            self.mid[self.work_state] = info.mid
-            self.requester = sender
-        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
-        return
+            self.mid[self.work_state] = info[1]
+            while True:
+                if self.flag_switcher[self.work_state] == True:
+                    self.send(self.ask_sender, {"RETURN": self.work_state, "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]})
+                    break
+                elif self.flag_switcher[self.work_state] == False:
+                    self.send(self.ask_sender, {"RETURN": self.work_state, "ERROR_CODE": self.error_code_switcher["CONNECT"]})
+                    break
+            self.work_state = "STANDBY"
+            self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+            return
     
     def _kill(self, msg, sender):
         self._disconnect()
@@ -548,7 +568,7 @@ class MqttClientActor(Actor):
 
         #self.wakeupAfter(datetime.timedelta(seconds=1), payload="Parser")
     
-
+'''
 def test():
     """
     ActorSystem(
@@ -572,10 +592,11 @@ def test():
     logger.info(ask_re)
     ask_re = ActorSystem().ask(mqtt_client_actor,  {"CMD": "PUBLISH", "PAR": {"topic": "test2", "payload": "it's a test", "qos": 0}})
     logger.info(ask_re)
-    input("Press Enter to End\n")
+    #input("Press Enter to End\n")
+    time.sleep(10)
     ActorSystem().tell(mqtt_client_actor, ActorExitRequest())
     logger.info("!")
 
 if __name__ == "__main__":
     test()
-
+'''

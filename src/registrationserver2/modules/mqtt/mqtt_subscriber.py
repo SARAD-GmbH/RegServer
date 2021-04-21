@@ -208,7 +208,7 @@ class SaradMqttSubscriber(Actor):
             logger.info(setup_return)
             if not setup_return["ERROR_CODE"] in (
                 RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
+                RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
             ):
                 logger.warning(setup_return)
                 logger.critical("Failed to setup a new MQTT Actor. Kill this device actor.")
@@ -227,7 +227,7 @@ class SaradMqttSubscriber(Actor):
                 prep_return = ActorSystem().ask(this_actor, prep_msg)
                 if not prep_return["ERROR_CODE"] in (
                     RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                    RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
+                    RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
                 ):
                     logger.warning(prep_return)
                     logger.critical("This MQTT Actor failed to prepare itself. Kill it.")
@@ -285,7 +285,7 @@ class SaradMqttSubscriber(Actor):
             logger.info(setup_return)
             if not setup_return["ERROR_CODE"] in (
                 RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
+                RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
             ):
                 logger.warning(setup_return)
                 logger.critical("Failed to setup a new MQTT Actor. Kill this device actor.")
@@ -398,20 +398,27 @@ class SaradMqttSubscriber(Actor):
             logger.infor("Using the local host: 127.0.0.1")
         if self.port is None:
             self.port = 1883
-            logger.infor("Using the ddefault port: 1883")
+            logger.info("Using the ddefault port: 1883")
         self.myClient = self.createActor(MqttClientActor, globalName="sarad_subscriber.mqtt.client_actor")
+        lwt_msg = {
+            "lwt_topic": "test1/connect",
+            "lwt_payload": "0",
+            "lwt_qos": 0,
+        }
         ask_msg = {
             "CMD": "SETUP",
             "PAR": {
                 "client_id": self.mqtt_cid,
                 "mqtt_broker": self.mqtt_broker,
                 "port": self.port,
+                "LWT":lwt_msg,
             },
         }
         ask_return = ActorSystem().ask(self.myClient, ask_msg)
+        logger.info("ask return: %s", ask_return)
         if not ask_return["ERROR_CODE"] in (
                 RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
+                RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
         ):
             logger.critical("Failed to setup the client actor. Kill this client actor.")
             ActorSystem().tell(self.myClient, ActorExitRequest())
@@ -423,13 +430,29 @@ class SaradMqttSubscriber(Actor):
         ask_return = ActorSystem().ask(self.myClient, ask_msg)
         if not ask_return["ERROR_CODE"] in (
                 RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
+                RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
         ):
             logger.critical("Failed to setup the client actor. Kill this client actor.")
             ActorSystem().tell(self.myClient, ActorExitRequest())
             self.send(sender, {"RETURN": "SETUP", "ERROR_CODE": RETURN_MESSAGES["SETUP_FAILURE"]["ERROR_CODE"]})
             return
         """
+        ask_msg = {
+            "CMD": "UNSUBSCRIBE",
+            "PAR": {
+                "INFO": ["+/connected", "+/meta", "+/+/connected", "+/+/meta"],
+            }
+        }
+        ask_return = ActorSystem().ask(self.myClient, ask_msg)
+        if not ask_return["ERROR_CODE"] in (
+                RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+        ):
+            logger.critical("Failed to setup the client actor. Kill this client actor.")
+            ActorSystem().tell(self.myClient, ActorExitRequest())
+            self.send(sender, {"RETURN": "SETUP", "ERROR_CODE": RETURN_MESSAGES["SETUP_FAILURE"]["ERROR_CODE"]})
+            return
+        
         ask_msg = {
             "CMD": "SUBSCRIBE",
             "PAR": {
@@ -439,7 +462,7 @@ class SaradMqttSubscriber(Actor):
         ask_return = ActorSystem().ask(self.myClient, ask_msg)
         if not ask_return["ERROR_CODE"] in (
                 RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
+                RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
         ):
             logger.critical("Failed to setup the client actor. Kill this client actor.")
             ActorSystem().tell(self.myClient, ActorExitRequest())
@@ -560,11 +583,15 @@ def __test__():
     #    systemBase=config["systemBase"],
     #    capabilities=config["capabilities"],
     #)
+    logger.info("Subscriber")
     sarad_mqtt_subscriber = ActorSystem().createActor(
         SaradMqttSubscriber, globalName="SARAD_Subscriber"
     )
-    ask_return = ActorSystem().ask(sarad_mqtt_subscriber, {"CMD": "SETUP", "PAR": {"client_id": "sarad-mqtt_subscriber-client", "mqtt_broker": "127.0.0.1"}}, timeout=2000)
-    if ask_return is RETURN_MESSAGES.get("OK"):
+    ask_return = ActorSystem().ask(sarad_mqtt_subscriber, {"CMD": "SETUP", "PAR": {"client_id": "sarad-mqtt_subscriber-client", "mqtt_broker": "127.0.0.1"}})
+    if ask_return["ERROR_CODE"] in (
+                RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+    ):
         logger.info("SARAD MQTT Subscriber is setup correctly!")
         input("Press Enter to End")
         ActorSystem().ask(sarad_mqtt_subscriber, "KILL")
