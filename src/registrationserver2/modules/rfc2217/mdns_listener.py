@@ -16,7 +16,6 @@ import json
 import os
 import socket
 import threading
-import traceback
 
 import hashids  # type: ignore
 from registrationserver2 import FOLDER_AVAILABLE, FOLDER_HISTORY, logger
@@ -66,14 +65,8 @@ class MdnsListener(ServiceListener):
         try:
             _addr_ip = ipaddress.IPv4Address(info.addresses[0]).exploded
             _addr = socket.gethostbyaddr(_addr_ip)[0]
-        except Exception as error:  # pylint: disable=broad-except
-            logger.error(
-                "! %s\t%s\t%s\t%s",
-                type(error),
-                error,
-                vars(error) if isinstance(error, dict) else "-",
-                traceback.format_exc(),
-            )
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("Fatal error")
         out = {
             "Identification": {
                 "Name": properties[b"MODEL_ENC"].decode("utf-8"),

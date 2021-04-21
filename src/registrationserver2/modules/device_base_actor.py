@@ -141,7 +141,7 @@ class DeviceBaseActor(Actor):
         if self.link is None:
             self.link = fr"{self.__folder_available}{self.globalName}"
             if not os.path.exists(filename):
-                os.mknod(filename)
+                open(filename, "a").close()
             if not os.path.exists(self.link):
                 logger.info("Linking %s to %s", self.link, filename)
                 os.link(filename, self.link)

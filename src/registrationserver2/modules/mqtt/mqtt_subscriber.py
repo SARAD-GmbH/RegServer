@@ -38,8 +38,6 @@ from registrationserver2.modules.mqtt.mqtt_client_actor import MqttClientActor
 
 logger.info("%s -> %s", __package__, __file__)
 
-mqtt_msg_queue = queue.Queue()
-
 class SaradMqttSubscriber(Actor):
     """
     classdocs
@@ -82,17 +80,16 @@ class SaradMqttSubscriber(Actor):
         self.mqtt_cid = None
         self.mqtt_broker = None
         self.myClient = None
-        #self.SARAD_MQTT_PARSER = MqttParser(TName="RS_MQTT_Parser-000")
         with self.__lock:
             self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
             self.__folder_available = (
                 f"{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}"
             )
             self.__folder2_history = (
-                f"{registrationserver2.FOLDER2_HISTORY}{os.path.sep}"
+                f"{registrationserver2.HOSTS_FOLDER_HISTORY}{os.path.sep}"
             )
             self.__folder2_available = (
-                f"{registrationserver2.FOLDER2_AVAILABLE}{os.path.sep}"
+                f"{registrationserver2.HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
             )
             if not os.path.exists(self.__folder_history):
                 os.makedirs(self.__folder_history)

@@ -18,7 +18,7 @@ import socket
 
 from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import Actor, ActorSystem, WakeupMessage
+from thespian.actors import Actor, WakeupMessage
 
 from registrationserver2 import logger
 from registrationserver2.config import config
@@ -33,16 +33,16 @@ class RedirectorActor(Actor):
     ACCEPTED_COMMANDS = {
         "SETUP": "_setup",
         "CONNECT": "_connect_loop",
+        "RECEIVE": "_receive_loop",
     }
     ACCEPTED_RETURNS = {
-        "SEND": "_receive_loop",
+        "SEND": "_send_to_app",
     }
 
     @overrides
     def __init__(self):
         super().__init__()
         self.my_parent = None
-        self._connected = False
         self._client_socket = None
         self._socket_info = None
         self.conn = None
@@ -53,6 +53,7 @@ class RedirectorActor(Actor):
                 server_socket.bind((self._host, self._port))
                 break
             except OSError:
+                logger.critical("Cannot find a valid port in the given PORT_RANGE")
                 pass
         server_socket.listen()  # listen(5) maybe???
         self.read_list = [server_socket]
@@ -63,8 +64,8 @@ class RedirectorActor(Actor):
         """
         Handles received Actor messages / verification of the message format
         """
-        logger.debug("Msg: %s, Sender: %s", msg, sender)
         if isinstance(msg, dict):
+            logger.debug("Msg: %s, Sender: %s", msg, sender)
             return_key = msg.get("RETURN", None)
             cmd_key = msg.get("CMD", None)
             if ((return_key is None) and (cmd_key is None)) or (
@@ -149,40 +150,42 @@ class RedirectorActor(Actor):
         logger.debug("Cleanup done before finally killing me.")
 
     def _connect_loop(self, _msg, _sender):
-        """Listen to Port and redirect any messages"""
-        logger.debug("Waiting for connect at %s port %s", self._host, self._port)
+        """Listen to socket and redirect any message from the socket to the device actor"""
+        # logger.debug("Waiting for connect at %s port %s", self._host, self._port)
+        # read_list = list of server sockets from which we expect to read
         server_socket = self.read_list[0]
-        timeout = 1
-        switcher = {
-            b"B\x80\x7f\xe0\xe0\x00E": b"B\xa6\x59\xe3\x0c\x09\x09\x13\x03\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x19\x01E",
-            b"B\x80\x7f\xe1\xe1\x00E": b"B\x80\x7f\xe4\xe4\x00E",
-            b"B\x81\x7e\xe2\x0c\xee\x00E": b"B\x80\x7f\xe5\xe5\x00E",
-        }
+        timeout = 0.1
         readable, writable, errored = select.select(self.read_list, [], [], timeout)
         for self.conn in readable:
             if self.conn is server_socket:
                 self._client_socket, self._socket_info = server_socket.accept()
                 self.read_list.append(self._client_socket)
-                self._connected = True
                 logger.debug("Connection from %s", self._socket_info)
-                self.send(self.myAddress, {"CMD": "RECEIVE"})
             else:
-                data = self.conn.recv(1024)
-                if data:
-                    logger.info("%s from %s", data, self._socket_info)
-                    try:
-                        reply = switcher[data]
-                        self.conn.sendall(reply)
-                    except KeyError:
-                        self.send(
-                            self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}}
-                        )
-                else:
-                    self.conn.close()
-                    self.read_list.remove(self.conn)
-        self.wakeupAfter(datetime.timedelta(seconds=1), payload="Connect")
+                # self.send(self.myAddress, {"CMD": "RECEIVE"})
+                self._receive_loop(None, None)
+        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="Connect")
 
-    def _receive_loop(self, msg, _sender):
+    def _receive_loop(self, _msg, _sender):
+        switcher = {
+            b"B\x80\x7f\xe0\xe0\x00E": b"B\xa6\x59\xe3\x0c\x09\x09\x13\x03\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x19\x01E",
+            b"B\x80\x7f\xe1\xe1\x00E": b"B\x80\x7f\xe4\xe4\x00E",
+            b"B\x81\x7e\xe2\x0c\xee\x00E": b"B\x80\x7f\xe5\xe5\x00E",
+        }
+        data = self.conn.recv(1024)
+        if data:
+            logger.info("%s from %s", data, self._socket_info)
+            try:
+                reply = switcher[data]
+                self.conn.sendall(reply)
+            except KeyError:
+                self.send(self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}})
+        else:
+            self.conn.close()
+            self.read_list.remove(self.conn)
+        # self.wakeupAfter(datetime.timedelta(seconds=0), payload="Receive")
+
+    def _send_to_app(self, msg, _sender):
         """Redirect any received reply to the socket."""
         data = msg["RESULT"]["DATA"]
         self.conn.sendall(data)
