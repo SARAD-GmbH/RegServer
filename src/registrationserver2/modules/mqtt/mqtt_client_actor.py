@@ -60,7 +60,7 @@ class MqttClientActor(Actor):
         }
         self.error_code_switcher = {
             "SETUP": RETURN_MESSAGES["SETUP_FAILURE"]["ERROR_CODE"],
-            "CONNECT": RETURN_MESSAGES["CONNECT_FAILURE"]["ERROR_CODE"],
+            "CONNECT": RETURN_MESSAGES["CONNECTION_FAILURE"]["ERROR_CODE"],
             "PUBLISH": RETURN_MESSAGES["PUBLISH_FAILURE"]["ERROR_CODE"],
             "SUBSCRIBE": RETURN_MESSAGES["SUBSCRIBE_FAILURE"]["ERROR_CODE"],
             "UNSUBSCRIBE": RETURN_MESSAGES["UNSUBSCRIBE_FAILURE"]["ERROR_CODE"],
@@ -158,6 +158,7 @@ class MqttClientActor(Actor):
         self, client, userdata, flags, result_code
     ):  # pylint: disable=unused-argument
         """Will be carried out when the client connected to the MQTT self.mqtt_broker."""
+        logger.info("on_connect")
         if result_code == 0:
             logger.info("Connected with MQTT %s.", self.mqtt_broker)
             #if self.work_state == "CONNECT":
@@ -225,11 +226,14 @@ class MqttClientActor(Actor):
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
     
     def _standby(self):
+        logger.info("STANDBY")
         if self.work_state == "IDLE":
             pass
         elif self.work_state == "STANDBY":
             if not self.queue_to_parse.empty():
-                self.send(self.myParent, {"CMD": "PARSE", "PAR": self.queue_to_parse.get()})
+                msg_get = self.queue_to_parse.get()
+                logger.info("Topic is %s; payload is %s", msg_get.get("topic", None), msg_get.get("payload", None))
+                self.send(self.myParent, {"CMD": "PARSE", "PAR": msg_get})
         elif self.work_state not in self.task_start_time.keys():
             logger.error("Client is working at an unknow state: %s", self.work_state)
         elif (time.time() - self.task_start_time[self.work_state])>= 0.05:
@@ -281,34 +285,19 @@ class MqttClientActor(Actor):
         if self.port is None:
             self.port = 1883
             logger.infor("Using the ddefault port: 1883")
-        if self._connect(lwt_set):
+        self._connect(lwt_set, sender)
+        """
+        if self._connect(lwt_set, sender):
             self.send(sender, {"RETURN": "SETUP", "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]})
         else:
             self.send(sender, {"RETURN": "SETUP", "ERROR_CODE": self.error_code_switcher["CONNECT"]})
         self.work_state = "STANDBY"
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
         return
-        '''
-        if not self._connect():
-            logger.warning("Connection failed")
-            self.send(sender, {"RETURN":"SETUP", "ERROR_CODE": RETURN_MESSAGES.get("SETUP_FAILURE", None).get("ERROR_CODE", None)})
-            return
-        sub_req_msg = {
-            # "CMD": "SUBSCRIBE",
-            "PAR": {"topic": "test0", "qos": 0},
-        }
-        _re = self._subscribe(sub_req_msg, sender)
-        if not (
-            _re is RETURN_MESSAGES.get("OK") or _re is RETURN_MESSAGES.get("OK_SKIPPED")
-        ):
-            self.send(sender, RETURN_MESSAGES.get("SETUP_FAILURE"))
-            return
-        
-        self.send(sender, RETURN_MESSAGES.get("OK_SKIPPED"))
-        return
-        '''
+        """
+
     
-    def _connect(self, lwt_set:bool)->bool:
+    def _connect(self, lwt_set:bool, sender)->None:
         #self.work_state = "CONNECT"
         #logger.info("Work state: connect")
         self.mqttc = MQTT.Client(self.mqtt_cid)
@@ -324,29 +313,21 @@ class MqttClientActor(Actor):
         try:
             logger.info("Try to connect to the mqtt broker")
             if lwt_set:
+                logger.info("Set will")
                 self.mqttc.will_set(self.lwt_topic, payload=self.lwt_payload, qos=self.lwt_qos, retain=True)
             self.mqttc.connect(self.mqtt_broker, port=self.port)
+            self.mqttc.loop_forever()
+            self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+            return
             #self.task_start_time[self.work_state] = time.time()
         except:
             logger.error("Failed to connect to the given broker and port")
-            #self.send(self.myParent, {"RETURN": self.work_state, "ERROR_CODE": self.error_code_switcher[self.work_state]})
-            #self.work = "STANDBY"
-            #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
-            return False
-        self.mqttc.loop_forever()
-        #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
-        return True
-        '''wait_cnt0 = 100
-        logger.info("wait for Flag set")
-        while wait_cnt0 >0:
-            if self.connected_flag:
-                logger.info("Flag set")
-                return True
-            else:
-                wait_cnt0 = wait_cnt0 - 1
-                time.sleep(1)
-        return False
-        '''
+            self.send(sender, {"RETURN": "SETUP", "ERROR_CODE": self.error_code_switcher["CONNECT"]})
+            self.work_state = "STANDBY"
+            self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+            return
+        
+
     def _disconnect(self):
         if self.ungr_disconn == 2:
             logger.info("To disconnect from the MQTT-broker!")
@@ -529,7 +510,7 @@ class MqttClientActor(Actor):
 
         self.wakeupAfter(datetime.timedelta(seconds=1), payload="Parser")
     '''
-'''
+
 def test():
     """
     ActorSystem(
@@ -537,13 +518,18 @@ def test():
         capabilities=config["capabilities"],
     )
     """
-    print(MqttClientActor)
+    #print(MqttClientActor)
     mqtt_client_actor = ActorSystem().createActor(
         MqttClientActor, globalName="SARAD_MQTT_Client"
     )
-    ask_re = ActorSystem().ask(mqtt_client_actor,  {"CMD": "SETUP", "PAR": {"client_id": "sarad-mqtt_subscriber-client", "mqtt_broker": "127.0.0.1"}})
+    lwt_msg = {
+        "lwt_topic": "test1/connect",
+        "lwt_payload": "0",
+        "lwt_qos": 0,
+        }
+    ask_re = ActorSystem().ask(mqtt_client_actor,  {"CMD": "SETUP", "PAR": {"client_id": "sarad-mqtt_subscriber-client", "mqtt_broker": "127.0.0.1", "port": 1883, "LWT":lwt_msg}})
     logger.info(ask_re)
-    ask_re = ActorSystem().ask(mqtt_client_actor,  {"CMD": "SUBSCRIBE", "PAR": {"topic": "test1", "qos": 0}})
+    ask_re = ActorSystem().ask(mqtt_client_actor,  {"CMD": "SUBSCRIBE", "PAR": {"INFO": ("test1",  0)}})
     logger.info(ask_re)
     ask_re = ActorSystem().ask(mqtt_client_actor,  {"CMD": "PUBLISH", "PAR": {"topic": "test2", "payload": "it's a test", "qos": 0}})
     logger.info(ask_re)
@@ -552,4 +538,4 @@ def test():
 
 if __name__ == "__main__":
     test()
-'''
+
