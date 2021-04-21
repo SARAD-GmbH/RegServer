@@ -69,6 +69,7 @@ class MqttClientActor(Actor):
             "CONNECT": None,
             "PUBLISH": None,
             "SUBSCRIBE": None,
+            "DISCONNECT": None,
             "UNSUBSCRIBE": None,
         }
         self.mid = {
@@ -159,37 +160,38 @@ class MqttClientActor(Actor):
     ):  # pylint: disable=unused-argument
         """Will be carried out when the client connected to the MQTT self.mqtt_broker."""
         logger.info("on_connect")
+        logger.info("work state = %s", self.work_state)
         if result_code == 0:
             logger.info("Connected with MQTT %s.", self.mqtt_broker)
             #if self.work_state == "CONNECT":
             #    self.flag_switcher[self.work_state] = True
-            self.flag_switcher[self.work_state] = True
+            self.flag_switcher["CONNECT"] = True
+            self.flag_switcher["DISCONNECT"] = False
         else:
             logger.info(
                 f"Connection to MQTT self.mqtt_broker failed. result_code={result_code}"
             )
             #if self.work_state == "CONNECT":
             #    self.flag_switcher[self.work_state] = False
-            self.flag_switcher[self.work_state] = False
+            self.flag_switcher["CONNECT"] = False
             #self.send(self.myAddress, ActorExitRequest())
-        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+        #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
 
     def on_disconnect(
         self, client, userdata, result_code
     ):  # pylint: disable=unused-argument
         """Will be carried out when the client disconnected
         from the MQTT self.mqtt_broker."""
+        logger.warning("Disconnected")
         if result_code >= 1:
             self.ungr_disconn = 1
-            logger.info(
-                f"Disconnection from MQTT-broker ungracefully. result_code={result_code}"
-            )
+            logger.info("Disconnection from MQTT-broker ungracefully. result_code=%s", result_code)
             self._connect(None, None)
         else:
             self.ungr_disconn = 0
             logger.info("Gracefully disconnected from MQTT-broker.")
-        self.flag_switcher["CONNECT"] = False
-        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+        self.flag_switcher["DISCONNECT"] = True
+        #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
         #logger.info("[Subscriber]\tTo kill the subscriber")
         #self.send(self.myAddress, ActorExitRequest())
 
@@ -198,19 +200,31 @@ class MqttClientActor(Actor):
         logger.info(
             "The message with Message-ID %d is published to the broker!\n", mid
         )
-        if self.work_state == "PUBLISH" and mid == self.mid[self.work_state]:
-            self.flag_switcher[self.work_state] = True
+        logger.info("work state = %s", self.work_state)
+        if self.work_state == "PUBLISH":
+            logger.info("Publish: check the mid")
+            if mid == self.mid[self.work_state]:
+                logger.info("Publish: mid is matched")
+                self.flag_switcher[self.work_state] = True
 
     def on_subscribe(self, client, userdata, mid, grant_qos):
         #self.rc_sub = 0
-        logger.info("Subscribed to the topic successfully!\n")
-        if self.work_state == "PUBLISH" and mid == self.mid[self.work_state]:
+        logger.info("on_subscribe")
+        logger.info("mid is %s", mid)
+        logger.info("work state = %s", self.work_state)
+        logger.info("stored mid is %s", self.mid[self.work_state])
+        if self.work_state == "SUBSCRIBE" and mid == self.mid[self.work_state]:
+            logger.info("Subscribed to the topic successfully!\n")
             self.flag_switcher[self.work_state] = True
 
     def on_unsubscribe(self, client, userdata, mid):
         #self.rc_uns = 0
-        logger.info("Unsubscribed to the topic successfully!\n")
-        if self.work_state == "PUBLISH" and mid == self.mid[self.work_state]:
+        logger.inf("on_unsubscribe")
+        logger.info("mid is %s", mid)
+        logger.info("work state = %s", self.work_state)
+        logger.info("stored mid is %s", self.mid[self.work_state])
+        if self.work_state == "UNSUBSCRIBE" and mid == self.mid[self.work_state]:
+            logger.info("Unsubscribed to the topic successfully!\n")
             self.flag_switcher[self.work_state] = True
 
     def on_message(self, client, userdata, message):
@@ -223,10 +237,12 @@ class MqttClientActor(Actor):
             "payload": message.payload,
         }
         self.queue_to_parse.put(msg_buf)
-        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
-    
+        #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+        #self.send(self.myParent, {"CMD": "PARSE", "PAR": msg_buf})
+    """
     def _standby(self):
         logger.info("STANDBY")
+        
         if self.work_state == "IDLE":
             pass
         elif self.work_state == "STANDBY":
@@ -258,7 +274,9 @@ class MqttClientActor(Actor):
             self.send(self.requester, {"RETURN": self.work_state, "ERROR_CODE": self.error_code_switcher[self.work_state]})
             self.flag_switcher[self.work_state] = None
             self.work_state = "STANDBY"
+        
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+    """
 
     def _setup(self, msg: dict, sender) -> None:
         self.work_state = "SETUP"
@@ -286,6 +304,7 @@ class MqttClientActor(Actor):
             self.port = 1883
             logger.infor("Using the ddefault port: 1883")
         self._connect(lwt_set, sender)
+        
         """
         if self._connect(lwt_set, sender):
             self.send(sender, {"RETURN": "SETUP", "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]})
@@ -298,7 +317,7 @@ class MqttClientActor(Actor):
 
     
     def _connect(self, lwt_set:bool, sender)->None:
-        #self.work_state = "CONNECT"
+        self.work_state = "CONNECT"
         #logger.info("Work state: connect")
         self.mqttc = MQTT.Client(self.mqtt_cid)
 
@@ -310,13 +329,21 @@ class MqttClientActor(Actor):
         self.mqttc.on_publish = self.on_publish
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
+        self.ask_sender = sender
+        """
         try:
             logger.info("Try to connect to the mqtt broker")
             if lwt_set:
                 logger.info("Set will")
                 self.mqttc.will_set(self.lwt_topic, payload=self.lwt_payload, qos=self.lwt_qos, retain=True)
             self.mqttc.connect(self.mqtt_broker, port=self.port)
-            self.mqttc.loop_forever()
+            self.mqttc.loop_start()
+            while True:
+                if self.flag_switcher[self.work_state]:
+                    self.send(self.ask_sender, {"RETURN": self.work_state, "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]})
+                else:
+                    self.send(self.ask_sender, {"RETURN": self.work_state, "ERROR_CODE": self.error_code_switcher["CONNECT"]})
+            self.work_state = "STANDBY"
             self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return
             #self.task_start_time[self.work_state] = time.time()
@@ -326,7 +353,23 @@ class MqttClientActor(Actor):
             self.work_state = "STANDBY"
             self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return
-        
+        """
+        logger.info("Try to connect to the mqtt broker")
+        if lwt_set:
+            logger.info("Set will")
+            self.mqttc.will_set(self.lwt_topic, payload=self.lwt_payload, qos=self.lwt_qos, retain=True)
+        self.mqttc.connect(self.mqtt_broker, port=self.port)
+        self.mqttc.loop_start()
+        while True:
+            if self.flag_switcher[self.work_state] == True:
+                self.send(self.ask_sender, {"RETURN": self.work_state, "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]})
+                break
+            elif self.flag_switcher[self.work_state] == False:
+                self.send(self.ask_sender, {"RETURN": self.work_state, "ERROR_CODE": self.error_code_switcher["CONNECT"]})
+                break
+        self.work_state = "STANDBY"
+        #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+        return
 
     def _disconnect(self):
         if self.ungr_disconn == 2:
@@ -342,10 +385,11 @@ class MqttClientActor(Actor):
     def _publish(self, msg: dict, sender)->None:
         self.work_state = "PUBLISH"
         logger.info("Work state: publish")
-        if not self.flag_switcher["CONNECT"]:
+        logger.info("Disconnection flag = %s", self.flag_switcher["DISCONNECT"])
+        if self.flag_switcher["DISCONNECT"]:
             logger.warning("Failed to publish the message because of disconnection")
             self.send(sender, {"RETURN": self.work_state, "ERROR_CODE": self.error_code_switcher["PUBLISH"]})
-            self._connect()
+            self._connect(True, self.myAddress)
             self.work_state = "STANDBY"
             self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return
@@ -361,18 +405,35 @@ class MqttClientActor(Actor):
             if self.retain is None:
                 self.retain = False
             logger.info("To publish")
-            self.flag_switcher[self.work_state] = False
             info = self.mqttc.publish(self.mqtt_topic, payload=self.mqtt_payload, qos=self.mqtt_qos, retain=self.retain)
+            logger.info(info)
+            logger.info(info.rc)
             if info.rc != MQTT.MQTT_ERR_SUCCESS:
                 logger.warning("Publish failed; result code is: %s", info.rc)
                 self.send(sender, {"RETURN": self.work_state, "ERROR_CODE":  self.error_code_switcher["PUBLISH"]})
                 self.work_state = "STANDBY"
             else:
+                logger.info("Before publishing, work state is %s", self.work_state)
+                self.mid[self.work_state] = info.mid
+                while True:
+                    #logger.info("while-loop: work state = %s", self.work_state)
+                    #logger.info("while-loop: %s's flag = %s", self.work_state, self.flag_switcher[self.work_state])
+                    if self.flag_switcher[self.work_state] == True:
+                        self.send(self.ask_sender, {"RETURN": self.work_state, "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]})
+                        break
+                    elif self.flag_switcher[self.work_state] == False:
+                        self.send(self.ask_sender, {"RETURN": self.work_state, "ERROR_CODE": self.error_code_switcher[self.work_state]})
+                        break
+        
+                    
+                """
                 self.task_start_time[self.work_state] = time.time()
                 self.mid[self.work_state] = info.mid
                 self.requester = sender
-        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
-        return
+                """
+        #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+        #return
+        self.work_state = "STANDBY"
         
         '''
         info = self.mqttc.publish(self.mqtt_topic, payload=self.mqtt_payload, qos=self.mqtt_qos, retain=self.retain)
@@ -386,10 +447,10 @@ class MqttClientActor(Actor):
     def _subscribe(self, msg: dict, sender)->None:
         self.work_state = "SUBSCRIBE"
         logger.info("Work state: subscribe")
-        if not self.flag_switcher["CONNECT"]:
+        if self.flag_switcher["DISCONNECT"]:
             logger.warning("Failed to subscribe to the topic(s) because of disconnection")
             self.send(sender, {"RETURN": self.work_state, "ERROR_CODE": self.error_code_switcher["SUBSCRIBE"]})
-            self._connect()
+            self._connect(True, self.myAddress)
             self.work_state = "STANDBY"
             self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return
@@ -421,30 +482,23 @@ class MqttClientActor(Actor):
                     self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
                     return
             info = self.mqttc.subscribe(sub_info)
-            if info.rc != MQTT.MQTT_ERR_SUCCESS:
-                logger.warning("Subscribe failed; result code is: %s", info.rc)
+            logger.info("Subscribe return: %s", info)
+            if info[0] != MQTT.MQTT_ERR_SUCCESS:
+                logger.warning("Subscribe failed; result code is: %s", info[0])
                 self.send(sender, {"RETURN": self.work_state, "ERROR_CODE": RETURN_MESSAGES["SUBSCRIBE_FAILURE"]["ERROR_CODE"]})
                 self.work_state = "STANDBY"
             else:
-                self.task_start_time[self.work_state] = time.time()
-                self.mid[self.work_state] = info.mid
-                self.requester = sender
-            self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+                self.mid[self.work_state] = info[1]
+                while True:
+                    if self.flag_switcher[self.work_state] == True:
+                        self.send(self.ask_sender, {"RETURN": self.work_state, "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]})
+                        break
+                    elif self.flag_switcher[self.work_state] == False:
+                        self.send(self.ask_sender, {"RETURN": self.work_state, "ERROR_CODE": self.error_code_switcher["CONNECT"]})
+                        break
+            #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+            self.work_state = "STANDBY"
             return
-        '''
-        self.wait_cnt2 = 10
-        while self.wait_cnt2 != 0:  # Wait only 3*2s = 6s
-            if self.rc_sub == 1:
-                time.sleep(2)
-                self.wait_cnt2 = self.wait_cnt2 - 1
-                logger.info("Waiting for the on_subscribe being called")
-            else:
-                self.rc_sub = 1
-                return RETURN_MESSAGES.get("OK_SKIPPED")
-        else:
-            logger.info("on_subscribe not called: SUBSCRIBE FAILURE!")
-            return RETURN_MESSAGES.get("SUBSCRIBE_FAILURE")
-        '''
 
     def _unsubscribe(self, msg: dict, sender) -> dict:
         self.mqtt_topic = msg.get("PAR", None).get("INFO", None)
@@ -472,23 +526,6 @@ class MqttClientActor(Actor):
             self.requester = sender
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
         return
-        '''
-        self.wait_cnt3 = 3
-
-        while self.wait_cnt3 != 0:  # Wait only 3*2s = 6s
-            if self.rc_uns == 1:
-                time.sleep(2)
-                self.wait_cnt3 = self.wait_cnt3 - 1
-                logger.info("Waiting for the on_unsubscribe being called")
-            else:
-                self.rc_uns = 1
-                break
-        else:
-            logger.info("on_unsubscribe not called: UNSUBSCRIBE FAILURE!")
-            return RETURN_MESSAGES.get("UNSUBSCRIBE_FAILURE")
-
-        return RETURN_MESSAGES.get("OK_SKIPPED")
-        '''
     
     def _kill(self, msg, sender):
         self._disconnect()
@@ -500,16 +537,17 @@ class MqttClientActor(Actor):
         self.flag_switcher = None
         self.mid = None
         logger.info("Already killed the subscriber")
-    '''
+    
     def _parser(self, msg, sender):
-        if not mqtt_msg_queue.empty():
-            logger.info("Parser: topic is: %s", msg.get("topic"))
-            logger.info("Parser: payload is: %s", msg.get("payload"))
+        if not self.queue_to_parse.empty():
+            msg_get = self.queue_to_parse.get()
+            logger.info("Parser: topic is: %s", msg_get.get("topic"))
+            logger.info("Parser: payload is: %s", msg_get.get("payload"))
         else:
             logger.info("No message to parse now")
 
-        self.wakeupAfter(datetime.timedelta(seconds=1), payload="Parser")
-    '''
+        #self.wakeupAfter(datetime.timedelta(seconds=1), payload="Parser")
+    
 
 def test():
     """
@@ -529,7 +567,8 @@ def test():
         }
     ask_re = ActorSystem().ask(mqtt_client_actor,  {"CMD": "SETUP", "PAR": {"client_id": "sarad-mqtt_subscriber-client", "mqtt_broker": "127.0.0.1", "port": 1883, "LWT":lwt_msg}})
     logger.info(ask_re)
-    ask_re = ActorSystem().ask(mqtt_client_actor,  {"CMD": "SUBSCRIBE", "PAR": {"INFO": ("test1",  0)}})
+    time.sleep(1)
+    ask_re = ActorSystem().ask(mqtt_client_actor,  {"CMD": "SUBSCRIBE", "PAR": {"INFO": [("test1",  0)]}})
     logger.info(ask_re)
     ask_re = ActorSystem().ask(mqtt_client_actor,  {"CMD": "PUBLISH", "PAR": {"topic": "test2", "payload": "it's a test", "qos": 0}})
     logger.info(ask_re)
