@@ -4,7 +4,7 @@ Created on 2021-03-12
 @author: Yixiang
 """
 import json
-from typing import Dict
+
 
 # MQTT_ACTOR_REQUESTs: Dict[
 #    str, str
@@ -43,38 +43,6 @@ MQTT_ACTOR_ADRs = {
 """
 
 # IS_ID_LIST: list = []  # A list for storing the ID of IS MQTT
-
-Instr_CONN_HISTORY: Dict[
-    str, str
-] = {}  # mainly used for distinguishing __add_instr__() and __update_instr__()
-"""
-Struture of Instr_CONN_HISTORY:
-MQTT_ACTOR_ADRs = {
-    IS1_ID: {
-        Instr_ID11 : {
-            "Status": "Not_added", # this instrument has connected but its description message is not added -> __add_instr__()
-            "Actor": <Name of the MQTT Actor>, 
-        }
-        Instr_ID12 : {
-            "Status": "Added", # this instrument has connected and its description message is added -> __update_instr__()
-            "Actor": <Name of the MQTT Actor>,
-        }
-        #Instr_ID13 : {
-        #    "Status": "Not_removed", # this instrument has disconnected but the link to its description message is not removed -> __rm_instr__()
-        #    "Actor": <Name of the MQTT Actor>,
-        #}
-        Instr_ID14 : {
-            "Status": "Removed", # this instrument has disconnected and the link to its description message is removed, once connected -> "Not_added"
-            "Actor": <Name of the MQTT Actor>,
-        }
-        ...
-    },
-    IS2_ID: {
-        ...
-    },
-    ...
-}
-"""
 
 RETURN_MESSAGES = {
     # The message received by the actor was not in an expected format
