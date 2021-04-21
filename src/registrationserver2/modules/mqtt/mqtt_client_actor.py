@@ -380,7 +380,7 @@ class MqttClientActor(Actor):
             logger.info("Already disconnected")
         logger.info("To stop the MQTT thread!")
         self.mqttc.loop_stop()
-        logger.info("Disconnection gracefully: "+RETURN_MESSAGES.get("OK_SKIPPED"))
+        logger.info("Disconnection gracefully: %s", RETURN_MESSAGES.get("OK_SKIPPED"))
 
     def _publish(self, msg: dict, sender)->None:
         self.work_state = "PUBLISH"
@@ -573,6 +573,7 @@ def test():
     ask_re = ActorSystem().ask(mqtt_client_actor,  {"CMD": "PUBLISH", "PAR": {"topic": "test2", "payload": "it's a test", "qos": 0}})
     logger.info(ask_re)
     input("Press Enter to End\n")
+    ActorSystem().tell(mqtt_client_actor, ActorExitRequest())
     logger.info("!")
 
 if __name__ == "__main__":
