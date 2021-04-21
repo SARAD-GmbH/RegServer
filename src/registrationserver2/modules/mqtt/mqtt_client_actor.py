@@ -250,8 +250,9 @@ class MqttClientActor(Actor):
             if not self.queue_to_parse.empty():
                 logger.info("send the mqtt message to the parent actor")
                 self.send(self.myParent, {"CMD": "PARSE", "PAR": self.queue_to_parse.get()})
-        #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
-                ActorSystem().tell(self.myAddress, {"CMD": "STANDBY", "PAR": None})
+                #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+                if not self.queue_to_parse.empty():
+                    ActorSystem().tell(self.myAddress, {"CMD": "STANDBY", "PAR": None})
         
     """
     def _standby(self):

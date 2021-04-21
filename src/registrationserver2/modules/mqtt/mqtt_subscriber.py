@@ -575,6 +575,7 @@ class SaradMqttSubscriber(Actor):
                             self.Instr_CONN_HISTORY[topic_parts[0]] = {}
                             self.Instr_CONN_HISTORY[topic_parts[0]][topic_parts[1]]["Status"] == "Not_added"
                     elif payload == "0":
+                        logger.info("disconnection message")
                         if (topic_parts[0] in self.Instr_CONN_HISTORY.keys()) and (topic_parts[1] in self.Instr_CONN_HISTORY[topic_parts[0]].keys()):
                             next_msg = {
                                 "CMD": "RM_DEVICE",
