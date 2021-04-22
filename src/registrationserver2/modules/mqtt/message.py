@@ -5,7 +5,6 @@ Created on 2021-03-12
 """
 import json
 
-
 # MQTT_ACTOR_REQUESTs: Dict[
 #    str, str
 # ] = {}  # A dictionary for storing the request statuses of MQTT Actors
@@ -74,10 +73,10 @@ RETURN_MESSAGES = {
         "ERROR_MESSAGE": "MQTT client failed to connect to MQTT-broker",
         "ERROR_CODE": 6,
     },
-    #"CONNECTION_NO_RESPONSE": {
+    # "CONNECTION_NO_RESPONSE": {
     #    "ERROR_MESSAGE": "No response to connection request",
     #    "ERROR_CODE": 7,
-    #},
+    # },
     # "DISCONNECTION_FAILURE": {
     #     "ERROR_MESSAGE": "MQTT client failed to disconnect with MQTT-broker",
     #     "ERROR_CODE": 8,
