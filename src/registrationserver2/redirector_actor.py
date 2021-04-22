@@ -17,8 +17,8 @@ import select
 import socket
 
 from overrides import overrides  # type: ignore
-from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import Actor, WakeupMessage
+from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
+                             WakeupMessage)
 
 from registrationserver2 import logger
 from registrationserver2.config import config
@@ -33,7 +33,6 @@ class RedirectorActor(Actor):
     ACCEPTED_COMMANDS = {
         "SETUP": "_setup",
         "CONNECT": "_connect_loop",
-        "RECEIVE": "_receive_loop",
     }
     ACCEPTED_RETURNS = {
         "SEND": "_send_to_app",
@@ -53,17 +52,14 @@ class RedirectorActor(Actor):
                 server_socket.bind((self._host, self._port))
                 break
             except OSError:
-                logger.critical("Cannot find a valid port in the given PORT_RANGE")
-                pass
+                logger.critical("Cannot use port %d.", self._port)
         server_socket.listen()  # listen(5) maybe???
         self.read_list = [server_socket]
         logger.info("Socket listening on port %d", self._port)
 
     @overrides
     def receiveMessage(self, msg, sender):
-        """
-        Handles received Actor messages / verification of the message format
-        """
+        """Handles received Actor messages / verification of the message format"""
         if isinstance(msg, dict):
             logger.debug("Msg: %s, Sender: %s", msg, sender)
             return_key = msg.get("RETURN", None)
@@ -111,8 +107,6 @@ class RedirectorActor(Actor):
             if isinstance(msg, WakeupMessage):
                 if msg.payload == "Connect":
                     self._connect_loop(msg, sender)
-                elif msg.payload == "Receive":
-                    self._receive_loop(msg, sender)
                 return
             logger.critical(
                 "Received %s from %s. This should never happen.", msg, sender
@@ -155,18 +149,18 @@ class RedirectorActor(Actor):
         # read_list = list of server sockets from which we expect to read
         server_socket = self.read_list[0]
         timeout = 0.1
-        readable, writable, errored = select.select(self.read_list, [], [], timeout)
+        readable, _writable, _errored = select.select(self.read_list, [], [], timeout)
         for self.conn in readable:
             if self.conn is server_socket:
                 self._client_socket, self._socket_info = server_socket.accept()
                 self.read_list.append(self._client_socket)
                 logger.debug("Connection from %s", self._socket_info)
             else:
-                # self.send(self.myAddress, {"CMD": "RECEIVE"})
-                self._receive_loop(None, None)
+                self._cmd_handler()
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="Connect")
 
-    def _receive_loop(self, _msg, _sender):
+    def _cmd_handler(self):
+        """Handle a binary SARAD command received via the socket."""
         switcher = {
             b"B\x80\x7f\xe0\xe0\x00E": b"B\xa6\x59\xe3\x0c\x09\x09\x13\x03\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x19\x01E",
             b"B\x80\x7f\xe1\xe1\x00E": b"B\x80\x7f\xe4\xe4\x00E",
@@ -183,7 +177,6 @@ class RedirectorActor(Actor):
         else:
             self.conn.close()
             self.read_list.remove(self.conn)
-        # self.wakeupAfter(datetime.timedelta(seconds=0), payload="Receive")
 
     def _send_to_app(self, msg, _sender):
         """Redirect any received reply to the socket."""
