@@ -14,18 +14,14 @@ Todo:
     * use lazy formatting in logger
 """
 import datetime
-import json
 import time
-from pickle import NONE, TRUE
 
-import paho.mqtt.client as MQTT  # type: ignore
 from _datetime import datetime
 from overrides import overrides  # type: ignore
 from registrationserver2 import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
-from registrationserver2.modules.mqtt.message import RETURN_MESSAGES, is_JSON
+from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
 from registrationserver2.modules.mqtt.mqtt_client_actor import MqttClientActor
-from registrationserver2.redirector_actor import RedirectorActor
 from thespian.actors import (ActorExitRequest, ActorSystem,  # type: ignore
                              WakeupMessage)
 
@@ -38,21 +34,18 @@ class MqttActor(DeviceBaseActor):
     Actor interacting with a new device
     """
 
-    is_id: str
-
-    instr_id: str
-
     # "copy" ACCEPTED_COMMANDS of the DeviceBaseActor
     ACCEPTED_COMMANDS = DeviceBaseActor.ACCEPTED_COMMANDS
     # add some new accessible methods
     ACCEPTED_COMMANDS["PREPARE"] = "_prepare"
     ACCEPTED_COMMANDS["RESERVATION_CANCEL"] = "_reserve_cancel"
-
     REPLY_TO_WAIT_FOR = {}
 
     @overrides
     def __init__(self):
         super().__init__()
+        self.is_id = None
+        self.instr_id = None
         self.rc_disc = 2
         self.rc_pub = 1
         self.rc_sub = 1
@@ -85,7 +78,7 @@ class MqttActor(DeviceBaseActor):
         self.port = None
         self.instr_id = self.globalName.split("/")[1]
         self.subscriber_addr = None
-        self.myClient = None
+        self.my_client = None
         self.cmd_id = 0
 
     @overrides
@@ -175,7 +168,7 @@ class MqttActor(DeviceBaseActor):
             "CMD": "SUBSCRIBE",
             "PAR": {"INFO": (self.allowed_sys_topics["MSG"], 0)},
         }
-        ask_return = ActorSystem().ask(self.myClient, ask_msg)
+        ask_return = ActorSystem().ask(self.my_client, ask_msg)
         logger.info(ask_return)
         if ask_return is None:
             logger.error(
@@ -192,7 +185,7 @@ class MqttActor(DeviceBaseActor):
                 },
             )
             return
-        elif not ask_return["ERROR_CODE"] in (
+        if not ask_return["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
             RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
         ):
@@ -215,7 +208,7 @@ class MqttActor(DeviceBaseActor):
                 "qos": qos,
             },
         }
-        ask_return = ActorSystem().ask(self.myClient, ask_msg, timeout=0.06)
+        ask_return = ActorSystem().ask(self.my_client, ask_msg, timeout=0.06)
         logger.info(ask_return)
         if ask_return is None:
             logger.error(
@@ -240,7 +233,7 @@ class MqttActor(DeviceBaseActor):
                 },
             )
             return
-        elif not ask_return["ERROR_CODE"] in (
+        if not ask_return["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
             RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
         ):
@@ -291,15 +284,15 @@ class MqttActor(DeviceBaseActor):
 
     def _reserve_at_is(self, app, host, user) -> bool:
         logger.info(
-            f"[Reserve]\tThe MQTT actor '{self.globalName}' is to subscribe to the 'reserve' topic"
+            "[Reserve]\tThe MQTT actor '%s' is to subscribe to the 'reserve' topic",
+            self.globalName,
         )
         if not self.REPLY_TO_WAIT_FOR["RESERVE"]["Send_status"]:
             ask_msg = {
                 "CMD": "SUBSCRIBE",
                 "PAR": {"INFO": (self.allowed_sys_topics["RESERVE"], 0)},
             }
-            ask_return = ActorSystem().ask(self.myClient, ask_msg)
-
+            ask_return = ActorSystem().ask(self.my_client, ask_msg)
             if not ask_return["ERROR_CODE"] in (
                 RETURN_MESSAGES["OK"]["ERROR_CODE"],
                 RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
@@ -319,8 +312,7 @@ class MqttActor(DeviceBaseActor):
                     "qos": 0,
                 },
             }
-            ask_return = ActorSystem().ask(self.myClient, ask_msg)
-
+            ask_return = ActorSystem().ask(self.my_client, ask_msg)
             if not ask_return["ERROR_CODE"] in (
                 RETURN_MESSAGES["OK"]["ERROR_CODE"],
                 RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
@@ -328,16 +320,14 @@ class MqttActor(DeviceBaseActor):
                 logger.error(ask_return)
                 return False
             self.REPLY_TO_WAIT_FOR["RESERVE"]["Send_status"] = True
-
         if self.REPLY_TO_WAIT_FOR.get("RESERVE", None).get("Active", None) is None:
             pass
-        elif self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"] == True:
+        elif self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"]:
             self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"] = None
             return True
         else:
             self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"] = None
             return False
-
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="RESERVE")
 
     def _free(self, msg, sender) -> None:
@@ -357,7 +347,7 @@ class MqttActor(DeviceBaseActor):
                 "qos": 0,
             },
         }
-        ask_return = ActorSystem.ask(self.myClient, ask_msg)
+        ask_return = ActorSystem().ask(self.my_client, ask_msg)
         logger.info(ask_return)
         if not ask_return["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
@@ -368,7 +358,8 @@ class MqttActor(DeviceBaseActor):
             )
             return
         logger.info(
-            f"[Free]\tThe MQTT actor '{self.globalName}' is to unsusbcribe to the 'reserve' and 'msg' topics"
+            "[Free]\tThe MQTT actor '%s' is to unsusbcribe to the 'reserve' and 'msg' topics",
+            self.globalName,
         )
         ask_msg = {
             "CMD": "UNSUBSCRIBE",
@@ -379,7 +370,7 @@ class MqttActor(DeviceBaseActor):
                 ]
             },
         }
-        ask_return = ActorSystem.ask(self.myClient, ask_msg)
+        ask_return = ActorSystem().ask(self.my_client, ask_msg)
         if not ask_return["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
             RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
@@ -400,9 +391,9 @@ class MqttActor(DeviceBaseActor):
                 ],
             },
         }
-        self.send(self.myClient, ask_msg)
+        self.send(self.my_client, ask_msg)
         time.sleep(1)
-        self.send(self.myClient, ActorExitRequest())
+        self.send(self.my_client, ActorExitRequest())
         time.sleep(1)
         super()._kill(msg, sender)
         # TODO: clear the used memory space
@@ -434,7 +425,7 @@ class MqttActor(DeviceBaseActor):
         if self.port is None:
             self.port = 1883
         logger.infor("Using the port: %s", self.port)
-        self.myClient = self.createActor(
+        self.my_client = self.createActor(
             MqttClientActor, globalName=self.globalName + ".client_actor"
         )
         lwt_msg = {
@@ -453,15 +444,16 @@ class MqttActor(DeviceBaseActor):
                 "LWT": lwt_msg,
             },
         }
-        ask_return = ActorSystem().ask(self.myClient, ask_msg)
+        ask_return = ActorSystem().ask(self.my_client, ask_msg)
         if not ask_return["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
             RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
         ):
             logger.critical(
-                "Failed to setup the client actor because of failed connection. Kill this client actor."
+                "Failed to setup the client actor because of failed connection. "
+                "Kill this client actor."
             )
-            ActorSystem().tell(self.myClient, ActorExitRequest())
+            ActorSystem().tell(self.my_client, ActorExitRequest())
             self.send(
                 sender,
                 {
@@ -478,13 +470,13 @@ class MqttActor(DeviceBaseActor):
                 "INFO": [self.allowed_sys_topics["MSG"], self.allowed_sys_topics["RESERVE"]],
             }
         }
-        ask_return = ActorSystem().ask(self.myClient, ask_msg)
+        ask_return = ActorSystem().ask(self.my_client, ask_msg)
         if not ask_return["ERROR_CODE"] in (
                 RETURN_MESSAGES["OK"]["ERROR_CODE"],
                 RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
         ):
             logger.critical("Failed to setup the client actor because of failed unsubscription. Kill this client actor.")
-            ActorSystem().tell(self.myClient, ActorExitRequest())
+            ActorSystem().tell(self.my_client, ActorExitRequest())
             self.send(sender, {"RETURN": "SETUP", "ERROR_CODE": RETURN_MESSAGES["SETUP_FAILURE"]["ERROR_CODE"]})
             return
         """
@@ -500,7 +492,7 @@ class MqttActor(DeviceBaseActor):
         return
 
     def _parse(self, msg: dict, sender) -> None:
-        if sender != self.myClient:
+        if sender != self.my_client:
             logger.warning(
                 "Received a MQTT message '%s' from an unknown sender '%s'", msg, sender
             )
@@ -513,9 +505,9 @@ class MqttActor(DeviceBaseActor):
                 "The topic or payload is none; topic: %s, payload: %s", topic, payload
             )
             return
-        if (
-            topic != self.allowed_sys_topics["MSG"]
-            and topic != self.allowed_sys_topics["RESERVE"]
+        if topic not in (
+            self.allowed_sys_topics["MSG"],
+            self.allowed_sys_topics["RESERVE"],
         ):
             logger.warning(
                 "The topic is not llegal; topic: %s, payload: %s", topic, payload
@@ -540,14 +532,13 @@ class MqttActor(DeviceBaseActor):
                     self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"] = False
                 self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="RESERVE")
                 return
-            else:
-                logger.warning(
-                    "MQTT Actor '%s' receives a reply to an non-requested reservation on the instrument '%s'",
-                    self.globalName,
-                    self.instr_id,
-                )
-                return
-        elif topic == self.allowed_sys_topics["MSG"]:
+            logger.warning(
+                "MQTT Actor '%s' receives a reply to an non-requested reservation on the instrument '%s'",
+                self.globalName,
+                self.instr_id,
+            )
+            return
+        if topic == self.allowed_sys_topics["MSG"]:
             if self.REPLY_TO_WAIT_FOR["SEND"]["Send_status"]:
                 re_cmd_id = payload[0]
                 if re_cmd_id == self.REPLY_TO_WAIT_FOR["SEND"]["CMD_ID"]:
@@ -559,28 +550,25 @@ class MqttActor(DeviceBaseActor):
                     )
                     self.send(self.REPLY_TO_WAIT_FOR["SEND"]["Sender"], payload[1:])
                     return
-                else:
-                    logger.warning(
-                        "MQTT Actor '%s' receives a binary reply '%s' with a unexpected CMD ID '%s' from the instrument '%s'",
-                        self.globalName,
-                        payload,
-                        re_cmd_id,
-                        self.instr_id,
-                    )
-                    return
-            else:
                 logger.warning(
-                    "MQTT Actor '%s' receives an unknown binary reply '%s' from the instrument '%s'",
+                    "MQTT Actor '%s' receives a binary reply '%s' with a unexpected CMD ID '%s' from the instrument '%s'",
                     self.globalName,
                     payload,
+                    re_cmd_id,
                     self.instr_id,
                 )
                 return
-        else:
             logger.warning(
-                "MQTT Actor '%s' receives an unknown message '%s' from the instrument '%s'",
+                "MQTT Actor '%s' receives an unknown binary reply '%s' from the instrument '%s'",
                 self.globalName,
                 payload,
                 self.instr_id,
             )
             return
+        logger.warning(
+            "MQTT Actor '%s' receives an unknown message '%s' from the instrument '%s'",
+            self.globalName,
+            payload,
+            self.instr_id,
+        )
+        return
