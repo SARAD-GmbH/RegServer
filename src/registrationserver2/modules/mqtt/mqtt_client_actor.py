@@ -1,19 +1,13 @@
+"""Here shoudl be a docstring!"""
 import datetime
-import json
-import os
 import queue
-import sys
-import time
-from pickle import TRUE
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
-# import registrationserver2
 from registrationserver2 import logger
-# from registrationserver2.config import config
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
-from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
-                             ActorSystem, WakeupMessage)
+from thespian.actors import ActorExitRequest  # type: ignore
+from thespian.actors import Actor, ActorSystem, WakeupMessage
 
 logger.info("%s -> %s", __package__, __file__)
 
@@ -34,28 +28,22 @@ class MqttClientActor(Actor):
         # "SEND": "_receive_loop",
     }
 
-    mqtt_topic: str
-
-    mqtt_payload: str
-
-    mqtt_qos = 0
-
-    retain = False
-
-    mqtt_broker = None  # MQTT Broker, here: localhost
-
-    port = None
-
-    mqtt_cid: str  # MQTT Client ID
-
-    queue_to_parse = (
-        queue.Queue()
-    )  # An queue to parse would store the mqtt messages when the client actor is at setup state
-
     @overrides
     def __init__(self):
+        self.mqtt_topic: str = ""
+        self.mqtt_payload: str = ""
+        self.lwt_payload = None
+        self.lwt_topic = None
+        self.lwt_qos = None
+        self.mqtt_qos = 0
+        self.retain = False
+        self.mqtt_broker = None  # MQTT Broker, here: localhost
+        self.port = None
+        self.mqtt_cid: str = ""  # MQTT Client ID
+        # An queue to parse would store the mqtt messages when the client actor is at setup state
+        self.queue_to_parse = queue.Queue()
         super().__init__()
-        self.myParent = None
+        self.my_parent = None
         self.work_state = "IDLE"
         self.ungr_disconn = 2
         self.task_start_time = {
@@ -83,6 +71,8 @@ class MqttClientActor(Actor):
             "SUBSCRIBE": None,
             "UNSUBSCRIBE": None,
         }
+        self.ask_sender = None
+        self.mqttc = None
 
     @overrides
     def receiveMessage(self, msg, sender):
@@ -123,11 +113,11 @@ class MqttClientActor(Actor):
                 if self.work_state == "IDLE" and cmd_key == "SETUP":
                     pass
                 else:
-                    # if self.myParent is None:
+                    # if self.my_parent is None:
                     #    logger.info("The client actor is not setup because there is no parent actor for it. Then it will kill itself.")
                     #    self.send(sender, {"RETURN":"UNKNOWN_STATE", "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_STATE"]["ERROR_CODE"]})
                     #    return
-                    # if sender != self.myAddress and sender != self.myParent:
+                    # if sender != self.myAddress and sender != self.my_parent:
                     #    logger.warning("Received a message for an illegal sender (address is %s)", sender)
                     #    self.send(sender, {"RETURN":"NOT_ALLOWED", "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_SENDER"]["ERROR_CODE"]})
                     #    return
@@ -183,7 +173,8 @@ class MqttClientActor(Actor):
             self.flag_switcher["DISCONNECT"] = False
         else:
             logger.info(
-                f"Connection to MQTT self.mqtt_broker failed. result_code={result_code}"
+                "Connection to MQTT self.mqtt_broker failed. result_code=%s",
+                result_code,
             )
             # if self.work_state == "CONNECT":
             #    self.flag_switcher[self.work_state] = False
@@ -212,7 +203,8 @@ class MqttClientActor(Actor):
         # logger.info("[Subscriber]\tTo kill the subscriber")
         # self.send(self.myAddress, ActorExitRequest())
 
-    def on_publish(self, client, userdata, mid):
+    def on_publish(self, _client, _userdata, mid):
+        """Here should be a docstring."""
         # self.rc_pub = 0
         logger.info("The message with Message-ID %d is published to the broker!\n", mid)
         logger.info("work state = %s", self.work_state)
@@ -222,7 +214,8 @@ class MqttClientActor(Actor):
                 logger.info("Publish: mid is matched")
                 self.flag_switcher[self.work_state] = True
 
-    def on_subscribe(self, client, userdata, mid, grant_qos):
+    def on_subscribe(self, _client, _userdata, mid, _grant_qos):
+        """Here should be a docstring."""
         # self.rc_sub = 0
         logger.info("on_subscribe")
         logger.info("mid is %s", mid)
@@ -233,7 +226,8 @@ class MqttClientActor(Actor):
             self.flag_switcher[self.work_state] = True
         # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
 
-    def on_unsubscribe(self, client, userdata, mid):
+    def on_unsubscribe(self, _client, _userdata, mid):
+        """Here should be a docstring."""
         # self.rc_uns = 0
         logger.info("on_unsubscribe")
         logger.info("mid is %s", mid)
@@ -243,11 +237,12 @@ class MqttClientActor(Actor):
             logger.info("Unsubscribed to the topic successfully!\n")
             self.flag_switcher[self.work_state] = True
 
-    def on_message(self, client, userdata, message):
-        logger.info(f"message received: {str(message.payload.decode('utf-8'))}")
-        logger.info(f"message topic: {message.topic}")
-        logger.info(f"message qos: {message.qos}")
-        logger.info(f"message retain flag: {message.retain}")
+    def on_message(self, _client, _userdata, message):
+        """Here should be a docstring."""
+        logger.info("message received: %s", str(message.payload.decode("utf-8")))
+        logger.info("message topic: %s", message.topic)
+        logger.info("message qos: %s", message.qos)
+        logger.info("message retain flag: %s", message.retain)
         msg_buf = {
             "topic": message.topic,
             "payload": message.payload,
@@ -255,16 +250,16 @@ class MqttClientActor(Actor):
         self.queue_to_parse.put(msg_buf)
         ActorSystem().tell(self.myAddress, {"CMD": "STANDBY", "PAR": None})
         # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
-        # self.send(self.myParent, {"CMD": "PARSE", "PAR": msg_buf})
+        # self.send(self.my_parent, {"CMD": "PARSE", "PAR": msg_buf})
 
-    def _standby(self, msg, sender):
+    def _standby(self, _msg, _sender):
         logger.info("Here is standby")
         if self.work_state == "STANDBY":
             logger.info("The client actor is at standby state")
             if not self.queue_to_parse.empty():
                 logger.info("send the mqtt message to the parent actor")
                 self.send(
-                    self.myParent, {"CMD": "PARSE", "PAR": self.queue_to_parse.get()}
+                    self.my_parent, {"CMD": "PARSE", "PAR": self.queue_to_parse.get()}
                 )
                 # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
                 if not self.queue_to_parse.empty():
@@ -280,7 +275,7 @@ class MqttClientActor(Actor):
             if not self.queue_to_parse.empty():
                 msg_get = self.queue_to_parse.get()
                 logger.info("Topic is %s; payload is %s", msg_get.get("topic", None), msg_get.get("payload", None))
-                self.send(self.myParent, {"CMD": "PARSE", "PAR": msg_get})
+                self.send(self.my_parent, {"CMD": "PARSE", "PAR": msg_get})
         elif self.work_state not in self.task_start_time.keys():
             logger.error("Client is working at an unknow state: %s", self.work_state)
         elif (time.time() - self.task_start_time[self.work_state])>= 0.05:
@@ -311,8 +306,8 @@ class MqttClientActor(Actor):
 
     def _setup(self, msg: dict, sender) -> None:
         self.work_state = "SETUP"
-        self.myParent = msg.get("PAR", None).get("parent_adr", None)
-        logger.info("Address of parent actor of the client actor is %s", self.myParent)
+        self.my_parent = msg.get("PAR", None).get("parent_adr", None)
+        logger.info("Address of parent actor of the client actor is %s", self.my_parent)
         self.mqtt_cid = msg.get("PAR", None).get("client_id", None)
         self.mqtt_broker = msg.get("PAR", None).get("mqtt_broker", None)
         self.port = msg.get("PAR", None).get("port", None)
@@ -403,7 +398,7 @@ class MqttClientActor(Actor):
         self.mqttc.connect(self.mqtt_broker, port=self.port)
         self.mqttc.loop_start()
         while True:
-            if self.flag_switcher[self.work_state] == True:
+            if self.flag_switcher[self.work_state]:
                 self.send(
                     self.ask_sender,
                     {
@@ -412,7 +407,7 @@ class MqttClientActor(Actor):
                     },
                 )
                 break
-            elif self.flag_switcher[self.work_state] == False:
+            if not self.flag_switcher[self.work_state]:
                 self.send(
                     self.ask_sender,
                     {
@@ -423,7 +418,6 @@ class MqttClientActor(Actor):
                 break
         self.work_state = "STANDBY"
         # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
-        return
 
     def _disconnect(self):
         if self.ungr_disconn == 2:
@@ -454,7 +448,7 @@ class MqttClientActor(Actor):
             # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return
         self.mqtt_topic = msg.get("PAR", None).get("topic", None)
-        if (self.mqtt_topic is None) or not (isinstance(self.mqtt_topic, str)):
+        if (self.mqtt_topic is None) or not isinstance(self.mqtt_topic, str):
             logger.warning("the topic is none or not a string")
             self.send(
                 sender,
@@ -495,7 +489,7 @@ class MqttClientActor(Actor):
                 while True:
                     # logger.info("while-loop: work state = %s", self.work_state)
                     # logger.info("while-loop: %s's flag = %s", self.work_state, self.flag_switcher[self.work_state])
-                    if self.flag_switcher[self.work_state] == True:
+                    if self.flag_switcher[self.work_state]:
                         self.send(
                             self.ask_sender,
                             {
@@ -507,7 +501,7 @@ class MqttClientActor(Actor):
                         )
                         self.flag_switcher[self.work_state] = None
                         break
-                    elif self.flag_switcher[self.work_state] == False:
+                    if not self.flag_switcher[self.work_state]:
                         self.send(
                             self.ask_sender,
                             {
@@ -567,11 +561,12 @@ class MqttClientActor(Actor):
             self.work_state = "STANDBY"
             # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return
-        elif isinstance(sub_info, list):
+        if isinstance(sub_info, list):
             for ele in sub_info:
                 if not isinstance(ele, tuple):
                     logger.warning(
-                        "[Subscribe]: the INFO for subscribe is a list while it contains a non-tuple element"
+                        "[Subscribe]: the INFO for subscribe is a list "
+                        "while it contains a non-tuple element"
                     )
                     self.send(
                         sender,
@@ -585,9 +580,10 @@ class MqttClientActor(Actor):
                     self.work_state = "STANDBY"
                     # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
                     return
-                elif len(ele) != 2:
+                if len(ele) != 2:
                     logger.warning(
-                        "[Subscribe]: the INFO for subscribe is a list while it contains a tuple elemnt whose length is not equal to 2"
+                        "[Subscribe]: the INFO for subscribe is a list while it contains "
+                        "a tuple elemnt whose length is not equal to 2"
                     )
                     self.send(
                         sender,
@@ -601,7 +597,7 @@ class MqttClientActor(Actor):
                     self.work_state = "STANDBY"
                     # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
                     return
-                elif len(ele) == 2 and ele[0] is None:
+                if len(ele) == 2 and ele[0] is None:
                     logger.warning(
                         "[Subscribe]: the first element of one tuple namely the 'topic' is None"
                     )
@@ -634,7 +630,7 @@ class MqttClientActor(Actor):
             else:
                 self.mid[self.work_state] = info[1]
                 while True:
-                    if self.flag_switcher[self.work_state] == True:
+                    if self.flag_switcher[self.work_state]:
                         self.send(
                             self.ask_sender,
                             {
@@ -646,7 +642,7 @@ class MqttClientActor(Actor):
                         )
                         self.flag_switcher[self.work_state] = None
                         break
-                    elif self.flag_switcher[self.work_state] == False:
+                    if not self.flag_switcher[self.work_state]:
                         self.send(
                             self.ask_sender,
                             {
@@ -713,7 +709,7 @@ class MqttClientActor(Actor):
         else:
             self.mid[self.work_state] = info[1]
             while True:
-                if self.flag_switcher[self.work_state] == True:
+                if self.flag_switcher[self.work_state]:
                     self.send(
                         self.ask_sender,
                         {
@@ -722,7 +718,7 @@ class MqttClientActor(Actor):
                         },
                     )
                     break
-                elif self.flag_switcher[self.work_state] == False:
+                if not self.flag_switcher[self.work_state]:
                     self.send(
                         self.ask_sender,
                         {
@@ -735,10 +731,10 @@ class MqttClientActor(Actor):
             # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return
 
-    def _kill(self, msg, sender):
+    def _kill(self, _msg, _sender):
         self._disconnect()
         self.mqttc.loop_stop()
-        self.myParent = None
+        self.my_parent = None
         self.work_state = "IDLE"
         self.task_start_time = None
         self.error_code_switcher = None
@@ -746,7 +742,7 @@ class MqttClientActor(Actor):
         self.mid = None
         logger.info("Already killed the subscriber")
 
-    def _parser(self, msg, sender):
+    def _parser(self, _msg, _sender):
         if not self.queue_to_parse.empty():
             msg_get = self.queue_to_parse.get()
             logger.info("Parser: topic is: %s", msg_get.get("topic"))
