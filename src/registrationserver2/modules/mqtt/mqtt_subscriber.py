@@ -474,6 +474,7 @@ class SaradMqttSubscriber(Actor):
             self.send(sender, {"RETURN": "SETUP", "ERROR_CODE": RETURN_MESSAGES["SETUP_FAILURE"]["ERROR_CODE"]})
             return
         """
+        time.sleep(0.01)
         ask_msg = {
             "CMD": "UNSUBSCRIBE",
             "PAR": {
@@ -505,8 +506,8 @@ class SaradMqttSubscriber(Actor):
             ActorSystem().tell(self.myClient, ActorExitRequest())
             self.send(sender, {"RETURN": "SETUP", "ERROR_CODE": RETURN_MESSAGES["SETUP_FAILURE"]["ERROR_CODE"]})
             return
-        logger.info("Let the client actor stay at standby state")
-        self.send(self.myClient, {"CMD": "STANDBY", "PAR": None})
+        #logger.info("Let the client actor stay at standby state")
+        #self.send(self.myClient, {"CMD": "STANDBY", "PAR": None})
         self.send(sender, {"RETURN": "SETUP", "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]})
         return
     
@@ -633,14 +634,20 @@ def __test__():
                 RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
     ):
         logger.info("SARAD MQTT Subscriber is setup correctly!")
-        input("Press Enter to End")
-        ActorSystem().tell(sarad_mqtt_subscriber, ActorExitRequest())
+        #input("Press Enter to End")
+        #ActorSystem().tell(sarad_mqtt_subscriber, ActorExitRequest())
         logger.info("!")
     else:
         logger.warning("SARAD MQTT Subscriber is not setup!")
         logger.error(ask_return)
-        input("Press Enter to End")
+        #input("Press Enter to End")
         logger.info("!!")
+    while True:
+        input("Press Enter to End")
+        break
+    time.sleep(10)
+    ActorSystem().tell(sarad_mqtt_subscriber, ActorExitRequest())
+    time.sleep(10)
     ActorSystem().shutdown()
 
 

@@ -253,6 +253,7 @@ class MqttClientActor(Actor):
                 #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
                 if not self.queue_to_parse.empty():
                     ActorSystem().tell(self.myAddress, {"CMD": "STANDBY", "PAR": None})
+                    #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
         
     """
     def _standby(self):
@@ -453,7 +454,7 @@ class MqttClientActor(Actor):
         #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
         #return
         self.work_state = "STANDBY"
-        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+        #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
         '''
         info = self.mqttc.publish(self.mqtt_topic, payload=self.mqtt_payload, qos=self.mqtt_qos, retain=self.retain)
         info.wait_for_publish()
@@ -540,7 +541,7 @@ class MqttClientActor(Actor):
             #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return
         info = self.mqttc.unsubscribe(self.mqtt_topic)
-        logger.info("Subscribe return: %s", info)
+        logger.info("Unsubscribe return: %s", info)
         if info[0] != MQTT.MQTT_ERR_SUCCESS:
             logger.warning("Unsubscribe failed; result code is: %s", info.rc)
             self.send(sender, {"RETURN": self.work_state, "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"]})
