@@ -17,8 +17,8 @@ import select
 import socket
 
 from overrides import overrides  # type: ignore
-from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import Actor, WakeupMessage, WatchMessage
+from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
+                             WakeupMessage)
 
 from registrationserver2 import logger
 from registrationserver2.config import config
@@ -103,8 +103,6 @@ class RedirectorActor(Actor):
         else:
             if isinstance(msg, ActorExitRequest):
                 self._kill(msg, sender)
-                return
-            if isinstance(msg, WatchMessage):
                 return
             if isinstance(msg, WakeupMessage):
                 if msg.payload == "Connect":
