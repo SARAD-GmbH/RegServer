@@ -13,7 +13,6 @@ Todo:
       be updated.
     * use lazy formatting in logger
 """
-import datetime
 import time
 import queue
 import paho.mqtt.client as MQTT  # type: ignore
@@ -22,7 +21,7 @@ from overrides import overrides  # type: ignore
 from registrationserver2 import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
-from registrationserver2.modules.mqtt.mqtt_client_actor import MqttClientActor
+#from registrationserver2.modules.mqtt.mqtt_client_actor import MqttClientActor
 from thespian.actors import (ActorExitRequest, ActorSystem,  # type: ignore
                              WakeupMessage)
 
@@ -50,7 +49,7 @@ class MqttActor(DeviceBaseActor):
         self.rc_disc = 2
         self.allowed_sys_topics = {
             "CTRL": "/control",
-            "RESERVE": "/reserve",
+            "RESERVE": "/reservation",
             "CMD": "/cmd",
             "MSG": "/msg",
             # "META": "/meta",
@@ -67,8 +66,11 @@ class MqttActor(DeviceBaseActor):
             "Send_Status"
         ] = False  # if there be a reply to wait for, then it should be true
         self.REPLY_TO_WAIT_FOR["SEND"]["CMD_ID"] = None  # store the CMD ID
-        self.REPLY_TO_WAIT_FOR["SEND"]["Reply_Status"] = False # if matched, it is true
+        #self.REPLY_TO_WAIT_FOR["SEND"]["Reply_Status"] = False # if matched, it is true
         self.REPLY_TO_WAIT_FOR["SEND"]["Reply"] =  None
+        self.REPLY_TO_WAIT_FOR["SEND"][
+            "Sender"
+        ] = None  # store the address of the sender
         self.binary_reply = b""
         self.mqtt_cid = self.globalName + ".client"
         self.mqtt_broker = None
@@ -230,10 +232,6 @@ class MqttActor(DeviceBaseActor):
             return
         self.REPLY_TO_WAIT_FOR["SEND"]["Send_Status"] = True
         self.REPLY_TO_WAIT_FOR["SEND"]["CMD_ID"] = bytes([self.cmd_id])
-        if self.cmd_id == 255:
-            self.cmd_id = 0
-        else:
-            self.cmd_id = self.cmd_id + 1
         _msg = {
             "CMD": "PUBLISH",
             "PAR": {
@@ -243,6 +241,10 @@ class MqttActor(DeviceBaseActor):
             },
         }
         _re = self._publish(_msg)
+        if self.cmd_id == 255:
+            self.cmd_id = 0
+        else:
+            self.cmd_id = self.cmd_id + 1
         logger.info(_re)
         if _re is None:
             logger.error(
@@ -277,6 +279,7 @@ class MqttActor(DeviceBaseActor):
                 sender, {"RETURN": "SEND", "ERROR_CODE": _re["ERROR_CODE"]}
             )
             return
+        '''
         wait_cnt = 70
         while wait_cnt >0:
             if self.REPLY_TO_WAIT_FOR["SEND"]["Reply_Status"]:
@@ -297,6 +300,7 @@ class MqttActor(DeviceBaseActor):
             self.REPLY_TO_WAIT_FOR["SEND"]["Send_Status"] = False
             self.REPLY_TO_WAIT_FOR["SEND"]["CMD_ID"] = None
             return
+        '''
 
     def _reserve_at_is(self, app, host, user) -> bool:
         logger.info(
@@ -344,10 +348,12 @@ class MqttActor(DeviceBaseActor):
                 if self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"]:
                     logger.info("Reservation allowed")
                     self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"] = None
+                    self.REPLY_TO_WAIT_FOR["RESERVE"]["Send_Status"] = False
                     return True
                 else:
                     logger.info("Reservation refused")
                     self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"] = None
+                    self.REPLY_TO_WAIT_FOR["RESERVE"]["Send_Status"] = False
                     return False
             wait_cnt = wait_cnt - 1
         else:
@@ -485,7 +491,7 @@ class MqttActor(DeviceBaseActor):
                 RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
         ):
             logger.critical("Failed to setup the client actor because of failed unsubscription. Kill this client actor.")
-            self.send(sender, {"RETURN": "SETUP", "ERROR_CODE": RETURN_MESSAGES["SETUP_FAILURE"]["ERROR_CODE"]})
+            self.send(sender, {"RETURN": "SETUP", "ERROR_CODE": _re["ERROR_CODE"]})
             return
         
         self.send(
@@ -550,7 +556,17 @@ class MqttActor(DeviceBaseActor):
                         self.instr_id,
                     )
                     self.REPLY_TO_WAIT_FOR["SEND"]["Reply"] = payload[1:]
-                    self.REPLY_TO_WAIT_FOR["SEND"]["Reply_Status"] = True
+                    #self.REPLY_TO_WAIT_FOR["SEND"]["Reply_Status"] = True
+                    _re = {
+                        "RETURN": "SEND",
+                        "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                        "RESULT": {"DATA": self.REPLY_TO_WAIT_FOR["SEND"]["Reply"]},
+                    }
+                    self.send(self.REPLY_TO_WAIT_FOR["SEND"]["Sender"], _re)
+                    self.REPLY_TO_WAIT_FOR["SEND"]["Send_Status"] == False
+                    self.REPLY_TO_WAIT_FOR["SEND"]["Sender"] = None
+                    self.REPLY_TO_WAIT_FOR["SEND"]["CMD_ID"] = None
+                    self.REPLY_TO_WAIT_FOR["SEND"]["Reply"] = None
                     return
                 logger.warning(
                     "MQTT Actor '%s' receives a binary reply '%s' with a unexpected CMD ID '%s' from the instrument '%s'",
@@ -765,7 +781,7 @@ class MqttActor(DeviceBaseActor):
                 while True:
                     # logger.info("while-loop: work state = %s", self.work_state)
                     # logger.info("while-loop: %s's flag = %s", self.work_state, self.flag_switcher[self.work_state])
-                    if time.monotonic() - self.task_start_time["PUBLIS"] <= 0.3:
+                    if time.monotonic() - self.task_start_time["PUBLISH"] <= 0.3:
                         if self.flag_switcher[self.work_state] is not None:
                             if self.flag_switcher[self.work_state]:
                                 _re = {
