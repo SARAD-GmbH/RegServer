@@ -222,7 +222,7 @@ class MqttActor(DeviceBaseActor):
             return
         if not _re["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
+            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
         ):
             self.send(
                 sender, {"RETURN": "SEND", "ERROR_CODE": _re["ERROR_CODE"]}
@@ -264,7 +264,7 @@ class MqttActor(DeviceBaseActor):
             return
         if not _re["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
+            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
         ):
             logger.error(
                 "Failed to publish a message with an ID '%s' under the topic '%s'",
@@ -482,7 +482,7 @@ class MqttActor(DeviceBaseActor):
         _re = self._unsubscribe(uns_msg)
         if not _re["ERROR_CODE"] in (
                 RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
+                RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
         ):
             logger.critical("Failed to setup the client actor because of failed unsubscription. Kill this client actor.")
             self.send(sender, {"RETURN": "SETUP", "ERROR_CODE": RETURN_MESSAGES["SETUP_FAILURE"]["ERROR_CODE"]})
