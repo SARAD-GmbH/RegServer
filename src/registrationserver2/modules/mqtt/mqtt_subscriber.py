@@ -813,7 +813,8 @@ class SaradMqttSubscriber(Actor):
                 "payload": message.payload,
             }
         }
-        self._parse(msg_buf, None)
+        #self._parse(msg_buf, None)
+        ActorSystem().tell(self.myAddress, msg_buf)
 
                     
     def _connect(self, lwt_set: bool) -> dict:

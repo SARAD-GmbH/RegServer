@@ -22,7 +22,7 @@ from registrationserver2 import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
 #from registrationserver2.modules.mqtt.mqtt_client_actor import MqttClientActor
-from thespian.actors import (ActorExitRequest, #ActorSystem,  # type: ignore
+from thespian.actors import (ActorExitRequest, ActorSystem,  # type: ignore
                              WakeupMessage)
 
 logger.info("%s -> %s", __package__, __file__)
@@ -39,6 +39,7 @@ class MqttActor(DeviceBaseActor):
     # add some new accessible methods
     ACCEPTED_COMMANDS["PREPARE"] = "_prepare"
     #ACCEPTED_COMMANDS["RESERVATION_CANCEL"] = "_reserve_cancel"
+    ACCEPTED_COMMANDS["PARSE"] = "_parse"
     REPLY_TO_WAIT_FOR = {}
 
     @overrides
@@ -77,7 +78,6 @@ class MqttActor(DeviceBaseActor):
         self.port = None
         self.instr_id = self.globalName.split("/")[1]
         self.subscriber_addr = None
-        self.my_client = None
         self.cmd_id = 0
         
         self.mqtt_topic: str = ""
@@ -170,8 +170,8 @@ class MqttActor(DeviceBaseActor):
             if isinstance(msg, WakeupMessage):
                 if msg.payload == "Parse":
                     self.__mqtt_parser(msg, sender)
-                elif msg.payload == "Reserve":
-                    self._reserve_at_is(None, None, None)
+                #elif msg.payload == "Reserve":
+                #    self._reserve_at_is(None, None, None)
                 else:
                     logger.debug("Received an unknown wakeup message")
                 return
@@ -209,7 +209,7 @@ class MqttActor(DeviceBaseActor):
         logger.info(_re)
         if _re is None:
             logger.error(
-                "Got no reply to asking the client to subscribe to the topic '%s'",
+                "Got no reply to subscription to the topic '%s'",
                 self.allowed_sys_topics["MSG"],
             )
             self.send(
@@ -248,7 +248,7 @@ class MqttActor(DeviceBaseActor):
         logger.info(_re)
         if _re is None:
             logger.error(
-                "Got no reply to asking the client to publish a message with an ID '%s' under the topic '%s'",
+                "Got no reply to publishing a message with an ID '%s' under the topic '%s'",
                 self.cmd_id,
                 self.allowed_sys_topics["CMD"],
             )
@@ -422,9 +422,7 @@ class MqttActor(DeviceBaseActor):
                 ],
             },
         }
-        self.send(self.my_client, ask_msg)
-        time.sleep(1)
-        self.send(self.my_client, ActorExitRequest())
+        self._unsubscribe(ask_msg)
         time.sleep(1)
         super()._kill(msg, sender)
         # TODO: clear the used memory space
@@ -505,7 +503,7 @@ class MqttActor(DeviceBaseActor):
         )
         return
     
-    def _parse(self, msg: dict) -> None:
+    def _parse(self, msg: dict, Sender) -> None:
         topic = msg.get("PAR", None).get("topic", None)
         payload = msg.get("PAR", None).get("payload", None)
         if topic is None or payload is None:
@@ -518,7 +516,7 @@ class MqttActor(DeviceBaseActor):
             self.allowed_sys_topics["RESERVE"],
         ):
             logger.warning(
-                "The topic is not llegal; topic: %s, payload: %s", topic, payload
+                "The topic is not illegal; topic: %s, payload: %s", topic, payload
             )
             return
         if topic == self.allowed_sys_topics["RESERVE"]:
@@ -676,7 +674,8 @@ class MqttActor(DeviceBaseActor):
                 "payload": message.payload,
             }
         }
-        self._parse(msg_buf)
+        #self._parse(msg_buf, None)
+        ActorSystem().tell(self.myAddress, msg_buf)
 
                     
     def _connect(self, lwt_set: bool) -> dict:
