@@ -126,7 +126,7 @@ RETURN_MESSAGES = {
         "ERROR_CODE": 21,
     },
     "ASK_NO_REPLY": {
-        "ERROR_MESSAGE": "Got no reply to the request sent to the client actor via 'ask' method",
+        "ERROR_MESSAGE": "Got no reply to the request sent to the actor via 'ask' method",
         "ERROR_CODE": 22,
     },
     "INSTRUMENT_UNKNOWN": {

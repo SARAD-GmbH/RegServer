@@ -480,7 +480,6 @@ class SaradMqttSubscriber(Actor):
     
 
     def _kill(self, _msg, sender):
-        self.send(self.my_client, ActorExitRequest())
         for _is_id in self.connected_instruments.keys():
             logger.info("To remove the instrument server with ID '%s'", _is_id)
             self._rm_host({"CMD": "RM_HOST", "PAR": {"is_id": _is_id}})
@@ -498,7 +497,7 @@ class SaradMqttSubscriber(Actor):
         logger.info("Already killed the subscriber")
 
     def _setup(self, msg: dict, sender) -> None:
-        self.work_state == "SETUP"
+        self.work_state = "SETUP"
         logger.info("Subscriber's address is: %s", self.myAddress)
         self.mqtt_cid = msg.get("PAR", None).get("client_id", None)
         self.mqtt_broker = msg.get("PAR", None).get("mqtt_broker", None)
@@ -510,7 +509,7 @@ class SaradMqttSubscriber(Actor):
                 self.mqtt_cid,
             )
             self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
-            self.work_state == "STANDBY"
+            self.work_state = "STANDBY"
             return
         if self.mqtt_broker is None:
             self.mqtt_broker = "127.0.0.1"
@@ -576,7 +575,7 @@ class SaradMqttSubscriber(Actor):
                 "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
             },
         )
-        self.work_state == "STANDBY"
+        self.work_state = "STANDBY"
         return
 
     def _parse(self, msg, sender) -> None:
@@ -593,7 +592,7 @@ class SaradMqttSubscriber(Actor):
         if split_len == 2:  # topics related to a cluster namely IS MQTT
             if topic_parts[1] == "meta":
                 if "State" not in payload:
-                    logger.warning("Received a meta message not including state of the instrument server '%s'", topic_parts[0])
+                    logger.warning("Received a meta message not including state of the instrument server '%s'", topic_parts[0].decode("utf-8"))
                     return
                 if payload.get("State", None) is None:
                     logger.warning ("Received a meta message from the instrument server '%s', including a none state", topic_parts[0])
@@ -728,6 +727,23 @@ class SaradMqttSubscriber(Actor):
                 topic,
                 topic_parts[1],
             )
+            
+    def on_connect(
+        self, client, userdata, flags, result_code
+    ):  # pylint: disable=unused-argument
+        """Will be carried out when the client connected to the MQTT self.mqtt_broker."""
+        logger.info("on_connect")
+        logger.info("work state = %s", self.work_state)
+        if result_code == 0:
+            logger.info("Connected with MQTT %s.", self.mqtt_broker)
+            self.flag_switcher["CONNECT"] = True
+            self.flag_switcher["DISCONNECT"] = False
+        else:
+            logger.info(
+                "Connection to MQTT self.mqtt_broker failed. result_code=%s",
+                result_code,
+            )
+            self.flag_switcher["CONNECT"] = False
     
     def on_disconnect(
         self, client, userdata, result_code
@@ -791,15 +807,18 @@ class SaradMqttSubscriber(Actor):
         logger.info("message qos: %s", message.qos)
         logger.info("message retain flag: %s", message.retain)
         msg_buf = {
-            "topic": message.topic,
-            "payload": message.payload,
+            "CMD": "PARSE",
+            "PAR": {
+                "topic": message.topic,
+                "payload": message.payload,
+            }
         }
-        self._parse(msg_buf)
+        self._parse(msg_buf, None)
 
                     
     def _connect(self, lwt_set: bool) -> dict:
         # logger.info("Work state: connect")
-        self.work_state == "CONNECT"
+        self.work_state = "CONNECT"
         self.mqttc = MQTT.Client(self.mqtt_cid)
 
         self.mqttc.reinitialise()
@@ -832,7 +851,7 @@ class SaradMqttSubscriber(Actor):
                         "ERROR_CODE": self.error_code_switcher["CONNECT"],
                     }
                     break
-        self.work_state == "STANDBY"
+        self.work_state = "STANDBY"
         return _re
 
     def _disconnect(self):
@@ -847,7 +866,7 @@ class SaradMqttSubscriber(Actor):
         logger.info("Disconnection gracefully: %s", RETURN_MESSAGES.get("OK_SKIPPED"))
 
     def _subscribe(self, msg: dict) -> None:
-        self.work_state == "SUBSCRIBE"
+        self.work_state = "SUBSCRIBE"
         logger.info("Work state: subscribe")
         if self.flag_switcher["DISCONNECT"]:
             logger.warning(
@@ -858,7 +877,7 @@ class SaradMqttSubscriber(Actor):
                 "ERROR_CODE": self.error_code_switcher["SUBSCRIBE"],
             }
             self._connect(True, self.myAddress)
-            self.work_state == "STANDBY"
+            self.work_state = "STANDBY"
             return _re
         sub_info = msg.get("PAR", None).get("INFO", None)
         if sub_info is None:
@@ -867,7 +886,7 @@ class SaradMqttSubscriber(Actor):
                 "RETURN": "SUBSCRIBE",
                 "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
             }
-            self.work_state == "STANDBY"
+            self.work_state = "STANDBY"
             return _re
         if isinstance(sub_info, list):
             for ele in sub_info:
@@ -882,7 +901,7 @@ class SaradMqttSubscriber(Actor):
                             "ERROR_CODE"
                             ],
                     }
-                    self.work_state == "STANDBY"
+                    self.work_state = "STANDBY"
                     return _re
                 if len(ele) != 2:
                     logger.warning(
@@ -895,7 +914,7 @@ class SaradMqttSubscriber(Actor):
                             "ERROR_CODE"
                             ],
                     }
-                    self.work_state == "STANDBY"
+                    self.work_state = "STANDBY"
                     return _re
                 if len(ele) == 2 and ele[0] is None:
                     logger.warning(
@@ -907,7 +926,7 @@ class SaradMqttSubscriber(Actor):
                             "ERROR_CODE"
                             ],
                     }
-                    self.work_state == "STANDBY"
+                    self.work_state = "STANDBY"
                     return _re
             info = self.mqttc.subscribe(sub_info)
             logger.info("Subscribe return: %s", info)
@@ -937,11 +956,11 @@ class SaradMqttSubscriber(Actor):
                             }
                             self.flag_switcher["SUBSCRIBE"] = None
                             break
-            self.work_state == "STANDBY"
+            self.work_state = "STANDBY"
             return _re
 
     def _unsubscribe(self, msg: dict) -> dict:
-        self.work_state == "UNSUBSCRIBE"
+        self.work_state = "UNSUBSCRIBE"
         self.mqtt_topic = msg.get("PAR", None).get("INFO", None)
         logger.info(self.mqtt_topic)
         if not self.flag_switcher["CONNECT"]:
@@ -966,7 +985,7 @@ class SaradMqttSubscriber(Actor):
                 "RETURN": "UNSUBSCRIBE",
                 "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"],
             }
-            self.work_state == "STANDBY"
+            self.work_state = "STANDBY"
             return _re
         info = self.mqttc.unsubscribe(self.mqtt_topic)
         logger.info("Unsubscribe return: %s", info)
@@ -996,7 +1015,7 @@ class SaradMqttSubscriber(Actor):
                         }
                         self.flag_switcher["UNSUBSCRIBE"] = None
                         break
-        self.work_state == "STANDBY"
+        self.work_state = "STANDBY"
         return _re
         
 

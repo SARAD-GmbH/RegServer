@@ -16,13 +16,13 @@ Todo:
 import time
 import queue
 import paho.mqtt.client as MQTT  # type: ignore
-from _datetime import datetime
+#from _datetime import datetime
 from overrides import overrides  # type: ignore
 from registrationserver2 import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
 #from registrationserver2.modules.mqtt.mqtt_client_actor import MqttClientActor
-from thespian.actors import (ActorExitRequest, ActorSystem,  # type: ignore
+from thespian.actors import (ActorExitRequest, #ActorSystem,  # type: ignore
                              WakeupMessage)
 
 logger.info("%s -> %s", __package__, __file__)
@@ -168,7 +168,7 @@ class MqttActor(DeviceBaseActor):
                 self._kill(msg, sender)
                 return
             if isinstance(msg, WakeupMessage):
-                if msg.payload == "Parser":
+                if msg.payload == "Parse":
                     self.__mqtt_parser(msg, sender)
                 elif msg.payload == "Reserve":
                     self._reserve_at_is(None, None, None)
@@ -563,7 +563,7 @@ class MqttActor(DeviceBaseActor):
                         "RESULT": {"DATA": self.REPLY_TO_WAIT_FOR["SEND"]["Reply"]},
                     }
                     self.send(self.REPLY_TO_WAIT_FOR["SEND"]["Sender"], _re)
-                    self.REPLY_TO_WAIT_FOR["SEND"]["Send_Status"] == False
+                    self.REPLY_TO_WAIT_FOR["SEND"]["Send_Status"] = False
                     self.REPLY_TO_WAIT_FOR["SEND"]["Sender"] = None
                     self.REPLY_TO_WAIT_FOR["SEND"]["CMD_ID"] = None
                     self.REPLY_TO_WAIT_FOR["SEND"]["Reply"] = None
@@ -590,6 +590,23 @@ class MqttActor(DeviceBaseActor):
             self.instr_id,
         )
         return
+    
+    def on_connect(
+        self, client, userdata, flags, result_code
+    ):  # pylint: disable=unused-argument
+        """Will be carried out when the client connected to the MQTT self.mqtt_broker."""
+        logger.info("on_connect")
+        logger.info("work state = %s", self.work_state)
+        if result_code == 0:
+            logger.info("Connected with MQTT %s.", self.mqtt_broker)
+            self.flag_switcher["CONNECT"] = True
+            self.flag_switcher["DISCONNECT"] = False
+        else:
+            logger.info(
+                "Connection to MQTT self.mqtt_broker failed. result_code=%s",
+                result_code,
+            )
+            self.flag_switcher["CONNECT"] = False
     
     def on_disconnect(
         self, client, userdata, result_code
@@ -653,8 +670,11 @@ class MqttActor(DeviceBaseActor):
         logger.info("message qos: %s", message.qos)
         logger.info("message retain flag: %s", message.retain)
         msg_buf = {
-            "topic": message.topic,
-            "payload": message.payload,
+            "CMD": "PARSE",
+            "PAR": {
+                "topic": message.topic,
+                "payload": message.payload,
+            }
         }
         self._parse(msg_buf)
 
