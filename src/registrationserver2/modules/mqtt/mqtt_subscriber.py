@@ -48,7 +48,7 @@ class SaradMqttSubscriber(Actor):
     3) disconnection and the ID is a key -> _rm_host, del connected_instruments[IS1_ID]
     4) when an instrument 'Instr_ID11' is connected & the ID of its IS is a key -> _add_instr, connected_istruments[IS1_ID].append(Instr_ID11)
     5) when the ID of this instrument exists in the list mapping the ID of its IS MQTT -> _update_instr
-    6) disconnection and the instrument ID exists in the list -> _rm_host 
+    6) disconnection and the instrument ID exists in the list -> _rm_instr 
 
     Struture of connected_instruments:
     connected_instruments = {
@@ -63,6 +63,37 @@ class SaradMqttSubscriber(Actor):
        ],
         ...
     }
+    
+    @startuml
+    actor "Service Employee" as user
+    entity "Device with Instrument Server" as is_mqtt
+    entity "MQTT Broker" as broker
+    box "RegistrationServer MQTT"
+    entity "SaradMqttSubscriber" as subscriber
+    entity "MQTT Actor" as mqtt_actor
+    database "Host List" as h_list
+    database "Device List" as d_list
+    end box
+    subscriber -> broker : setup and connect
+    subscriber -> broker : unsubsribe to topics "+/meta" and "+/+/meta"
+    subscriber -> broker : subsribe to topics "+/meta" and "+/+/meta"
+    user -> is_mqtt : connect to local network
+    is_mqtt -> broker : connect with LWT message "<is_id>/meta = {"State": 0}"
+    is_mqtt -> broker : publish "<is_id>/meta = {"State": 2, ...}" with retain=True
+    broker -> subscriber : rely the retained message with the topic "<is_id>/meta"
+    subscriber -> h_list : create a description file for the is_id and make a link to the file
+    is_mqtt -> broker : publish "<is_id>/<instrument_id>/meta = {"State": 2, ...}" with retain=True
+    broker -> subscriber : rely the retained message with the topic "<is_id>/<instrument_id>/meta"
+    subscriber -> mqtt_actor : create a device actor to receive commands/data if the instrument server is_id is already added
+    subscriber -> mqtt_actor : ask the mqtt actor to setup itself and then prepare itself for the future works
+    mqtt_actor -> d_list : create a description file for the "instrument_id.SARAD_Type.mqtt" and make a link to the file
+    is_mqtt -> broker : subscribe to topic "+/+/control"
+    user -> is_mqtt : disconnects from network
+    is_mqtt -> broker : ungracefully disconnected from the broker
+    broker -> subscriber : send the LWT message "<is_id>/meta = {"State": 0}"
+    subscriber -> h_list : remove the files of this host and its instruments
+    subscriber -> mqtt_actor: destroy
+    @enduml
     """
 
     ACCEPTED_COMMANDS = {
@@ -107,11 +138,11 @@ class SaradMqttSubscriber(Actor):
             "SUBSCRIBE": None,
             "DISCONNECT": None,
             "UNSUBSCRIBE": None,
-        }
+        } # store the flags that indicates whether its corresponding client activity is completed successfully or not
         self.mid = {
             "SUBSCRIBE": None,
             "UNSUBSCRIBE": None,
-        }
+        } # store the current message ID to check
         self.__lock = threading.Lock()
         with self.__lock:
             self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"

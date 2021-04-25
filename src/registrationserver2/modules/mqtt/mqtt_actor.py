@@ -32,6 +32,61 @@ class MqttActor(DeviceBaseActor):
     """
     classdocs:
     Actor interacting with a new device
+    
+    @startuml
+    actor "Service Employee" as user
+    entity "Device with Instrument Server" as is_mqtt
+    entity "MQTT Broker" as broker
+    box "RegistrationServer MQTT"
+    entity "SaradMqttSubscriber" as subscriber
+    entity "MQTT Actor" as mqtt_actor
+    entity "REST API" as rest_api
+    entity "Redirector actor" as redirector
+    database "Device List" as d_list
+    end box
+    
+    group SETUP & PREPARE
+        subscriber -> mqtt_actor : create a device actor to receive commands / data if the instrument server is_id is already added
+        subscriber -> mqtt_actor : ask the mqtt actor to setup itself
+        mqtt_actor -> d_list : create a description file for the instrument_id.SARAD_Type.mqtt and make a link to the file
+        subscriber -> mqtt_actor : ask the mqtt actor to prepare itself for the future works
+        mqtt_actor -> broker : prepare itself and connect to the broker
+        mqtt_actor -> broker : unsubscribe to the topics "<is_id>/<instrument_id>/meta" and "<is_id>/<instrument_id>/reservation"
+    end 
+    
+    group RESERVE
+        is_mqtt -> broker : subscribe to topic "+/+/control"
+        rest_api -> mqtt_actor : ask the mqtt actor to send a reservation request
+        mqtt_actor -> broker : subscribe to the topic "<is_id>/<instrument_id>/reservation"
+        mqtt_actor -> broker : publish "<is_id>/<instrument_id>/control = {"Req": "reserve", ...}"
+        broker -> is_mqtt : rely the reservation request
+        is_mqtt -> broker : publish "<is_id>/<instrument_id>/reservation = {"Active": True, ...}"
+        is_mqtt -> broker : subscribe to the topic "<is_id>/<instrument_id>/cmd"
+        broker -> mqtt_actor : rely the answer to the request
+        mqtt_actor -> redirector : create a redirector and ask it to setup itself
+    end 
+    
+    group SEND
+        redirector -> mqtt_actor : ask the mqtt actor to send a binary command
+        mqtt_actor -> broker : subscribe to topic "<is_id>/<instrument_id>/msg"
+        mqtt_actor -> broker : publish "<is_id>/<instrument_id>/cmd = cmd_id + binary command"
+        broker -> is_mqtt : rely the cmd
+        is_mqtt -> broker : publish "<is_id>/<instrument_id>/msg = cmd_id + binary reply from the instrument"
+        broker -> mqtt_actor : rely the reply
+        mqtt_actor -> redirector : check the cmd_id and if right then send the binary reply to the redirector
+    end 
+    
+    group FREE
+        rest_api -> mqtt_actor : ask the mqtt actor to send free request
+        mqtt_actor -> broker : publish "<is_id>/<instrument_id>/control = {"Req": "free"}"
+        mqtt_actor -> broker : unsubscribe to the topics "<is_id>/<instrument_id>/reservation" and "<is_id>/<instrument_id>/msg"
+        mqtt_actor -> redirector : destroy
+        mqtt_actor -> rest_api : send "OK_SKIPPED" to the REST API
+        broker -> is_mqtt : rely the request
+        is_mqtt -> broker : unsubscribe to the topic "<is_id>/<instrument_id>/cmd"
+    end 
+    
+    @enduml
     """
 
     # "copy" ACCEPTED_COMMANDS of the DeviceBaseActor
@@ -104,19 +159,19 @@ class MqttActor(DeviceBaseActor):
             "PUBLISH": RETURN_MESSAGES["PUBLISH_FAILURE"]["ERROR_CODE"],
             "SUBSCRIBE": RETURN_MESSAGES["SUBSCRIBE_FAILURE"]["ERROR_CODE"],
             "UNSUBSCRIBE": RETURN_MESSAGES["UNSUBSCRIBE_FAILURE"]["ERROR_CODE"],
-        }
+        } 
         self.flag_switcher = {
             "CONNECT": None,
             "PUBLISH": None,
             "SUBSCRIBE": None,
             "DISCONNECT": None,
             "UNSUBSCRIBE": None,
-        }
+        } # store the flags that indicates whether its corresponding client activity is completed successfully or not
         self.mid = {
             "PUBLISH": None,
             "SUBSCRIBE": None,
             "UNSUBSCRIBE": None,
-        }
+        } # store the current message ID to check
 
     @overrides
     def receiveMessage(self, msg, sender):
