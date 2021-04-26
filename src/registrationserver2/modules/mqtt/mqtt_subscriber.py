@@ -20,6 +20,7 @@ import os
 import threading
 import time
 import traceback
+import json
 import paho.mqtt.client as MQTT  # type: ignore
 from pathlib import Path
 from overrides import overrides  # type: ignore
@@ -52,15 +53,15 @@ class SaradMqttSubscriber(Actor):
 
     Struture of connected_instruments:
     connected_instruments = {
-       IS1_ID: [
-           Instr_ID11,
-           Instr_ID12,
-           Instr_ID13,
+       IS1_ID: {
+           Instr_ID11 : Actor1_Name,
+           Instr_ID12 : Actor2_Name,
+           Instr_ID13 : Actor3_Name,
            ...
-       ],
-       IS2_ID: [
+       },
+       IS2_ID: {
            ...
-       ],
+       },
         ...
     }
     
@@ -225,10 +226,10 @@ class SaradMqttSubscriber(Actor):
             logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
             return
 
-    def _add_instr(self, msg: dict) -> None:
+    def _add_instr(self, msg: dict, sender) -> None:
         is_id = msg.get("PAR", None).get("is_id", None)
         instr_id = msg.get("PAR", None).get("instr_id", None)
-        data = msg.get("PAR", None).get("payload")
+        data = json.dumps(msg.get("PAR", None).get("payload"))
         if (is_id is None) or (instr_id is None) or (data is None):
             logger.warning(
                 "[Add Instrument]: one or both of the Instrument Server ID and Instrument ID"
@@ -237,9 +238,8 @@ class SaradMqttSubscriber(Actor):
             return
         if (
             is_id not in self.connected_instruments.keys()
-            or instr_id not in self.connected_instruments[is_id].keys()
         ):
-            logger.warning(RETURN_MESSAGES["INSTRUMENT_UNKNOWN"])
+            logger.warning("Unknown instrument '%s' controlled by an unknown instrument server '%s'", instr_id, is_id)
             return
         family_ = msg.get("PAR", None).get("payload", None).get("Family", None)
         type_ = msg.get("PAR", None).get("payload", None).get("Type", None)
@@ -260,7 +260,7 @@ class SaradMqttSubscriber(Actor):
             )
             return
         name_ = instr_id + "." + sarad_type + ".mqtt"
-        self.connected_instruments[is_id][instr_id]["Actor"] = name_
+        self.connected_instruments[is_id][instr_id] = name_
         with self.__lock:
             logger.info("[Add]:Instrument ID - '%s'", instr_id)
 
@@ -276,7 +276,7 @@ class SaradMqttSubscriber(Actor):
                     "Failed to setup a new MQTT Actor. Kill this device actor."
                 )
                 self.send(this_actor, ActorExitRequest())
-                self.connected_instruments[is_id][instr_id]["Status"] = "Removed"
+                del self.connected_instruments[is_id][instr_id]
                 return
             prep_msg = {
                 "CMD": "PREPARE",
@@ -294,16 +294,16 @@ class SaradMqttSubscriber(Actor):
                 logger.warning(prep_return)
                 logger.critical("This MQTT Actor failed to prepare itself. Kill it.")
                 self.send(this_actor, ActorExitRequest())
-                self.connected_instruments[is_id][instr_id]["Status"] = "Removed"
+                del self.connected_instruments[is_id][instr_id]
                 return
             logger.info(
                 "[Add Instrument]: Add the information of the instrument and create the actor '%s' for it successfully",
                 name_,
             )
-            self.connected_instruments[is_id][instr_id]["Status"] = "Added"
+            
             return
 
-    def _rm_instr(self, msg: dict) -> None:
+    def _rm_instr(self, msg: dict, sender) -> None:
         is_id = msg.get("PAR", None).get("is_id", None)
         instr_id = msg.get("PAR", None).get("instr_id", None)
         if (is_id is None) or (instr_id is None):
@@ -314,11 +314,11 @@ class SaradMqttSubscriber(Actor):
             return
         if (
             is_id not in self.connected_instruments.keys()
-            or instr_id not in self.connected_instruments[is_id].keys()
+            or instr_id not in self.connected_instruments[is_id]
         ):
             logger.warning(RETURN_MESSAGES["INSTRUMENT_UNKNOWN"])
             return
-        name_ = self.connected_instruments[is_id][instr_id]["Actor"]
+        name_ = self.connected_instruments[is_id][instr_id]
         with self.__lock:
             logger.info("[Remove]: Instrument ID - '%s'", instr_id)
             this_actor = ActorSystem().createActor(MqttActor, globalName=name_)
@@ -333,10 +333,10 @@ class SaradMqttSubscriber(Actor):
             )
             return
 
-    def _update_instr(self, msg: dict) -> None:
+    def _update_instr(self, msg: dict, sender) -> None:
         is_id = msg.get("PAR", None).get("is_id", None)
         instr_id = msg.get("PAR", None).get("instr_id", None)
-        data = msg.get("PAR", None).get("payload")
+        data = json.dumps(msg.get("PAR", None).get("payload"))
         if (is_id is None) or (instr_id is None) or (data is None):
             logger.warning(
                 "[Update Instrument]: one or both of the Instrument Server ID "
@@ -345,11 +345,11 @@ class SaradMqttSubscriber(Actor):
             return
         if (
             is_id not in self.connected_instruments.keys()
-            or instr_id not in self.connected_instruments[is_id].keys()
+            or instr_id not in self.connected_instruments[is_id]
         ):
             logger.warning(RETURN_MESSAGES["INSTRUMENT_UNKNOWN"])
             return
-        name_ = self.connected_instruments[is_id][instr_id]["Actor"]
+        name_ = self.connected_instruments[is_id][instr_id]
         with self.__lock:
             logger.info("[Update]: Instrument ID - '%s'", instr_id)
             this_actor = ActorSystem().createActor(MqttActor, globalName=name_)
@@ -364,16 +364,16 @@ class SaradMqttSubscriber(Actor):
                     "Failed to setup a new MQTT Actor. Kill this device actor."
                 )
                 self.send(this_actor, ActorExitRequest())
-                self.connected_instruments[is_id][instr_id]["Status"] = "Removed"
+                del self.connected_instruments[is_id][instr_id]
                 return
             logger.info(
                 "[Update Instrument]: Update the information of the instrument successfully, which has a device actor '%s'",
                 name_,
             )
-            self.connected_instruments[is_id][instr_id]["Status"] = "Added"
+            
             return
 
-    def _add_host(self, msg: dict) -> None:
+    def _add_host(self, msg: dict, sender) -> None:
         is_id = msg.get("PAR", None).get("is_id", None)
         data = msg.get("PAR", None).get("payload")
         if (is_id is None) or (data is None):
@@ -390,11 +390,11 @@ class SaradMqttSubscriber(Actor):
             link = fr"{self.__folder2_available}{is_id}"
             try:
                 with open(filename, "w+") as file_stream:
-                    file_stream.write(data)
+                    file_stream.write(json.dumps(data))
                 if not os.path.exists(link):
                     logger.info("Linking %s to %s", link, filename)
                     os.link(filename, link)
-                self.connected_instruments[is_id] = []
+                self.connected_instruments[is_id] = {}
                 _msg = {
                     "CMD": "SUBSCRIBE",
                     "PAR": {
@@ -466,7 +466,7 @@ class SaradMqttSubscriber(Actor):
         )
         return
     
-    def _update_host(self, msg: dict) -> None:
+    def _update_host(self, msg: dict, sender) -> None:
         is_id = msg.get("PAR", None).get("is_id", None)
         data = msg.get("PAR", None).get("payload")
         if (is_id is None) or (data is None):
@@ -484,7 +484,7 @@ class SaradMqttSubscriber(Actor):
             link = fr"{self.__folder2_available}{is_id}"
             try:
                 with open(filename, "w+") as file_stream:
-                    file_stream.write(data)
+                    file_stream.write(json.dumps(data))
                 if not os.path.exists(link):
                     logger.info("Linking %s to %s", link, filename)
                     os.link(filename, link)
@@ -641,7 +641,8 @@ class SaradMqttSubscriber(Actor):
                             "payload": payload,
                         },
                     }
-                    if not Path(filename_).is_file():
+                    #if not Path(filename_).is_file():
+                    if topic_parts[0] not in self.connected_instruments:
                         open(filename_, "w+")
                         _msg["CMD"] = "ADD_HOST"
                     else:
@@ -841,7 +842,7 @@ class SaradMqttSubscriber(Actor):
             "CMD": "PARSE",
             "PAR": {
                 "topic": message.topic,
-                "payload": message.payload,
+                "payload": json.loads(message.payload),
             }
         }
         #self._parse(msg_buf, None)

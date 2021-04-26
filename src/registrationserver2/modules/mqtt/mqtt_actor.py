@@ -14,6 +14,7 @@ Todo:
     * use lazy formatting in logger
 """
 import time
+import json
 import queue
 import paho.mqtt.client as MQTT  # type: ignore
 #from _datetime import datetime
@@ -128,10 +129,9 @@ class MqttActor(DeviceBaseActor):
             "Sender"
         ] = None  # store the address of the sender
         self.binary_reply = b""
-        self.mqtt_cid = self.globalName + ".client"
         self.mqtt_broker = None
         self.port = None
-        self.instr_id = self.globalName.split("/")[1]
+        
         self.subscriber_addr = None
         self.cmd_id = 0
         
@@ -484,6 +484,9 @@ class MqttActor(DeviceBaseActor):
         # TODO: let others like the other actors and this actor's IS MQTT know this actor is killed
 
     def _prepare(self, msg: dict, sender):
+        logger.info("Actor name = %s", self.globalName)
+        self.mqtt_cid = self.globalName + ".client"
+        self.instr_id = self.globalName.split(".")[0]
         self.is_id = msg.get("PAR", None).get("is_id", None)
         self.mqtt_broker = msg.get("PAR", None).get("mqtt_broker", None)
         self.port = msg.get("PAR", None).get("port", None)
@@ -503,16 +506,18 @@ class MqttActor(DeviceBaseActor):
             self.allowed_sys_topics[k] = (
                 self.is_id + "/" + self.instr_id + self.allowed_sys_topics[k]
             )
+        logger.info(self.allowed_sys_topics)
         if self.mqtt_broker is None:
             self.mqtt_broker = "127.0.0.1"
-        logger.infor("Using the mqtt broker: %s", self.mqtt_broker)
+        logger.info("Using the mqtt broker: %s", self.mqtt_broker)
         if self.port is None:
             self.port = 1883
-        logger.infor("Using the port: %s", self.port)
-        self.lwt_topic = self.allowed_sys_topics["CTRL"],
-        self.lwt_payload = {
+        logger.info("Using the port: %s", self.port)
+        self.lwt_topic = self.allowed_sys_topics["CTRL"]
+        logger.info("LWT topic = %s", self.lwt_topic)
+        self.lwt_payload = json.dumps({
                 "Req": "free",
-        }
+        })
         self.lwt_qos = 0
         _re = self._connect(True)
         if not _re["ERROR_CODE"] in (
@@ -1001,7 +1006,7 @@ class MqttActor(DeviceBaseActor):
                 "RETURN": self.work_state,
                 "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"],
             }
-            self._connect()
+            self._connect(True)
             self.work_state = "STANDBY"
             # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return _re
