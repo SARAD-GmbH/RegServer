@@ -397,7 +397,7 @@ class MqttActor(DeviceBaseActor):
                 self.REPLY_TO_WAIT_FOR["RESERVE"]["Send_Status"] = False
                 return False
             
-        wait_cnt = 70
+        wait_cnt = 60
         while wait_cnt > 0:
             if self.REPLY_TO_WAIT_FOR.get("RESERVE", None).get("Active", None) is not None:
                 if self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"]:
@@ -411,6 +411,7 @@ class MqttActor(DeviceBaseActor):
                     self.REPLY_TO_WAIT_FOR["RESERVE"]["Send_Status"] = False
                     return False
             wait_cnt = wait_cnt - 1
+            time.sleep(0.01)
         else:
             logger.info("No reply to reservation request")
             self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"] = None
