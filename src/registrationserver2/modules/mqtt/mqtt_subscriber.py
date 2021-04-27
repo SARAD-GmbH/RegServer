@@ -128,6 +128,7 @@ class SaradMqttSubscriber(Actor):
         self.connected_instruments = {}
         self.work_state = "IDLE"
         self.ungr_disconn = 2
+        self.task_start_time = None
         self.error_code_switcher = {
             "SETUP": RETURN_MESSAGES["SETUP_FAILURE"]["ERROR_CODE"],
             "CONNECT": RETURN_MESSAGES["CONNECTION_FAILURE"]["ERROR_CODE"],
@@ -403,6 +404,19 @@ class SaradMqttSubscriber(Actor):
                         ],
                     },
                 }
+                self._subscribe(_msg)
+                """
+                _re = self._subscribe(_msg)
+                if not _re["ERROR_CODE"] in (
+                    RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                    RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+                ):
+                    logger.critical(
+                        "Failed to subscribe to the topic '%s/+/meta'.", 
+                        is_id
+                    )
+                    return
+                """
                 """
                 while not self._subscribe(_msg)["ERROR_CODE"] in (
                     RETURN_MESSAGES["OK"]["ERROR_CODE"],
@@ -443,6 +457,29 @@ class SaradMqttSubscriber(Actor):
             return
         with self.__lock:
             logger.info("[Remove]: Remove a host with Instrument Server ID '%s'", is_id)
+            logger.info("To unsubscribe to the topic '%s/+/meta'", is_id)
+            _msg = {
+                "CMD": "UNSUBSCRIBE",
+                "PAR": {
+                    "INFO": [
+                         is_id+"/+/meta",
+                    ],
+                },
+            }
+            self._unsubscribe(_msg)
+            """
+            _re = self._unsubscribe(_msg)
+            if not _re["ERROR_CODE"] in (
+                RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+            ):
+                logger.critical(
+                    "Failed to unsubscribe to the topic '%s/+/meta'.", 
+                    is_id, 
+                    is_id
+                )
+                return
+            """
             logger.info(
                 "To kill all the instrument controlled by the instrument server with ID '%s'",
                 is_id,
@@ -456,7 +493,7 @@ class SaradMqttSubscriber(Actor):
                 }
                 logger.info("To kill the instrument with ID '%s'", _instr_id)
                 self._rm_instr(rm_msg)
-            filename = fr"{self.__folder2_history}{is_id}"
+            #filename = fr"{self.__folder2_history}{is_id}"
             link = fr"{self.__folder2_available}{is_id}"
             if os.path.exists(link):
                 os.unlink(link)
@@ -569,10 +606,14 @@ class SaradMqttSubscriber(Actor):
         _msg = {
             "CMD": "UNSUBSCRIBE",
             "PAR": {
-                "INFO": ["+/meta", "+/+/meta"],
+                "INFO": [
+                    "+/meta", 
+                    #"+/+/meta",
+                ],
             },
         }
         _re = self._unsubscribe(_msg)
+        logger.info(_re)
         if not _re["ERROR_CODE"] in (
                 RETURN_MESSAGES["OK"]["ERROR_CODE"],
                 RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
@@ -586,7 +627,7 @@ class SaradMqttSubscriber(Actor):
             "PAR": {
                 "INFO": [
                     ("+/meta", 0),
-                    ("+/+/meta", 0),
+                    #("+/+/meta", 0),
                 ],
             },
         }
@@ -651,8 +692,9 @@ class SaradMqttSubscriber(Actor):
                     self.send(self.myAddress, _msg)
                     return                        
                 elif payload.get("State", None) == 0:
-                    filename_ = fr"{self.__folder2_history}{topic_parts[0]}"
-                    if Path(filename_).is_file():
+                    if topic_parts[0] in self.connected_instruments:
+                    #filename_ = fr"{self.__folder2_history}{topic_parts[0]}"
+                    #if Path(filename_).is_file():
                         _msg = {
                             "CMD": "RM_HOST",
                             "PAR": {
@@ -688,8 +730,9 @@ class SaradMqttSubscriber(Actor):
                     logger.warning ("Received a meta message from the instrument '%s' controlled by the instrument server '%S', including a none state", topic_parts[1], topic_parts[0])
                     return
                 if payload.get("State", None) in (2, 1):
-                    filename_ = fr"{self.__folder2_history}{topic_parts[0]}"
-                    if Path(filename_).is_file():  # the IS MQTT has been added, namely topic_parts[0] in self.connected_instrument
+                    if topic_parts[0] in self.connected_instruments:
+                    #filename_ = fr"{self.__folder2_history}{topic_parts[0]}"
+                    #if Path(filename_).is_file():  # the IS MQTT has been added, namely topic_parts[0] in self.connected_instrument
                         logger.info(
                             "To write the properties of this instrument (%s) into file system",
                             topic_parts[1],
@@ -712,7 +755,7 @@ class SaradMqttSubscriber(Actor):
                         
                         self.send(self.myAddress, _msg)
                     else:
-                        logger.warning("Received a meta message of an instrument '%s' that is controlled by an instrument server '%s' not added before", topic_parts[1], topic[0])
+                        logger.warning("Received a meta message of an instrument '%s' that is controlled by an instrument server '%s' not added before", topic_parts[1], topic_parts[0])
                 elif payload.get("State", None)  == "0":
                     logger.info("disconnection message")
                     if (topic_parts[0] in self.connected_instruments) and (
@@ -815,8 +858,8 @@ class SaradMqttSubscriber(Actor):
         logger.info("on_subscribe")
         logger.info("mid is %s", mid)
         logger.info("work state = %s", self.work_state)
-        logger.info("stored mid is %s", self.mid[self.work_state])
-        if self.work_state == "SUBSCRIBE" and mid == self.mid[self.work_state]:
+        logger.info("stored mid is %s", self.mid["SUBSCRIBE"])
+        if self.work_state == "SUBSCRIBE" and mid == self.mid["SUBSCRIBE"]:
             logger.info("Subscribed to the topic successfully!\n")
             self.flag_switcher[self.work_state] = True
         # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
@@ -827,8 +870,8 @@ class SaradMqttSubscriber(Actor):
         logger.info("on_unsubscribe")
         logger.info("mid is %s", mid)
         logger.info("work state = %s", self.work_state)
-        logger.info("stored mid is %s", self.mid[self.work_state])
-        if self.work_state == "UNSUBSCRIBE" and mid == self.mid[self.work_state]:
+        logger.info("stored mid is %s", self.mid["UNSUBSCRIBE"])
+        if self.work_state == "UNSUBSCRIBE" and mid == self.mid["UNSUBSCRIBE"]:
             logger.info("Unsubscribed to the topic successfully!\n")
             self.flag_switcher[self.work_state] = True
 
@@ -913,6 +956,7 @@ class SaradMqttSubscriber(Actor):
             self.work_state = "STANDBY"
             return _re
         sub_info = msg.get("PAR", None).get("INFO", None)
+        logger.info(sub_info)
         if sub_info is None:
             logger.warning("[Subscribe]: the INFO for subscribe is none")
             _re = {
@@ -962,7 +1006,7 @@ class SaradMqttSubscriber(Actor):
                     self.work_state = "STANDBY"
                     return _re
             info = self.mqttc.subscribe(sub_info)
-            logger.info("Subscribe return: %s", info)
+            logger.info("Returned: {info}".format(info=info))
             if info[0] != MQTT.MQTT_ERR_SUCCESS:
                 logger.warning("Subscribe failed; result code is: %s", info[0])
                 _re = {
@@ -971,24 +1015,33 @@ class SaradMqttSubscriber(Actor):
                 }
             else:
                 self.mid[self.work_state] = info[1]
+                self.task_start_time = time.monotonic()
                 while True:
-                    if self.flag_switcher["SUBSCRIBE"] != None:
-                        if self.flag_switcher["SUBSCRIBE"]:
-                            _re = {
-                                "RETURN": "SUBSCRIBE",
-                                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
-                                    "ERROR_CODE"
-                                    ],
-                            }
-                            self.flag_switcher["SUBSCRIBE"] = None
-                            break
-                        if not self.flag_switcher["SUBSCRIBE"]:
-                            _re = {
-                                "RETURN": "SUBSCRIBE",
-                                "ERROR_CODE": self.error_code_switcher["SUBSCRIBE"],
-                            }
-                            self.flag_switcher["SUBSCRIBE"] = None
-                            break
+                    if time.monotonic() - self.task_start_time <= 0.3:
+                        if self.flag_switcher[self.work_state] is not None:
+                            if self.flag_switcher[self.work_state]:
+                                _re = {
+                                    "RETURN": self.work_state,
+                                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
+                                        "ERROR_CODE"
+                                        ],
+                                }
+                                self.flag_switcher[self.work_state] = None
+                                break
+                            if not self.flag_switcher[self.work_state]:
+                                _re = {
+                                    "RETURN": self.work_state,
+                                    "ERROR_CODE": self.error_code_switcher[self.work_state],
+                                }
+                                self.flag_switcher[self.work_state] = None
+                                break
+                    else:
+                        _re = {
+                            "RETURN": self.work_state,
+                            "ERROR_CODE": self.error_code_switcher[self.work_state],
+                        }
+                        self.flag_switcher[self.work_state] = None
+                        break
             self.work_state = "STANDBY"
             return _re
 
@@ -1021,7 +1074,7 @@ class SaradMqttSubscriber(Actor):
             self.work_state = "STANDBY"
             return _re
         info = self.mqttc.unsubscribe(self.mqtt_topic)
-        logger.info("Unsubscribe return: %s", info)
+        logger.info("Returned: {info}".format(info=info))
         if info[0] != MQTT.MQTT_ERR_SUCCESS:
             logger.warning("Unsubscribe failed; result code is: %s", info.rc)
             _re = {
@@ -1030,24 +1083,33 @@ class SaradMqttSubscriber(Actor):
             }
         else:
             self.mid["UNSUBSCRIBE"] = info[1]
+            self.task_start_time = time.monotonic()
             while True:
-                if self.flag_switcher["UNSUBSCRIBE"] is not None:
-                    if self.flag_switcher["UNSUBSCRIBE"]:
-                        _re = {
-                            "RETURN": "UNSUBSCRIBE",
-                            "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
+                if time.monotonic() - self.task_start_time <= 0.3:
+                    if self.flag_switcher[self.work_state] is not None:
+                        if self.flag_switcher[self.work_state]:
+                            _re = {
+                                "RETURN": self.work_state,
+                                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
                                 "ERROR_CODE"
                                 ],
-                        }
-                        self.flag_switcher["UNSUBSCRIBE"] = None
-                        break
-                    if not self.flag_switcher["UNSUBSCRIBE"]:
-                        _re = {
-                            "RETURN": "UNSUBSCRIBE",
-                            "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"],
-                        }
-                        self.flag_switcher["UNSUBSCRIBE"] = None
-                        break
+                            }
+                            self.flag_switcher[self.work_state] = None
+                            break
+                        if not self.flag_switcher[self.work_state]:
+                            _re = {
+                                "RETURN": self.work_state,
+                                "ERROR_CODE": self.error_code_switcher[self.work_state],
+                            }
+                            self.flag_switcher[self.work_state] = None
+                            break
+                else:
+                    _re = {
+                        "RETURN": self.work_state,
+                        "ERROR_CODE": self.error_code_switcher[self.work_state],
+                    }
+                    self.flag_switcher[self.work_state] = None
+                    break
         self.work_state = "STANDBY"
         return _re
         

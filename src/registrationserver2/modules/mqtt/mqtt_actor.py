@@ -147,12 +147,7 @@ class MqttActor(DeviceBaseActor):
         self.queue_to_parse = queue.Queue()
         self.work_state = "IDLE"
         self.ungr_disconn = 2
-        self.task_start_time = {
-            # "CONNECT": None,
-            "PUBLISH": None,
-            "SUBSCRIBE": None,
-            "UNSUBSCRIBE": None,
-        }
+        self.task_start_time = None
         self.error_code_switcher = {
             "SETUP": RETURN_MESSAGES["SETUP_FAILURE"]["ERROR_CODE"],
             "CONNECT": RETURN_MESSAGES["CONNECTION_FAILURE"]["ERROR_CODE"],
@@ -768,7 +763,7 @@ class MqttActor(DeviceBaseActor):
             self.work_state = "STANDBY"
             self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return
-            #self.task_start_time[self.work_state] = time.time()
+            #self.task_start_time = time.time()
         except:
             logger.error("Failed to connect to the given broker and port")
             self.send(sender, {"RETURN": "SETUP", "ERROR_CODE": self.error_code_switcher["CONNECT"]})
@@ -857,11 +852,11 @@ class MqttActor(DeviceBaseActor):
             else:
                 logger.info("Before publishing, work state is %s", self.work_state)
                 self.mid[self.work_state] = info.mid
-                self.task_start_time["PUBLISH"] = time.monotonic()
+                self.task_start_time = time.monotonic()
                 while True:
                     # logger.info("while-loop: work state = %s", self.work_state)
                     # logger.info("while-loop: %s's flag = %s", self.work_state, self.flag_switcher[self.work_state])
-                    if time.monotonic() - self.task_start_time["PUBLISH"] <= 0.3:
+                    if time.monotonic() - self.task_start_time <= 0.3:
                         if self.flag_switcher[self.work_state] is not None:
                             if self.flag_switcher[self.work_state]:
                                 _re = {
@@ -970,29 +965,34 @@ class MqttActor(DeviceBaseActor):
                 }
             else:
                 self.mid[self.work_state] = info[1]
+                self.task_start_time = time.monotonic()
                 while True:
-                    # logger.info("while-loop: work state = %s", self.work_state)
-                    # logger.info("while-loop: %s's flag = %s", self.work_state, self.flag_switcher[self.work_state])
-                    if self.flag_switcher[self.work_state] != None:
-                        if self.flag_switcher[self.work_state]:
-                            _re = {
-                                "RETURN": self.work_state,
-                                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
-                                    "ERROR_CODE"
-                                    ],
-                            }
-                            self.flag_switcher[self.work_state] = None
-                            break
-                        if not self.flag_switcher[self.work_state]:
-                            _re = {
-                                "RETURN": self.work_state,
-                                "ERROR_CODE": self.error_code_switcher[self.work_state],
-                            }
-                            self.flag_switcher[self.work_state] = None
-                            break
-            # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+                    if time.monotonic() - self.task_start_time <= 0.3:
+                        if self.flag_switcher[self.work_state] is not None:
+                            if self.flag_switcher[self.work_state]:
+                                _re = {
+                                    "RETURN": self.work_state,
+                                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
+                                        "ERROR_CODE"
+                                        ],
+                                }
+                                self.flag_switcher[self.work_state] = None
+                                break
+                            if not self.flag_switcher[self.work_state]:
+                                _re = {
+                                    "RETURN": self.work_state,
+                                    "ERROR_CODE": self.error_code_switcher[self.work_state],
+                                }
+                                self.flag_switcher[self.work_state] = None
+                                break
+                    else:
+                        _re = {
+                            "RETURN": self.work_state,
+                            "ERROR_CODE": self.error_code_switcher[self.work_state],
+                        }
+                        self.flag_switcher[self.work_state] = None
+                        break
             self.work_state = "STANDBY"
-            # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return _re
 
     def _unsubscribe(self, msg: dict) -> dict:
@@ -1037,26 +1037,33 @@ class MqttActor(DeviceBaseActor):
             self.work_state = "STANDBY"
         else:
             self.mid[self.work_state] = info[1]
+            self.task_start_time = time.monotonic()
             while True:
-                # logger.info("while-loop: work state = %s", self.work_state)
-                # logger.info("while-loop: %s's flag = %s", self.work_state, self.flag_switcher[self.work_state])
-                if self.flag_switcher[self.work_state] is not None:
-                    if self.flag_switcher[self.work_state]:
-                        _re = {
-                            "RETURN": self.work_state,
-                            "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
+                if time.monotonic() - self.task_start_time <= 0.3:
+                    if self.flag_switcher[self.work_state] is not None:
+                        if self.flag_switcher[self.work_state]:
+                            _re = {
+                                "RETURN": self.work_state,
+                                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
                                 "ERROR_CODE"
                                 ],
-                        }
-                        self.flag_switcher[self.work_state] = None
-                        break
-                    if not self.flag_switcher[self.work_state]:
-                        _re = {
-                            "RETURN": self.work_state,
-                            "ERROR_CODE": self.error_code_switcher[self.work_state],
-                        }
-                        self.flag_switcher[self.work_state] = None
-                        break
+                            }
+                            self.flag_switcher[self.work_state] = None
+                            break
+                        if not self.flag_switcher[self.work_state]:
+                            _re = {
+                                "RETURN": self.work_state,
+                                "ERROR_CODE": self.error_code_switcher[self.work_state],
+                            }
+                            self.flag_switcher[self.work_state] = None
+                            break
+                else:
+                    _re = {
+                        "RETURN": self.work_state,
+                        "ERROR_CODE": self.error_code_switcher[self.work_state],
+                    }
+                    self.flag_switcher[self.work_state] = None
+                    break
         self.work_state = "STANDBY"
         # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
         return _re
