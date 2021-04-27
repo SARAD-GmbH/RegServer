@@ -145,9 +145,9 @@ class MqttActor(DeviceBaseActor):
 
         # An queue to parse would store the mqtt messages when the client actor is at setup state
         self.queue_to_parse = queue.Queue()
-        self.work_state = "IDLE"
+        #self.work_state = "IDLE"
         self.ungr_disconn = 2
-        self.task_start_time = None
+        #self.task_start_time = None
         self.error_code_switcher = {
             "SETUP": RETURN_MESSAGES["SETUP_FAILURE"]["ERROR_CODE"],
             "CONNECT": RETURN_MESSAGES["CONNECTION_FAILURE"]["ERROR_CODE"],
@@ -155,6 +155,7 @@ class MqttActor(DeviceBaseActor):
             "SUBSCRIBE": RETURN_MESSAGES["SUBSCRIBE_FAILURE"]["ERROR_CODE"],
             "UNSUBSCRIBE": RETURN_MESSAGES["UNSUBSCRIBE_FAILURE"]["ERROR_CODE"],
         } 
+        """
         self.flag_switcher = {
             "CONNECT": None,
             "PUBLISH": None,
@@ -162,6 +163,9 @@ class MqttActor(DeviceBaseActor):
             "DISCONNECT": None,
             "UNSUBSCRIBE": None,
         } # store the flags that indicates whether its corresponding client activity is completed successfully or not
+        """
+        self.Is_Disconnected = None
+        self.Is_Connected = None
         self.mid = {
             "PUBLISH": None,
             "SUBSCRIBE": None,
@@ -253,7 +257,7 @@ class MqttActor(DeviceBaseActor):
 
         _msg = {
             "CMD": "SUBSCRIBE",
-            "PAR": {"INFO": (self.allowed_sys_topics["MSG"], 0)},
+            "PAR": {"INFO": [(self.allowed_sys_topics["MSG"], 0)]},
         }
         _re = self._subscribe(_msg)
         logger.info(_re)
@@ -360,7 +364,7 @@ class MqttActor(DeviceBaseActor):
         if not self.REPLY_TO_WAIT_FOR["RESERVE"]["Send_Status"]:
             _msg = {
                 "CMD": "SUBSCRIBE",
-                "PAR": {"INFO": (self.allowed_sys_topics["RESERVE"], 0)},
+                "PAR": {"INFO": [(self.allowed_sys_topics["RESERVE"], 0)]},
             }
             _re = self._subscribe(_msg)
             if not _re["ERROR_CODE"] in (
@@ -412,15 +416,14 @@ class MqttActor(DeviceBaseActor):
             self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"] = None
             return False
 
+    @overrides
     def _free(self, msg, sender) -> None:
         logger.info("Free-Request")
-        free_req_msg = {}
         if msg is None:
             self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
             return
-        free_req_msg["Req"] = msg.get("Req", None)
-        if free_req_msg["Req"] is None:
-            free_req_msg["Req"] = "free"
+        free_req_msg = {}
+        free_req_msg["Req"] = "free"
         _msg = {
             "CMD": "PUBLISH",
             "PAR": {
@@ -650,17 +653,20 @@ class MqttActor(DeviceBaseActor):
     ):  # pylint: disable=unused-argument
         """Will be carried out when the client connected to the MQTT self.mqtt_broker."""
         logger.info("on_connect")
-        logger.info("work state = %s", self.work_state)
+        #logger.info("work state = %s", self.work_state)
         if result_code == 0:
             logger.info("Connected with MQTT %s.", self.mqtt_broker)
-            self.flag_switcher["CONNECT"] = True
-            self.flag_switcher["DISCONNECT"] = False
+            #self.flag_switcher["CONNECT"] = True
+            #self.flag_switcher["DISCONNECT"] = False
+            self.Is_Connected = True
+            self.Is_Disconnected = False
         else:
             logger.info(
                 "Connection to MQTT self.mqtt_broker failed. result_code=%s",
                 result_code,
             )
-            self.flag_switcher["CONNECT"] = False
+            #self.flag_switcher["CONNECT"] = False
+            self.Is_Connected = False
     
     def on_disconnect(
         self, client, userdata, result_code
@@ -674,48 +680,50 @@ class MqttActor(DeviceBaseActor):
                 "Disconnection from MQTT-broker ungracefully. result_code=%s",
                 result_code,
             )
-            self._connect(None, None)
+            self._connect(True)
         else:
             self.ungr_disconn = 0
             logger.info("Gracefully disconnected from MQTT-broker.")
-        self.flag_switcher["DISCONNECT"] = True
-        # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
-        # logger.info("[Subscriber]\tTo kill the subscriber")
-        # self.send(self.myAddress, ActorExitRequest())
+        #self.flag_switcher["DISCONNECT"] = True
+        self.Is_Disconnected = True
 
     def on_publish(self, _client, _userdata, mid):
         """Here should be a docstring."""
         # self.rc_pub = 0
         logger.info("The message with Message-ID %d is published to the broker!\n", mid)
+        """
         logger.info("work state = %s", self.work_state)
         if self.work_state == "PUBLISH":
             logger.info("Publish: check the mid")
             if mid == self.mid[self.work_state]:
                 logger.info("Publish: mid is matched")
                 self.flag_switcher[self.work_state] = True
+        """
+        logger.info("Publish: check the mid")
+        if mid == self.mid["PUBLISH"]:
+            logger.info("Publish: mid is matched")
 
     def on_subscribe(self, _client, _userdata, mid, _grant_qos):
         """Here should be a docstring."""
         # self.rc_sub = 0
         logger.info("on_subscribe")
         logger.info("mid is %s", mid)
-        logger.info("work state = %s", self.work_state)
-        logger.info("stored mid is %s", self.mid[self.work_state])
-        if self.work_state == "SUBSCRIBE" and mid == self.mid[self.work_state]:
+        #logger.info("work state = %s", self.work_state)
+        logger.info("stored mid is %s", self.mid["SUBSCRIBE"])
+        if mid == self.mid["SUBSCRIBE"]:#if self.work_state == "SUBSCRIBE" and mid == self.mid["SUBSCRIBE"]:
             logger.info("Subscribed to the topic successfully!\n")
-            self.flag_switcher[self.work_state] = True
-        # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+            #self.flag_switcher[self.work_state] = True
 
     def on_unsubscribe(self, _client, _userdata, mid):
         """Here should be a docstring."""
         # self.rc_uns = 0
         logger.info("on_unsubscribe")
         logger.info("mid is %s", mid)
-        logger.info("work state = %s", self.work_state)
-        logger.info("stored mid is %s", self.mid[self.work_state])
-        if self.work_state == "UNSUBSCRIBE" and mid == self.mid[self.work_state]:
+        #logger.info("work state = %s", self.work_state)
+        logger.info("stored mid is %s", self.mid["UNSUBSCRIBE"])
+        if mid == self.mid["UNSUBSCRIBE"]: #if self.work_state == "UNSUBSCRIBE" and mid == self.mid["UNSUBSCRIBE"]:
             logger.info("Unsubscribed to the topic successfully!\n")
-            self.flag_switcher[self.work_state] = True
+            #self.flag_switcher[self.work_state] = True
 
     def on_message(self, _client, _userdata, message):
         """Here should be a docstring."""
@@ -735,7 +743,7 @@ class MqttActor(DeviceBaseActor):
 
                     
     def _connect(self, lwt_set: bool) -> dict:
-        self.work_state = "CONNECT"
+        #self.work_state = "CONNECT"
         # logger.info("Work state: connect")
         self.mqttc = MQTT.Client(self.mqtt_cid)
 
@@ -780,22 +788,21 @@ class MqttActor(DeviceBaseActor):
         self.mqttc.connect(self.mqtt_broker, port=self.port)
         self.mqttc.loop_start()
         while True:
-            if self.flag_switcher[self.work_state] is not None:
-                if self.flag_switcher[self.work_state]:
+            if self.Is_Connected is not None:
+                if self.Is_Connected:
                     _re = {
-                        "RETURN": self.work_state,
+                        "RETURN": "CONNECT",
                         "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
                     }
                     break
-                elif not self.flag_switcher[self.work_state]:
+                elif not self.Is_Connected:
                     _re = {
-                        "RETURN": self.work_state,
+                        "RETURN": "CONNECT",
                         "ERROR_CODE": self.error_code_switcher["CONNECT"],
                     }
                     break
-        self.work_state = "STANDBY"
+        #self.work_state = "STANDBY"
         return _re
-        # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
 
     def _disconnect(self):
         if self.ungr_disconn == 2:
@@ -809,23 +816,22 @@ class MqttActor(DeviceBaseActor):
         logger.info("Disconnection gracefully: %s", RETURN_MESSAGES.get("OK_SKIPPED"))
 
     def _publish(self, msg: dict) -> dict:
-        self.work_state = "PUBLISH"
+        #self.work_state = "PUBLISH"
         logger.info("Work state: publish")
-        logger.info("Disconnection flag = %s", self.flag_switcher["DISCONNECT"])
-        if self.flag_switcher["DISCONNECT"]:
+        if self.Is_Disconnected:
             logger.warning("Failed to publish the message because of disconnection")
             _re = {
-                "RETURN": self.work_state,
+                "RETURN": "PUBLISH",
                 "ERROR_CODE": self.error_code_switcher["PUBLISH"],
             }
-            self._connect(True, self.myAddress)
-            self.work_state = "STANDBY"
+            self._connect(True)
+            #self.work_state = "STANDBY"
             return _re
         self.mqtt_topic = msg.get("PAR", None).get("topic", None)
         if (self.mqtt_topic is None) or not isinstance(self.mqtt_topic, str):
             logger.warning("the topic is none or not a string")
             _re = {
-                "RETURN": self.work_state,
+                "RETURN": "PUBLISH",
                 "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
             }
         else:
@@ -835,23 +841,24 @@ class MqttActor(DeviceBaseActor):
             if self.retain is None:
                 self.retain = False
             logger.info("To publish")
-            info = self.mqttc.publish(
+            rc, self.mid["PUBLISH"] = self.mqttc.publish(
                 self.mqtt_topic,
                 payload=self.mqtt_payload,
                 qos=self.mqtt_qos,
                 retain=self.retain,
             )
-            logger.info(info)
-            logger.info(info.rc)
-            if info.rc != MQTT.MQTT_ERR_SUCCESS:
-                logger.warning("Publish failed; result code is: %s", info.rc)
+            if rc != MQTT.MQTT_ERR_SUCCESS:
+                logger.warning("Publish failed; result code is: %s", rc)
                 _re = {
-                    "RETURN": self.work_state,
+                    "RETURN": "PUBLISH",
                     "ERROR_CODE": self.error_code_switcher["PUBLISH"],
                 }
             else:
-                logger.info("Before publishing, work state is %s", self.work_state)
-                self.mid[self.work_state] = info.mid
+                _re = {
+                    "RETURN": "PUBLISH",
+                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["PUBLISH"],
+                }
+                """
                 self.task_start_time = time.monotonic()
                 while True:
                     # logger.info("while-loop: work state = %s", self.work_state)
@@ -881,33 +888,34 @@ class MqttActor(DeviceBaseActor):
                         }
                         self.flag_switcher[self.work_state] = None
                         break
+                """
 
-        self.work_state = "STANDBY"
+        #self.work_state = "STANDBY"
         return _re
 
     def _subscribe(self, msg: dict) -> None:
-        self.work_state = "SUBSCRIBE"
+        #self.work_state = "SUBSCRIBE"
         logger.info("Work state: subscribe")
-        if self.flag_switcher["DISCONNECT"]:
+        if self.Is_Disconnected:
             logger.warning(
                 "Failed to subscribe to the topic(s) because of disconnection"
             )
             _re = {
-                "RETURN": self.work_state,
+                "RETURN": "SUBSCRIBE",
                 "ERROR_CODE": self.error_code_switcher["SUBSCRIBE"],
             }
-            self._connect(True, self.myAddress)
-            self.work_state = "STANDBY"
+            self._connect(True)
+            #self.work_state = "STANDBY"
             # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return _re
         sub_info = msg.get("PAR", None).get("INFO", None)
         if sub_info is None:
             logger.warning("[Subscribe]: the INFO for subscribe is none")
             _re = {
-                "RETURN": self.work_state,
+                "RETURN": "SUBSCRIBE",
                 "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
             }
-            self.work_state = "STANDBY"
+            #self.work_state = "STANDBY"
             # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return _re
         if isinstance(sub_info, list):
@@ -918,12 +926,12 @@ class MqttActor(DeviceBaseActor):
                         "while it contains a non-tuple element"
                     )
                     _re = {
-                        "RETURN": self.work_state,
+                        "RETURN": "SUBSCRIBE",
                         "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"][
                             "ERROR_CODE"
                             ],
                     }
-                    self.work_state = "STANDBY"
+                    #self.work_state = "STANDBY"
                     # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
                     return _re
                 if len(ele) != 2:
@@ -932,12 +940,12 @@ class MqttActor(DeviceBaseActor):
                         "a tuple elemnt whose length is not equal to 2"
                     )
                     _re = {
-                        "RETURN": self.work_state,
+                        "RETURN": "SUBSCRIBE",
                         "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"][
                             "ERROR_CODE"
                             ],
                     }
-                    self.work_state = "STANDBY"
+                    #self.work_state = "STANDBY"
                     # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
                     return _re
                 if len(ele) == 2 and ele[0] is None:
@@ -945,26 +953,31 @@ class MqttActor(DeviceBaseActor):
                         "[Subscribe]: the first element of one tuple namely the 'topic' is None"
                     )
                     _re = {
-                        "RETURN": self.work_state,
+                        "RETURN": "SUBSCRIBE",
                         "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"][
                             "ERROR_CODE"
                             ],
                     }
-                    self.work_state = "STANDBY"
+                    #self.work_state = "STANDBY"
                     # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
                     return _re
-            info = self.mqttc.subscribe(sub_info)
-            logger.info("Subscribe return: %s", info)
-            if info[0] != MQTT.MQTT_ERR_SUCCESS:
-                logger.warning("Subscribe failed; result code is: %s", info[0])
+            rc, self.mid["SUBSCRIBE"] = self.mqttc.subscribe(sub_info)
+            if rc != MQTT.MQTT_ERR_SUCCESS:
+                logger.warning("Subscribe failed; result code is: %s", rc)
                 _re = {
-                    "RETURN": self.work_state,
+                    "RETURN": "SUBCRIBE",
                     "ERROR_CODE": RETURN_MESSAGES["SUBSCRIBE_FAILURE"][
                         "ERROR_CODE"
                         ],
                 }
             else:
-                self.mid[self.work_state] = info[1]
+                _re = {
+                    "RETURN": "SUBSCRIBE",
+                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
+                        "ERROR_CODE"
+                        ],
+                }
+                """
                 self.task_start_time = time.monotonic()
                 while True:
                     if time.monotonic() - self.task_start_time <= 0.3:
@@ -992,23 +1005,24 @@ class MqttActor(DeviceBaseActor):
                         }
                         self.flag_switcher[self.work_state] = None
                         break
-            self.work_state = "STANDBY"
+                """
+            #self.work_state = "STANDBY"
             return _re
 
     def _unsubscribe(self, msg: dict) -> dict:
-        self.work_state = "UNSUBSCRIBE"
+        #self.work_state = "UNSUBSCRIBE"
         self.mqtt_topic = msg.get("PAR", None).get("INFO", None)
         logger.info(self.mqtt_topic)
-        if not self.flag_switcher["CONNECT"]:
+        if self.Is_Disconnected:
             logger.warning(
                 "Failed to unsubscribe to the topic(s) because of disconnection"
             )
             _re = {
-                "RETURN": self.work_state,
+                "RETURN": "UNSUBSCRIBE",
                 "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"],
             }
             self._connect(True)
-            self.work_state = "STANDBY"
+            #self.work_state = "STANDBY"
             # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return _re
         if (
@@ -1020,23 +1034,28 @@ class MqttActor(DeviceBaseActor):
                 "[Unsubscribe]: The topic is none or it is neither a string nor a list "
             )
             _re = {
-                "RETURN": self.work_state,
+                "RETURN": "UNSUBSCRIBE",
                 "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"],
             }
-            self.work_state = "STANDBY"
+            #self.work_state = "STANDBY"
             # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return _re
-        info = self.mqttc.unsubscribe(self.mqtt_topic)
-        logger.info("Unsubscribe return: %s", info)
-        if info[0] != MQTT.MQTT_ERR_SUCCESS:
-            logger.warning("Unsubscribe failed; result code is: %s", info.rc)
+        rc, self.mid["UNSUBSCRIBE"] = self.mqttc.unsubscribe(self.mqtt_topic)
+        if rc != MQTT.MQTT_ERR_SUCCESS:
+            logger.warning("Unsubscribe failed; result code is: %s", rc)
             _re = {
-                "RETURN": self.work_state,
+                "RETURN": "UNSUBCRIBE",
                 "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"],
             }
-            self.work_state = "STANDBY"
+            #self.work_state = "STANDBY"
         else:
-            self.mid[self.work_state] = info[1]
+            _re = {
+                "RETURN": "UNSUBSCRIBE",
+                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
+                    "ERROR_CODE"
+                    ],
+            }
+            """
             self.task_start_time = time.monotonic()
             while True:
                 if time.monotonic() - self.task_start_time <= 0.3:
@@ -1064,7 +1083,8 @@ class MqttActor(DeviceBaseActor):
                     }
                     self.flag_switcher[self.work_state] = None
                     break
-        self.work_state = "STANDBY"
+            """
+        #self.work_state = "STANDBY"
         # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
         return _re
         

@@ -22,7 +22,7 @@ import time
 import traceback
 import json
 import paho.mqtt.client as MQTT  # type: ignore
-from pathlib import Path
+#from pathlib import Path
 from overrides import overrides  # type: ignore
 
 import registrationserver2
@@ -30,9 +30,11 @@ from registrationserver2 import logger
 from registrationserver2.modules.mqtt.message import \
     RETURN_MESSAGES  # , MQTT_ACTOR_REQUESTs, MQTT_ACTOR_ADRs, IS_ID_LIST
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
+from registrationserver2.modules.mqtt.test_actor import MqttTestActor
 #from registrationserver2.modules.mqtt.mqtt_client_actor import MqttClientActor
 from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import Actor, ActorSystem, WakeupMessage
+from pickle import NONE
 
 logger.info("%s -> %s", __package__, __file__)
 
@@ -76,13 +78,14 @@ class SaradMqttSubscriber(Actor):
     database "Device List" as d_list
     end box
     subscriber -> broker : setup and connect
-    subscriber -> broker : unsubsribe to topics "+/meta" and "+/+/meta"
-    subscriber -> broker : subsribe to topics "+/meta" and "+/+/meta"
+    subscriber -> broker : unsubsribe to topic "+/meta"
+    subscriber -> broker : subsribe to topic "+/meta"
     user -> is_mqtt : connect to local network
     is_mqtt -> broker : connect with LWT message "<is_id>/meta = {"State": 0}"
     is_mqtt -> broker : publish "<is_id>/meta = {"State": 2, ...}" with retain=True
     broker -> subscriber : rely the retained message with the topic "<is_id>/meta"
     subscriber -> h_list : create a description file for the is_id and make a link to the file
+    subscriber -> broker : subsribe to topic "<is_id>/+/meta"
     is_mqtt -> broker : publish "<is_id>/<instrument_id>/meta = {"State": 2, ...}" with retain=True
     broker -> subscriber : rely the retained message with the topic "<is_id>/<instrument_id>/meta"
     subscriber -> mqtt_actor : create a device actor to receive commands/data if the instrument server is_id is already added
@@ -93,6 +96,7 @@ class SaradMqttSubscriber(Actor):
     is_mqtt -> broker : ungracefully disconnected from the broker
     broker -> subscriber : send the LWT message "<is_id>/meta = {"State": 0}"
     subscriber -> h_list : remove the files of this host and its instruments
+    subscriber -> broker : unsubsribe to topic "<is_id>/+/meta"
     subscriber -> mqtt_actor: destroy
     @enduml
     """
@@ -113,6 +117,7 @@ class SaradMqttSubscriber(Actor):
         # Update the description file of an instrument
         "UP_DEVICE": "_update_instr",
         "PARSE": "_parse",
+        "TEST": "_test",
     }
     ACCEPTED_RETURNS = {
         # "SEND": "_receive_loop",
@@ -126,21 +131,25 @@ class SaradMqttSubscriber(Actor):
         self.my_client = None
         self.port = None
         self.connected_instruments = {}
-        self.work_state = "IDLE"
+        #self.work_state = "IDLE"
         self.ungr_disconn = 2
-        self.task_start_time = None
+        #self.task_start_time = None
         self.error_code_switcher = {
             "SETUP": RETURN_MESSAGES["SETUP_FAILURE"]["ERROR_CODE"],
             "CONNECT": RETURN_MESSAGES["CONNECTION_FAILURE"]["ERROR_CODE"],
             "SUBSCRIBE": RETURN_MESSAGES["SUBSCRIBE_FAILURE"]["ERROR_CODE"],
             "UNSUBSCRIBE": RETURN_MESSAGES["UNSUBSCRIBE_FAILURE"]["ERROR_CODE"],
         }
+        """
         self.flag_switcher = {
             "CONNECT": None,
             "SUBSCRIBE": None,
             "DISCONNECT": None,
             "UNSUBSCRIBE": None,
         } # store the flags that indicates whether its corresponding client activity is completed successfully or not
+        """
+        self.Is_Disconnected = None
+        self.Is_Connected = None
         self.mid = {
             "SUBSCRIBE": None,
             "UNSUBSCRIBE": None,
@@ -565,7 +574,7 @@ class SaradMqttSubscriber(Actor):
         logger.info("Already killed the subscriber")
 
     def _setup(self, msg: dict, sender) -> None:
-        self.work_state = "SETUP"
+        #self.work_state = "SETUP"
         logger.info("Subscriber's address is: %s", self.myAddress)
         self.mqtt_cid = msg.get("PAR", None).get("client_id", None)
         self.mqtt_broker = msg.get("PAR", None).get("mqtt_broker", None)
@@ -577,7 +586,7 @@ class SaradMqttSubscriber(Actor):
                 self.mqtt_cid,
             )
             self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
-            self.work_state = "STANDBY"
+            #self.work_state = "STANDBY"
             return
         if self.mqtt_broker is None:
             self.mqtt_broker = "127.0.0.1"
@@ -647,7 +656,7 @@ class SaradMqttSubscriber(Actor):
                 "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
             },
         )
-        self.work_state = "STANDBY"
+        #self.work_state = "STANDBY"
         return
 
     def _parse(self, msg, sender) -> None:
@@ -802,23 +811,49 @@ class SaradMqttSubscriber(Actor):
                 topic,
                 topic_parts[1],
             )
+    
+    def _test(self, msg:dict, sender):
+        if bool(self.connected_instruments):
+            test_actor = ActorSystem().createActor(MqttTestActor, globalName = "test_actor_001")
+            for is_id in self.connected_instruments:
+                if bool(self.connected_instruments[is_id]):
+                    for instr_id in self.connected_instruments[is_id]:
+                        _msg = {
+                            "CMD": "TEST",
+                            "PAR": {
+                                "mqtt_actor_name": self.connected_instruments[is_id][instr_id],
+                            } 
+                        }
+                        _re = ActorSystem().ask(test_actor, _msg)
+                        logger.info("Test Return for the mqtt actor '%s': ", self.connected_instruments[is_id][instr_id])
+                        logger.info(_re)
+                else:
+                    logger.warning("No instruments")
+        else:
+            logger.info("No instrument server found")
+        self.send(test_actor, ActorExitRequest())
+        self.send(sender, {"RETURN": "TEST", "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]})
+        return
             
     def on_connect(
         self, client, userdata, flags, result_code
     ):  # pylint: disable=unused-argument
         """Will be carried out when the client connected to the MQTT self.mqtt_broker."""
         logger.info("on_connect")
-        logger.info("work state = %s", self.work_state)
+        #logger.info("work state = %s", self.work_state)
         if result_code == 0:
             logger.info("Connected with MQTT %s.", self.mqtt_broker)
-            self.flag_switcher["CONNECT"] = True
-            self.flag_switcher["DISCONNECT"] = False
+            #self.flag_switcher["CONNECT"] = True
+            #self.flag_switcher["DISCONNECT"] = False
+            self.Is_Connected = True
+            self.Is_Disconnected = False
         else:
             logger.info(
                 "Connection to MQTT self.mqtt_broker failed. result_code=%s",
                 result_code,
             )
-            self.flag_switcher["CONNECT"] = False
+            #self.flag_switcher["CONNECT"] = False
+            self.Is_Connected = False
     
     def on_disconnect(
         self, client, userdata, result_code
@@ -836,44 +871,30 @@ class SaradMqttSubscriber(Actor):
         else:
             self.ungr_disconn = 0
             logger.info("Gracefully disconnected from MQTT-broker.")
-        self.flag_switcher["DISCONNECT"] = True
-        # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
-        # logger.info("[Subscriber]\tTo kill the subscriber")
-        # self.send(self.myAddress, ActorExitRequest())
-
-    def on_publish(self, _client, _userdata, mid):
-        """Here should be a docstring."""
-        # self.rc_pub = 0
-        logger.info("The message with Message-ID %d is published to the broker!\n", mid)
-        logger.info("work state = %s", self.work_state)
-        if self.work_state == "PUBLISH":
-            logger.info("Publish: check the mid")
-            if mid == self.mid[self.work_state]:
-                logger.info("Publish: mid is matched")
-                self.flag_switcher[self.work_state] = True
+        #self.flag_switcher["DISCONNECT"] = True
+        self.Is_Disconnected = True
 
     def on_subscribe(self, _client, _userdata, mid, _grant_qos):
         """Here should be a docstring."""
         # self.rc_sub = 0
         logger.info("on_subscribe")
         logger.info("mid is %s", mid)
-        logger.info("work state = %s", self.work_state)
+        #logger.info("work state = %s", self.work_state)
         logger.info("stored mid is %s", self.mid["SUBSCRIBE"])
-        if self.work_state == "SUBSCRIBE" and mid == self.mid["SUBSCRIBE"]:
+        if mid == self.mid["SUBSCRIBE"]:#if self.work_state == "SUBSCRIBE" and mid == self.mid["SUBSCRIBE"]:
             logger.info("Subscribed to the topic successfully!\n")
-            self.flag_switcher[self.work_state] = True
-        # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+            #self.flag_switcher[self.work_state] = True
 
     def on_unsubscribe(self, _client, _userdata, mid):
         """Here should be a docstring."""
         # self.rc_uns = 0
         logger.info("on_unsubscribe")
         logger.info("mid is %s", mid)
-        logger.info("work state = %s", self.work_state)
+        #logger.info("work state = %s", self.work_state)
         logger.info("stored mid is %s", self.mid["UNSUBSCRIBE"])
-        if self.work_state == "UNSUBSCRIBE" and mid == self.mid["UNSUBSCRIBE"]:
+        if mid == self.mid["UNSUBSCRIBE"]: #if self.work_state == "UNSUBSCRIBE" and mid == self.mid["UNSUBSCRIBE"]:
             logger.info("Unsubscribed to the topic successfully!\n")
-            self.flag_switcher[self.work_state] = True
+            #self.flag_switcher[self.work_state] = True
 
     def on_message(self, _client, _userdata, message):
         """Here should be a docstring."""
@@ -894,7 +915,7 @@ class SaradMqttSubscriber(Actor):
                     
     def _connect(self, lwt_set: bool) -> dict:
         # logger.info("Work state: connect")
-        self.work_state = "CONNECT"
+        #self.work_state = "CONNECT"
         self.mqttc = MQTT.Client(self.mqtt_cid)
 
         self.mqttc.reinitialise()
@@ -902,7 +923,6 @@ class SaradMqttSubscriber(Actor):
         self.mqttc.on_connect = self.on_connect
         self.mqttc.on_disconnect = self.on_disconnect
         self.mqttc.on_message = self.on_message
-        self.mqttc.on_publish = self.on_publish
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
         logger.info("Try to connect to the mqtt broker")
@@ -914,20 +934,20 @@ class SaradMqttSubscriber(Actor):
         self.mqttc.connect(self.mqtt_broker, port=self.port)
         self.mqttc.loop_start()
         while True:
-            if self.flag_switcher["CONNECT"] is not None:
-                if self.flag_switcher[self.work_state]:
+            if self.Is_Connected is not None:
+                if self.Is_Connected:
                     _re = {
                         "RETURN": "CONNECT",
                         "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
                     }
                     break
-                elif not self.flag_switcher["CONNECT"]:
+                elif not self.Is_Connected:
                     _re = {
                         "RETURN": "CONNECT",
                         "ERROR_CODE": self.error_code_switcher["CONNECT"],
                     }
                     break
-        self.work_state = "STANDBY"
+        #self.work_state = "STANDBY"
         return _re
 
     def _disconnect(self):
@@ -942,9 +962,9 @@ class SaradMqttSubscriber(Actor):
         logger.info("Disconnection gracefully: %s", RETURN_MESSAGES.get("OK_SKIPPED"))
 
     def _subscribe(self, msg: dict) -> None:
-        self.work_state = "SUBSCRIBE"
+        #self.work_state = "SUBSCRIBE"
         logger.info("Work state: subscribe")
-        if self.flag_switcher["DISCONNECT"]:
+        if self.Is_Disconnected:
             logger.warning(
                 "Failed to subscribe to the topic(s) because of disconnection"
             )
@@ -953,7 +973,7 @@ class SaradMqttSubscriber(Actor):
                 "ERROR_CODE": self.error_code_switcher["SUBSCRIBE"],
             }
             self._connect(True, self.myAddress)
-            self.work_state = "STANDBY"
+            #self.work_state = "STANDBY"
             return _re
         sub_info = msg.get("PAR", None).get("INFO", None)
         logger.info(sub_info)
@@ -963,7 +983,7 @@ class SaradMqttSubscriber(Actor):
                 "RETURN": "SUBSCRIBE",
                 "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
             }
-            self.work_state = "STANDBY"
+            #self.work_state = "STANDBY"
             return _re
         if isinstance(sub_info, list):
             for ele in sub_info:
@@ -978,7 +998,7 @@ class SaradMqttSubscriber(Actor):
                             "ERROR_CODE"
                             ],
                     }
-                    self.work_state = "STANDBY"
+                    #self.work_state = "STANDBY"
                     return _re
                 if len(ele) != 2:
                     logger.warning(
@@ -991,7 +1011,7 @@ class SaradMqttSubscriber(Actor):
                             "ERROR_CODE"
                             ],
                     }
-                    self.work_state = "STANDBY"
+                    #self.work_state = "STANDBY"
                     return _re
                 if len(ele) == 2 and ele[0] is None:
                     logger.warning(
@@ -1003,18 +1023,23 @@ class SaradMqttSubscriber(Actor):
                             "ERROR_CODE"
                             ],
                     }
-                    self.work_state = "STANDBY"
+                    #self.work_state = "STANDBY"
                     return _re
-            info = self.mqttc.subscribe(sub_info)
-            logger.info("Returned: {info}".format(info=info))
-            if info[0] != MQTT.MQTT_ERR_SUCCESS:
-                logger.warning("Subscribe failed; result code is: %s", info[0])
+            rc, self.mid["SUBSCRIBE"] = self.mqttc.subscribe(sub_info)
+            if rc != MQTT.MQTT_ERR_SUCCESS:
+                logger.warning("Subscribe failed; result code is: %s", rc)
                 _re = {
                     "RETURN": "SUBSCRIBE",
                     "ERROR_CODE": self.error_code_switcher["SUBSCRIBE"],
                 }
             else:
-                self.mid[self.work_state] = info[1]
+                _re = {
+                    "RETURN": "SUBSCRIBE",
+                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
+                        "ERROR_CODE"
+                        ],
+                }
+                """
                 self.task_start_time = time.monotonic()
                 while True:
                     if time.monotonic() - self.task_start_time <= 0.3:
@@ -1042,14 +1067,15 @@ class SaradMqttSubscriber(Actor):
                         }
                         self.flag_switcher[self.work_state] = None
                         break
-            self.work_state = "STANDBY"
+                    """
+            #self.work_state = "STANDBY"
             return _re
 
     def _unsubscribe(self, msg: dict) -> dict:
-        self.work_state = "UNSUBSCRIBE"
+        #self.work_state = "UNSUBSCRIBE"
         self.mqtt_topic = msg.get("PAR", None).get("INFO", None)
         logger.info(self.mqtt_topic)
-        if not self.flag_switcher["CONNECT"]:
+        if self.Is_Disconnected:
             logger.warning(
                 "Failed to unsubscribe to the topic(s) because of disconnection"
             )
@@ -1071,18 +1097,23 @@ class SaradMqttSubscriber(Actor):
                 "RETURN": "UNSUBSCRIBE",
                 "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"],
             }
-            self.work_state = "STANDBY"
+            #self.work_state = "STANDBY"
             return _re
-        info = self.mqttc.unsubscribe(self.mqtt_topic)
-        logger.info("Returned: {info}".format(info=info))
-        if info[0] != MQTT.MQTT_ERR_SUCCESS:
-            logger.warning("Unsubscribe failed; result code is: %s", info.rc)
+        rc, self.mid["UNSUBCRIBE"] = self.mqttc.unsubscribe(self.mqtt_topic)
+        if rc != MQTT.MQTT_ERR_SUCCESS:
+            logger.warning("Unsubscribe failed; result code is: %s", rc)
             _re = {
                 "RETURN": "UNSUBSCRIBE",
                 "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"],
             }
         else:
-            self.mid["UNSUBSCRIBE"] = info[1]
+            _re = {
+                "RETURN": "UNSUBSCRIBE",
+                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
+                    "ERROR_CODE"
+                    ],
+            }
+            """
             self.task_start_time = time.monotonic()
             while True:
                 if time.monotonic() - self.task_start_time <= 0.3:
@@ -1110,7 +1141,8 @@ class SaradMqttSubscriber(Actor):
                     }
                     self.flag_switcher[self.work_state] = None
                     break
-        self.work_state = "STANDBY"
+                """
+        #self.work_state = "STANDBY"
         return _re
         
 
@@ -1143,6 +1175,9 @@ def __test__():
         logger.info("SARAD MQTT Subscriber is setup correctly!")
         #input("Press Enter to End")
         #ActorSystem().tell(sarad_mqtt_subscriber, ActorExitRequest())
+        time.sleep(50)
+        ask_return = ActorSystem().ask(sarad_mqtt_subscriber, {"CMD": "TEST"}, timeout=100)
+        logger.info(ask_return)
         logger.info("!")
     else:
         logger.warning("SARAD MQTT Subscriber is not setup!")
