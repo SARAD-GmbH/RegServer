@@ -377,12 +377,12 @@ class MqttActor(DeviceBaseActor):
                 "CMD": "PUBLISH",
                 "PAR": {
                     "topic": self.allowed_sys_topics["CTRL"],
-                    "payload": {
+                    "payload": json.dumps({
                         "Req": "reserve",
                         "App": app,
                         "Host": host,
                         "User": user,
-                    },
+                    }),
                     "qos": 0,
                 },
             }
@@ -580,7 +580,7 @@ class MqttActor(DeviceBaseActor):
             return
         if topic == self.allowed_sys_topics["RESERVE"]:
             if self.REPLY_TO_WAIT_FOR["RESERVE"]["Send_Status"]:
-                instr_status = payload.get("Active", None)
+                instr_status = json.loads(payload).get("Active", None)
                 if instr_status:
                     logger.info(
                         "MQTT Actor '%s' receives a permission of the reservation on the instrument '%s'",
@@ -738,8 +738,8 @@ class MqttActor(DeviceBaseActor):
                 "payload": message.payload,
             }
         }
-        #self._parse(msg_buf, None)
-        ActorSystem().tell(self.myAddress, msg_buf)
+        self._parse(msg_buf, None)
+        #ActorSystem().tell(self.myAddress, msg_buf)
 
                     
     def _connect(self, lwt_set: bool) -> dict:
@@ -856,7 +856,7 @@ class MqttActor(DeviceBaseActor):
             else:
                 _re = {
                     "RETURN": "PUBLISH",
-                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["PUBLISH"],
+                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
                 }
                 """
                 self.task_start_time = time.monotonic()
