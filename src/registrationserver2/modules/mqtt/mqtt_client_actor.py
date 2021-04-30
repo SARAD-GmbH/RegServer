@@ -1,3 +1,4 @@
+'''
 """Here shoudl be a docstring!"""
 import datetime
 import queue
@@ -263,8 +264,9 @@ class MqttClientActor(Actor):
                 )
                 # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
                 if not self.queue_to_parse.empty():
-                    ActorSystem().tell(self.myAddress, {"CMD": "STANDBY", "PAR": None})
-
+                    self.send(self.myAddress, {"CMD": "STANDBY", "PAR": None})
+                    #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+        
     """
     def _standby(self):
         logger.info("STANDBY")
@@ -398,24 +400,25 @@ class MqttClientActor(Actor):
         self.mqttc.connect(self.mqtt_broker, port=self.port)
         self.mqttc.loop_start()
         while True:
-            if self.flag_switcher[self.work_state]:
-                self.send(
-                    self.ask_sender,
-                    {
-                        "RETURN": self.work_state,
-                        "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-                    },
-                )
-                break
-            if not self.flag_switcher[self.work_state]:
-                self.send(
-                    self.ask_sender,
-                    {
-                        "RETURN": self.work_state,
-                        "ERROR_CODE": self.error_code_switcher["CONNECT"],
-                    },
-                )
-                break
+            if self.flag_switcher[self.work_state] is not None:
+                if self.flag_switcher[self.work_state]:
+                    self.send(
+                        self.ask_sender,
+                        {
+                            "RETURN": self.work_state,
+                            "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+                        },
+                    )
+                    break
+                elif not self.flag_switcher[self.work_state]:
+                    self.send(
+                        self.ask_sender,
+                        {
+                            "RETURN": self.work_state,
+                            "ERROR_CODE": self.error_code_switcher["CONNECT"],
+                        },
+                    )
+                    break
         self.work_state = "STANDBY"
         # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
 
@@ -489,46 +492,33 @@ class MqttClientActor(Actor):
                 while True:
                     # logger.info("while-loop: work state = %s", self.work_state)
                     # logger.info("while-loop: %s's flag = %s", self.work_state, self.flag_switcher[self.work_state])
-                    if self.flag_switcher[self.work_state]:
-                        self.send(
-                            self.ask_sender,
-                            {
-                                "RETURN": self.work_state,
-                                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
-                                    "ERROR_CODE"
-                                ],
-                            },
-                        )
-                        self.flag_switcher[self.work_state] = None
-                        break
-                    if not self.flag_switcher[self.work_state]:
-                        self.send(
-                            self.ask_sender,
-                            {
-                                "RETURN": self.work_state,
-                                "ERROR_CODE": self.error_code_switcher[self.work_state],
-                            },
-                        )
-                        self.flag_switcher[self.work_state] = None
-                        break
+                    if self.flag_switcher[self.work_state] is not None:
+                        if self.flag_switcher[self.work_state]:
+                            self.send(
+                                self.ask_sender,
+                                {
+                                    "RETURN": self.work_state,
+                                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
+                                        "ERROR_CODE"
+                                    ],
+                                },
+                            )
+                            self.flag_switcher[self.work_state] = None
+                            break
+                            if not self.flag_switcher[self.work_state]:
+                                self.send(
+                                    self.ask_sender,
+                                    {
+                                        "RETURN": self.work_state,
+                                        "ERROR_CODE": self.error_code_switcher[self.work_state],
+                                    },
+                                )
+                                self.flag_switcher[self.work_state] = None
+                                break
 
-                """
-                self.task_start_time[self.work_state] = time.time()
-                self.mid[self.work_state] = info.mid
-                self.requester = sender
-                """
-        # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
-        # return
         self.work_state = "STANDBY"
-        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
-        """
-        info = self.mqttc.publish(self.mqtt_topic, payload=self.mqtt_payload, qos=self.mqtt_qos, retain=self.retain)
-        info.wait_for_publish()
-        if info.rc != 0:
-            return RETURN_MESSAGES.get("PUBLISH_FAILURE")
-        else:
-            return RETURN_MESSAGES.get("OK_SKIPPED")
-        """
+        #self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
+        return
 
     def _subscribe(self, msg: dict, sender) -> None:
         self.work_state = "SUBSCRIBE"
@@ -630,28 +620,31 @@ class MqttClientActor(Actor):
             else:
                 self.mid[self.work_state] = info[1]
                 while True:
-                    if self.flag_switcher[self.work_state]:
-                        self.send(
-                            self.ask_sender,
-                            {
-                                "RETURN": self.work_state,
-                                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
-                                    "ERROR_CODE"
-                                ],
-                            },
-                        )
-                        self.flag_switcher[self.work_state] = None
-                        break
-                    if not self.flag_switcher[self.work_state]:
-                        self.send(
-                            self.ask_sender,
-                            {
-                                "RETURN": self.work_state,
-                                "ERROR_CODE": self.error_code_switcher["CONNECT"],
-                            },
-                        )
-                        self.flag_switcher[self.work_state] = None
-                        break
+                    # logger.info("while-loop: work state = %s", self.work_state)
+                    # logger.info("while-loop: %s's flag = %s", self.work_state, self.flag_switcher[self.work_state])
+                    if self.flag_switcher[self.work_state] != None:
+                        if self.flag_switcher[self.work_state]:
+                            self.send(
+                                self.ask_sender,
+                                {
+                                    "RETURN": self.work_state,
+                                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
+                                        "ERROR_CODE"
+                                    ],
+                                },
+                            )
+                            self.flag_switcher[self.work_state] = None
+                            break
+                            if not self.flag_switcher[self.work_state]:
+                                self.send(
+                                    self.ask_sender,
+                                    {
+                                        "RETURN": self.work_state,
+                                        "ERROR_CODE": self.error_code_switcher[self.work_state],
+                                    },
+                                )
+                                self.flag_switcher[self.work_state] = None
+                                break
             # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             self.work_state = "STANDBY"
             # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
@@ -695,7 +688,7 @@ class MqttClientActor(Actor):
             # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return
         info = self.mqttc.unsubscribe(self.mqtt_topic)
-        logger.info("Subscribe return: %s", info)
+        logger.info("Unsubscribe return: %s", info)
         if info[0] != MQTT.MQTT_ERR_SUCCESS:
             logger.warning("Unsubscribe failed; result code is: %s", info.rc)
             self.send(
@@ -709,24 +702,31 @@ class MqttClientActor(Actor):
         else:
             self.mid[self.work_state] = info[1]
             while True:
-                if self.flag_switcher[self.work_state]:
-                    self.send(
-                        self.ask_sender,
-                        {
-                            "RETURN": self.work_state,
-                            "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-                        },
-                    )
-                    break
-                if not self.flag_switcher[self.work_state]:
-                    self.send(
-                        self.ask_sender,
-                        {
-                            "RETURN": self.work_state,
-                            "ERROR_CODE": self.error_code_switcher["CONNECT"],
-                        },
-                    )
-                    break
+                    # logger.info("while-loop: work state = %s", self.work_state)
+                    # logger.info("while-loop: %s's flag = %s", self.work_state, self.flag_switcher[self.work_state])
+                    if self.flag_switcher[self.work_state] is not None:
+                        if self.flag_switcher[self.work_state]:
+                            self.send(
+                                self.ask_sender,
+                                {
+                                    "RETURN": self.work_state,
+                                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
+                                        "ERROR_CODE"
+                                    ],
+                                },
+                            )
+                            self.flag_switcher[self.work_state] = None
+                            break
+                            if not self.flag_switcher[self.work_state]:
+                                self.send(
+                                    self.ask_sender,
+                                    {
+                                        "RETURN": self.work_state,
+                                        "ERROR_CODE": self.error_code_switcher[self.work_state],
+                                    },
+                                )
+                                self.flag_switcher[self.work_state] = None
+                                break
             self.work_state = "STANDBY"
             # self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="STANDBY")
             return
@@ -752,7 +752,7 @@ class MqttClientActor(Actor):
 
         # self.wakeupAfter(datetime.timedelta(seconds=1), payload="Parser")
 
-
+'''
 '''
 def test():
     """
