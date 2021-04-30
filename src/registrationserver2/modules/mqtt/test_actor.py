@@ -5,6 +5,7 @@ Created on 2021-04-27
 '''
 
 import socket
+import time
 from overrides import overrides  # type: ignore
 
 import registrationserver2
@@ -24,10 +25,24 @@ class MqttTestActor(Actor):
         "TEST": "_test",
     }
     
+    ACCEPTED_RETURNS = [
+        "SEND",
+        "RESERVE",
+        "FREE",
+    ]
+    
     @overrides
     def __init__(self):
         self.target_name = None
         self.target_actor = None
+        self.switcher = [
+            b"B\x80\x7f\xe0\xe0\x00E",
+            b"B\x80\x7f\xe1\xe1\x00E",
+            b"B\x81\x7e\xe2\x0c\xee\x00E",
+            b"B\x80\x7f\x0c\x0c\x00\x00E",
+        ]
+        self.test_cmd_amount = 4
+        self.test_step = 0
         super().__init__()
     
     @overrides
@@ -65,14 +80,38 @@ class MqttTestActor(Actor):
                     return
                 getattr(self, cmd_function)(msg, sender)
             elif return_key is not None:
-                return_function = self.ACCEPTED_RETURNS.get(return_key, None)
-                if return_function is None:
-                    logger.debug("Received return %s from %s.", msg, sender)
+                if return_key not in self.ACCEPTED_RETURNS:
+                    logger.debug("Received unknown return %s from %s.", msg, sender)
                     return
-                if getattr(self, return_function, None) is None:
-                    logger.debug("Received return %s from %s.", msg, sender)
-                    return
-                getattr(self, return_function)(msg, sender)
+                if return_key == "RESERVE":
+                    logger.info("Step: %s", self.test_step)
+                    if not msg["ERROR_CODE"] in (
+                        RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                        RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]
+                    ):
+                        logger.debug("Failed to send reserve; error code is: %s", msg["ERROR_CODE"])
+                        return 
+                    else:
+                        self.test_step = 1
+                        self._test(self.myAddress, {"CMD": "TEST", "PAR":None})
+                        return
+                elif return_key == "SEND":
+                    logger.info("Step: %s", self.test_step)
+                    if not msg["ERROR_CODE"] in (
+                        RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                        RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]
+                    ):
+                        logger.debug("Failed to send cmd '%s'; error code is: %s", self.switcher[self.test_step-1], msg["ERROR_CODE"])
+                        self._test(self.myAddress, ActorExitRequest())
+                        return 
+                    elif self.test_step < self.test_cmd_amount:
+                        self.test_step = self.test_step + 1
+                        self._test(self.myAddress, {"CMD": "TEST", "PAR":None})
+                        return
+                    else:
+                        self._test(self.myAddress, {"CMD": "TEST", "PAR":None})
+                        return
+                    
         else:
             if isinstance(msg, ActorExitRequest):
                 self._kill(msg, sender)
@@ -84,13 +123,19 @@ class MqttTestActor(Actor):
             return
     
     def _test(self, msg:dict, sender) -> None:
-        self.target_name = msg.get("PAR", None).get("mqtt_actor_name", None)
-        self.target_actor = ActorSystem().createActor(MqttActor, globalName=self.target_name)
-        switcher = [
-            b"B\x80\x7f\xe0\xe0\x00E",
-            b"B\x80\x7f\xe1\xe1\x00E",
-            b"B\x81\x7e\xe2\x0c\xee\x00E",
-        ]
+        if self.test_step == 0:
+            self.target_name = msg.get("PAR", None).get("mqtt_actor_name", None)
+            self.target_actor = ActorSystem().createActor(MqttActor, globalName=self.target_name)
+            self._send_reserve()
+        elif self.test_step == self.test_cmd_amount:
+            self._send_free()
+        elif self.test_step == self.test_cmd_amount+1:
+            self._kill(self.myAddress, ActorExitRequest())
+        else:
+            logger.info("To let the mqtt actor '%s' to send the command '%s'", self.target_name, self.switcher[self.test_step-1])
+            _msg = {"PAR": {"DATA": self.switcher[self.test_step-1]}}
+            self._send_cmd(_msg)
+        """
         _re = self._send_reserve()
         if not _re["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
@@ -99,7 +144,7 @@ class MqttTestActor(Actor):
             logger.error("failed to send reserve -> test failed   error code: %s", _re["ERROR_CODE"])
             self.send(sender, {"RETURN": "TEST", "ERROR_CODE": _re["ERROR_CODE"]})
             return
-        for data in switcher:
+        for data in self.switcher:
             _msg = {"PAR": {"DATA": data}}
             _re = self._send_cmd(_msg)
             if not _re["ERROR_CODE"] in (
@@ -120,8 +165,9 @@ class MqttTestActor(Actor):
         logger.info("Test finished!")
         self.send(sender, {"RETURN": "TEST", "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]})
         return
+        """
     
-    def _send_reserve(self) -> dict:
+    def _send_reserve(self): #-> dict:
         _msg = {
             "CMD": "RESERVE", 
             "PAR": {
@@ -130,6 +176,8 @@ class MqttTestActor(Actor):
                 "USER": "yixiang",
             }
         }
+        self.send(self.target_actor, _msg)
+        """
         _re = ActorSystem().ask(self.target_actor, _msg, timeout=1)
         if _re is None:
             logger.error("Got no reply from the mqtt actor '%s'", self.target_name)
@@ -142,9 +190,15 @@ class MqttTestActor(Actor):
             return {"RETURN": "SEND_RESERVE", "ERROR_CODE": _re["ERROR_CODE"]}
         logger.info("Sent reserve successfully!")
         return {"RETURN": "SEND_RESERVE", "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]}
+        """
     
-    def _send_free(self) -> dict:
+    def _send_free(self):# -> dict:
         _msg = {"CMD": "FREE"}
+        self.send(self.target_actor, _msg)
+        time.sleep(0.01)
+        self.test_step = self.test_step + 1
+        self._test(None, None)
+        """
         _re = ActorSystem().ask(self.target_actor, _msg, timeout=1)
         if _re is None:
             logger.error("Got no reply from the mqtt actor '%s'", self.target_name)
@@ -157,8 +211,9 @@ class MqttTestActor(Actor):
             return {"RETURN": "SEND_FREE", "ERROR_CODE": _re["ERROR_CODE"]}
         logger.info("Sent free successfully!")
         return {"RETURN": "SEND_FREE", "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]}
+        """
     
-    def _send_cmd(self, msg:dict) -> dict:
+    def _send_cmd(self, msg:dict):# -> dict:
         data = msg.get("PAR", None).get("DATA", None)
         _msg = {
             "CMD": "SEND", 
@@ -166,6 +221,8 @@ class MqttTestActor(Actor):
                 "DATA": data, 
             }
         }
+        self.send(self.target_actor, _msg)
+        """
         _re = ActorSystem().ask(self.target_actor, _msg)
         if _re is None:
             logger.error("Got no reply from the mqtt actor '%s'", self.target_name)
@@ -180,6 +237,7 @@ class MqttTestActor(Actor):
             logger.info("Received a reply")
             logger.info(_re["RESULT"])
             return {"RETURN": "SEND_CMD", "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]}
+        """
     
     def _kill(self, msg, sender):
         logger.info("Test actor is killed")

@@ -824,14 +824,18 @@ class SaradMqttSubscriber(Actor):
                                 "mqtt_actor_name": self.connected_instruments[is_id][instr_id],
                             } 
                         }
+                        """
                         _re = ActorSystem().ask(test_actor, _msg)
                         logger.info("Test Return for the mqtt actor '%s': ", self.connected_instruments[is_id][instr_id])
                         logger.info(_re)
+                        """
+                        ActorSystem().tell(test_actor, _msg)
+                        time.sleep(200)
                 else:
                     logger.warning("No instruments")
         else:
             logger.info("No instrument server found")
-        self.send(test_actor, ActorExitRequest())
+        #self.send(test_actor, ActorExitRequest())
         self.send(sender, {"RETURN": "TEST", "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]})
         return
             
@@ -902,15 +906,18 @@ class SaradMqttSubscriber(Actor):
         logger.info("message topic: %s", message.topic)
         logger.info("message qos: %s", message.qos)
         logger.info("message retain flag: %s", message.retain)
-        msg_buf = {
-            "CMD": "PARSE",
-            "PAR": {
-                "topic": message.topic,
-                "payload": json.loads(message.payload),
+        if message.payload is None:
+            logger.error("The payload is none")
+        else:
+            msg_buf = {
+                "CMD": "PARSE",
+                "PAR": {
+                    "topic": message.topic,
+                    "payload": json.loads(message.payload),
+                }
             }
-        }
-        #self._parse(msg_buf, None)
-        ActorSystem().tell(self.myAddress, msg_buf)
+            #self._parse(msg_buf, None)
+            ActorSystem().tell(self.myAddress, msg_buf)
 
                     
     def _connect(self, lwt_set: bool) -> dict:
