@@ -24,7 +24,7 @@ from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
 #from registrationserver2.modules.mqtt.mqtt_client_actor import MqttClientActor
 from thespian.actors import (ActorExitRequest, ActorSystem,  # type: ignore
-                             WakeupMessage)
+                             WakeupMessage, ChildActorExited)
 
 logger.info("%s -> %s", __package__, __file__)
 
@@ -122,6 +122,8 @@ class MqttActor(DeviceBaseActor):
         self.REPLY_TO_WAIT_FOR["SEND"][
             "Send_Status"
         ] = False  # if there be a reply to wait for, then it should be true
+        self.test_cnt = 0
+        logger.info("test_cnt = %s", self.test_cnt)
         self.REPLY_TO_WAIT_FOR["SEND"]["CMD_ID"] = None  # store the CMD ID
         #self.REPLY_TO_WAIT_FOR["SEND"]["Reply_Status"] = False # if matched, it is true
         self.REPLY_TO_WAIT_FOR["SEND"]["Reply"] =  None
@@ -229,6 +231,9 @@ class MqttActor(DeviceBaseActor):
                 else:
                     logger.debug("Received an unknown wakeup message")
                 return
+            if isinstance(msg, ChildActorExited):
+                logger.info("The child actor is killed")
+                return
             logger.critical(
                 "Received %s from %s. This should never happen.", msg, sender
             )
@@ -255,6 +260,9 @@ class MqttActor(DeviceBaseActor):
             """
             logger.error("SEND: no data received for the actor '%s' to send or the data are not bytes", self.globalName)
             return
+        else:
+            logger.info("To send: %s", data)
+            logger.info("CMD ID is: %s", self.cmd_id)
         qos = msg.get("PAR", None).get("qos", None)
         if qos is None:
             qos = 0
@@ -265,6 +273,7 @@ class MqttActor(DeviceBaseActor):
         }
         _re = self._subscribe(_msg)
         logger.info(_re)
+        '''
         if _re is None:
             logger.error(
                 "Got no reply to subscription to the topic '%s'",
@@ -282,6 +291,7 @@ class MqttActor(DeviceBaseActor):
             )
             """
             return
+        '''
         if not _re["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
             RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
@@ -294,7 +304,10 @@ class MqttActor(DeviceBaseActor):
             logger.error("Failed subscription to the topic '%s', for which the error code is %s", self.allowed_sys_topics["MSG"], _re["ERROR_CODE"])
             return
         self.REPLY_TO_WAIT_FOR["SEND"]["Send_Status"] = True
+        self.test_cnt = self.test_cnt + 1
+        logger.info("test_cnt = %s", self.test_cnt)
         self.REPLY_TO_WAIT_FOR["SEND"]["CMD_ID"] = bytes([self.cmd_id])
+        logger.info("CMD ID is: %s", self.REPLY_TO_WAIT_FOR["SEND"]["CMD_ID"])
         self.REPLY_TO_WAIT_FOR["SEND"]["Sender"] = sender
         _msg = {
             "CMD": "PUBLISH",
@@ -310,6 +323,7 @@ class MqttActor(DeviceBaseActor):
         else:
             self.cmd_id = self.cmd_id + 1
         logger.info(_re)
+        '''
         if _re is None:
             logger.error(
                 "Got no reply to publishing a message with an ID '%s' under the topic '%s'",
@@ -330,6 +344,7 @@ class MqttActor(DeviceBaseActor):
             )
             """
             return
+        '''
         if not _re["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
             RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
@@ -341,6 +356,8 @@ class MqttActor(DeviceBaseActor):
                 _re["ERROR_CODE"],
             )
             self.REPLY_TO_WAIT_FOR["SEND"]["Send_Status"] = False
+            self.test_cnt = self.test_cnt + 1
+            logger.info("test_cnt = %s", self.test_cnt)
             self.REPLY_TO_WAIT_FOR["SEND"]["CMD_ID"] = None
             """
             self.send(
@@ -348,6 +365,8 @@ class MqttActor(DeviceBaseActor):
             )
             """
             return
+        logger.info("[SEND] send status is: ")
+        logger.info(self.REPLY_TO_WAIT_FOR["SEND"]["Send_Status"])
         '''
         wait_cnt = 70
         while wait_cnt >0:
@@ -443,7 +462,7 @@ class MqttActor(DeviceBaseActor):
             "CMD": "PUBLISH",
             "PAR": {
                 "topic": self.allowed_sys_topics["CTRL"],
-                "payload": free_req_msg,
+                "payload": json.dumps(free_req_msg),
                 "qos": 0,
             },
         }
@@ -618,16 +637,24 @@ class MqttActor(DeviceBaseActor):
             )
             return
         if topic == self.allowed_sys_topics["MSG"]:
+            logger.info("[PARSE] send status is: ")
+            logger.info(self.REPLY_TO_WAIT_FOR["SEND"]["Send_Status"])
             if not isinstance(payload, bytes):
                 logger.error("Received a reply that should be bytes while not; the message is %s", payload)
+                return
             elif len(payload) == 0:
                 logger.error("Received an empty reply")
+                return
             elif self.REPLY_TO_WAIT_FOR["SEND"]["Send_Status"]:
                 re_cmd_id = payload[0]
                 st_cmd_id = int.from_bytes(self.REPLY_TO_WAIT_FOR["SEND"]["CMD_ID"], "big")
                 logger.info("Received CMD ID is %s", re_cmd_id)
                 logger.info("Stored CMD ID is %s", self.REPLY_TO_WAIT_FOR["SEND"]["CMD_ID"])
                 if re_cmd_id == st_cmd_id:
+                    self.REPLY_TO_WAIT_FOR["SEND"]["Send_Status"] = False
+                    self.test_cnt = self.test_cnt + 1
+                    logger.info("test_cnt = %s", self.test_cnt)
+                    
                     logger.info(
                         "MQTT Actor '%s' receives a binary reply '%s' from the instrument '%s'",
                         self.globalName,
@@ -641,34 +668,34 @@ class MqttActor(DeviceBaseActor):
                         "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
                         "RESULT": {"DATA": self.REPLY_TO_WAIT_FOR["SEND"]["Reply"]},
                     }
-                    self.send(self.REPLY_TO_WAIT_FOR["SEND"]["Sender"], _re)
-                    self.REPLY_TO_WAIT_FOR["SEND"]["Send_Status"] = False
-                    self.REPLY_TO_WAIT_FOR["SEND"]["Sender"] = None
-                    self.REPLY_TO_WAIT_FOR["SEND"]["CMD_ID"] = None
-                    self.REPLY_TO_WAIT_FOR["SEND"]["Reply"] = None
+                    #self.send(self.REPLY_TO_WAIT_FOR["SEND"]["Sender"], _re)
+                    ActorSystem().tell(self.REPLY_TO_WAIT_FOR["SEND"]["Sender"], _re)
                     return
+                else:
+                    logger.warning(
+                        "MQTT Actor '%s' receives a binary reply '%s' with a unexpected CMD ID '%s' from the instrument '%s'",
+                        self.globalName,
+                        payload,
+                        re_cmd_id,
+                        self.instr_id,
+                    )
+                    return
+            else:
                 logger.warning(
-                    "MQTT Actor '%s' receives a binary reply '%s' with a unexpected CMD ID '%s' from the instrument '%s'",
+                    "MQTT Actor '%s' receives an unknown binary reply '%s' from the instrument '%s'",
                     self.globalName,
                     payload,
-                    re_cmd_id,
                     self.instr_id,
                 )
                 return
+        else:
             logger.warning(
-                "MQTT Actor '%s' receives an unknown binary reply '%s' from the instrument '%s'",
+                "MQTT Actor '%s' receives an unknown message '%s' from the instrument '%s'",
                 self.globalName,
                 payload,
                 self.instr_id,
             )
             return
-        logger.warning(
-            "MQTT Actor '%s' receives an unknown message '%s' from the instrument '%s'",
-            self.globalName,
-            payload,
-            self.instr_id,
-        )
-        return
     
     def on_connect(
         self, client, userdata, flags, result_code
@@ -853,14 +880,20 @@ class MqttActor(DeviceBaseActor):
             #self.work_state = "STANDBY"
             return _re
         self.mqtt_topic = msg.get("PAR", None).get("topic", None)
+        self.mqtt_payload = msg.get("PAR", None).get("payload", None)
         if (self.mqtt_topic is None) or not isinstance(self.mqtt_topic, str):
             logger.warning("the topic is none or not a string")
             _re = {
                 "RETURN": "PUBLISH",
                 "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
             }
+        elif self.mqtt_payload is None:
+            logger.warning("the payload is none")
+            _re = {
+                "RETURN": "PUBLISH",
+                "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
+            }
         else:
-            self.mqtt_payload = msg.get("PAR", None).get("payload", None)
             self.mqtt_qos = msg.get("PAR", None).get("qos", None)
             self.retain = msg.get("PAR", None).get("retain", None)
             if self.retain is None:
