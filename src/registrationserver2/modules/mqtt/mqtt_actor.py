@@ -225,7 +225,7 @@ class MqttActor(DeviceBaseActor):
                 return
             if isinstance(msg, WakeupMessage):
                 if msg.payload == "Parse":
-                    self.__mqtt_parser(msg, sender)
+                    self._parse(msg, sender)
                 #elif msg.payload == "Reserve":
                 #    self._reserve_at_is(None, None, None)
                 else:
@@ -596,7 +596,7 @@ class MqttActor(DeviceBaseActor):
         )
         return
     
-    def _parse(self, msg: dict, Sender) -> None:
+    def _parse(self, msg: dict, sender) -> None:
         topic = msg.get("PAR", None).get("topic", None)
         payload = msg.get("PAR", None).get("payload", None)
         if topic is None or payload is None:

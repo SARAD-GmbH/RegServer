@@ -399,8 +399,8 @@ def __test__():
         #input("Press Enter to End")
         logger.info("!!")
     ActorSystem().tell(test_actor, ActorExitRequest())
-    time.sleep(10)
-    ActorSystem().shutdown()
+    time.sleep(20)
+    #ActorSystem().shutdown()
 
 
 if __name__ == "__main__":

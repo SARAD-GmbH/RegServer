@@ -5,44 +5,6 @@ Created on 2021-03-12
 """
 import json
 
-# MQTT_ACTOR_REQUESTs: Dict[
-#    str, str
-# ] = {}  # A dictionary for storing the request statuses of MQTT Actors
-"""
-Struture of MQTT_ACTOR_REQUESTs:
-MQTT_ACTOR_REQUESTs = {
-    IS1_ID: {
-        instr_id1 : "reserve", # the mqtt_actor (actor name is the same as instr_id1) requesting to reserve instrument (instr_id1)
-        instr_id2 : "free",    # the mqtt_actor (actor name is the same as instr_id1) requesting to free instrument (instr_id1)
-        instr_id3 : "None",    # nothing to do with the reservation/free
-        ...
-    },
-    ...
-}
-"""
-
-# MQTT_ACTOR_ADRs: Dict[
-#    str, str
-# ] = {}  # A dictionary for storing the addresses of MQTT Actors
-"""
-Struture of MQTT_ACTOR_ADRs:
-MQTT_ACTOR_ADRs = {
-    IS1_ID: {
-        Actor11_Name : Actor11_ADR, # Name of an actor is the ID of the instrument that this actor takes care of.
-        Actor12_Name : Actor12_ADR, # The address of each actor can be gained through createActor() methods in the ActorSystem class.
-        ...
-    },
-    IS2_ID: {
-        Actor21_Name : Actor21_ADR,
-        Actor22_Name : Actor22_ADR,
-        ...
-    },
-    ...
-}
-"""
-
-# IS_ID_LIST: list = []  # A list for storing the ID of IS MQTT
-
 RETURN_MESSAGES = {
     # The message received by the actor was not in an expected format
     "ILLEGAL_WRONGFORMAT": {
