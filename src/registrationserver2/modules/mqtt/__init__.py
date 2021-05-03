@@ -120,3 +120,97 @@ MQTT_CLIENT_RESULTs = {
     @enduml
     */
     """
+'''
+import os
+import time
+from thespian.actors import ActorExitRequest  # type: ignore
+from thespian.actors import Actor, ActorSystem
+
+import registrationserver2
+from registrationserver2.modules.mqtt.test_actor import MqttTestActor
+from registrationserver2 import logger
+from registrationserver2.modules.mqtt.message import \
+    RETURN_MESSAGES
+
+def __test__():
+    # ActorSystem(
+    #    systemBase=config["systemBase"],
+    #    capabilities=config["capabilities"],
+    # )
+    logger.info("Subscriber")
+    test_actor = ActorSystem().createActor(
+        MqttTestActor, globalName="test_actor_001"
+    )
+    ask_return = ActorSystem().ask(
+        test_actor,
+        {
+            "CMD": "SETUP",
+            "PAR": {
+                "Subscriber_Name": "SARAD_Subscriber",
+            },
+        },
+    )
+    if ask_return["ERROR_CODE"] in (
+        RETURN_MESSAGES["OK"]["ERROR_CODE"],
+        RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+    ):
+        logger.info("Test actor is setup correctly!")
+        folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
+        folder_available = f"{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}"
+        while True:
+            if os.listdir(folder_history) == []:
+                logger.info("No files found in the directory.")
+                time.sleep(1)
+            else:
+                f = os.listdir(folder_history)
+                logger.info("Some files found in the directory.")
+                break
+        avail_f = []
+        while True:
+            for filename in f:
+                logger.info("File '%s' exists", filename)
+                link = fr"{folder_available}{filename}"
+                if os.path.exists(link):
+                    logger.info("Link '%s' exists", link)
+                    avail_f.append(filename)
+            if avail_f != []:
+                logger.info("There are some available instruments")
+                logger.info(avail_f)
+                break
+            time.sleep(1)
+        for filename in avail_f:
+            logger.info("File '%s' exists", filename)
+            link = fr"{folder_available}{filename}"
+            ask_msg = {
+                "CMD": "PREPARE",
+                "PAR": {
+                    "mqtt_actor_name": filename, 
+                },
+            }
+            ask_return = ActorSystem().ask(test_actor, ask_msg)
+            if ask_return["ERROR_CODE"] in (
+                RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+            ):
+                logger.info("To test")
+                ask_msg = {"CMD": "TEST"}
+                ActorSystem().tell(test_actor, ask_msg)
+                #ask_return = ActorSystem().ask(test_actor, ask_msg)
+                #logger.info(ask_return)
+            else:
+                logger.error("Test actor failed to prepare")
+            
+    else:
+        logger.warning("SARAD MQTT Subscriber is not setup!")
+        logger.error(ask_return)
+        #input("Press Enter to End")
+        logger.info("!!")
+    input("Press Enter to End")
+    ActorSystem().tell(test_actor, ActorExitRequest())
+    time.sleep(10)
+    ActorSystem().shutdown()
+
+
+if __name__ == "__main__":
+    __test__()
+'''

@@ -47,12 +47,13 @@ class RedirectorActor(Actor):
         self.conn = None
         self._host = config["HOST"]
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        for self._port in config["PORT_RANGE"]:
-            try:
-                server_socket.bind((self._host, self._port))
-                break
-            except OSError:
-                logger.critical("Cannot use port %d.", self._port)
+        # for self._port in config["PORT_RANGE"]:
+        try:
+            server_socket.bind((self._host, 0))
+            self._port = server_socket.getsockname()[1]
+            # break
+        except OSError:
+            logger.critical("Cannot use port %d.", self._port)
         server_socket.listen()  # listen(5) maybe???
         self.read_list = [server_socket]
         logger.info("Socket listening on port %d", self._port)
