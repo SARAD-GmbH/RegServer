@@ -156,6 +156,7 @@ class MdnsListener(ServiceListener):
             logger.debug("Ask to setup the device actor with %s...", msg)
             setup_return = ActorSystem().ask(this_actor, msg)
             logger.info(setup_return)
+            # TODO Handle setup_return == None
             if not setup_return["ERROR_CODE"] in (
                 RETURN_MESSAGES["OK"]["ERROR_CODE"],
                 RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],

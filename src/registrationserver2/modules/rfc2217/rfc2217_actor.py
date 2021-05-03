@@ -109,11 +109,14 @@ class Rfc2217Actor(DeviceBaseActor):
         super()._kill(msg, sender)
 
     @overrides
-    def _reserve_at_is(self, app, host, user) -> bool:
+    def _reserve_at_is(self):
         # pylint: disable=unused-argument, no-self-use
         """Reserve the requested instrument at the instrument server. This function has
-        to be implemented (overridden) in the protocol specific modules."""
-        return True
+        to be implemented (overridden) in the protocol specific modules.
+        TODO: Read the reply from the REST API of the Instrument Server.
+        In this dummy we suppose, that the instrument is always available for us.
+        """
+        self._forward_reservation(True)
 
 
 def _test():

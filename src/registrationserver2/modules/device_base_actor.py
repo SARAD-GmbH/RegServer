@@ -200,23 +200,42 @@ class DeviceBaseActor(Actor):
         except LookupError:
             logger.error("ERROR: there is no USER name!")
             return
-        if self._reserve_at_is(self.app, self.host, self.user):
-            self._create_redirector(sender)
+        self._reserve_at_is()
+        return
+
+    def _reserve_at_is(self):
+        # pylint: disable=unused-argument, no-self-use
+        """Request the reservation of an instrument at the Instrument Server. This function has
+        to be implemented (overridden) in the protocol specific modules.
+
+        :param self.app: String identifying the requesting app.
+        :param self.host: String identifying the host running the app.
+        :param self.user: String identifying the user of the app.
+        :param self.sender_api: The actor object asking for reservation.
+        """
+
+    def _forward_reservation(self, success: bool):
+        # pylint: disable=unused-argument, no-self-use
+        """Forward the reply from the Instrument Server to the redirector actor.
+        This function has to be called in the protocol specific modules.
+        """
+        if success:
+            if self._create_redirector():
+                return
+            return_message = {
+                "RETURN": "RESERVE",
+                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+            }
+            self.send(self.sender_api, return_message)
             return
         return_message = {
             "RETURN": "RESERVE",
             "ERROR_CODE": RETURN_MESSAGES["OCCUPIED"]["ERROR_CODE"],
         }
-        self.send(sender, return_message)
+        self.send(self.sender_api, return_message)
         return
 
-    def _reserve_at_is(self, app, host, user) -> bool:
-        # pylint: disable=unused-argument, no-self-use
-        """Reserve the requested instrument at the instrument server. This function has
-        to be implemented (overridden) in the protocol specific modules."""
-        return True
-
-    def _create_redirector(self, sender):
+    def _create_redirector(self) -> bool:
         """Create redirector actor"""
         if self.my_redirector is None:
             short_id = self.globalName.split(".")[0]
@@ -227,13 +246,8 @@ class DeviceBaseActor(Actor):
             msg = {"CMD": "SETUP", "PAR": {"PARENT_NAME": self.globalName}}
             logger.debug("Send SETUP command to redirector with msg %s", msg)
             self.send(self.my_redirector, msg)
-            return
-        return_message = {
-            "RETURN": "RESERVE",
-            "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-        }
-        self.send(sender, return_message)
-        return
+            return True
+        return False
 
     def _return_with_socket(self, msg, sender):
         logger.debug("returned with %s", msg)
