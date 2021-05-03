@@ -203,6 +203,7 @@ class RestApi:
         }
         logger.debug("Ask device actor %s", msg)
         reserve_return = ActorSystem().ask(device_actor, msg)
+        # TODO: Add error handling of timeout and of reserve_return != OK
         logger.debug("returned with %s", reserve_return)
         answer = {}
         try:
@@ -232,6 +233,7 @@ class RestApi:
         device_actor = ActorSystem().createActor(Actor, globalName=did)
         logger.debug("Ask device actor to FREE...")
         free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"})
+        # TODO: Add error handling of timeout
         logger.info("returned with %s", free_return)
         if free_return is RETURN_MESSAGES["OK"] or RETURN_MESSAGES["OK_SKIPPED"]:
             answer = {}

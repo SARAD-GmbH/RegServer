@@ -10,95 +10,58 @@ Author
 .. uml :: uml-mqtt_subscriber.puml
 
 Todo:
-    * uml-mqtt_subscriber.puml is only a copy of uml-mdns_listener.puml. It has to
-      be updated.
     * too many lines of code
 
 """
-# import json
+import json
 import os
 import threading
 import time
 import traceback
-import json
-import paho.mqtt.client as MQTT  # type: ignore
-#from pathlib import Path
-from overrides import overrides  # type: ignore
+from pickle import NONE
 
+import paho.mqtt.client as MQTT  # type: ignore
 import registrationserver2
+from overrides import overrides  # type: ignore
 from registrationserver2 import logger
 from registrationserver2.modules.mqtt.message import \
-    RETURN_MESSAGES  # , MQTT_ACTOR_REQUESTs, MQTT_ACTOR_ADRs, IS_ID_LIST
+    RETURN_MESSAGES  
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
-#from registrationserver2.modules.mqtt.test_actor import MqttTestActor
-#from registrationserver2.modules.mqtt.mqtt_client_actor import MqttClientActor
 from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import Actor, ActorSystem, WakeupMessage
-from pickle import NONE
 
 logger.info("%s -> %s", __package__, __file__)
 
 
 class SaradMqttSubscriber(Actor):
     """
-    classdocs
+    ``connected_instruments`` is mainly used for distinguishing
+    ``__add_instr__()`` and ``__update_instr__()``.
 
-    connected_instruments is mainly used for distinguishing __add_instr__() and __update_instr__().
-    
     Basic flows:
-    1) when an IS MQTT 'IS1_ID' is connected -> _add_host, connected_instruments[IS1_ID] = []
-    2) when the ID of this IS MQTT is a key of connected_instruments -> _update_host
-    3) disconnection and the ID is a key -> _rm_host, del connected_instruments[IS1_ID]
-    4) when an instrument 'Instr_ID11' is connected & the ID of its IS is a key -> _add_instr, connected_istruments[IS1_ID].append(Instr_ID11)
-    5) when the ID of this instrument exists in the list mapping the ID of its IS MQTT -> _update_instr
-    6) disconnection and the instrument ID exists in the list -> _rm_instr 
 
-    Struture of connected_instruments:
-    connected_instruments = {
-       IS1_ID: {
-           Instr_ID11 : Actor1_Name,
-           Instr_ID12 : Actor2_Name,
-           Instr_ID13 : Actor3_Name,
-           ...
-       },
-       IS2_ID: {
-           ...
-       },
-        ...
-    }
-    
-    @startuml
-    actor "Service Employee" as user
-    entity "Device with Instrument Server" as is_mqtt
-    entity "MQTT Broker" as broker
-    box "RegistrationServer MQTT"
-    entity "SaradMqttSubscriber" as subscriber
-    entity "MQTT Actor" as mqtt_actor
-    database "Host List" as h_list
-    database "Device List" as d_list
-    end box
-    subscriber -> broker : setup and connect
-    subscriber -> broker : unsubsribe to topic "+/meta"
-    subscriber -> broker : subsribe to topic "+/meta"
-    user -> is_mqtt : connect to local network
-    is_mqtt -> broker : connect with LWT message "<is_id>/meta = {"State": 0}"
-    is_mqtt -> broker : publish "<is_id>/meta = {"State": 2, ...}" with retain=True
-    broker -> subscriber : rely the retained message with the topic "<is_id>/meta"
-    subscriber -> h_list : create a description file for the is_id and make a link to the file
-    subscriber -> broker : subsribe to topic "<is_id>/+/meta"
-    is_mqtt -> broker : publish "<is_id>/<instrument_id>/meta = {"State": 2, ...}" with retain=True
-    broker -> subscriber : rely the retained message with the topic "<is_id>/<instrument_id>/meta"
-    subscriber -> mqtt_actor : create a device actor to receive commands/data if the instrument server is_id is already added
-    subscriber -> mqtt_actor : ask the mqtt actor to setup itself and then prepare itself for the future works
-    mqtt_actor -> d_list : create a description file for the "instrument_id.SARAD_Type.mqtt" and make a link to the file
-    is_mqtt -> broker : subscribe to topic "+/+/control"
-    user -> is_mqtt : disconnects from network
-    is_mqtt -> broker : ungracefully disconnected from the broker
-    broker -> subscriber : send the LWT message "<is_id>/meta = {"State": 0}"
-    subscriber -> h_list : remove the files of this host and its instruments
-    subscriber -> broker : unsubsribe to topic "<is_id>/+/meta"
-    subscriber -> mqtt_actor: destroy
-    @enduml
+    #. when an IS MQTT 'IS1_ID' is connected -> _add_host, connected_instruments[IS1_ID] = []
+    #. when the ID of this IS MQTT is a key of connected_instruments -> _update_host
+    #. disconnection and the ID is a key -> _rm_host, del connected_instruments[IS1_ID]
+    #. when an instrument 'Instr_ID11' is connected & the ID of its IS is a key -> _add_instr,
+       connected_istruments[IS1_ID].append(Instr_ID11)
+    #. when the ID of this instrument exists in the list mapping the ID of its IS MQTT -> _update_instr
+    #. disconnection and the instrument ID exists in the list -> _rm_instr
+
+    Struture of connected_instruments::
+
+        connected_instruments = {
+           IS1_ID: {
+               Instr_ID11 : Actor1_Name,
+               Instr_ID12 : Actor2_Name,
+               Instr_ID13 : Actor3_Name,
+               ...
+           },
+           IS2_ID: {
+               ...
+           },
+            ...
+        }
     """
 
     ACCEPTED_COMMANDS = {
@@ -117,7 +80,7 @@ class SaradMqttSubscriber(Actor):
         # Update the description file of an instrument
         "UP_DEVICE": "_update_instr",
         "PARSE": "_parse",
-        #"TEST": "_test",
+        # "TEST": "_test",
     }
     ACCEPTED_RETURNS = {
         # "SEND": "_receive_loop",
@@ -126,17 +89,17 @@ class SaradMqttSubscriber(Actor):
     @overrides
     def __init__(self):
         super().__init__()
+        self.mqttc = None
         self.mqtt_cid: str = None  # MQTT client Id
         self.mqtt_broker: str = None
-        self.my_client = None
         self.port = None
         self.lwt_payload = None
         self.lwt_topic = None
         self.lwt_qos = None
         self.connected_instruments = {}
-        #self.work_state = "IDLE"
+        # self.work_state = "IDLE"
         self.ungr_disconn = 2
-        #self.task_start_time = None
+        # self.task_start_time = None
         self.error_code_switcher = {
             "SETUP": RETURN_MESSAGES["SETUP_FAILURE"]["ERROR_CODE"],
             "CONNECT": RETURN_MESSAGES["CONNECTION_FAILURE"]["ERROR_CODE"],
@@ -156,7 +119,7 @@ class SaradMqttSubscriber(Actor):
         self.mid = {
             "SUBSCRIBE": None,
             "UNSUBSCRIBE": None,
-        } # store the current message ID to check
+        }  # store the current message ID to check
         self.__lock = threading.Lock()
         with self.__lock:
             self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
@@ -312,7 +275,6 @@ class SaradMqttSubscriber(Actor):
             "[Add Instrument]: Add the information of the instrument and create the actor '%s' for it successfully",
             name_,
         )
-        
         return
 
     def _rm_instr(self, msg: dict, sender) -> None:
@@ -470,7 +432,7 @@ class SaradMqttSubscriber(Actor):
             is_id,
         )
         return
-    
+
     def _update_host(self, msg: dict, sender) -> None:
         is_id = msg.get("PAR", None).get("is_id", None)
         data = msg.get("PAR", None).get("payload")
@@ -516,14 +478,14 @@ class SaradMqttSubscriber(Actor):
 
     def _kill(self, _msg, sender):
         logger.info(self.connected_instruments)
-        avail_host=os.listdir(self.__folder2_available)
+        avail_host = os.listdir(self.__folder2_available)
         if avail_host != []:
             logger.info("[Kill] There are some available hosts: %s", avail_host)
             for _is_id in avail_host:
                 logger.info("[Kill] To remove the instrument server with ID '%s'", _is_id)
                 self._rm_host( 
                     {
-                        "CMD": "RM_HOST", 
+                        "CMD": "RM_HOST",
                         "PAR": {
                             "is_id": _is_id,
                         },
@@ -584,8 +546,8 @@ class SaradMqttSubscriber(Actor):
             "CMD": "UNSUBSCRIBE",
             "PAR": {
                 "INFO": [
-                    "+/meta", 
-                    #"+/+/meta",
+                    "+/meta",
+                    # "+/+/meta",
                 ],
             },
         }
@@ -604,7 +566,7 @@ class SaradMqttSubscriber(Actor):
             "PAR": {
                 "INFO": [
                     ("+/meta", 0),
-                    #("+/+/meta", 0),
+                    # ("+/+/meta", 0),
                 ],
             },
         }
@@ -717,8 +679,7 @@ class SaradMqttSubscriber(Actor):
                             },
                         }
                         if not (
-                            topic_parts[1]
-                            in self.connected_instruments[topic_parts[0]]
+                            topic_parts[1] in self.connected_instruments[topic_parts[0]]
                         ):
                             _msg["CMD"] = "ADD_DEVICE"
                         else:
@@ -730,8 +691,7 @@ class SaradMqttSubscriber(Actor):
                 elif payload.get("State", None)  == "0":
                     logger.info("disconnection message")
                     if (topic_parts[0] in self.connected_instruments) and (
-                        topic_parts[1]
-                        in self.connected_instruments[topic_parts[0]]
+                        topic_parts[1] in self.connected_instruments[topic_parts[0]]
                     ):
                         logger.info(
                             "[Parse]: To remove the instrument: %s under the IS: %s",
@@ -744,7 +704,7 @@ class SaradMqttSubscriber(Actor):
                                 "is_id": topic_parts[0],
                                 "instr_id": topic_parts[1],
                             },
-                        }                    
+                        }
                         cmd_func = self.ACCEPTED_COMMANDS[_msg["CMD"]]
                         getattr(self, cmd_func)(_msg, None)
                     else:
@@ -759,7 +719,7 @@ class SaradMqttSubscriber(Actor):
                         topic_parts[1],
                         topic_parts[0],
                     )
-                
+
             else:  # Illeagl topics
                 logger.warning(
                     "[Parse]: Receive unknown message '%s' under the illegal topic '%s'}, which is related to the instrument '%s'",
@@ -774,7 +734,6 @@ class SaradMqttSubscriber(Actor):
                 topic,
                 topic_parts[1],
             )
-            
     def on_connect(
         self, client, userdata, flags, result_code
     ):  # pylint: disable=unused-argument
@@ -786,11 +745,11 @@ class SaradMqttSubscriber(Actor):
             self.Is_Disconnected = False
         else:
             logger.info(
-                "Connection to MQTT self.mqtt_broker failed. result_code=%s",
+                "[on_connect]: Connection to MQTT self.mqtt_broker failed. result_code=%s",
                 result_code,
             )
             self.Is_Connected = False
-    
+
     def on_disconnect(
         self, client, userdata, result_code
     ):  # pylint: disable=unused-argument
@@ -837,11 +796,10 @@ class SaradMqttSubscriber(Actor):
                 "PAR": {
                     "topic": message.topic,
                     "payload": json.loads(message.payload),
-                }
+                },
             }
             self._parse(msg_buf, None)
 
-                    
     def _connect(self, lwt_set: bool) -> dict:
         self.mqttc = MQTT.Client(self.mqtt_cid)
         self.mqttc.reinitialise()
@@ -914,7 +872,7 @@ class SaradMqttSubscriber(Actor):
                         "RETURN": "SUBSCRIBE",
                         "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"][
                             "ERROR_CODE"
-                            ],
+                        ],
                     }
                 if len(ele) != 2:
                     logger.warning(
@@ -925,7 +883,7 @@ class SaradMqttSubscriber(Actor):
                         "RETURN": "SUBSCRIBE",
                         "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"][
                             "ERROR_CODE"
-                            ],
+                        ],
                     }
                 if len(ele) == 2 and ele[0] is None:
                     logger.warning(
@@ -935,7 +893,7 @@ class SaradMqttSubscriber(Actor):
                         "RETURN": "SUBSCRIBE",
                         "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"][
                             "ERROR_CODE"
-                            ],
+                        ],
                     }
             rc, self.mid["SUBSCRIBE"] = self.mqttc.subscribe(sub_info)
             if rc != MQTT.MQTT_ERR_SUCCESS:
@@ -947,14 +905,12 @@ class SaradMqttSubscriber(Actor):
             else:
                 return {
                     "RETURN": "SUBSCRIBE",
-                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
-                        "ERROR_CODE"
-                        ],
+                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
                 }
 
     def _unsubscribe(self, msg: dict) -> dict:
-        self.mqtt_topic = msg.get("PAR", None).get("INFO", None)
-        logger.info(self.mqtt_topic)
+        uns_topic = msg.get("PAR", None).get("INFO", None)
+        logger.info(uns_topic)
         if self.Is_Disconnected:
             self._connect(True)
             logger.warning(
@@ -965,9 +921,9 @@ class SaradMqttSubscriber(Actor):
                 "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"],
             }
         if (
-            self.mqtt_topic is None
-            and not isinstance(self.mqtt_topic, list)
-            and not isinstance(self.mqtt_topic, str)
+            uns_topic is None
+            and not isinstance(uns_topic, list)
+            and not isinstance(uns_topic, str)
         ):
             logger.warning(
                 "[Unsubscribe]: The topic is none or it is neither a string nor a list "
@@ -976,7 +932,7 @@ class SaradMqttSubscriber(Actor):
                 "RETURN": "UNSUBSCRIBE",
                 "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"],
             }
-        rc, self.mid["UNSUBSCRIBE"] = self.mqttc.unsubscribe(self.mqtt_topic)
+        rc, self.mid["UNSUBSCRIBE"] = self.mqttc.unsubscribe(uns_topic)
         if rc != MQTT.MQTT_ERR_SUCCESS:
             logger.warning("Unsubscribe failed; result code is: %s", rc)
             return {
@@ -986,14 +942,11 @@ class SaradMqttSubscriber(Actor):
         else:
             return {
                 "RETURN": "UNSUBSCRIBE",
-                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"][
-                    "ERROR_CODE"
-                    ],
+                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
             }
-        
 
 
-'''
+"""
 def __test__():
     # ActorSystem(
     #    systemBase=config["systemBase"],
@@ -1041,4 +994,4 @@ def __test__():
 
 if __name__ == "__main__":
     __test__()
-'''
+"""
