@@ -33,7 +33,8 @@ class MqttActor(DeviceBaseActor):
     # add some new accessible methods
     ACCEPTED_COMMANDS["PREPARE"] = "_prepare"
     # ACCEPTED_COMMANDS["RESERVATION_CANCEL"] = "_reserve_cancel"
-    ACCEPTED_COMMANDS["PARSE"] = "_parse"
+    #ACCEPTED_COMMANDS["PARSE"] = "_parse"
+    #ACCEPTED_COMMANDS["TEST"] = "_test"
     REPLY_TO_WAIT_FOR = {}
 
     @overrides
@@ -101,6 +102,7 @@ class MqttActor(DeviceBaseActor):
             "SUBSCRIBE": None,
             "UNSUBSCRIBE": None,
         }  # store the current message ID to check
+        #self.work_mode = 0 # 1: test mode; 0: work mode
 
     @overrides
     def receiveMessage(self, msg, sender):
@@ -153,7 +155,7 @@ class MqttActor(DeviceBaseActor):
                 return
             if isinstance(msg, WakeupMessage):
                 if msg.payload == "Parse":
-                    self._parse(msg, sender)
+                    self._parse(msg)
                 #elif msg.payload == "Reserve":
                 #    self._reserve_at_is(None, None, None)
                 else:
@@ -167,7 +169,12 @@ class MqttActor(DeviceBaseActor):
             )
             logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
             return
-
+    
+    """def _test(self, msg: dict, sender) -> None:
+        self.work_mode = 1
+        logger.info("[Test]: MQTT Actor %s has triggered its test mode", self.globalName)
+        return"""
+    
     def _send(self, msg: dict, sender) -> None:
         if msg is None:
             logger.error(
@@ -242,7 +249,7 @@ class MqttActor(DeviceBaseActor):
         logger.info("[SEND] send status is: ")
         logger.info(self.REPLY_TO_WAIT_FOR["SEND"]["Send_Status"])
 
-    def _reserve_at_is(self, app, host, user) -> bool:
+    def _reserve_at_is(self) -> bool:
         logger.info(
             "[Reserve]\tThe MQTT actor '%s' is to subscribe to the 'reserve' topic",
             self.globalName,
@@ -266,9 +273,9 @@ class MqttActor(DeviceBaseActor):
                     "payload": json.dumps(
                         {
                             "Req": "reserve",
-                            "App": app,
-                            "Host": host,
-                            "User": user,
+                            "App": self.app,
+                            "Host": self.host,
+                            "User": self.user,
                         }
                     ),
                     "qos": 0,
@@ -283,8 +290,9 @@ class MqttActor(DeviceBaseActor):
                 logger.error(_re)
                 self.REPLY_TO_WAIT_FOR["RESERVE"]["Send_Status"] = False
                 return False
+            logger.info("[Reserve at IS]: To wait for the reply to reservation request")
 
-        wait_cnt = 60
+        """wait_cnt = 60
         while wait_cnt > 0:
             if (
                 self.REPLY_TO_WAIT_FOR.get("RESERVE", None).get("Active", None)
@@ -305,7 +313,7 @@ class MqttActor(DeviceBaseActor):
         else:
             logger.info("No reply to reservation request")
             self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"] = None
-            return False
+            return False"""
 
     @overrides
     def _free(self, msg, sender) -> None:
@@ -456,7 +464,7 @@ class MqttActor(DeviceBaseActor):
         )
         return
     
-    def _parse(self, msg: dict, sender) -> None:
+    def _parse(self, msg: dict) -> None:
         topic = msg.get("PAR", None).get("topic", None)
         payload = msg.get("PAR", None).get("payload", None)
         if topic is None or payload is None:
@@ -489,6 +497,9 @@ class MqttActor(DeviceBaseActor):
                         self.instr_id,
                     )
                     self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"] = False
+                logger.info(self.sender_api)
+                logger.info(self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"])
+                self._forward_reservation(self.REPLY_TO_WAIT_FOR["RESERVE"]["Active"])
                 return
             logger.warning(
                 "MQTT Actor '%s' receives a reply to an non-requested reservation on the instrument '%s'",
@@ -642,7 +653,7 @@ class MqttActor(DeviceBaseActor):
                     "payload": message.payload,
                 },
             }
-            self._parse(msg_buf, None)
+            self._parse(msg_buf)
 
     def _connect(self, lwt_set: bool) -> dict:
         self.mqttc = MQTT.Client(self.mqtt_cid)

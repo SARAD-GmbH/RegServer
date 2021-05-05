@@ -3,7 +3,7 @@ Created on 2021-04-27
 
 @author: Yixiang
 """
-
+'''
 import os
 import socket
 import time
@@ -291,6 +291,7 @@ class MqttTestActor(Actor):
                 "APP": "RadonVision",
                 "HOST": socket.gethostname(),
                 "USER": "yixiang",
+                #"MODE": 1,
             },
         }
         self.send(self.target_actor, _msg)
@@ -445,3 +446,4 @@ def __test__():
 
 if __name__ == "__main__":
     __test__()
+'''
