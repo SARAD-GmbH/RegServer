@@ -76,8 +76,7 @@ class SaradMqttSubscriber(object):
             "SUBSCRIBE": RETURN_MESSAGES["SUBSCRIBE_FAILURE"]["ERROR_CODE"],
             "UNSUBSCRIBE": RETURN_MESSAGES["UNSUBSCRIBE_FAILURE"]["ERROR_CODE"],
         }
-        self.Is_Disconnected = None
-        self.Is_Connected = None
+        self.is_connected = False
         self.mid = {
             "SUBSCRIBE": None,
             "UNSUBSCRIBE": None,
@@ -117,7 +116,10 @@ class SaradMqttSubscriber(object):
             return
         if is_id not in self.connected_instruments.keys():
             logger.debug(
-                "[Add Instrument]: Unknown instrument '%s' controlled by an unknown instrument server '%s'",
+                (
+                    "[Add Instrument]: Unknown instrument '%s' "
+                    "controlled by unknown instrument server '%s'"
+                ),
                 instr_id,
                 is_id,
             )
@@ -264,7 +266,10 @@ class SaradMqttSubscriber(object):
             }
             self._subscribe(_msg)
             logger.info(
-                "[Add Host]: Add the information of the instrument server successfully, the ID of which is '%s'",
+                (
+                    "[Add Host]: Add the information of the instrument server successfully, "
+                    "the ID of which is '%s'"
+                ),
                 is_id,
             )
             return
@@ -303,7 +308,10 @@ class SaradMqttSubscriber(object):
         }
         self._unsubscribe(_msg)
         logger.info(
-            "[Remove Host]: To kill all the instrument controlled by the instrument server with ID '%s'",
+            (
+                "[Remove Host]: To kill all the instruments "
+                "controlled by the instrument server with ID '%s'"
+            ),
             is_id,
         )
         for _instr_id in self.connected_instruments[is_id].keys():
@@ -320,7 +328,10 @@ class SaradMqttSubscriber(object):
         if os.path.exists(link):
             os.unlink(link)
         logger.info(
-            "[Remove Host]: Remove the link to the information of the instrument server successfully, the ID of which is '%s'",
+            (
+                "[Remove Host]: Remove the link to the information of the instrument server "
+                "successfully, the ID of which is '%s'"
+            ),
             is_id,
         )
         return
@@ -347,7 +358,10 @@ class SaradMqttSubscriber(object):
                 logger.info("Linking %s to %s", link, filename)
                 os.link(filename, link)
             logger.info(
-                "[Update Host]: Remove the information of the instrument server successfully, the ID of which is '%s'",
+                (
+                    "[Update Host]: Remove the information of the instrument server "
+                    "successfully, the ID of which is '%s'"
+                ),
                 is_id,
             )
             return
@@ -393,7 +407,10 @@ class SaradMqttSubscriber(object):
         if self.mqtt_cid is None:
             self.mqtt_cid = "sarad_subscriber"
             logger.info(
-                "[Setup]: The client ID of the MQTT Subscriber is not given, then the default client ID '%s' would be used",
+                (
+                    "[Setup]: The client ID of the MQTT Subscriber is not given, "
+                    "then the default client ID '%s' would be used"
+                ),
                 self.mqtt_cid,
             )
             return False
@@ -616,25 +633,22 @@ class SaradMqttSubscriber(object):
                 topic_parts[1],
             )
 
-    def on_connect(
-        self, client, userdata, flags, result_code
-    ):  # pylint: disable=unused-argument
+    def on_connect(self, client, userdata, flags, result_code):
+        # pylint: disable=unused-argument
         """Will be carried out when the client connected to the MQTT self.mqtt_broker."""
         logger.info("on_connect")
         if result_code == 0:
             logger.info("[on_connect]: Connected with MQTT %s.", self.mqtt_broker)
-            self.Is_Connected = True
-            self.Is_Disconnected = False
+            self.is_connected = True
         else:
             logger.info(
                 "[on_connect]: Connection to MQTT self.mqtt_broker failed. result_code=%s",
                 result_code,
             )
-            self.Is_Connected = False
+            self.is_connected = False
 
-    def on_disconnect(
-        self, client, userdata, result_code
-    ):  # pylint: disable=unused-argument
+    def on_disconnect(self, client, userdata, result_code):
+        # pylint: disable=unused-argument
         """Will be carried out when the client disconnected
         from the MQTT self.mqtt_broker."""
         logger.warning("on_disconnect")
@@ -648,7 +662,7 @@ class SaradMqttSubscriber(object):
         else:
             self.ungr_disconn = 0
             logger.info("[on_disconnect]: Gracefully disconnected from MQTT-broker.")
-        self.Is_Disconnected = True
+        self.is_connected = False
 
     def on_subscribe(self, _client, _userdata, mid, _grant_qos):
         """Here should be a docstring."""
@@ -699,19 +713,17 @@ class SaradMqttSubscriber(object):
         self.mqttc.connect(self.mqtt_broker, port=self.port)
         self.mqttc.loop_start()
         while True:
-            if self.Is_Connected is not None:
-                if self.Is_Connected:
-                    _re = {
-                        "RETURN": "CONNECT",
-                        "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-                    }
-                    break
-                if not self.Is_Connected:
-                    _re = {
-                        "RETURN": "CONNECT",
-                        "ERROR_CODE": self.error_code_switcher["CONNECT"],
-                    }
-                    break
+            if self.is_connected:
+                _re = {
+                    "RETURN": "CONNECT",
+                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+                }
+                break
+            _re = {
+                "RETURN": "CONNECT",
+                "ERROR_CODE": self.error_code_switcher["CONNECT"],
+            }
+            break
         return _re
 
     def _disconnect(self):
@@ -726,7 +738,7 @@ class SaradMqttSubscriber(object):
 
     def _subscribe(self, msg: dict) -> dict:
         logger.info("Work state: subscribe")
-        if self.Is_Disconnected:
+        if not self.is_connected:
             self._connect(True)
             logger.warning(
                 "[Subscribe]: Failed to subscribe to the topic(s) because of disconnection"
@@ -787,11 +799,15 @@ class SaradMqttSubscriber(object):
                 "RETURN": "SUBSCRIBE",
                 "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
             }
+        return {
+            "RETURN": "SUBSCRIBE",
+            "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
+        }
 
     def _unsubscribe(self, msg: dict) -> dict:
         uns_topic = msg.get("PAR", None).get("INFO", None)
         logger.info(uns_topic)
-        if self.Is_Disconnected:
+        if not self.is_connected:
             self._connect(True)
             logger.warning(
                 "Failed to unsubscribe to the topic(s) because of disconnection"
