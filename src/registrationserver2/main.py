@@ -15,15 +15,15 @@ import os
 import signal
 import threading
 
-from thespian.actors import ActorSystem, ActorExitRequest  # type: ignore
+from thespian.actors import ActorSystem  # type: ignore
 
 import registrationserver2.logdef
 from registrationserver2 import FOLDER_AVAILABLE, logger
 from registrationserver2.config import config
+from registrationserver2.modules.mqtt.mqtt_subscriber import \
+    SaradMqttSubscriber
 from registrationserver2.modules.rfc2217.mdns_listener import MdnsListener
 from registrationserver2.restapi import RestApi
-from registrationserver2.modules.mqtt.mqtt_subscriber import SaradMqttSubscriber
-from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
 
 
 def main():
@@ -68,31 +68,8 @@ def main():
     )
     apithread.start()
     _ = MdnsListener(_type=config["TYPE"])
-    _subscriber = SaradMqttSubscriber()
-    """sarad_mqtt_subscriber = ActorSystem().createActor(SaradMqttSubscriber)
-    ask_return = ActorSystem().ask(
-        sarad_mqtt_subscriber,
-        {
-            "CMD": "SETUP",
-            "PAR": {
-                "client_id": "sarad-mqtt_subscriber-client",
-                "mqtt_broker": "127.0.0.1",
-                "port": 1883,
-            },
-        },
-    )
-    if ask_return is None:
-        logger.error("[test_actor/setup]: No reply from the subscriber")
-    elif ask_return["ERROR_CODE"] in (
-        RETURN_MESSAGES["OK"]["ERROR_CODE"],
-        RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-    ):
-        logger.info("SARAD MQTT Subscriber is setup correctly!")
-    else:
-        logger.warning("SARAD MQTT Subscriber is not setup! Kill it.")
-        logger.error(ask_return)
-        ActorSystem().tell(sarad_mqtt_subscriber, ActorExitRequest())"""
-    
+    _ = SaradMqttSubscriber()
+
     try:
         logger.info("Press ENTER to end!")
         input("Press ENTER to end\n")
