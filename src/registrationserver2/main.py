@@ -38,10 +38,10 @@ def main():
     def cleanup():  # pylint: disable=unused-variable
         """Make sure all sub threads are stopped, including the REST API"""
         logger.info("Cleaning up before closing.")
-        ActorSystem().shutdown()
-        logger.debug("Actor system shut down finished.")
         if mqtt_subscriber.is_connected:
             mqtt_subscriber.stop()
+        ActorSystem().shutdown()
+        logger.debug("Actor system shut down finished.")
         if os.path.exists(FOLDER_AVAILABLE):
             for root, _, files in os.walk(FOLDER_AVAILABLE):
                 for name in files:

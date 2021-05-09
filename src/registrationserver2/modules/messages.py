@@ -39,6 +39,26 @@ RETURN_MESSAGES = {
         "ERROR_MESSAGE": "Device occupied",
         "ERROR_CODE": 6,
     },
+    "SETUP": {
+        "ERROR_MESSAGE": "Error during actor setup",
+        "ERROR_CODE": 31,
+    },
+    "CONNECT": {
+        "ERROR_MESSAGE": "Error during setup of connection to MQTT broker",
+        "ERROR_CODE": 32,
+    },
+    "PUBLISH": {
+        "ERROR_MESSAGE": "Error during setup of connection to MQTT broker",
+        "ERROR_CODE": 33,
+    },
+    "SUBSCRIBE": {
+        "ERROR_MESSAGE": "Error when subscribing to an MQTT topic",
+        "ERROR_CODE": 34,
+    },
+    "UNSUBSCRIBE": {
+        "ERROR_MESSAGE": "Error when unsubscribing from an MQTT topic",
+        "ERROR_CODE": 34,
+    },
     "OK_SKIPPED": {
         "ERROR_MESSAGE": "OK, skipped",
         "ERROR_CODE": 10,
