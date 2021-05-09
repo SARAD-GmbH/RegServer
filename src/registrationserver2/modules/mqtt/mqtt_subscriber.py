@@ -712,19 +712,15 @@ class SaradMqttSubscriber(object):
             )
         self.mqttc.connect(self.mqtt_broker, port=self.port)
         self.mqttc.loop_start()
-        while True:
-            if self.is_connected:
-                _re = {
-                    "RETURN": "CONNECT",
-                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-                }
-                break
-            _re = {
+        if self.is_connected:
+            return {
                 "RETURN": "CONNECT",
-                "ERROR_CODE": self.error_code_switcher["CONNECT"],
+                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
             }
-            break
-        return _re
+        return {
+            "RETURN": "CONNECT",
+            "ERROR_CODE": self.error_code_switcher["CONNECT"],
+        }
 
     def _disconnect(self):
         if self.ungr_disconn == 2:

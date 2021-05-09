@@ -29,6 +29,7 @@ config: Dict[str, Any] = {
 
 mqtt_config: Dict[str, Any] = {
     "MQTT_CLIENT_ID": "SARAD_Subscriber",
-    "MQTT_BROKER": "127.0.0.1",
+    # "MQTT_BROKER": "127.0.0.1",
+    "MQTT_BROKER": "85.214.243.156",  # Mosquitto running on sarad.de
     "PORT": 1883,
 }
