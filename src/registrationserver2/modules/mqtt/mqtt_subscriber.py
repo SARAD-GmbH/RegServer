@@ -6,22 +6,18 @@ Created
 
 Author
     Yang, Yixiang
+    Michael Strey <strey@sarad.de>
 
 .. uml :: uml-mqtt_subscriber.puml
-
-Todo:
-    * too many lines of code
-
 """
 import json
 import os
-import traceback
 
 import paho.mqtt.client as MQTT  # type: ignore
 import registrationserver2
 from registrationserver2 import logger
 from registrationserver2.config import mqtt_config
-from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
+from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 
@@ -58,18 +54,10 @@ class SaradMqttSubscriber:
     """
 
     def __init__(self):
-        self.mqttc = None
-        self.mqtt_cid = mqtt_config["MQTT_CLIENT_ID"]  # MQTT client Id
-        self.mqtt_broker = mqtt_config["MQTT_BROKER"]
-        self.port = mqtt_config["PORT"]
+        self.mqtt_broker = mqtt_config.get("MQTT_BROKER", "127.0.0.1")
+        self.port = mqtt_config.get("PORT", 1883)
         self.connected_instruments = {}
         self.ungr_disconn = 2
-        self.error_code_switcher = {
-            "SETUP": RETURN_MESSAGES["SETUP_FAILURE"]["ERROR_CODE"],
-            "CONNECT": RETURN_MESSAGES["CONNECTION_FAILURE"]["ERROR_CODE"],
-            "SUBSCRIBE": RETURN_MESSAGES["SUBSCRIBE_FAILURE"]["ERROR_CODE"],
-            "UNSUBSCRIBE": RETURN_MESSAGES["UNSUBSCRIBE_FAILURE"]["ERROR_CODE"],
-        }
         self.is_connected = False
         self.mid = {
             "SUBSCRIBE": None,
@@ -93,10 +81,22 @@ class SaradMqttSubscriber:
             os.makedirs(self.__folder2_available)
         logger.debug("For instruments, output to: %s", self.__folder_history)
         logger.debug("For hosts, output to: %s", self.__folder2_history)
-        if self._setup():
-            logger.info("SARAD MQTT Subscriber is started correctly")
-        else:
-            logger.debug("Something wrong with setup of subscriber")
+        mqtt_cid = mqtt_config.get("MQTT_CLIENT_ID", "sarad_subscriber")
+        logger.info(
+            "[Setup]: Connect to MQTT broker at %s, port %d, with client %s",
+            self.mqtt_broker,
+            self.port,
+            mqtt_cid,
+        )
+        self.mqttc = MQTT.Client(mqtt_cid)
+        self.mqttc.reinitialise()
+        self.mqttc.on_connect = self.on_connect
+        self.mqttc.on_disconnect = self.on_disconnect
+        self.mqttc.on_message = self.on_message
+        self.mqttc.on_subscribe = self.on_subscribe
+        self.mqttc.on_unsubscribe = self.on_unsubscribe
+        self.mqttc.connect(self.mqtt_broker, port=self.port)
+        self.mqttc.loop_start()
 
     def _add_instr(self, instr: dict) -> None:
         is_id = instr.get("is_id", None)
@@ -184,7 +184,7 @@ class SaradMqttSubscriber:
             )
             return
         if (
-            is_id not in self.connected_instruments.keys()
+            is_id not in self.connected_instruments
             or instr_id not in self.connected_instruments[is_id]
         ):
             logger.debug(RETURN_MESSAGES["INSTRUMENT_UNKNOWN"])
@@ -206,7 +206,7 @@ class SaradMqttSubscriber:
             )
             return
         if (
-            is_id not in self.connected_instruments.keys()
+            is_id not in self.connected_instruments
             or instr_id not in self.connected_instruments[is_id]
         ):
             logger.warning(
@@ -258,27 +258,14 @@ class SaradMqttSubscriber:
                 is_id,
             )
             return
-        except BaseException as error:  # pylint: disable=W0703
-            logger.error(
-                "[Add Host]:\t %s\t%s\t%s\t%s",
-                type(error),
-                error,
-                vars(error) if isinstance(error, dict) else "-",
-                traceback.format_exc(),
-            )
-            return
-        except:  # pylint: disable=W0702
-            logger.error(
-                "[Add Host]: Could not write properties of instrument server with ID: %s",
-                is_id,
-            )
-            return
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("Fatal error")
 
     def _rm_host(self, msg: dict) -> None:
         try:
             is_id = msg["PAR"]["is_id"]
-        except Exception as e:
-            logger.error(e)
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("Fatal error")
             return
         logger.info(
             "[Remove Host]: Remove a host with Instrument Server ID '%s'", is_id
@@ -291,7 +278,7 @@ class SaradMqttSubscriber:
             ),
             is_id,
         )
-        for _instr_id in self.connected_instruments[is_id].keys():
+        for _instr_id in self.connected_instruments[is_id]:
             rm_msg = {
                 "PAR": {
                     "is_id": is_id,
@@ -342,20 +329,8 @@ class SaradMqttSubscriber:
                 is_id,
             )
             return
-        except BaseException as error:  # pylint: disable=W0703
-            logger.error(
-                "[Update Host]:\t %s\t%s\t%s\t%s",
-                type(error),
-                error,
-                vars(error) if isinstance(error, dict) else "-",
-                traceback.format_exc(),
-            )
-            return
-        except:  # pylint: disable=W0702
-            logger.error(
-                "[Update Host]: Could not write properties of instrument server with ID: %s",
-                is_id,
-            )
+        except Exception:  # pylint: disable=W0703
+            logger.Exception("[Update Host]: Fatal error")
             return
 
     def stop(self):
@@ -381,25 +356,6 @@ class SaradMqttSubscriber:
                 )
         self.connected_instruments = None
         self._disconnect()
-
-    def _setup(self):
-        if self.mqtt_cid is None:
-            self.mqtt_cid = "sarad_subscriber"
-            logger.info(
-                (
-                    "[Setup]: The client ID of the MQTT Subscriber is not given, "
-                    "then the default client ID '%s' would be used"
-                ),
-                self.mqtt_cid,
-            )
-            return
-        if self.mqtt_broker is None:
-            self.mqtt_broker = "127.0.0.1"
-            logger.info("[Setup]: Using the local host: 127.0.0.1")
-        if self.port is None:
-            self.port = 1883
-            logger.info("[Setup]: Using the ddefault port: 1883")
-        self._connect(False)
 
     def _parse(self, msg) -> None:
         logger.info("PARSE")
@@ -565,15 +521,15 @@ class SaradMqttSubscriber:
         """Will be carried out when the client connected to the MQTT self.mqtt_broker."""
         logger.info("on_connect")
         if result_code == 0:
-            logger.info("[on_connect]: Connected with MQTT %s.", self.mqtt_broker)
             self.is_connected = True
+            logger.info("[on_connect]: Connected with MQTT broker.")
             self._subscribe("+/meta", 0)
         else:
+            self.is_connected = False
             logger.info(
                 "[on_connect]: Connection to MQTT self.mqtt_broker failed. result_code=%s",
                 result_code,
             )
-            self.is_connected = False
 
     def on_disconnect(self, client, userdata, result_code):
         # pylint: disable=unused-argument
@@ -586,7 +542,6 @@ class SaradMqttSubscriber:
                 "[on_disconnect]: Disconnection from MQTT-broker ungracefully. result_code=%s",
                 result_code,
             )
-            self._connect(False)
         else:
             self.ungr_disconn = 0
             logger.info("[on_disconnect]: Gracefully disconnected from MQTT-broker.")
@@ -624,21 +579,6 @@ class SaradMqttSubscriber:
             }
             self._parse(msg_buf)
 
-    def _connect(self, lwt_set: bool):
-        self.mqttc = MQTT.Client(self.mqtt_cid)
-        self.mqttc.reinitialise()
-        self.mqttc.on_connect = self.on_connect
-        self.mqttc.on_disconnect = self.on_disconnect
-        self.mqttc.on_message = self.on_message
-        self.mqttc.on_subscribe = self.on_subscribe
-        self.mqttc.on_unsubscribe = self.on_unsubscribe
-        logger.info("[Connect]: Try to connect to the mqtt broker")
-        if lwt_set:
-            logger.info("[Connect]: Set last will")
-            self.mqttc.will_set(None, payload=None, qos=0, retain=True)
-        self.mqttc.connect(self.mqtt_broker, port=self.port)
-        self.mqttc.loop_start()
-
     def _disconnect(self):
         if self.ungr_disconn == 2:
             logger.info("[Disconnect]: To disconnect from the MQTT-broker!")
@@ -658,7 +598,7 @@ class SaradMqttSubscriber:
             )
             return {
                 "RETURN": "SUBSCRIBE",
-                "ERROR_CODE": self.error_code_switcher["SUBSCRIBE"],
+                "ERROR_CODE": RETURN_MESSAGES["SUBSCRIBE"]["ERROR_CODE"],
             }
         return {
             "RETURN": "SUBSCRIBE",
@@ -671,7 +611,7 @@ class SaradMqttSubscriber:
             logger.warning("Unsubscribe failed; result code is: %s", result_code)
             return {
                 "RETURN": "UNSUBSCRIBE",
-                "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"],
+                "ERROR_CODE": self.RETURN_MESSAGES["UNSUBSCRIBE"]["ERROR_CODE"],
             }
         return {
             "RETURN": "UNSUBSCRIBE",
