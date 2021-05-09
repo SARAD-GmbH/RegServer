@@ -40,6 +40,8 @@ def main():
         logger.info("Cleaning up before closing.")
         ActorSystem().shutdown()
         logger.debug("Actor system shut down finished.")
+        if mqtt_subscriber.is_connected:
+            mqtt_subscriber.stop()
         if os.path.exists(FOLDER_AVAILABLE):
             for root, _, files in os.walk(FOLDER_AVAILABLE):
                 for name in files:
@@ -68,7 +70,7 @@ def main():
     )
     apithread.start()
     _ = MdnsListener(_type=config["TYPE"])
-    _ = SaradMqttSubscriber()
+    mqtt_subscriber = SaradMqttSubscriber()
 
     try:
         logger.info("Press ENTER to end!")

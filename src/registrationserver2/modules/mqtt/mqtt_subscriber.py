@@ -15,7 +15,6 @@ Todo:
 """
 import json
 import os
-import time
 import traceback
 
 import paho.mqtt.client as MQTT  # type: ignore
@@ -29,11 +28,8 @@ from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 logger.info("%s -> %s", __package__, __file__)
 
 
-class SaradMqttSubscriber(object):
+class SaradMqttSubscriber:
     """
-    ``connected_instruments`` is mainly used for distinguishing
-    ``__add_instr__()`` and ``__update_instr__()``.
-
     Basic flows:
 
     #. when an IS MQTT 'IS1_ID' is connected -> _add_host, connected_instruments[IS1_ID] = []
@@ -41,7 +37,8 @@ class SaradMqttSubscriber(object):
     #. disconnection and the ID is a key -> _rm_host, del connected_instruments[IS1_ID]
     #. when an instrument 'Instr_ID11' is connected & the ID of its IS is a key -> _add_instr,
        connected_istruments[IS1_ID].append(Instr_ID11)
-    #. when the ID of this instrument exists in the list mapping the ID of its IS MQTT -> _update_instr
+    #. when the ID of this instrument exists in the list,
+       mapping the ID of its IS MQTT -> _update_instr
     #. disconnection and the instrument ID exists in the list -> _rm_instr
 
     Struture of connected_instruments::
@@ -65,9 +62,6 @@ class SaradMqttSubscriber(object):
         self.mqtt_cid = mqtt_config["MQTT_CLIENT_ID"]  # MQTT client Id
         self.mqtt_broker = mqtt_config["MQTT_BROKER"]
         self.port = mqtt_config["PORT"]
-        self.lwt_payload = None
-        self.lwt_topic = None
-        self.lwt_qos = None
         self.connected_instruments = {}
         self.ungr_disconn = 2
         self.error_code_switcher = {
@@ -104,14 +98,15 @@ class SaradMqttSubscriber(object):
         else:
             logger.debug("Something wrong with setup of subscriber")
 
-    def _add_instr(self, msg: dict) -> None:
-        is_id = msg.get("PAR", None).get("is_id", None)
-        instr_id = msg.get("PAR", None).get("instr_id", None)
-        data = json.dumps(msg.get("PAR", None).get("payload"))
-        if (is_id is None) or (instr_id is None) or (data is None):
+    def _add_instr(self, instr: dict) -> None:
+        is_id = instr.get("is_id", None)
+        instr_id = instr.get("instr_id", None)
+        payload = instr.get("payload")
+        logger.debug("[Add Instrument]: %s", payload)
+        if (is_id is None) or (instr_id is None) or (payload is None):
             logger.debug(
                 "[Add Instrument]: one or both of the Instrument Server ID and Instrument ID"
-                " are none or the meta message is none"
+                " are none or the meta message is none."
             )
             return
         if is_id not in self.connected_instruments.keys():
@@ -124,29 +119,27 @@ class SaradMqttSubscriber(object):
                 is_id,
             )
             return
-        family_ = msg.get("PAR", None).get("payload", None).get("Family", None)
-        type_ = msg.get("PAR", None).get("payload", None).get("Type", None)
-        if family_ is None or type_ is None:
-            logger.debug(
-                "[Add Instrument]: One or both of the family and type of the instrument are missed"
-            )
+        family = payload.get("Family", None)
+        if family is None:
+            logger.debug("[Add Instrument]: Family of the instrument missed")
             return
-        if family_ == 1:
+        if family == 1:
             sarad_type = "sarad-1688"
-        elif family_ == 2:
+        elif family == 2:
             sarad_type = "sarad-1688"
-        elif family_ == 5:
+        elif family == 5:
             sarad_type = "sarad-dacm"
         else:
             logger.debug(
                 "[Add Instrument]: Found Unknown family (index: %s) of instrument",
-                family_,
+                family,
             )
             return
-        name_ = instr_id + "." + sarad_type + ".mqtt"
-        self.connected_instruments[is_id][instr_id] = name_
+        ac_name = instr_id + "." + sarad_type + ".mqtt"
+        self.connected_instruments[is_id][instr_id] = ac_name
         logger.info("[Add Instrument]: Instrument ID - '%s'", instr_id)
-        this_actor = ActorSystem().createActor(MqttActor, globalName=name_)
+        this_actor = ActorSystem().createActor(MqttActor, globalName=ac_name)
+        data = json.dumps(payload)
         setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": data})
         logger.info(setup_return)
         if not setup_return["ERROR_CODE"] in (
@@ -256,15 +249,7 @@ class SaradMqttSubscriber(object):
                 logger.info("Linking %s to %s", link, filename)
                 os.link(filename, link)
             self.connected_instruments[is_id] = {}
-            _msg = {
-                "CMD": "SUBSCRIBE",
-                "PAR": {
-                    "INFO": [
-                        (is_id + "/+/meta", 0),
-                    ],
-                },
-            }
-            self._subscribe(_msg)
+            self._subscribe(is_id + "/+/meta", 0)
             logger.info(
                 (
                     "[Add Host]: Add the information of the instrument server successfully, "
@@ -298,15 +283,7 @@ class SaradMqttSubscriber(object):
         logger.info(
             "[Remove Host]: Remove a host with Instrument Server ID '%s'", is_id
         )
-        _msg = {
-            "CMD": "UNSUBSCRIBE",
-            "PAR": {
-                "INFO": [
-                    is_id + "/+/meta",
-                ],
-            },
-        }
-        self._unsubscribe(_msg)
+        self._unsubscribe(is_id + "/+/meta")
         logger.info(
             (
                 "[Remove Host]: To kill all the instruments "
@@ -381,7 +358,9 @@ class SaradMqttSubscriber(object):
             )
             return
 
-    def _stop(self):
+    def stop(self):
+        """Has to be performed when closing the main module
+        in order to clean up the open connections to the MQTT broker."""
         logger.info(
             "[Disconnect]: list of connected instruments -> %s",
             self.connected_instruments,
@@ -403,7 +382,7 @@ class SaradMqttSubscriber(object):
         self.connected_instruments = None
         self._disconnect()
 
-    def _setup(self) -> bool:
+    def _setup(self):
         if self.mqtt_cid is None:
             self.mqtt_cid = "sarad_subscriber"
             logger.info(
@@ -413,64 +392,14 @@ class SaradMqttSubscriber(object):
                 ),
                 self.mqtt_cid,
             )
-            return False
+            return
         if self.mqtt_broker is None:
             self.mqtt_broker = "127.0.0.1"
             logger.info("[Setup]: Using the local host: 127.0.0.1")
         if self.port is None:
             self.port = 1883
             logger.info("[Setup]: Using the ddefault port: 1883")
-        _re = self._connect(False)
-        if _re["ERROR_CODE"] not in (
-            RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-        ):
-            logger.debug(
-                "[Setup]: Failed to setup the client actor because of failed connection. "
-            )
-            return False
-        logger.info("[Setup]: The client '%s': %s", self.mqtt_cid, _re)
-        time.sleep(0.01)
-        _msg = {
-            "CMD": "UNSUBSCRIBE",
-            "PAR": {
-                "INFO": [
-                    "+/meta",
-                    # "+/+/meta",
-                ],
-            },
-        }
-        _re = self._unsubscribe(_msg)
-        logger.info(_re)
-        if not _re["ERROR_CODE"] in (
-            RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-        ):
-            logger.debug(
-                "[Setup]: Failed to setup the client actor because of failed unsubscription."
-            )
-            return False
-
-        _msg = {
-            "CMD": "SUBSCRIBE",
-            "PAR": {
-                "INFO": [
-                    ("+/meta", 0),
-                ],
-            },
-        }
-        _re = self._subscribe(_msg)
-        if not _re["ERROR_CODE"] in (
-            RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-        ):
-            logger.debug(
-                "[Setup]: Failed to setup the client actor because of failed subscription."
-            )
-            return False
-
-        logger.info("[Setup]: Correctly setup the subscriber")
-        return True
+        self._connect(False)
 
     def _parse(self, msg) -> None:
         logger.info("PARSE")
@@ -569,19 +498,17 @@ class SaradMqttSubscriber(object):
                             "[Parse]: To write the properties of this instrument (%s) into file system",
                             topic_parts[1],
                         )
-                        _msg = {
-                            "PAR": {
-                                "is_id": topic_parts[0],
-                                "instr_id": topic_parts[1],
-                                "payload": payload,
-                            },
+                        instr = {
+                            "is_id": topic_parts[0],
+                            "instr_id": topic_parts[1],
+                            "payload": payload,
                         }
                         if not (
                             topic_parts[1] in self.connected_instruments[topic_parts[0]]
                         ):
-                            self._add_instr(_msg)
+                            self._add_instr(instr)
                         else:
-                            self._update_instr(_msg)
+                            self._update_instr(instr)
                     else:
                         logger.warning(
                             "[Parse]: Received a meta message of an instrument '%s' that is controlled by an instrument server '%s' not added before",
@@ -640,6 +567,7 @@ class SaradMqttSubscriber(object):
         if result_code == 0:
             logger.info("[on_connect]: Connected with MQTT %s.", self.mqtt_broker)
             self.is_connected = True
+            self._subscribe("+/meta", 0)
         else:
             logger.info(
                 "[on_connect]: Connection to MQTT self.mqtt_broker failed. result_code=%s",
@@ -696,7 +624,7 @@ class SaradMqttSubscriber(object):
             }
             self._parse(msg_buf)
 
-    def _connect(self, lwt_set: bool) -> dict:
+    def _connect(self, lwt_set: bool):
         self.mqttc = MQTT.Client(self.mqtt_cid)
         self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
@@ -706,21 +634,10 @@ class SaradMqttSubscriber(object):
         self.mqttc.on_unsubscribe = self.on_unsubscribe
         logger.info("[Connect]: Try to connect to the mqtt broker")
         if lwt_set:
-            logger.info("[Connect]: Set will")
-            self.mqttc.will_set(
-                self.lwt_topic, payload=self.lwt_payload, qos=self.lwt_qos, retain=True
-            )
+            logger.info("[Connect]: Set last will")
+            self.mqttc.will_set(None, payload=None, qos=0, retain=True)
         self.mqttc.connect(self.mqtt_broker, port=self.port)
         self.mqttc.loop_start()
-        if self.is_connected:
-            return {
-                "RETURN": "CONNECT",
-                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-            }
-        return {
-            "RETURN": "CONNECT",
-            "ERROR_CODE": self.error_code_switcher["CONNECT"],
-        }
 
     def _disconnect(self):
         if self.ungr_disconn == 2:
@@ -732,101 +649,26 @@ class SaradMqttSubscriber(object):
         logger.info("[Disconnect]: To stop the MQTT thread!")
         self.mqttc.loop_stop()
 
-    def _subscribe(self, msg: dict) -> dict:
+    def _subscribe(self, topic: str, qos: int) -> dict:
         logger.info("Work state: subscribe")
-        if not self.is_connected:
-            self._connect(True)
+        result_code, self.mid["SUBSCRIBE"] = self.mqttc.subscribe(topic, qos)
+        if result_code != MQTT.MQTT_ERR_SUCCESS:
             logger.warning(
-                "[Subscribe]: Failed to subscribe to the topic(s) because of disconnection"
+                "[Subscribe]: Subscribe failed; result code is: %s", result_code
             )
             return {
                 "RETURN": "SUBSCRIBE",
                 "ERROR_CODE": self.error_code_switcher["SUBSCRIBE"],
             }
-        sub_info = msg.get("PAR", None).get("INFO", None)
-        logger.info(sub_info)
-        if sub_info is None:
-            logger.warning("[Subscribe]: the INFO for subscribe is none")
-            return {
-                "RETURN": "SUBSCRIBE",
-                "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
-            }
-        if isinstance(sub_info, list):
-            for ele in sub_info:
-                if not isinstance(ele, tuple):
-                    logger.warning(
-                        "[Subscribe]: the INFO for subscribe is a list "
-                        "while it contains a non-tuple element"
-                    )
-                    return {
-                        "RETURN": "SUBSCRIBE",
-                        "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"][
-                            "ERROR_CODE"
-                        ],
-                    }
-                if len(ele) != 2:
-                    logger.warning(
-                        "[Subscribe]: the length of a tuple element is not equal to 2"
-                    )
-                    return {
-                        "RETURN": "SUBSCRIBE",
-                        "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"][
-                            "ERROR_CODE"
-                        ],
-                    }
-                if len(ele) == 2 and ele[0] is None:
-                    logger.warning(
-                        "[Subscribe]: the first element of one tuple namely the 'topic' is None"
-                    )
-                    return {
-                        "RETURN": "SUBSCRIBE",
-                        "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"][
-                            "ERROR_CODE"
-                        ],
-                    }
-            rc, self.mid["SUBSCRIBE"] = self.mqttc.subscribe(sub_info)
-            if rc != MQTT.MQTT_ERR_SUCCESS:
-                logger.warning("[Subscribe]: Subscribe failed; result code is: %s", rc)
-                return {
-                    "RETURN": "SUBSCRIBE",
-                    "ERROR_CODE": self.error_code_switcher["SUBSCRIBE"],
-                }
-            return {
-                "RETURN": "SUBSCRIBE",
-                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-            }
         return {
             "RETURN": "SUBSCRIBE",
-            "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
+            "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
         }
 
-    def _unsubscribe(self, msg: dict) -> dict:
-        uns_topic = msg.get("PAR", None).get("INFO", None)
-        logger.info(uns_topic)
-        if not self.is_connected:
-            self._connect(True)
-            logger.warning(
-                "Failed to unsubscribe to the topic(s) because of disconnection"
-            )
-            return {
-                "RETURN": "UNSUBSCRIBE",
-                "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"],
-            }
-        if (
-            uns_topic is None
-            and not isinstance(uns_topic, list)
-            and not isinstance(uns_topic, str)
-        ):
-            logger.warning(
-                "[Unsubscribe]: The topic is none or it is neither a string nor a list "
-            )
-            return {
-                "RETURN": "UNSUBSCRIBE",
-                "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"],
-            }
-        rc, self.mid["UNSUBSCRIBE"] = self.mqttc.unsubscribe(uns_topic)
-        if rc != MQTT.MQTT_ERR_SUCCESS:
-            logger.warning("Unsubscribe failed; result code is: %s", rc)
+    def _unsubscribe(self, topic: str) -> dict:
+        result_code, self.mid["UNSUBSCRIBE"] = self.mqttc.unsubscribe(topic)
+        if result_code != MQTT.MQTT_ERR_SUCCESS:
+            logger.warning("Unsubscribe failed; result code is: %s", result_code)
             return {
                 "RETURN": "UNSUBSCRIBE",
                 "ERROR_CODE": self.error_code_switcher["UNSUBSCRIBE"],
