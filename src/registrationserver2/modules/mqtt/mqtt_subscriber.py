@@ -14,8 +14,8 @@ import json
 import os
 
 import paho.mqtt.client as MQTT  # type: ignore
-import registrationserver2
-from registrationserver2 import logger
+from registrationserver2 import (HOSTS_FOLDER_AVAILABLE, HOSTS_FOLDER_HISTORY,
+                                 logger)
 from registrationserver2.config import mqtt_config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
@@ -63,24 +63,6 @@ class SaradMqttSubscriber:
             "SUBSCRIBE": None,
             "UNSUBSCRIBE": None,
         }  # store the current message ID to check
-        self.__folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
-        self.__folder_available = f"{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}"
-        self.__folder2_history = (
-            f"{registrationserver2.HOSTS_FOLDER_HISTORY}{os.path.sep}"
-        )
-        self.__folder2_available = (
-            f"{registrationserver2.HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
-        )
-        if not os.path.exists(self.__folder_history):
-            os.makedirs(self.__folder_history)
-        if not os.path.exists(self.__folder_available):
-            os.makedirs(self.__folder_available)
-        if not os.path.exists(self.__folder2_history):
-            os.makedirs(self.__folder2_history)
-        if not os.path.exists(self.__folder2_available):
-            os.makedirs(self.__folder2_available)
-        logger.debug("For instruments, output to: %s", self.__folder_history)
-        logger.debug("For hosts, output to: %s", self.__folder2_history)
         mqtt_cid = mqtt_config.get("MQTT_CLIENT_ID", "sarad_subscriber")
         logger.info(
             "[Setup]: Connect to MQTT broker at %s, port %d, with client %s",
@@ -240,8 +222,14 @@ class SaradMqttSubscriber:
             "[Add Host]: Found a new connected host with Instrument Server ID '%s'",
             is_id,
         )
-        filename = fr"{self.__folder2_history}{is_id}"
-        link = fr"{self.__folder2_available}{is_id}"
+        folder_hosts_history = f"{HOSTS_FOLDER_HISTORY}{os.path.sep}"
+        folder_hosts_available = f"{HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
+        if not os.path.exists(folder_hosts_history):
+            os.makedirs(folder_hosts_history)
+        if not os.path.exists(folder_hosts_available):
+            os.makedirs(folder_hosts_available)
+        filename = fr"{folder_hosts_history}{is_id}"
+        link = fr"{folder_hosts_available}{is_id}"
         try:
             with open(filename, "w+") as file_stream:
                 file_stream.write(json.dumps(data))
@@ -288,7 +276,8 @@ class SaradMqttSubscriber:
             logger.info("[Remove Host]: To kill the instrument with ID '%s'", _instr_id)
             self._rm_instr(rm_msg)
         del self.connected_instruments[is_id]
-        link = fr"{self.__folder2_available}{is_id}"
+        folder_hosts_available = f"{HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
+        link = fr"{folder_hosts_available}{is_id}"
         if os.path.exists(link):
             os.unlink(link)
         logger.info(
@@ -313,8 +302,10 @@ class SaradMqttSubscriber:
             "[Update Host]: Update a already connected host with Instrument Server ID '%s'",
             is_id,
         )
-        filename = fr"{self.__folder2_history}{is_id}"
-        link = fr"{self.__folder2_available}{is_id}"
+        folder_hosts_history = f"{HOSTS_FOLDER_HISTORY}{os.path.sep}"
+        folder_hosts_available = f"{HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
+        filename = fr"{folder_hosts_history}{is_id}"
+        link = fr"{folder_hosts_available}{is_id}"
         try:
             with open(filename, "w+") as file_stream:
                 file_stream.write(json.dumps(data))
@@ -340,20 +331,12 @@ class SaradMqttSubscriber:
             "[Disconnect]: list of connected instruments -> %s",
             self.connected_instruments,
         )
-        avail_host = os.listdir(self.__folder2_available)
-        if avail_host != []:
-            logger.info("[Kill] There are some available hosts: %s", avail_host)
-            for _is_id in avail_host:
-                logger.info(
-                    "[Kill] To remove the instrument server with ID '%s'", _is_id
-                )
-                self._rm_host(
-                    {
-                        "PAR": {
-                            "is_id": _is_id,
-                        },
-                    }
-                )
+        if os.path.exists(HOSTS_FOLDER_AVAILABLE):
+            for root, _, files in os.walk(HOSTS_FOLDER_AVAILABLE):
+                for name in files:
+                    link = os.path.join(root, name)
+                    logger.debug("[Del]:\tRemoved: %s", name)
+                    os.unlink(link)
         self.connected_instruments = None
         self._disconnect()
 
@@ -385,7 +368,8 @@ class SaradMqttSubscriber:
                     )
                     return
                 if payload.get("State", None) in (2, 1):
-                    filename_ = fr"{self.__folder2_history}{topic_parts[0]}"
+                    folder_hosts_history = f"{HOSTS_FOLDER_HISTORY}{os.path.sep}"
+                    filename_ = fr"{folder_hosts_history}{topic_parts[0]}"
                     logger.info(
                         "[Parse]: To write the properties of this cluster (%s) into file system",
                         topic_parts[0],
