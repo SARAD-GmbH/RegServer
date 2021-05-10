@@ -16,8 +16,6 @@ from overrides import overrides  # type: ignore
 from registrationserver2 import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
-from thespian.actors import ActorSystem  # type: ignore
-from thespian.actors import ActorExitRequest, ChildActorExited, WakeupMessage
 
 logger.info("%s -> %s", __package__, __file__)
 
@@ -74,72 +72,6 @@ class MqttActor(DeviceBaseActor):
             "SUBSCRIBE": None,
             "UNSUBSCRIBE": None,
         }  # store the current message ID to check
-
-    @overrides
-    def receiveMessage(self, msg, sender):
-        """
-        Handles received Actor messages / verification of the message format
-        """
-        logger.debug("Msg: %s, Sender: %s", msg, sender)
-        if isinstance(msg, dict):
-            return_key = msg.get("RETURN", None)
-            cmd_key = msg.get("CMD", None)
-            if ((return_key is None) and (cmd_key is None)) or (
-                (return_key is not None) and (cmd_key is not None)
-            ):
-                logger.critical(
-                    "Received %s from %s. This should never happen.", msg, sender
-                )
-                logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_MESSAGE"])
-                return
-            if cmd_key is not None:
-                cmd_function = self.ACCEPTED_COMMANDS.get(cmd_key, None)
-                if cmd_function is None:
-                    logger.critical(
-                        "Received %s from %s. This should never happen.", msg, sender
-                    )
-                    logger.critical(
-                        RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"]["ERROR_MESSAGE"]
-                    )
-                    return
-                if getattr(self, cmd_function, None) is None:
-                    logger.critical(
-                        "Received %s from %s. This should never happen.", msg, sender
-                    )
-                    logger.critical(
-                        RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"]["ERROR_MESSAGE"]
-                    )
-                    return
-                getattr(self, cmd_function)(msg, sender)
-            elif return_key is not None:
-                return_function = self.ACCEPTED_RETURNS.get(return_key, None)
-                if return_function is None:
-                    logger.debug("Received return %s from %s.", msg, sender)
-                    return
-                if getattr(self, return_function, None) is None:
-                    logger.debug("Received return %s from %s.", msg, sender)
-                    return
-                getattr(self, return_function)(msg, sender)
-        else:
-            if isinstance(msg, ActorExitRequest):
-                self._kill(msg, sender)
-                return
-            if isinstance(msg, WakeupMessage):
-                if msg.payload == "Parse":
-                    self._parse(msg)
-                # elif msg.payload == "Reserve":
-                #    self._reserve_at_is(None, None, None)
-                else:
-                    logger.debug("Received an unknown wakeup message")
-                return
-            if isinstance(msg, ChildActorExited):
-                logger.info("The child actor is killed")
-                return
-            logger.critical(
-                "Received %s from %s. This should never happen.", msg, sender
-            )
-            logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
-            return
 
     def _send(self, msg: dict, sender) -> None:
         if msg is None:
@@ -264,7 +196,7 @@ class MqttActor(DeviceBaseActor):
     def _free(self, msg, sender) -> None:
         logger.info("Free-Request")
         if msg is None:
-            self.send(sender, RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT"))
+            logger.critical("Actor message is None. This schould never happen.")
             return
         _msg = {
             "CMD": "PUBLISH",
@@ -320,9 +252,7 @@ class MqttActor(DeviceBaseActor):
                 sender,
                 {
                     "RETURN": "PREPARE",
-                    "ERROR_CODE": RETURN_MESSAGES.get("ILLEGAL_WRONGFORMAT", None).get(
-                        "ERROR_CODE", None
-                    ),
+                    "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
                 },
             )
             return
@@ -429,8 +359,10 @@ class MqttActor(DeviceBaseActor):
                         "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
                         "RESULT": {"DATA": self.reply_to_wait_for["SEND"]["Reply"]},
                     }
-                    # self.send(self.reply_to_wait_for["SEND"]["Sender"], _re)
-                    ActorSystem().tell(self.reply_to_wait_for["SEND"]["Sender"], _re)
+                    self.send(
+                        self.my_redirector,
+                        _re,
+                    )
                     return
                 logger.warning(
                     (

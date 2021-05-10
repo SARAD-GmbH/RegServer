@@ -101,8 +101,9 @@ class SaradMqttSubscriber:
                 is_id,
             )
             return
-        family = payload.get("Family", None)
-        if family is None:
+        try:
+            family = payload["Identification"]["Family"]
+        except IndexError:
             logger.debug("[Add Instrument]: Family of the instrument missed")
             return
         if family == 1:
