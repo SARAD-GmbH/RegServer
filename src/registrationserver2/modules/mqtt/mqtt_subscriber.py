@@ -16,7 +16,7 @@ import os
 import paho.mqtt.client as MQTT  # type: ignore
 from registrationserver2 import (HOSTS_FOLDER_AVAILABLE, HOSTS_FOLDER_HISTORY,
                                  logger)
-from registrationserver2.config import mqtt_config, config
+from registrationserver2.config import mqtt_config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
@@ -52,6 +52,42 @@ class SaradMqttSubscriber:
             ...
         }
     """
+
+    @staticmethod
+    def _update_host(msg: dict) -> None:
+        is_id = msg.get("PAR", None).get("is_id", None)
+        data = msg.get("PAR", None).get("payload")
+        if (is_id is None) or (data is None):
+            logger.warning(
+                "[Update Host]: one or both of the Instrument Server ID "
+                "and the meta message are none"
+            )
+            return
+        logger.info(
+            "[Update Host]: Update a already connected host with Instrument Server ID '%s'",
+            is_id,
+        )
+        folder_hosts_history = f"{HOSTS_FOLDER_HISTORY}{os.path.sep}"
+        folder_hosts_available = f"{HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
+        filename = fr"{folder_hosts_history}{is_id}"
+        link = fr"{folder_hosts_available}{is_id}"
+        try:
+            with open(filename, "w+") as file_stream:
+                file_stream.write(json.dumps(data))
+            if not os.path.exists(link):
+                logger.info("Linking %s to %s", link, filename)
+                os.link(filename, link)
+            logger.info(
+                (
+                    "[Update Host]: Remove the information of the instrument server "
+                    "successfully, the ID of which is '%s'"
+                ),
+                is_id,
+            )
+            return
+        except Exception:  # pylint: disable=broad-except
+            logger.Exception("[Update Host]: Fatal error")
+            return
 
     def __init__(self):
         self.mqtt_broker = mqtt_config.get("MQTT_BROKER", "127.0.0.1")
@@ -120,7 +156,11 @@ class SaradMqttSubscriber:
             return
         ac_name = instr_id + "." + sarad_type + ".mqtt"
         self.connected_instruments[is_id][instr_id] = ac_name
-        logger.info("[Add Instrument]: Instrument ID - '%s', actorname - '%s'", instr_id, ac_name)
+        logger.info(
+            "[Add Instrument]: Instrument ID - '%s', actorname - '%s'",
+            instr_id,
+            ac_name,
+        )
         this_actor = ActorSystem().createActor(MqttActor, globalName=ac_name)
         data = json.dumps(payload)
         setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": data})
@@ -289,41 +329,6 @@ class SaradMqttSubscriber:
             is_id,
         )
         return
-
-    def _update_host(self, msg: dict) -> None:
-        is_id = msg.get("PAR", None).get("is_id", None)
-        data = msg.get("PAR", None).get("payload")
-        if (is_id is None) or (data is None):
-            logger.warning(
-                "[Update Host]: one or both of the Instrument Server ID "
-                "and the meta message are none"
-            )
-            return
-        logger.info(
-            "[Update Host]: Update a already connected host with Instrument Server ID '%s'",
-            is_id,
-        )
-        folder_hosts_history = f"{HOSTS_FOLDER_HISTORY}{os.path.sep}"
-        folder_hosts_available = f"{HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
-        filename = fr"{folder_hosts_history}{is_id}"
-        link = fr"{folder_hosts_available}{is_id}"
-        try:
-            with open(filename, "w+") as file_stream:
-                file_stream.write(json.dumps(data))
-            if not os.path.exists(link):
-                logger.info("Linking %s to %s", link, filename)
-                os.link(filename, link)
-            logger.info(
-                (
-                    "[Update Host]: Remove the information of the instrument server "
-                    "successfully, the ID of which is '%s'"
-                ),
-                is_id,
-            )
-            return
-        except Exception:  # pylint: disable=W0703
-            logger.Exception("[Update Host]: Fatal error")
-            return
 
     def stop(self):
         """Has to be performed when closing the main module
