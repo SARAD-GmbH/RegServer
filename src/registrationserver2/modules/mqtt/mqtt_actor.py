@@ -44,15 +44,15 @@ class MqttActor(DeviceBaseActor):
             "MSG": "/msg",
             # "META": "/meta",
         }
-        self.reply_to_wait_for = {
+        self.state = {
             "RESERVE": {
-                "Send_Status": False,
+                "Pending": False,
                 # if there be a reply to wait for, then it should be true
                 "Active": None,
                 # store the reservation status
             },
             "SEND": {
-                "Send_Status": False,
+                "Pending": False,
                 # if there be a reply to wait for, then it should be true
                 "CMD_ID": None,
                 # store the CMD ID
@@ -108,12 +108,12 @@ class MqttActor(DeviceBaseActor):
                 _re["ERROR_CODE"],
             )
             return
-        self.reply_to_wait_for["SEND"]["Send_Status"] = True
+        self.state["SEND"]["Pending"] = True
         self.test_cnt = self.test_cnt + 1
         logger.info("test_cnt = %s", self.test_cnt)
-        self.reply_to_wait_for["SEND"]["CMD_ID"] = bytes([self.cmd_id])
-        logger.info("CMD ID is: %s", self.reply_to_wait_for["SEND"]["CMD_ID"])
-        self.reply_to_wait_for["SEND"]["Sender"] = sender
+        self.state["SEND"]["CMD_ID"] = bytes([self.cmd_id])
+        logger.info("CMD ID is: %s", self.state["SEND"]["CMD_ID"])
+        self.state["SEND"]["Sender"] = sender
         _msg = {
             "CMD": "PUBLISH",
             "PAR": {
@@ -141,20 +141,20 @@ class MqttActor(DeviceBaseActor):
                 self.allowed_sys_topics["CMD"],
                 _re["ERROR_CODE"],
             )
-            self.reply_to_wait_for["SEND"]["Send_Status"] = False
+            self.state["SEND"]["Pending"] = False
             self.test_cnt = self.test_cnt + 1
             logger.info("test_cnt = %s", self.test_cnt)
-            self.reply_to_wait_for["SEND"]["CMD_ID"] = None
+            self.state["SEND"]["CMD_ID"] = None
             return
         logger.info("[SEND] send status is: ")
-        logger.info(self.reply_to_wait_for["SEND"]["Send_Status"])
+        logger.info(self.state["SEND"]["Pending"])
 
     def _reserve_at_is(self):
         logger.info(
             "[Reserve]\tThe MQTT actor '%s' is to subscribe to the 'reserve' topic",
             self.globalName,
         )
-        if not self.reply_to_wait_for["RESERVE"]["Send_Status"]:
+        if not self.state["RESERVE"]["Pending"]:
             _msg = {
                 "CMD": "SUBSCRIBE",
                 "PAR": {"INFO": [(self.allowed_sys_topics["RESERVE"], 0)]},
@@ -181,14 +181,14 @@ class MqttActor(DeviceBaseActor):
                     "qos": 0,
                 },
             }
-            self.reply_to_wait_for["RESERVE"]["Send_Status"] = True
+            self.state["RESERVE"]["Pending"] = True
             _re = self._publish(_msg)
             if not _re["ERROR_CODE"] in (
                 RETURN_MESSAGES["OK"]["ERROR_CODE"],
                 RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
             ):
                 logger.error(_re)
-                self.reply_to_wait_for["RESERVE"]["Send_Status"] = False
+                self.state["RESERVE"]["Pending"] = False
                 return
             logger.info("[Reserve at IS]: To wait for the reply to reservation request")
 
@@ -294,7 +294,7 @@ class MqttActor(DeviceBaseActor):
             )
             return
         if topic == self.allowed_sys_topics["RESERVE"]:
-            if self.reply_to_wait_for["RESERVE"]["Send_Status"]:
+            if self.state["RESERVE"]["Pending"]:
                 instr_status = json.loads(payload).get("Active", None)
                 if instr_status:
                     logger.info(
@@ -302,17 +302,18 @@ class MqttActor(DeviceBaseActor):
                         self.globalName,
                         self.instr_id,
                     )
-                    self.reply_to_wait_for["RESERVE"]["Active"] = True
+                    self.state["RESERVE"]["Active"] = True
                 else:
                     logger.info(
                         "MQTT Actor '%s' receives a decline of the reservation on the instrument '%s'",
                         self.globalName,
                         self.instr_id,
                     )
-                    self.reply_to_wait_for["RESERVE"]["Active"] = False
-                logger.info(self.sender_api)
-                logger.info(self.reply_to_wait_for["RESERVE"]["Active"])
-                self._forward_reservation(self.reply_to_wait_for["RESERVE"]["Active"])
+                    self.state["RESERVE"]["Active"] = False
+                is_reserved = self.state["RESERVE"]["Active"]
+                logger.debug("Instrument reserved %s", is_reserved)
+                self._forward_reservation(is_reserved)
+                self.state["RESERVE"]["Pending"] = False
                 return
             logger.warning(
                 "MQTT Actor '%s' receives a reply to an non-requested reservation on the instrument '%s'",
@@ -322,7 +323,7 @@ class MqttActor(DeviceBaseActor):
             return
         if topic == self.allowed_sys_topics["MSG"]:
             logger.info("[PARSE] send status is: ")
-            logger.info(self.reply_to_wait_for["SEND"]["Send_Status"])
+            logger.info(self.state["SEND"]["Pending"])
             if not isinstance(payload, bytes):
                 logger.error(
                     "Received a reply that should be bytes while not; the message is %s",
@@ -332,17 +333,13 @@ class MqttActor(DeviceBaseActor):
             if len(payload) == 0:
                 logger.error("Received an empty reply")
                 return
-            if self.reply_to_wait_for["SEND"]["Send_Status"]:
+            if self.state["SEND"]["Pending"]:
                 re_cmd_id = payload[0]
-                st_cmd_id = int.from_bytes(
-                    self.reply_to_wait_for["SEND"]["CMD_ID"], "big"
-                )
+                st_cmd_id = int.from_bytes(self.state["SEND"]["CMD_ID"], "big")
                 logger.info("Received CMD ID is %s", re_cmd_id)
-                logger.info(
-                    "Stored CMD ID is %s", self.reply_to_wait_for["SEND"]["CMD_ID"]
-                )
+                logger.info("Stored CMD ID is %s", self.state["SEND"]["CMD_ID"])
                 if re_cmd_id == st_cmd_id:
-                    self.reply_to_wait_for["SEND"]["Send_Status"] = False
+                    self.state["SEND"]["Pending"] = False
                     self.test_cnt = self.test_cnt + 1
                     logger.info("test_cnt = %s", self.test_cnt)
 
@@ -352,12 +349,12 @@ class MqttActor(DeviceBaseActor):
                         payload[1:],
                         self.instr_id,
                     )
-                    self.reply_to_wait_for["SEND"]["Reply"] = payload[1:]
-                    # self.reply_to_wait_for["SEND"]["Reply_Status"] = True
+                    self.state["SEND"]["Reply"] = payload[1:]
+                    # self.state["SEND"]["Reply_Status"] = True
                     _re = {
                         "RETURN": "SEND",
                         "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                        "RESULT": {"DATA": self.reply_to_wait_for["SEND"]["Reply"]},
+                        "RESULT": {"DATA": self.state["SEND"]["Reply"]},
                     }
                     self.send(
                         self.my_redirector,
