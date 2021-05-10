@@ -1,4 +1,4 @@
-"""Listening for MQTT topics announcing the existance of a new SARAD instrument
+"""Listening for MQTT topics announcing the existence of a new SARAD instrument
 in the MQTT network
 
 Created
@@ -37,7 +37,7 @@ class SaradMqttSubscriber:
        mapping the ID of its IS MQTT -> _update_instr
     #. disconnection and the instrument ID exists in the list -> _rm_instr
 
-    Struture of connected_instruments::
+    Structure of connected_instruments::
 
         connected_instruments = {
            IS1_ID: {
@@ -596,7 +596,7 @@ class SaradMqttSubscriber:
             logger.warning("Unsubscribe failed; result code is: %s", result_code)
             return {
                 "RETURN": "UNSUBSCRIBE",
-                "ERROR_CODE": self.RETURN_MESSAGES["UNSUBSCRIBE"]["ERROR_CODE"],
+                "ERROR_CODE": RETURN_MESSAGES["UNSUBSCRIBE"]["ERROR_CODE"],
             }
         return {
             "RETURN": "UNSUBSCRIBE",
