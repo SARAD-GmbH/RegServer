@@ -277,7 +277,7 @@ class DeviceBaseActor(Actor):
         logger.debug("Return %s to %s", return_message, sender)
         self.send(self.sender_api, return_message)
 
-    def _free(self, msg, sender):
+    def _free(self, msg: dict, sender):
         """Handler for FREE message from REST API."""
         logger.info("Device actor received a FREE command. %s", msg)
         self.sender_api = sender
