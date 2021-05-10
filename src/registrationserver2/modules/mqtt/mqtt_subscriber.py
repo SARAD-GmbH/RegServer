@@ -16,7 +16,7 @@ import os
 import paho.mqtt.client as MQTT  # type: ignore
 from registrationserver2 import (HOSTS_FOLDER_AVAILABLE, HOSTS_FOLDER_HISTORY,
                                  logger)
-from registrationserver2.config import mqtt_config
+from registrationserver2.config import mqtt_config, config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
@@ -78,7 +78,7 @@ class SaradMqttSubscriber:
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
         self.mqttc.connect(self.mqtt_broker, port=self.port)
-        self.mqttc.loop_start()
+        self.mqttc.loop_forever()
 
     def _add_instr(self, instr: dict) -> None:
         is_id = instr.get("is_id", None)
@@ -120,7 +120,7 @@ class SaradMqttSubscriber:
             return
         ac_name = instr_id + "." + sarad_type + ".mqtt"
         self.connected_instruments[is_id][instr_id] = ac_name
-        logger.info("[Add Instrument]: Instrument ID - '%s'", instr_id)
+        logger.info("[Add Instrument]: Instrument ID - '%s', actorname - '%s'", instr_id, ac_name)
         this_actor = ActorSystem().createActor(MqttActor, globalName=ac_name)
         data = json.dumps(payload)
         setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": data})
