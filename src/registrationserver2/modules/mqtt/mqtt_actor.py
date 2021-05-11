@@ -19,7 +19,7 @@ from registrationserver2 import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.mqtt.message import RETURN_MESSAGES
 # from registrationserver2.modules.mqtt.mqtt_client_actor import MqttClientActor
-from thespian.actors import ActorSystem  # type: ignore
+#from thespian.actors import ActorSystem  # type: ignore
 from thespian.actors import ActorExitRequest, ChildActorExited, WakeupMessage
 
 logger.info("%s -> %s", __package__, __file__)
@@ -547,7 +547,7 @@ class MqttActor(DeviceBaseActor):
                         "RESULT": {"DATA": self.REPLY_TO_WAIT_FOR["SEND"]["Reply"]},
                     }
                     # self.send(self.REPLY_TO_WAIT_FOR["SEND"]["Sender"], _re)
-                    ActorSystem().tell(self.REPLY_TO_WAIT_FOR["SEND"]["Sender"], _re)
+                    self.send(self.REPLY_TO_WAIT_FOR["SEND"]["Sender"], _re)
                     return
                 else:
                     logger.warning(

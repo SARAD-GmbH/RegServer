@@ -26,10 +26,37 @@ from registrationserver2.modules.mqtt.message import \
     RETURN_MESSAGES  
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
 from thespian.actors import \
-   ActorSystem, ActorExitRequest
+   ActorSystem, ActorExitRequest, ActorTypeDispatcher
 
 logger.info("%s -> %s", __package__, __file__)
 
+class GetKnownActor(object):
+    "Message sent to the Registrar to get an address"
+    def __init__(self, name, reqs:dict):
+        self.name = name
+        self.reqs = reqs
+
+class KnownActorAddr(object):
+    "Response message sent from the Registrar with the requested actor's address"
+    def __init__(self, name, addr, reqmsg):
+        self.name = name
+        self.addr = addr
+        self.reqmsg = reqmsg
+
+class Registrar(ActorTypeDispatcher):
+    def __init__(self, *args, **kw):
+        super(Registrar, self).__init__(*args, **kw)
+        self.known_actors = {}
+    def receiveMsg_GetKnownActor(self, gka_msg, sender):
+        if not self.known_actors.get(gka_msg.name, None):
+            self.known_actors[gka_msg.name] = self.createActor(gka_msg.name,
+                                                               targetActorRequirements=gka_msg.reqs)
+        self.send(sender,
+                  KnownActorAddr(gka_msg.name, self.known_actors[gka_msg.name], gka_msg))
+    def receiveMsg_ChildActorExited(self, exitmsg, sender):
+        try:
+            del self.known_actors[exitmsg.childAddress]
+        except ValueError: pass
 
 class SaradMqttSubscriber(object):
     """
@@ -108,6 +135,8 @@ class SaradMqttSubscriber(object):
             logger.info("SARAD MQTT Subscriber is started correctly")
         else:
             logger.debug("Something wrong with setup of subscriber")
+        
+        self.known_actors = []
 
     def _add_instr(self, msg: dict) -> None:
         is_id = msg.get("PAR", None).get("is_id", None)
