@@ -14,8 +14,10 @@ import atexit
 import os
 import signal
 import threading
-
+import time
 from thespian.actors import ActorSystem  # type: ignore
+#from inputimeout import inputimeout, TimeoutOccurred
+import keyboard
 
 import registrationserver2.logdef
 from registrationserver2 import FOLDER_AVAILABLE, logger
@@ -24,6 +26,8 @@ from registrationserver2.modules.mqtt.mqtt_subscriber import \
     SaradMqttSubscriber
 from registrationserver2.modules.rfc2217.mdns_listener import MdnsListener
 from registrationserver2.restapi import RestApi
+from click.termui import prompt
+from pickle import FALSE
 
 
 def main():
@@ -72,12 +76,33 @@ def main():
     _ = MdnsListener(_type=config["TYPE"])
     mqtt_subscriber = SaradMqttSubscriber()
 
-    try:
+    """try:
         logger.info("Press ENTER to end!")
         input("Press ENTER to end\n")
     finally:
-        cleanup()
-
+        cleanup()"""
+    
+    loop_run = True 
+    while loop_run: 
+        """try:
+            logger.info("You have 2 seconds: Press Enter to End")
+            something = inputimeout(prompt=">>", timeout=4)
+            logger.info(something)
+            loop_run = False
+        except TimeoutOccurred:
+            logger.info("keep running")
+            mqtt_subscriber.mqtt_loop()
+            loop_run = True"""
+        logger.info("After 2 seconds you can press 'e' to end")
+        time.sleep(3)
+        if keyboard.is_pressed('e'):
+            logger.info("You have pressed 'e' to stop the whole stuff")
+            loop_run = False
+        else:
+            mqtt_subscriber.mqtt_loop()
+        
+    logger.info("To cleanup")
+    cleanup()
 
 if __name__ == "__main__":
     main()
