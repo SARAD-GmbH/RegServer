@@ -13,6 +13,7 @@ Authors
 import atexit
 import os
 import signal
+import sys
 import threading
 import time
 from thespian.actors import ActorSystem  # type: ignore
@@ -42,17 +43,28 @@ def main():
     def cleanup():  # pylint: disable=unused-variable
         """Make sure all sub threads are stopped, including the REST API"""
         logger.info("Cleaning up before closing.")
-        if mqtt_subscriber.is_connected:
-            mqtt_subscriber.stop()
+        if mqtt_subscriber is not None:
+            if mqtt_subscriber.is_connected:
+                mqtt_subscriber.stop()
         ActorSystem().shutdown()
         logger.debug("Actor system shut down finished.")
         if os.path.exists(FOLDER_AVAILABLE):
+            logger.debug("Cleaning folder from available instruments")
             for root, _, files in os.walk(FOLDER_AVAILABLE):
                 for name in files:
                     link = os.path.join(root, name)
                     logger.debug("[Del]:\tRemoved: %s", name)
                     os.unlink(link)
-        os.kill(os.getpid(), signal.SIGTERM)
+
+    def signal_handler(_sig, _frame):
+        """On Ctrl+C: stop MQTT loop"""
+        logger.info("You pressed Ctrl+C!")
+        main.run = False
+
+    mqtt_subscriber = None
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
     # =======================
     # Initialization of the actor system,
@@ -76,23 +88,8 @@ def main():
     _ = MdnsListener(_type=config["TYPE"])
     mqtt_subscriber = SaradMqttSubscriber()
 
-    """try:
-        logger.info("Press ENTER to end!")
-        input("Press ENTER to end\n")
-    finally:
-        cleanup()"""
-    
-    loop_run = True 
+    """loop_run = True 
     while loop_run: 
-        """try:
-            logger.info("You have 2 seconds: Press Enter to End")
-            something = inputimeout(prompt=">>", timeout=4)
-            logger.info(something)
-            loop_run = False
-        except TimeoutOccurred:
-            logger.info("keep running")
-            mqtt_subscriber.mqtt_loop()
-            loop_run = True"""
         logger.info("After 2 seconds you can press 'e' to end")
         time.sleep(3)
         if keyboard.is_pressed('e'):
@@ -102,7 +99,21 @@ def main():
             mqtt_subscriber.mqtt_loop()
         
     logger.info("To cleanup")
+    cleanup()"""
+
+    logger.info("Press Ctrl+C to end!")
+    main.run = True
+    logger.debug("Start the MQTT subscriber loop")
+    while main.run:
+        if mqtt_subscriber is not None:
+            mqtt_subscriber.mqtt_loop()
     cleanup()
+    logger.debug("Time to say goodbye :-(")
+    os.kill(os.getpid(), signal.SIGKILL)
+    # If things go well the code after this line will never be reached.
+    logger.debug("This is the end, my only friend, the end.")
+    sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

@@ -43,25 +43,25 @@ logger.info("Logging system initialized.")
 # ==========================================
 
 # How the sub folder for available instrument/host description files is called
-FILE_PATH_AVAILABLE: str = "available"
+FILE_PATH_AVAILABLE = "available"
 
 # How the sub folder for all detected instrument/host description files is called
-FILE_PATH_HISTORY: str = "history"
+FILE_PATH_HISTORY = "history"
 
 # How the API sub path for available instrument/host descriptions is called
-PATH_AVAILABLE: str = FILE_PATH_AVAILABLE
+PATH_AVAILABLE = FILE_PATH_AVAILABLE
 
 # How the API sub path for all detected instrument/host descriptions is called
-PATH_HISTORY: str = FILE_PATH_HISTORY
+PATH_HISTORY = FILE_PATH_HISTORY
 
 # "available" and "history" under "devices"
-FOLDER_AVAILABLE: str = f'{config["FOLDER"]}{os.path.sep}{FILE_PATH_AVAILABLE}'
-FOLDER_HISTORY: str = f'{config["FOLDER"]}{os.path.sep}{FILE_PATH_HISTORY}'
+FOLDER_AVAILABLE = f'{config["FOLDER"]}{os.path.sep}{FILE_PATH_AVAILABLE}'
+FOLDER_HISTORY = f'{config["FOLDER"]}{os.path.sep}{FILE_PATH_HISTORY}'
 
 # "available" and "history" under "hosts"
 HOSTS_FOLDER_AVAILABLE = f'{config["HOSTS_FOLDER"]}{os.path.sep}{FILE_PATH_AVAILABLE}'
 HOSTS_FOLDER_HISTORY = f'{config["HOSTS_FOLDER"]}{os.path.sep}{FILE_PATH_HISTORY}'
 
-RESERVE_KEYWORD: str = "reserve"
-FREE_KEYWORD: str = "free"
+RESERVE_KEYWORD = "reserve"
+FREE_KEYWORD = "free"
 logger.debug("Registrationserver initialized.")

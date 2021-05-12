@@ -165,9 +165,12 @@ class DeviceBaseActor(Actor):
 
     def _kill(self, msg: dict, sender):
         logger.info("Shutting down actor %s, Message: %s", self.globalName, msg)
+        filename = fr"{self.__folder_history}{self.globalName}"
         self.link = fr"{self.__folder_available}{self.globalName}"
         if os.path.exists(self.link):
             os.unlink(self.link)
+        if os.path.exists(filename):
+            os.remove(filename)
         if self.my_redirector is not None:
             logger.debug("Send KILL to redirector %s", self.my_redirector)
             self.send(self.my_redirector, ActorExitRequest())

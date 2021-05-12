@@ -16,42 +16,57 @@ import os
 import paho.mqtt.client as MQTT  # type: ignore
 from registrationserver2 import (HOSTS_FOLDER_AVAILABLE, HOSTS_FOLDER_HISTORY,
                                  logger)
-from registrationserver2.config import mqtt_config, config
+from registrationserver2.config import mqtt_config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
-
-from thespian.actors import \
-   ActorSystem, ActorExitRequest, ActorTypeDispatcher
+from thespian.actors import ActorSystem  # type: ignore
+from thespian.actors import ActorExitRequest, ActorTypeDispatcher
 
 logger.info("%s -> %s", __package__, __file__)
 
-class GetKnownActor(object):
-    "Message sent to the Registrar to get an address"
-    def __init__(self, name, reqs:dict):
+
+class GetKnownActor:
+    """Message sent to the Registrar to get an address"""
+
+    def __init__(self, name, reqs: dict):
         self.name = name
         self.reqs = reqs
 
-class KnownActorAddr(object):
-    "Response message sent from the Registrar with the requested actor's address"
+
+class KnownActorAddr:
+    """Response message sent from the Registrar with the requested actor's address"""
+
     def __init__(self, name, addr, reqmsg):
         self.name = name
         self.addr = addr
         self.reqmsg = reqmsg
 
+
 class Registrar(ActorTypeDispatcher):
+    """Here should be a class docstring"""
+
     def __init__(self, *args, **kw):
-        super(Registrar, self).__init__(*args, **kw)
+        super().__init__()
         self.known_actors = {}
+
     def receiveMsg_GetKnownActor(self, gka_msg, sender):
+        """Here should be a method docstring"""
         if not self.known_actors.get(gka_msg.name, None):
-            self.known_actors[gka_msg.name] = self.createActor(gka_msg.name,
-                                                               targetActorRequirements=gka_msg.reqs)
-        self.send(sender,
-                  KnownActorAddr(gka_msg.name, self.known_actors[gka_msg.name], gka_msg))
-    def receiveMsg_ChildActorExited(self, exitmsg, sender):
+            self.known_actors[gka_msg.name] = self.createActor(
+                gka_msg.name, targetActorRequirements=gka_msg.reqs
+            )
+        self.send(
+            sender,
+            KnownActorAddr(gka_msg.name, self.known_actors[gka_msg.name], gka_msg),
+        )
+
+    def receiveMsg_ChildActorExited(self, exitmsg, _sender):
+        """Here should be a method docstring"""
         try:
             del self.known_actors[exitmsg.childAddress]
-        except ValueError: pass
+        except ValueError:
+            pass
+
 
 class SaradMqttSubscriber:
     """
@@ -81,6 +96,42 @@ class SaradMqttSubscriber:
             ...
         }
     """
+
+    @staticmethod
+    def _update_host(msg: dict) -> None:
+        is_id = msg.get("PAR", None).get("is_id", None)
+        data = msg.get("PAR", None).get("payload")
+        if (is_id is None) or (data is None):
+            logger.warning(
+                "[Update Host]: one or both of the Instrument Server ID "
+                "and the meta message are none"
+            )
+            return
+        logger.info(
+            "[Update Host]: Update a already connected host with Instrument Server ID '%s'",
+            is_id,
+        )
+        folder_hosts_history = f"{HOSTS_FOLDER_HISTORY}{os.path.sep}"
+        folder_hosts_available = f"{HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
+        filename = fr"{folder_hosts_history}{is_id}"
+        link = fr"{folder_hosts_available}{is_id}"
+        try:
+            with open(filename, "w+") as file_stream:
+                file_stream.write(json.dumps(data))
+            if not os.path.exists(link):
+                logger.info("Linking %s to %s", link, filename)
+                os.link(filename, link)
+            logger.info(
+                (
+                    "[Update Host]: Remove the information of the instrument server "
+                    "successfully, the ID of which is '%s'"
+                ),
+                is_id,
+            )
+            return
+        except Exception:  # pylint: disable=broad-except
+            logger.Exception("[Update Host]: Fatal error")
+            return
 
     def __init__(self):
         self.mqtt_broker = mqtt_config.get("MQTT_BROKER", "127.0.0.1")
@@ -158,7 +209,11 @@ class SaradMqttSubscriber:
             return
         ac_name = instr_id + "." + sarad_type + ".mqtt"
         self.connected_instruments[is_id][instr_id] = ac_name
-        logger.info("[Add Instrument]: Instrument ID - '%s', actorname - '%s'", instr_id, ac_name)
+        logger.info(
+            "[Add Instrument]: Instrument ID - '%s', actorname - '%s'",
+            instr_id,
+            ac_name,
+        )
         this_actor = ActorSystem().createActor(MqttActor, globalName=ac_name)
         data = json.dumps(payload)
         setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": data})
@@ -327,41 +382,6 @@ class SaradMqttSubscriber:
             is_id,
         )
         return
-
-    def _update_host(self, msg: dict) -> None:
-        is_id = msg.get("PAR", None).get("is_id", None)
-        data = msg.get("PAR", None).get("payload")
-        if (is_id is None) or (data is None):
-            logger.warning(
-                "[Update Host]: one or both of the Instrument Server ID "
-                "and the meta message are none"
-            )
-            return
-        logger.info(
-            "[Update Host]: Update a already connected host with Instrument Server ID '%s'",
-            is_id,
-        )
-        folder_hosts_history = f"{HOSTS_FOLDER_HISTORY}{os.path.sep}"
-        folder_hosts_available = f"{HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
-        filename = fr"{folder_hosts_history}{is_id}"
-        link = fr"{folder_hosts_available}{is_id}"
-        try:
-            with open(filename, "w+") as file_stream:
-                file_stream.write(json.dumps(data))
-            if not os.path.exists(link):
-                logger.info("Linking %s to %s", link, filename)
-                os.link(filename, link)
-            logger.info(
-                (
-                    "[Update Host]: Remove the information of the instrument server "
-                    "successfully, the ID of which is '%s'"
-                ),
-                is_id,
-            )
-            return
-        except Exception:  # pylint: disable=W0703
-            logger.Exception("[Update Host]: Fatal error")
-            return
 
     def stop(self):
         """Has to be performed when closing the main module
@@ -610,7 +630,6 @@ class SaradMqttSubscriber:
             self.ungr_disconn = 2
             logger.info("[Disconnect]: Already disconnected ungracefully")
         logger.info("[Disconnect]: To stop the MQTT thread!")
-        self.mqttc.loop_stop()
 
     def _subscribe(self, topic: str, qos: int) -> dict:
         logger.info("Work state: subscribe")
