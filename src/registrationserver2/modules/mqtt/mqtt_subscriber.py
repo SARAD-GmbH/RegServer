@@ -19,39 +19,54 @@ from registrationserver2 import (HOSTS_FOLDER_AVAILABLE, HOSTS_FOLDER_HISTORY,
 from registrationserver2.config import mqtt_config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
-
-from thespian.actors import \
-   ActorSystem, ActorExitRequest, ActorTypeDispatcher
+from thespian.actors import ActorSystem  # type: ignore
+from thespian.actors import ActorExitRequest, ActorTypeDispatcher
 
 logger.info("%s -> %s", __package__, __file__)
 
-class GetKnownActor(object):
-    "Message sent to the Registrar to get an address"
-    def __init__(self, name, reqs:dict):
+
+class GetKnownActor:
+    """Message sent to the Registrar to get an address"""
+
+    def __init__(self, name, reqs: dict):
         self.name = name
         self.reqs = reqs
 
-class KnownActorAddr(object):
-    "Response message sent from the Registrar with the requested actor's address"
+
+class KnownActorAddr:
+    """Response message sent from the Registrar with the requested actor's address"""
+
     def __init__(self, name, addr, reqmsg):
         self.name = name
         self.addr = addr
         self.reqmsg = reqmsg
 
+
 class Registrar(ActorTypeDispatcher):
+    """Here should be a class docstring"""
+
     def __init__(self, *args, **kw):
-        super(Registrar, self).__init__(*args, **kw)
+        super().__init__()
         self.known_actors = {}
+
     def receiveMsg_GetKnownActor(self, gka_msg, sender):
+        """Here should be a method docstring"""
         if not self.known_actors.get(gka_msg.name, None):
-            self.known_actors[gka_msg.name] = self.createActor(gka_msg.name,
-                                                               targetActorRequirements=gka_msg.reqs)
-        self.send(sender,
-                  KnownActorAddr(gka_msg.name, self.known_actors[gka_msg.name], gka_msg))
-    def receiveMsg_ChildActorExited(self, exitmsg, sender):
+            self.known_actors[gka_msg.name] = self.createActor(
+                gka_msg.name, targetActorRequirements=gka_msg.reqs
+            )
+        self.send(
+            sender,
+            KnownActorAddr(gka_msg.name, self.known_actors[gka_msg.name], gka_msg),
+        )
+
+    def receiveMsg_ChildActorExited(self, exitmsg, _sender):
+        """Here should be a method docstring"""
         try:
             del self.known_actors[exitmsg.childAddress]
-        except ValueError: pass
+        except ValueError:
+            pass
+
 
 class SaradMqttSubscriber:
     """
