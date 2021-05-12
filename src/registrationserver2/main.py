@@ -109,7 +109,10 @@ def main():
             mqtt_subscriber.mqtt_loop()
     cleanup()
     logger.debug("Time to say goodbye :-(")
-    os.kill(os.getpid(), signal.SIGKILL)
+    if os.name == "nt":
+        os.kill(os.getpid(), signal.SIGTERM)
+    else:
+        os.kill(os.getpid(), signal.SIGKILL)
     # If things go well the code after this line will never be reached.
     logger.debug("This is the end, my only friend, the end.")
     sys.exit(0)
