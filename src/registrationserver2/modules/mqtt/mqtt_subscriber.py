@@ -158,17 +158,11 @@ class SaradMqttSubscriber:
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
         self.mqttc.connect(self.mqtt_broker, port=self.port)
-        #self.mqttc.loop_forever()
-        folder_hosts_history = f"{HOSTS_FOLDER_HISTORY}{os.path.sep}"
-        folder_hosts_available = f"{HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
-        if not os.path.exists(folder_hosts_history):
-            os.makedirs(folder_hosts_history)
-        if not os.path.exists(folder_hosts_available):
-            os.makedirs(folder_hosts_available)
-    
+
     def mqtt_loop(self):
+        """Running one cycle of the MQTT loop"""
         self.mqttc.loop()
-    
+
     def _add_instr(self, instr: dict) -> None:
         is_id = instr.get("is_id", None)
         instr_id = instr.get("instr_id", None)
