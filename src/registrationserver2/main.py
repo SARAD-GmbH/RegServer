@@ -16,6 +16,7 @@ import signal
 import sys
 import threading
 
+import keyboard
 from thespian.actors import ActorSystem  # type: ignore
 
 import registrationserver2.logdef
@@ -84,10 +85,18 @@ def main():
     _ = MdnsListener(_type=config["TYPE"])
     mqtt_subscriber = SaradMqttSubscriber()
 
-    logger.info("Press Ctrl+C to end!")
+    if os.name == "nt":
+        logger.info("Press 'q' end!")
+    else:
+        logger.info("Press Ctrl+C to end!")
     main.run = True
     logger.debug("Start the MQTT subscriber loop")
     while main.run:
+        try:
+            if keyboard.is_pressed("q"):
+                main.run = False
+        except Exception:  # pylint: disable=broad-except
+            main.run = False
         if mqtt_subscriber is not None:
             mqtt_subscriber.mqtt_loop()
     cleanup()
