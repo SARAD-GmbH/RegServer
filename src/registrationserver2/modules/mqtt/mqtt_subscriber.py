@@ -114,7 +114,10 @@ class SaradMqttSubscriber:
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
         self.mqttc.connect(self.mqtt_broker, port=self.port)
-        self.mqttc.loop_forever()
+
+    def mqtt_loop(self):
+        """Running one cycle of the MQTT loop"""
+        self.mqttc.loop()
 
     def _add_instr(self, instr: dict) -> None:
         is_id = instr.get("is_id", None)
@@ -577,7 +580,6 @@ class SaradMqttSubscriber:
             self.ungr_disconn = 2
             logger.info("[Disconnect]: Already disconnected ungracefully")
         logger.info("[Disconnect]: To stop the MQTT thread!")
-        self.mqttc.loop_stop()
 
     def _subscribe(self, topic: str, qos: int) -> dict:
         logger.info("Work state: subscribe")
