@@ -54,6 +54,20 @@ class RestApi:
             """Does Nothing"""
 
     @staticmethod
+    @api.route("/shutdown", methods=["GET"])
+    def shutdown():
+        """Allows to shutdown the REST API"""
+
+        def shutdown_server():
+            func = request.environ.get("werkzeug.server.shutdown")
+            if func is None:
+                raise RuntimeError("Not running with the Werkzeug Server")
+            func()
+
+        shutdown_server()
+        return "Server shutting down..."
+
+    @staticmethod
     @api.route("/list", methods=["GET"])
     @api.route("/list/", methods=["GET"])
     @api.route(f"/{PATH_AVAILABLE}", methods=["GET"])

@@ -16,7 +16,6 @@ import signal
 import sys
 import threading
 
-import keyboard
 from thespian.actors import ActorSystem  # type: ignore
 
 import registrationserver2.logdef
@@ -52,6 +51,7 @@ def main():
                     link = os.path.join(root, name)
                     logger.debug("[Del]:\tRemoved: %s", name)
                     os.unlink(link)
+        sys.exit(0)
 
     def signal_handler(_sig, _frame):
         """On Ctrl+C: stop MQTT loop"""
@@ -83,31 +83,16 @@ def main():
     )
     apithread.start()
     _ = MdnsListener(_type=config["TYPE"])
-    mqtt_subscriber = SaradMqttSubscriber()
+    # mqtt_subscriber = SaradMqttSubscriber()
 
-    if os.name == "nt":
-        logger.info("Press 'q' end!")
-    else:
-        logger.info("Press Ctrl+C to end!")
+    logger.info("Press Ctrl+C to end!")
     main.run = True
     logger.debug("Start the MQTT subscriber loop")
     while main.run:
-        try:
-            if keyboard.is_pressed("q"):
-                main.run = False
-        except Exception:  # pylint: disable=broad-except
-            main.run = False
         if mqtt_subscriber is not None:
             mqtt_subscriber.mqtt_loop()
     cleanup()
-    logger.debug("Time to say goodbye :-(")
-    if os.name == "nt":
-        os.kill(os.getpid(), signal.SIGTERM)
-    else:
-        os.kill(os.getpid(), signal.SIGKILL)
-    # If things go well the code after this line will never be reached.
     logger.debug("This is the end, my only friend, the end.")
-    sys.exit(0)
 
 
 if __name__ == "__main__":

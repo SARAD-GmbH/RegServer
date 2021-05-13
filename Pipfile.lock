@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "b5c6b0e43bc887b655f3d715e164a2b5a2dbf8c11f2a0677c977b7dfdab39316"
+            "sha256": "9640fa14da1d486133612cee43ec11b69120c0665343ac8139dd736e1fe6f155"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -29,7 +29,7 @@
                 "sha256:7d8c289ee437bcb0316820ccee14aefcb056e58d31830ecab8e47eda6540e136",
                 "sha256:e90e62ced43dc8105fb9a26d62f0d9340b5c8db053a814e25d95c19873ae87db"
             ],
-            "markers": "python_version >= '3.6'",
+            "index": "pypi",
             "version": "==8.0.0"
         },
         "flask": {
@@ -70,14 +70,6 @@
             ],
             "markers": "python_version >= '3.6'",
             "version": "==3.0.0"
-        },
-        "keyboard": {
-            "hashes": [
-                "sha256:63ed83305955939ca5c9a73755e5cc43e8242263f5ad5fd3bb7e0b032f3d308b",
-                "sha256:8e9c2422f1217e0bd84489b9ecd361027cc78415828f4fe4f88dd4acd587947b"
-            ],
-            "index": "pypi",
-            "version": "==0.13.5"
         },
         "markupsafe": {
             "hashes": [
@@ -202,10 +194,10 @@
         },
         "thespian": {
             "hashes": [
-                "sha256:d9152089f239c80339eb0431b9561966a841fb3ab0d043b36fa47934fc7956f2"
+                "sha256:74163537a7af2cb40ef8c0619d1e82829ee355c0dae2ddf2cc1ad77c33555bc4"
             ],
             "index": "pypi",
-            "version": "==3.10.3"
+            "version": "==3.10.4"
         },
         "typing-utils": {
             "hashes": [

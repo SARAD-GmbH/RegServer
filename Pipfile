@@ -20,7 +20,7 @@ paho-mqtt = "*"
 pyyaml = "*"
 appdirs = "*"
 overrides = "*"
-keyboard = "*"
+click = "*"
 
 [requires]
 python_version = "3.9"
