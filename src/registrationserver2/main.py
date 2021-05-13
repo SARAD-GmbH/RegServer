@@ -81,9 +81,10 @@ def main():
             8000,
         ),
     )
+    apithread.setDaemon(True)
     apithread.start()
     _ = MdnsListener(_type=config["TYPE"])
-    # mqtt_subscriber = SaradMqttSubscriber()
+    mqtt_subscriber = SaradMqttSubscriber()
 
     logger.info("Press Ctrl+C to end!")
     main.run = True
