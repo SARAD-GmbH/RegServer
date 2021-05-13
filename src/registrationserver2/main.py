@@ -20,7 +20,7 @@ from thespian.actors import ActorSystem  # type: ignore
 
 import registrationserver2.logdef
 from registrationserver2 import FOLDER_AVAILABLE, logger
-from registrationserver2.config import config
+from registrationserver2.config import actor_config, config
 from registrationserver2.modules.mqtt.mqtt_subscriber import \
     SaradMqttSubscriber
 from registrationserver2.modules.rfc2217.mdns_listener import MdnsListener
@@ -70,8 +70,8 @@ def main():
     # can be changed to a distributed system here.
     # =======================
     ActorSystem(
-        systemBase=config["systemBase"],
-        capabilities=config["capabilities"],
+        systemBase=actor_config["systemBase"],
+        capabilities=actor_config["capabilities"],
         logDefs=registrationserver2.logdef.logcfg,
     )
     logger.debug("Actor system started.")
