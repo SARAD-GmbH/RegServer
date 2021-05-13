@@ -51,6 +51,8 @@ def main():
                     link = os.path.join(root, name)
                     logger.debug("[Del]:\tRemoved: %s", name)
                     os.unlink(link)
+        if os.name == "nt":
+            os.kill(os.getpid(), signal.SIGTERM)
         sys.exit(0)
 
     def signal_handler(_sig, _frame):
