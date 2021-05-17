@@ -221,6 +221,7 @@ class SaradMqttSubscriber:
         if not setup_return["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
             RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+            RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
         ):
             logger.debug("[Add Instrument]: %s", setup_return)
             ActorSystem().tell(this_actor, ActorExitRequest())
@@ -239,6 +240,7 @@ class SaradMqttSubscriber:
         if not prep_return["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
             RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+            RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
         ):
             logger.debug("[Add Instrument]: %s", prep_return)
             logger.critical(
@@ -297,6 +299,7 @@ class SaradMqttSubscriber:
         if not setup_return["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
             RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+            RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
         ):
             logger.debug(setup_return)
             ActorSystem().tell(this_actor, ActorExitRequest())
