@@ -45,10 +45,10 @@ logcfg = {
     "version": 1,
     "formatters": {
         "normal": {
-            "format": "%(asctime)-15s %(levelname)-6s %(module)-15s %(message)s"
+            "format": "%(asctime)-15s %(levelname)-6s %(module)-15s %(process)d %(message)s"
         },
         "actor": {
-            "format": "%(asctime)-15s %(levelname)-6s %(actorAddress)-15s %(message)s"
+            "format": "%(asctime)-15s %(levelname)-6s %(actorAddress)-15s %(process)d %(message)s"
         },
     },
     "filters": {
