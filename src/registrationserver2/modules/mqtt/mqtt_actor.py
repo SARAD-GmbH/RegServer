@@ -44,6 +44,13 @@ class MqttActor(DeviceBaseActor):
             "MSG": "/msg",
             # "META": "/meta",
         }
+        self.allowed_sys_options = {
+            "CTRL": "/control",
+            "RESERVE": "/reservation",
+            "CMD": "/cmd",
+            "MSG": "/msg",
+            # "META": "/meta",
+        }
         self.state = {
             "RESERVE": {
                 "Pending": False,
@@ -391,10 +398,12 @@ class MqttActor(DeviceBaseActor):
         """Will be carried out when the client connected to the MQTT broker."""
         if result_code == 0:
             self.is_connected = True
+            logger.info("on_connect, IS ID is %s and instrument ID is %s", self.is_id, self.instr_id)
             for k in self.allowed_sys_topics:
                 self.allowed_sys_topics[k] = (
-                    self.is_id + "/" + self.instr_id + self.allowed_sys_topics[k]
+                    self.is_id + "/" + self.instr_id + self.allowed_sys_options[k]
                 )
+                logger.info("allowed topic: %s", self.allowed_sys_topics[k])
             logger.info("[CONN]: Connected to MQTT broker")
             self.send(
                 self.subscriber,
