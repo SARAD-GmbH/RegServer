@@ -10,7 +10,7 @@ Author
 """
 import json
 import time
-
+import datetime
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver2 import logger
@@ -303,12 +303,18 @@ class MqttActor(DeviceBaseActor):
         if topic == self.allowed_sys_topics["RESERVE"]:
             if self.state["RESERVE"]["Pending"]:
                 instr_status = json.loads(payload).get("Active", None)
-                if instr_status:
+                app = json.loads(payload).get("App", None)
+                host = json.loads(payload).get("Host", None)
+                user = json.loads(payload).get("User", None)
+                timestamp = json.loads(payload).get("Timestamp", None)
+                if ((instr_status) and (app ==self.app) and (host == self.host) and (user == self.user)):
                     logger.info(
                         "MQTT Actor '%s' receives a permission of the reservation on the instrument '%s'",
                         self.globalName,
                         self.instr_id,
                     )
+                    if timestamp is None:
+                        timestamp = datetime.datetime.utcnow().isoformat(timespec="seconds")+"Z"
                     self.state["RESERVE"]["Active"] = True
                 else:
                     logger.info(
