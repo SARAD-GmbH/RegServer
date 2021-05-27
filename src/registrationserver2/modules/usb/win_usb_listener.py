@@ -8,7 +8,7 @@ import logging
 import subprocess
 from dataclasses import dataclass
 from typing import Callable, List
-import registrationserver2.modules.usb.usb_actor
+#import registrationserver2.modules.usb.usb_actor
 
 import win32api
 import win32con
@@ -43,7 +43,7 @@ class USBListener:
         0xFFFF: ('DBT_USERDEFINED', 'The meaning of this message is user-defined.'),
     }
 
-    def __init__(self, on_change: Callable[[List[Drive]], None]):
+    def __init__(self, on_change: Callable[[List[USBSerial]], None]):
         self.on_change = on_change
 
     def _create_listener(self):
