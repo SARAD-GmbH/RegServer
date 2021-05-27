@@ -97,7 +97,7 @@ class USBListener:
                 'powershell',
                 '-noprofile',
                 '-command',
-                'Get-WmiObject -Class win32_serialport | ConvertTo-Json'
+                'Get-WmiObject -Class win32_serialport | Select-Object deviceid | ConvertTo-Json'
             ],
             text=True,
             stdout=subprocess.PIPE
