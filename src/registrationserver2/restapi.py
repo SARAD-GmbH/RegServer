@@ -196,10 +196,10 @@ class RestApi:
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
         try:
+            logger.debug(request.environ["REMOTE_ADDR"])
             request_host = socket.gethostbyaddr(request.environ["REMOTE_ADDR"])[0]
         except Exception:  # pylint: disable=broad-except
             logger.exception("Fatal error")
-        else:
             request_host = request.environ["REMOTE_ADDR"]
         logger.info("%s: %s --> %s", did, attribute_who, request_host)
         if not MATCHID.fullmatch(did):
