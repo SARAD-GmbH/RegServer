@@ -46,6 +46,7 @@ class RedirectorActor(Actor):
         self._socket_info = None
         self.conn = None
         self._host = config["HOST"]
+        logger.debug("IP address of Registration Server: %s", self._host)
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         for self._port in config["PORT_RANGE"]:
             try:
@@ -56,7 +57,7 @@ class RedirectorActor(Actor):
                 logger.critical("Cannot use port %d.", self._port)
         server_socket.listen()  # listen(5) maybe???
         self.read_list = [server_socket]
-        logger.info("Socket listening on port %d", self._port)
+        logger.info("Socket listening on %s:%d", self._host, self._port)
 
     @overrides
     def receiveMessage(self, msg, sender):
