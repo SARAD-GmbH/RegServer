@@ -21,6 +21,7 @@ pyyaml = "*"
 appdirs = "*"
 overrides = "*"
 click = "*"
+pywin32 = "*"
 
 [requires]
 python_version = "3.9"
