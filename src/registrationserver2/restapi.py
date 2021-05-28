@@ -20,7 +20,7 @@ import socket
 import sys
 
 from flask import Flask, Response, json, request
-from thespian.actors import Actor, ActorSystem  # type: ignore
+from thespian.actors import Actor, ActorSystem, PoisonMessage  # type: ignore
 
 from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
                                  FREE_KEYWORD, PATH_AVAILABLE, PATH_HISTORY,
@@ -248,10 +248,15 @@ class RestApi:
         """Path for freeing a single active device"""
         device_actor = ActorSystem().createActor(Actor, globalName=did)
         logger.debug("Ask device actor to FREE...")
-        free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"})
-        # TODO: Add error handling of timeout
+        free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"}, 1)
+        if free_return is None or isinstance(free_return, PoisonMessage):
+            answer = {"Error code": 11, "Error": "Device not found", did: {}}
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
         logger.info("returned with %s", free_return)
-        if free_return is RETURN_MESSAGES["OK"] or RETURN_MESSAGES["OK_SKIPPED"]:
+        return_error = free_return["ERROR_CODE"]
+        if return_error == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
             answer = {}
             if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
                 answer[did] = {
@@ -265,7 +270,35 @@ class RestApi:
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
-        answer = {"Error code": 11, "Error": "Device not found", did: {}}
+        if return_error is RETURN_MESSAGES["OCCUPIED"]["ERROR_CODE"]:
+            answer = {
+                "Error code": return_error,
+                "Error": "Already reserved by other party",
+            }
+            if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
+                answer[did] = {
+                    "Identification": json.load(
+                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
+                    ).get("Identification", None),
+                    "Reservation": json.load(
+                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
+                    ).get("Free", None),
+                }
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        if return_error is RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]:
+            answer = {"Error code": return_error, "Error": "No reservation found"}
+            if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
+                answer[did] = {
+                    "Identification": json.load(
+                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
+                    ).get("Identification", None),
+                }
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        answer = {"Error code": 99, "Error": "Unexpected error", did: {}}
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
