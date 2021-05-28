@@ -22,6 +22,7 @@ appdirs = "*"
 overrides = "*"
 click = "*"
 pywin32 = "*"
+data-collector = {editable = true, git = "https://github.com/SARAD-GmbH/data_collector.git"}
 
 [requires]
 python_version = "3.9"

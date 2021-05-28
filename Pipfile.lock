@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "d9417dc115e18ec3daa5da0f8f6168721b8c7284fce0d522575d5687c5ad58c2"
+            "sha256": "b94a52b64c406d4dd72e2b7b3b47e5c2d3569ec9b90923cda21b1d05b02b2696"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -24,6 +24,12 @@
             "index": "pypi",
             "version": "==1.4.4"
         },
+        "bitvector": {
+            "hashes": [
+                "sha256:a5e94cbb4804213b1f0c32d84517cd8f0bb8c689b5eb8055d351632e220a5edd"
+            ],
+            "version": "==3.4.9"
+        },
         "click": {
             "hashes": [
                 "sha256:8c04c11192119b1ef78ea049e0a6f0463e4c48ef00a30160c704337586f3ad7a",
@@ -32,6 +38,13 @@
             "index": "pypi",
             "version": "==8.0.1"
         },
+        "click-log": {
+            "hashes": [
+                "sha256:16fd1ca3fc6b16c98cea63acf1ab474ea8e676849dc669d86afafb0ed7003124",
+                "sha256:eee14dc37cdf3072158570f00406572f9e03e414accdccfccd4c538df9ae322c"
+            ],
+            "version": "==0.3.2"
+        },
         "colorama": {
             "hashes": [
                 "sha256:5941b2b48a20143d2267e95b1c2a7603ce057ee39fd88e7329b0c292aa16869b",
@@ -39,6 +52,18 @@
             ],
             "markers": "platform_system == 'Windows'",
             "version": "==0.4.4"
+        },
+        "data-collector": {
+            "editable": true,
+            "git": "https://github.com/SARAD-GmbH/data_collector.git",
+            "ref": "57543af34a31f3956c53764d3fc06f628e523e3f"
+        },
+        "filelock": {
+            "hashes": [
+                "sha256:18d82244ee114f543149c66a6e0c14e9c4f8a1044b5cdaadd0f82159d6a6ff59",
+                "sha256:929b7d63ec5b7d6b71b0fa5ac14e030b3f70b75747cef1b10da9b879fef15836"
+            ],
+            "version": "==3.0.12"
         },
         "flask": {
             "hashes": [
@@ -134,6 +159,14 @@
             "index": "pypi",
             "version": "==1.5.1"
         },
+        "py-zabbix": {
+            "hashes": [
+                "sha256:0176569e61b134a9e445d9086cdfe895583ffe938f34deea3a9cffa78011e459",
+                "sha256:40d1555d448ed05462764172894a8a3d97ba11e7b61e5f402f7180fe233899e1",
+                "sha256:f921abc88298c56f5aab9054815122ca959f8612df88fdc3a240ad2d95e4c282"
+            ],
+            "version": "==1.1.7"
+        },
         "pyserial": {
             "hashes": [
                 "sha256:3c77e014170dfffbd816e6ffc205e9842efb10be9f58ec16d3e8675b4925cddb",
@@ -207,6 +240,14 @@
             ],
             "index": "pypi",
             "version": "==5.4.1"
+        },
+        "schedule": {
+            "hashes": [
+                "sha256:617adce8b4bf38c360b781297d59918fbebfb2878f1671d189f4f4af5d0567a4",
+                "sha256:e6ca13585e62c810e13a08682e0a6a8ad245372e376ba2b8679294f377dfc8e4"
+            ],
+            "markers": "python_version >= '3.6'",
+            "version": "==1.1.0"
         },
         "six": {
             "hashes": [
@@ -314,11 +355,11 @@
         },
         "importlib-metadata": {
             "hashes": [
-                "sha256:057e92c15bc8d9e8109738a48db0ccb31b4d9d5cfbee5a8670879a30be66304b",
-                "sha256:b7e52a1f8dec14a75ea73e0891f3060099ca1d8e6a462a4dff11c3e119ea1b31"
+                "sha256:c4646abbce80191bb548636f846e353ff1edc46a06bc536ea0a60d53211dc690",
+                "sha256:c8b9a7c6000baa7adf7abcd2c41db11f172bcb5d6e448c73c2407dbc7e7e2af3"
             ],
             "markers": "python_version >= '3.6'",
-            "version": "==4.2.0"
+            "version": "==4.3.0"
         },
         "iniconfig": {
             "hashes": [
