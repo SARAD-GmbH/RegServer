@@ -32,6 +32,27 @@ logger.info("%s -> %s", __package__, __file__)
 MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 
 
+def get_state_from_file(device_id, cmd_key, hist=True):
+    """Read the device state from the device file."""
+    if hist:
+        filename = f"{FOLDER_HISTORY}{os.path.sep}{device_id}"
+    else:
+        filename = f"{FOLDER_AVAILABLE}{os.path.sep}{device_id}"
+    try:
+        if os.path.isfile(filename):
+            answer = {
+                "Identification": json.load(open(filename)).get("Identification", None),
+            }
+            reservation = json.load(open(filename)).get(cmd_key, None)
+            if reservation is not None:
+                answer["Reservation"] = reservation
+            return answer
+    except Exception:  # pylint: disable=broad-except
+        logger.exception("Fatal error")
+        return {}
+    return {}
+
+
 class RestApi:
     """REST API
     delivers lists and info for devices
@@ -204,39 +225,33 @@ class RestApi:
         logger.info("%s: %s --> %s", did, attribute_who, request_host)
         if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
-        # send RESERVE message to device actor
-        if ("_rfc2217" in did) or ("mqtt" in did):
-            device_actor = ActorSystem().createActor(Actor, globalName=did)
-        else:
+        if not "_rfc2217" in did and not "mqtt" in did:
             logger.error("Requested service not supported by actor system.")
             answer = {"Error code": "11", "Error": "Device not found", did: {}}
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
+        # send RESERVE message to device actor
+        device_actor = ActorSystem().createActor(Actor, globalName=did)
         msg = {
             "CMD": "RESERVE",
             "PAR": {"HOST": request_host, "USER": user, "APP": app},
         }
         logger.debug("Ask device actor %s", msg)
-        reserve_return = ActorSystem().ask(device_actor, msg)
-        # TODO: Add error handling of timeout and of reserve_return != OK
+        reserve_return = ActorSystem().ask(device_actor, msg, 1)
+        if reserve_return is None or isinstance(reserve_return, PoisonMessage):
+            answer = {"Error code": 11, "Error": "Device not found", did: {}}
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
         logger.debug("returned with %s", reserve_return)
-        answer = {}
-        try:
-            if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
-                answer[did] = {
-                    "Identification": json.load(
-                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
-                    ).get("Identification", None),
-                    "Reservation": json.load(
-                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
-                    ).get("Reservation", None),
-                }
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("Fatal error")
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
+        return_error = reserve_return["ERROR_CODE"]
+        if return_error == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
+            answer = {"Error code": return_error, "Error": "OK"}
+            answer[did] = get_state_from_file(did, "Reservation")
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
 
     @staticmethod
     @api.route(f"/list/<did>/{FREE_KEYWORD}", methods=["GET"])
@@ -254,19 +269,11 @@ class RestApi:
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
-        logger.info("returned with %s", free_return)
+        logger.debug("returned with %s", free_return)
         return_error = free_return["ERROR_CODE"]
         if return_error == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
             answer = {}
-            if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
-                answer[did] = {
-                    "Identification": json.load(
-                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
-                    ).get("Identification", None),
-                    "Reservation": json.load(
-                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
-                    ).get("Free", None),
-                }
+            answer[did] = get_state_from_file(did, "Free")
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
@@ -275,26 +282,13 @@ class RestApi:
                 "Error code": return_error,
                 "Error": "Already reserved by other party",
             }
-            if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
-                answer[did] = {
-                    "Identification": json.load(
-                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
-                    ).get("Identification", None),
-                    "Reservation": json.load(
-                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
-                    ).get("Free", None),
-                }
+            answer[did] = get_state_from_file(did, "Free")
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
         if return_error is RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]:
             answer = {"Error code": return_error, "Error": "No reservation found"}
-            if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
-                answer[did] = {
-                    "Identification": json.load(
-                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
-                    ).get("Identification", None),
-                }
+            answer[did] = get_state_from_file(did, "Free")
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
