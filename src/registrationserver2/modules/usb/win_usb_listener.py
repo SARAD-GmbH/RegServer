@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class USBSerial:
     deviceid: str
-
+    path: str
 
 
 class USBListener:
@@ -106,7 +106,8 @@ class USBListener:
         devices = json.loads(proc.stdout)
 
         return [USBSerial(
-            deviceid=d['deviceid']
+            deviceid=d['deviceid'],
+            path=fr'\\.\{d["deviceid"]}'
         ) for d in devices]
 
 
