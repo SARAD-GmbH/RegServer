@@ -29,7 +29,7 @@ logger.info("%s -> %s", __package__, __file__)
 MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 
 
-def get_state_from_file(device_id: str, cmd_key: str, hist: bool = True) -> dict:
+def get_state_from_file(device_id: str, cmd_key: str, hist: bool = False) -> dict:
     """Read the device state from the device file.
 
     Args:
@@ -45,7 +45,7 @@ def get_state_from_file(device_id: str, cmd_key: str, hist: bool = True) -> dict
         for the *Identification* of the instrument and it's *Reservation* state
 
     """
-    assert cmd_key in "Reservation", "Free"
+    assert cmd_key in ("Reservation", "Free")
     if hist:
         filename = f"{FOLDER_HISTORY}{os.path.sep}{device_id}"
     else:
@@ -111,17 +111,8 @@ class RestApi:
         """Path for getting the list of active devices"""
         answer = {}
         try:
-            for dir_entry in os.listdir(FOLDER_AVAILABLE):
-                file = fr"{FOLDER_AVAILABLE}{os.path.sep}{dir_entry}"
-                if os.path.isfile(file):
-                    answer[dir_entry] = {
-                        "Identification": json.load(open(file)).get(
-                            "Identification", None
-                        )
-                    }
-                    reservation = json.load(open(file)).get("Reservation", None)
-                    if reservation is not None:
-                        answer[dir_entry]["Reservation"] = reservation
+            for did in os.listdir(FOLDER_AVAILABLE):
+                answer[did] = get_state_from_file(did, "Reservation")
         except Exception:  # pylint: disable=broad-except
             logger.exception("Fatal error")
         return Response(
@@ -138,19 +129,7 @@ class RestApi:
         if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
         answer = {}
-        try:
-            filename = f"{FOLDER_AVAILABLE}{os.path.sep}{did}"
-            if os.path.isfile(filename):
-                answer[did] = {
-                    "Identification": json.load(open(filename)).get(
-                        "Identification", None
-                    )
-                }
-                reservation = json.load(open(filename)).get("Reservation", None)
-                if reservation is not None:
-                    answer[did]["Reservation"] = reservation
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("Fatal error")
+        answer[did] = get_state_from_file(did, "Reservation")
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -162,17 +141,8 @@ class RestApi:
         """Path for getting the list of all time detected devices"""
         answer = {}
         try:
-            for dir_entry in os.listdir(f"{FOLDER_HISTORY}"):
-                file = fr"{FOLDER_HISTORY}{os.path.sep}{dir_entry}"
-                if os.path.isfile(file):
-                    answer[dir_entry] = {
-                        "Identification": json.load(open(file)).get(
-                            "Identification", None
-                        )
-                    }
-                    reservation = json.load(open(file)).get("Reservation", None)
-                    if reservation is not None:
-                        answer[dir_entry]["Reservation"] = reservation
+            for did in os.listdir(f"{FOLDER_HISTORY}"):
+                answer[did] = get_state_from_file(did, "Reservation", hist=True)
         except Exception:  # pylint: disable=broad-except
             logger.exception("Fatal error")
         return Response(
@@ -188,19 +158,7 @@ class RestApi:
         if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
         answer = {}
-        try:
-            filename = f"{FOLDER_AVAILABLE}{os.path.sep}{did}"
-            if os.path.isfile(filename):
-                answer[did] = {
-                    "Identification": json.load(open(filename)).get(
-                        "Identification", None
-                    )
-                }
-                reservation = json.load(open(filename)).get("Reservation", None)
-                if reservation is not None:
-                    answer[did]["Reservation"] = reservation
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("Fatal error")
+        answer[did] = get_state_from_file(did, "Reservation", hist=True)
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
