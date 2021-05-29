@@ -13,6 +13,7 @@ from typing import Callable, List
 import win32api
 import win32con
 import win32gui
+from keyboard._nixkeyboard import device
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,10 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class USBSerial:
     deviceid: str
-
-    @property
-    def is_removable(self) -> bool:
-        return self.drive_type == 'Removable Disk'
+    path: str
 
 
 class USBListener:
@@ -108,13 +106,14 @@ class USBListener:
         devices = json.loads(proc.stdout)
 
         return [USBSerial(
-            deviceid=d['deviceid']
+            deviceid=d['deviceid'],
+            path=fr'\\.\{d["deviceid"]}'
         ) for d in devices]
 
 
 def on_devices_changed(devices: List[USBListener]):
-    removable_drives = [d for d in devices if d.is_removable]
-    logger.debug(f'Connected removable drives: {removable_drives}')
+    for device in devices:
+        logger.info(f'Connected usb device {vars(device)}' )
     # creating actors here if needed
 
 if __name__ == '__main__':
