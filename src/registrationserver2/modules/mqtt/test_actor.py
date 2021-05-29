@@ -386,7 +386,6 @@ def __test__():
         RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
     ):
         logger.info("Test actor is setup correctly!")
-        folder_history = f"{registrationserver2.FOLDER_HISTORY}{os.path.sep}"
         folder_available = f"{registrationserver2.FOLDER_AVAILABLE}{os.path.sep}"
         while True:
             if os.listdir(folder_history) == []:

@@ -14,7 +14,7 @@ from datetime import datetime
 
 from flask import json
 from overrides import overrides  # type: ignore
-from registrationserver2 import FOLDER_AVAILABLE, FOLDER_HISTORY, logger
+from registrationserver2 import FOLDER_AVAILABLE, logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.redirector_actor import RedirectorActor
 from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
@@ -70,7 +70,6 @@ class DeviceBaseActor(Actor):
         self._file: json = None
         self.df_content = {}
         self.link = None
-        self.__folder_history: str = FOLDER_HISTORY + os.path.sep
         self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
         self.my_redirector = None
         self.app = None
@@ -137,16 +136,13 @@ class DeviceBaseActor(Actor):
             getattr(self, return_function)(msg, sender)
 
     def _setup(self, msg: dict, sender) -> None:
-        filename = fr"{self.__folder_history}{self.globalName}"
         if self.link is None:
             self.link = fr"{self.__folder_available}{self.globalName}"
-            if not os.path.exists(filename):
-                open(filename, "a").close()
             if not os.path.exists(self.link):
-                logger.info("Linking %s to %s", self.link, filename)
-                os.link(filename, self.link)
+                open(self.link, "a").close()
+                logger.info("Device file %s created", self.link)
             self._file = msg["PAR"]
-            with open(filename, "w+") as file_stream:
+            with open(self.link, "w+") as file_stream:
                 file_stream.write(self._file)
             return_message = {
                 "RETURN": "SETUP",
@@ -154,7 +150,7 @@ class DeviceBaseActor(Actor):
             }
             self.send(sender, return_message)
             return
-        with open(filename, "w+") as file_stream:
+        with open(self.link, "w+") as file_stream:
             file_stream.write(self._file)
         return_message = {
             "RETURN": "SETUP",
@@ -165,12 +161,9 @@ class DeviceBaseActor(Actor):
 
     def _kill(self, msg: dict, sender):
         logger.info("Shutting down actor %s, Message: %s", self.globalName, msg)
-        filename = fr"{self.__folder_history}{self.globalName}"
         self.link = fr"{self.__folder_available}{self.globalName}"
         if os.path.exists(self.link):
-            os.unlink(self.link)
-        if os.path.exists(filename):
-            os.remove(filename)
+            os.remove(self.link)
         if self.my_redirector is not None:
             logger.debug("Send KILL to redirector %s", self.my_redirector)
             self.send(self.my_redirector, ActorExitRequest())

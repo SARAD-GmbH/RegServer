@@ -19,8 +19,7 @@ import sys
 from flask import Flask, Response, json, request
 from thespian.actors import Actor, ActorSystem, PoisonMessage  # type: ignore
 
-from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
-                                 FREE_KEYWORD, PATH_AVAILABLE, PATH_HISTORY,
+from registrationserver2 import (FOLDER_AVAILABLE, FREE_KEYWORD,
                                  RESERVE_KEYWORD, logger)
 from registrationserver2.modules.messages import RETURN_MESSAGES
 
@@ -29,7 +28,7 @@ logger.info("%s -> %s", __package__, __file__)
 MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 
 
-def get_state_from_file(device_id: str, cmd_key: str, hist: bool = False) -> dict:
+def get_state_from_file(device_id: str, cmd_key: str) -> dict:
     """Read the device state from the device file.
 
     Args:
@@ -37,8 +36,6 @@ def get_state_from_file(device_id: str, cmd_key: str, hist: bool = False) -> dic
                    as global name for the device actor
         cmd_key: Keyword to denote the state section in the JSON file
                  (either "Reservation" or "Free")
-        hist: Indicates whether the information shall be taken from
-              FOLDER_HISTORY (True) or from FOLDER_AVAILABLE (False)
 
     Returns:
         A dictionary containing additional information
@@ -46,10 +43,7 @@ def get_state_from_file(device_id: str, cmd_key: str, hist: bool = False) -> dic
 
     """
     assert cmd_key in ("Reservation", "Free")
-    if hist:
-        filename = f"{FOLDER_HISTORY}{os.path.sep}{device_id}"
-    else:
-        filename = f"{FOLDER_AVAILABLE}{os.path.sep}{device_id}"
+    filename = f"{FOLDER_AVAILABLE}{os.path.sep}{device_id}"
     try:
         if os.path.isfile(filename):
             answer = {
@@ -105,8 +99,6 @@ class RestApi:
     @staticmethod
     @api.route("/list", methods=["GET"])
     @api.route("/list/", methods=["GET"])
-    @api.route(f"/{PATH_AVAILABLE}", methods=["GET"])
-    @api.route(f"/{PATH_AVAILABLE}/", methods=["GET"])
     def get_list():
         """Path for getting the list of active devices"""
         answer = {}
@@ -122,8 +114,6 @@ class RestApi:
     @staticmethod
     @api.route("/list/<did>", methods=["GET"])
     @api.route("/list/<did>/", methods=["GET"])
-    @api.route(f"/{PATH_AVAILABLE}/<did>", methods=["GET"])
-    @api.route(f"/{PATH_AVAILABLE}/<did>/", methods=["GET"])
     def get_device(did):
         """Path for getting information for a single active device"""
         if not MATCHID.fullmatch(did):
@@ -135,40 +125,7 @@ class RestApi:
         )
 
     @staticmethod
-    @api.route(f"/{PATH_HISTORY}", methods=["GET"])
-    @api.route(f"/{PATH_HISTORY}/", methods=["GET"])
-    def get_history():
-        """Path for getting the list of all time detected devices"""
-        answer = {}
-        try:
-            for did in os.listdir(f"{FOLDER_HISTORY}"):
-                answer[did] = get_state_from_file(did, "Reservation", hist=True)
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("Fatal error")
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
-
-    @staticmethod
-    @api.route(f"/{PATH_HISTORY}/<did>", methods=["GET"])
-    @api.route(f"/{PATH_HISTORY}/<did>/", methods=["GET"])
-    def get_device_old(did):
-        """Path for getting information about a single
-        previously or currently detected device"""
-        if not MATCHID.fullmatch(did):
-            return json.dumps({"Error": "Wronly formated ID"})
-        answer = {}
-        answer[did] = get_state_from_file(did, "Reservation", hist=True)
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
-
-    @staticmethod
     @api.route(f"/list/<did>/{RESERVE_KEYWORD}", methods=["GET"])
-    @api.route(
-        f"/{PATH_AVAILABLE}/<did>/{RESERVE_KEYWORD}",
-        methods=["GET"],
-    )
     def reserve_device(did):
         """Path for reserving a single active device"""
         # Collect information about who sent the request.
@@ -225,10 +182,6 @@ class RestApi:
 
     @staticmethod
     @api.route(f"/list/<did>/{FREE_KEYWORD}", methods=["GET"])
-    @api.route(
-        f"/{PATH_AVAILABLE}/<did>/{FREE_KEYWORD}",
-        methods=["GET"],
-    )
     def free_device(did):
         """Path for freeing a single active device"""
         device_actor = ActorSystem().createActor(Actor, globalName=did)

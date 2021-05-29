@@ -38,29 +38,18 @@ logger = logging.getLogger("Reg. Server")
 logger.info("Logging system initialized.")
 
 # ==========================================
-# Folders structure / API names for devices and device history
+# Folders structure / API names for devices and Instrument Controller hosts
 # TODO: move to configuration instead
 # ==========================================
 
 # How the sub folder for available instrument/host description files is called
 FILE_PATH_AVAILABLE = "available"
 
-# How the sub folder for all detected instrument/host description files is called
-FILE_PATH_HISTORY = "history"
-
-# How the API sub path for available instrument/host descriptions is called
-PATH_AVAILABLE = FILE_PATH_AVAILABLE
-
-# How the API sub path for all detected instrument/host descriptions is called
-PATH_HISTORY = FILE_PATH_HISTORY
-
-# "available" and "history" under "devices"
+# folder for device files
 FOLDER_AVAILABLE = f'{config["FOLDER"]}{os.path.sep}{FILE_PATH_AVAILABLE}'
-FOLDER_HISTORY = f'{config["FOLDER"]}{os.path.sep}{FILE_PATH_HISTORY}'
 
-# "available" and "history" under "hosts"
+# folder for Instrument Controller hosts (only used in MQTT implementation)
 HOSTS_FOLDER_AVAILABLE = f'{config["HOSTS_FOLDER"]}{os.path.sep}{FILE_PATH_AVAILABLE}'
-HOSTS_FOLDER_HISTORY = f'{config["HOSTS_FOLDER"]}{os.path.sep}{FILE_PATH_HISTORY}'
 
 RESERVE_KEYWORD = "reserve"
 FREE_KEYWORD = "free"

@@ -18,7 +18,7 @@ import socket
 import threading
 
 import hashids  # type: ignore
-from registrationserver2 import FOLDER_AVAILABLE, FOLDER_HISTORY, logger
+from registrationserver2 import FOLDER_AVAILABLE, logger
 from registrationserver2.config import config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
@@ -106,13 +106,10 @@ class MdnsListener(ServiceListener):
                 ip_version=config["ip_version"], interfaces=[self.get_ip(), "127.0.0.1"]
             )
             self.__browser = ServiceBrowser(self.__zeroconf, _type, self)
-            self.__folder_history: str = FOLDER_HISTORY + os.path.sep
             self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
-            if not os.path.exists(self.__folder_history):
-                os.makedirs(self.__folder_history)
             if not os.path.exists(self.__folder_available):
                 os.makedirs(self.__folder_available)
-            logger.debug("Output to: %s", self.__folder_history)
+            logger.debug("Output to: %s", self.__folder_available)
         # Clean __folder_available for a fresh start
         self.remove_all_services()
 
