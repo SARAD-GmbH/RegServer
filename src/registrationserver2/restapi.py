@@ -9,9 +9,6 @@ Authors
 
 .. uml:: uml-restapi.puml
 
-Todo:
-    * _free: Freigabe fehlgeschlagen -- Aready reserved by other party
-    * _free: Freigabe fehlgeschlagen -- No reservation found
 """
 
 import os
@@ -32,8 +29,23 @@ logger.info("%s -> %s", __package__, __file__)
 MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 
 
-def get_state_from_file(device_id, cmd_key, hist=True):
-    """Read the device state from the device file."""
+def get_state_from_file(device_id: str, cmd_key: str, hist: bool = True) -> dict:
+    """Read the device state from the device file.
+
+    Args:
+        device_id: The device id is used as well as file name as
+                   as global name for the device actor
+        cmd_key: Keyword to denote the state section in the JSON file
+                 (either "Reservation" or "Free")
+        hist: Indicates whether the information shall be taken from
+              FOLDER_HISTORY (True) or from FOLDER_AVAILABLE (False)
+
+    Returns:
+        A dictionary containing additional information
+        for the *Identification* of the instrument and it's *Reservation* state
+
+    """
+    assert cmd_key in "Reservation", "Free"
     if hist:
         filename = f"{FOLDER_HISTORY}{os.path.sep}{device_id}"
     else:
