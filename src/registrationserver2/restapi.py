@@ -173,12 +173,28 @@ class RestApi:
             )
         logger.debug("returned with %s", reserve_return)
         return_error = reserve_return["ERROR_CODE"]
-        if return_error == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
+        if return_error in (
+            RETURN_MESSAGES["OK"]["ERROR_CODE"],
+            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+        ):
             answer = {"Error code": return_error, "Error": "OK"}
             answer[did] = get_state_from_file(did, "Reservation")
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
+        if return_error is RETURN_MESSAGES["OCCUPIED"]["ERROR_CODE"]:
+            answer = {
+                "Error code": return_error,
+                "Error": "Already reserved by other party",
+            }
+            answer[did] = get_state_from_file(did, "Reservation")
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        answer = {"Error code": 99, "Error": "Unexpected error", did: {}}
+        return Response(
+            response=json.dumps(answer), status=200, mimetype="application/json"
+        )
 
     @staticmethod
     @api.route(f"/list/<did>/{FREE_KEYWORD}", methods=["GET"])
