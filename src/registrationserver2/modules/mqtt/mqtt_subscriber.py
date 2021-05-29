@@ -14,8 +14,8 @@ import json
 import os
 
 import paho.mqtt.client as MQTT  # type: ignore
-from registrationserver2 import HOSTS_FOLDER_AVAILABLE, logger
-from registrationserver2.config import mqtt_config
+from registrationserver2 import logger
+from registrationserver2.config import config, mqtt_config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
 from thespian.actors import ActorSystem  # type: ignore
@@ -110,8 +110,7 @@ class SaradMqttSubscriber:
             "[Update Host]: Update a already connected host with Instrument Server ID '%s'",
             is_id,
         )
-        folder_hosts_available = f"{HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
-        filename = fr"{folder_hosts_available}{is_id}"
+        filename = fr"{config['IC_HOSTS_FOLDER']}{os.path.sep}{is_id}"
         try:
             with open(filename, "w+") as file_stream:
                 file_stream.write(json.dumps(data))
@@ -153,9 +152,9 @@ class SaradMqttSubscriber:
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
         self.mqttc.connect(self.mqtt_broker, port=self.port)
-        folder_hosts_available = f"{HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
-        if not os.path.exists(folder_hosts_available):
-            os.makedirs(folder_hosts_available)
+        ic_hosts_folder = f"{config['IC_HOSTS_FOLDER']}{os.path.sep}"
+        if not os.path.exists(ic_hosts_folder):
+            os.makedirs(ic_hosts_folder)
 
     def mqtt_loop(self):
         """Running one cycle of the MQTT loop"""
@@ -311,10 +310,10 @@ class SaradMqttSubscriber:
             "[Add Host]: Found a new connected host with Instrument Server ID '%s'",
             is_id,
         )
-        folder_hosts_available = f"{HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
-        if not os.path.exists(folder_hosts_available):
-            os.makedirs(folder_hosts_available)
-        filename = fr"{folder_hosts_available}{is_id}"
+        ic_hosts_folder = f"{config['IC_HOSTS_FOLDER']}{os.path.sep}"
+        if not os.path.exists(ic_hosts_folder):
+            os.makedirs(ic_hosts_folder)
+        filename = fr"{ic_hosts_folder}{is_id}"
         try:
             with open(filename, "w+") as file_stream:
                 file_stream.write(json.dumps(data))
@@ -359,13 +358,12 @@ class SaradMqttSubscriber:
             logger.info("[Remove Host]: To kill the instrument with ID '%s'", _instr_id)
             self._rm_instr(rm_msg)
         del self.connected_instruments[is_id]
-        folder_hosts_available = f"{HOSTS_FOLDER_AVAILABLE}{os.path.sep}"
-        link = fr"{folder_hosts_available}{is_id}"
-        if os.path.exists(link):
-            os.unlink(link)
+        filename = f"{config['IC_HOSTS_FOLDER']}{os.path.sep}{is_id}"
+        if os.path.exists(filename):
+            os.remove(filename)
         logger.info(
             (
-                "[Remove Host]: Remove the link to the information of the instrument server "
+                "[Remove Host]: Remove file containing information of the instrument server "
                 "successfully, the ID of which is '%s'"
             ),
             is_id,
@@ -379,12 +377,12 @@ class SaradMqttSubscriber:
             "[Disconnect]: list of connected instruments -> %s",
             self.connected_instruments,
         )
-        if os.path.exists(HOSTS_FOLDER_AVAILABLE):
-            for root, _, files in os.walk(HOSTS_FOLDER_AVAILABLE):
+        if os.path.exists(config["IC_HOSTS_FOLDER"]):
+            for root, _, files in os.walk(config["IC_HOSTS_FOLDER"]):
                 for name in files:
-                    link = os.path.join(root, name)
+                    filename = os.path.join(root, name)
                     logger.debug("[Del]:\tRemoved: %s", name)
-                    os.unlink(link)
+                    os.remove(filename)
         self.connected_instruments = None
         self._disconnect()
 
@@ -416,7 +414,9 @@ class SaradMqttSubscriber:
                     )
                     return
                 if payload.get("State", None) in (2, 1):
-                    filename_ = fr"{folder_hosts_available}{topic_parts[0]}"
+                    filename_ = (
+                        f"{config['IC_HOSTS_FOLDER']}{os.path.sep}{topic_parts[0]}"
+                    )
                     logger.info(
                         "[Parse]: To write the properties of this cluster (%s) into file system",
                         topic_parts[0],

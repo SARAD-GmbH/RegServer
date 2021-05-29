@@ -13,7 +13,7 @@ group setup
         is -> listener: mDNS multicast message
         listener -> deviceactor: create actor
         listener -> deviceactor: SETUP message
-        deviceactor -> files: create file/link,\nwrite Identification section
+        deviceactor -> files: create file,\nwrite Identification section
 end
 group reservation
 	      api -> deviceactor: RESERVE message

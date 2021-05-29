@@ -12,7 +12,7 @@ class registrationserver2.modules.rfc2217.rfc2217_actor.Rfc2217Actor {
 class registrationserver2.modules.rfc2217.mdns_listener.MdnsListener {
   _MdnsListener__zeroconf: zeroconf.Zeroconf
   _MdnsListener__browser: zeroconf.ServiceBrowser
-  _MdnsListener__folder_available: str
+  _MdnsListener__dev_folder: str
   _MdnsListener__type: str
 }
 class registrationserver2.redirector_actor.RedirectorActor {

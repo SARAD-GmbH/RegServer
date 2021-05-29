@@ -19,8 +19,8 @@ import sys
 from flask import Flask, Response, json, request
 from thespian.actors import Actor, ActorSystem, PoisonMessage  # type: ignore
 
-from registrationserver2 import (FOLDER_AVAILABLE, FREE_KEYWORD,
-                                 RESERVE_KEYWORD, logger)
+from registrationserver2 import FREE_KEYWORD, RESERVE_KEYWORD, logger
+from registrationserver2.config import config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 
 logger.info("%s -> %s", __package__, __file__)
@@ -43,7 +43,7 @@ def get_state_from_file(device_id: str, cmd_key: str) -> dict:
 
     """
     assert cmd_key in ("Reservation", "Free")
-    filename = f"{FOLDER_AVAILABLE}{os.path.sep}{device_id}"
+    filename = f"{config['DEV_FOLDER']}{os.path.sep}{device_id}"
     try:
         if os.path.isfile(filename):
             answer = {
@@ -103,7 +103,7 @@ class RestApi:
         """Path for getting the list of active devices"""
         answer = {}
         try:
-            for did in os.listdir(FOLDER_AVAILABLE):
+            for did in os.listdir(config["DEV_FOLDER"]):
                 answer[did] = get_state_from_file(did, "Reservation")
         except Exception:  # pylint: disable=broad-except
             logger.exception("Fatal error")

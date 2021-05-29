@@ -13,7 +13,7 @@ end box
 group SETUP & PREPARE
     subscriber -> mqtt_actor : create a device actor to receive commands / data\nif the instrument server is_id is already added
     subscriber -> mqtt_actor : ask the mqtt actor to setup itself
-    mqtt_actor -> d_list : create a description file\nfor the instrument_id.SARAD_Type.mqtt\nand make a link to the file
+    mqtt_actor -> d_list : create a description file\nfor the instrument_id.SARAD_Type.mqtt
     subscriber -> mqtt_actor : ask the mqtt actor to prepare itself\nfor the future works
     mqtt_actor -> broker : prepare itself and connect to the broker
     mqtt_actor -> broker : unsubscribe to the topics\n"<is_id>/<instrument_id>/meta"\nand "<is_id>/<instrument_id>/reservation"
