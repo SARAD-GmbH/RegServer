@@ -17,7 +17,8 @@ import socket
 import sys
 
 from flask import Flask, Response, json, request
-from thespian.actors import Actor, ActorSystem, PoisonMessage  # type: ignore
+from thespian.actors import ActorExitRequest  # type: ignore
+from thespian.actors import Actor, ActorSystem, PoisonMessage
 
 from registrationserver2 import FREE_KEYWORD, RESERVE_KEYWORD, logger
 from registrationserver2.config import config
@@ -152,7 +153,8 @@ class RestApi:
         logger.info("%s: %s --> %s", did, attribute_who, request_host)
         if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
-        if not "_rfc2217" in did and not "mqtt" in did:
+        device_state = get_state_from_file(did, "Reservation")
+        if (not "_rfc2217" in did and not "mqtt" in did) or device_state == {}:
             logger.error("Requested service not supported by actor system.")
             answer = {"Error code": "11", "Error": "Device not found", did: {}}
             return Response(
@@ -165,12 +167,7 @@ class RestApi:
             "PAR": {"HOST": request_host, "USER": user, "APP": app},
         }
         logger.debug("Ask device actor %s", msg)
-        reserve_return = ActorSystem().ask(device_actor, msg, 1)
-        if reserve_return is None or isinstance(reserve_return, PoisonMessage):
-            answer = {"Error code": 11, "Error": "Device not found", did: {}}
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
+        reserve_return = ActorSystem().ask(device_actor, msg)
         logger.debug("returned with %s", reserve_return)
         return_error = reserve_return["ERROR_CODE"]
         if return_error in (
@@ -200,14 +197,24 @@ class RestApi:
     @api.route(f"/list/<did>/{FREE_KEYWORD}", methods=["GET"])
     def free_device(did):
         """Path for freeing a single active device"""
-        device_actor = ActorSystem().createActor(Actor, globalName=did)
-        logger.debug("Ask device actor to FREE...")
-        free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"}, 1)
-        if free_return is None or isinstance(free_return, PoisonMessage):
+        device_state = get_state_from_file(did, "Reservation")
+        if device_state == {}:
             answer = {"Error code": 11, "Error": "Device not found", did: {}}
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
+        if device_state.get("Reservation", None) is None:
+            answer = {
+                "Error code": 10,
+                "Error": "No reservation found",
+                did: device_state,
+            }
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        device_actor = ActorSystem().createActor(Actor, globalName=did)
+        logger.debug("Ask device actor to FREE...")
+        free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"})
         logger.debug("returned with %s", free_return)
         return_error = free_return["ERROR_CODE"]
         if return_error == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
@@ -221,12 +228,6 @@ class RestApi:
                 "Error code": return_error,
                 "Error": "Already reserved by other party",
             }
-            answer[did] = get_state_from_file(did, "Free")
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
-        if return_error is RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"]:
-            answer = {"Error code": return_error, "Error": "No reservation found"}
             answer[did] = get_state_from_file(did, "Free")
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
