@@ -28,7 +28,7 @@ config = {
 # if LOCAL:
 # TODO: The following line is only for the test phase.
 if os.name == "nt":
-    config["HOST"] = "0.0.0.0"
+    config["HOST"] = "127.0.0.1"
 else:
     config["HOST"] = "192.168.10.19"
     # config["HOST"] = "192.168.178.20"

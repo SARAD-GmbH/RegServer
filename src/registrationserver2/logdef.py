@@ -86,5 +86,5 @@ logcfg = {
             "stream": "ext://sys.stdout",
         },
     },
-    "loggers": {"": {"handlers": ["f1", "f2", "console"], "level": LOGLEVEL}},
+    "loggers": {"": {"handlers": ["console"], "level": LOGLEVEL}},
 }
