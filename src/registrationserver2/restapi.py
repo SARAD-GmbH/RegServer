@@ -9,9 +9,6 @@ Authors
 
 .. uml:: uml-restapi.puml
 
-Todo:
-    * _free: Freigabe fehlgeschlagen -- Aready reserved by other party
-    * _free: Freigabe fehlgeschlagen -- No reservation found
 """
 
 import os
@@ -20,16 +17,47 @@ import socket
 import sys
 
 from flask import Flask, Response, json, request
-from thespian.actors import Actor, ActorSystem  # type: ignore
+from thespian.actors import ActorExitRequest  # type: ignore
+from thespian.actors import Actor, ActorSystem, PoisonMessage
 
-from registrationserver2 import (FOLDER_AVAILABLE, FOLDER_HISTORY,
-                                 FREE_KEYWORD, PATH_AVAILABLE, PATH_HISTORY,
-                                 RESERVE_KEYWORD, logger)
+from registrationserver2 import FREE_KEYWORD, RESERVE_KEYWORD, logger
+from registrationserver2.config import config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 
 logger.info("%s -> %s", __package__, __file__)
 
 MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
+
+
+def get_state_from_file(device_id: str, cmd_key: str) -> dict:
+    """Read the device state from the device file.
+
+    Args:
+        device_id: The device id is used as well as file name as
+                   as global name for the device actor
+        cmd_key: Keyword to denote the state section in the JSON file
+                 (either "Reservation" or "Free")
+
+    Returns:
+        A dictionary containing additional information
+        for the *Identification* of the instrument and it's *Reservation* state
+
+    """
+    assert cmd_key in ("Reservation", "Free")
+    filename = f"{config['DEV_FOLDER']}{os.path.sep}{device_id}"
+    try:
+        if os.path.isfile(filename):
+            answer = {
+                "Identification": json.load(open(filename)).get("Identification", None),
+            }
+            reservation = json.load(open(filename)).get(cmd_key, None)
+            if reservation is not None:
+                answer["Reservation"] = reservation
+            return answer
+    except Exception:  # pylint: disable=broad-except
+        logger.exception("Fatal error")
+        return {}
+    return {}
 
 
 class RestApi:
@@ -72,23 +100,12 @@ class RestApi:
     @staticmethod
     @api.route("/list", methods=["GET"])
     @api.route("/list/", methods=["GET"])
-    @api.route(f"/{PATH_AVAILABLE}", methods=["GET"])
-    @api.route(f"/{PATH_AVAILABLE}/", methods=["GET"])
     def get_list():
         """Path for getting the list of active devices"""
         answer = {}
         try:
-            for dir_entry in os.listdir(FOLDER_AVAILABLE):
-                file = fr"{FOLDER_AVAILABLE}{os.path.sep}{dir_entry}"
-                if os.path.isfile(file):
-                    answer[dir_entry] = {
-                        "Identification": json.load(open(file)).get(
-                            "Identification", None
-                        )
-                    }
-                    reservation = json.load(open(file)).get("Reservation", None)
-                    if reservation is not None:
-                        answer[dir_entry]["Reservation"] = reservation
+            for did in os.listdir(config["DEV_FOLDER"]):
+                answer[did] = get_state_from_file(did, "Reservation")
         except Exception:  # pylint: disable=broad-except
             logger.exception("Fatal error")
         return Response(
@@ -98,86 +115,18 @@ class RestApi:
     @staticmethod
     @api.route("/list/<did>", methods=["GET"])
     @api.route("/list/<did>/", methods=["GET"])
-    @api.route(f"/{PATH_AVAILABLE}/<did>", methods=["GET"])
-    @api.route(f"/{PATH_AVAILABLE}/<did>/", methods=["GET"])
     def get_device(did):
         """Path for getting information for a single active device"""
         if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
         answer = {}
-        try:
-            filename = f"{FOLDER_AVAILABLE}{os.path.sep}{did}"
-            if os.path.isfile(filename):
-                answer[did] = {
-                    "Identification": json.load(open(filename)).get(
-                        "Identification", None
-                    )
-                }
-                reservation = json.load(open(filename)).get("Reservation", None)
-                if reservation is not None:
-                    answer[did]["Reservation"] = reservation
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("Fatal error")
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
-
-    @staticmethod
-    @api.route(f"/{PATH_HISTORY}", methods=["GET"])
-    @api.route(f"/{PATH_HISTORY}/", methods=["GET"])
-    def get_history():
-        """Path for getting the list of all time detected devices"""
-        answer = {}
-        try:
-            for dir_entry in os.listdir(f"{FOLDER_HISTORY}"):
-                file = fr"{FOLDER_HISTORY}{os.path.sep}{dir_entry}"
-                if os.path.isfile(file):
-                    answer[dir_entry] = {
-                        "Identification": json.load(open(file)).get(
-                            "Identification", None
-                        )
-                    }
-                    reservation = json.load(open(file)).get("Reservation", None)
-                    if reservation is not None:
-                        answer[dir_entry]["Reservation"] = reservation
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("Fatal error")
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
-
-    @staticmethod
-    @api.route(f"/{PATH_HISTORY}/<did>", methods=["GET"])
-    @api.route(f"/{PATH_HISTORY}/<did>/", methods=["GET"])
-    def get_device_old(did):
-        """Path for getting information about a single
-        previously or currently detected device"""
-        if not MATCHID.fullmatch(did):
-            return json.dumps({"Error": "Wronly formated ID"})
-        answer = {}
-        try:
-            filename = f"{FOLDER_AVAILABLE}{os.path.sep}{did}"
-            if os.path.isfile(filename):
-                answer[did] = {
-                    "Identification": json.load(open(filename)).get(
-                        "Identification", None
-                    )
-                }
-                reservation = json.load(open(filename)).get("Reservation", None)
-                if reservation is not None:
-                    answer[did]["Reservation"] = reservation
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("Fatal error")
+        answer[did] = get_state_from_file(did, "Reservation")
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
     @staticmethod
     @api.route(f"/list/<did>/{RESERVE_KEYWORD}", methods=["GET"])
-    @api.route(
-        f"/{PATH_AVAILABLE}/<did>/{RESERVE_KEYWORD}",
-        methods=["GET"],
-    )
     def reserve_device(did):
         """Path for reserving a single active device"""
         # Collect information about who sent the request.
@@ -204,68 +153,86 @@ class RestApi:
         logger.info("%s: %s --> %s", did, attribute_who, request_host)
         if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
-        # send RESERVE message to device actor
-        if ("_rfc2217" in did) or ("mqtt" in did):
-            device_actor = ActorSystem().createActor(Actor, globalName=did)
-        else:
+        device_state = get_state_from_file(did, "Reservation")
+        if (not "_rfc2217" in did and not "mqtt" in did) or device_state == {}:
             logger.error("Requested service not supported by actor system.")
             answer = {"Error code": "11", "Error": "Device not found", did: {}}
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
+        # send RESERVE message to device actor
+        device_actor = ActorSystem().createActor(Actor, globalName=did)
         msg = {
             "CMD": "RESERVE",
             "PAR": {"HOST": request_host, "USER": user, "APP": app},
         }
         logger.debug("Ask device actor %s", msg)
         reserve_return = ActorSystem().ask(device_actor, msg)
-        # TODO: Add error handling of timeout and of reserve_return != OK
         logger.debug("returned with %s", reserve_return)
-        answer = {}
-        try:
-            if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
-                answer[did] = {
-                    "Identification": json.load(
-                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
-                    ).get("Identification", None),
-                    "Reservation": json.load(
-                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
-                    ).get("Reservation", None),
-                }
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("Fatal error")
+        return_error = reserve_return["ERROR_CODE"]
+        if return_error in (
+            RETURN_MESSAGES["OK"]["ERROR_CODE"],
+            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+        ):
+            answer = {"Error code": return_error, "Error": "OK"}
+            answer[did] = get_state_from_file(did, "Reservation")
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        if return_error is RETURN_MESSAGES["OCCUPIED"]["ERROR_CODE"]:
+            answer = {
+                "Error code": return_error,
+                "Error": "Already reserved by other party",
+            }
+            answer[did] = get_state_from_file(did, "Reservation")
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        answer = {"Error code": 99, "Error": "Unexpected error", did: {}}
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
     @staticmethod
     @api.route(f"/list/<did>/{FREE_KEYWORD}", methods=["GET"])
-    @api.route(
-        f"/{PATH_AVAILABLE}/<did>/{FREE_KEYWORD}",
-        methods=["GET"],
-    )
     def free_device(did):
         """Path for freeing a single active device"""
-        device_actor = ActorSystem().createActor(Actor, globalName=did)
-        logger.debug("Ask device actor to FREE...")
-        free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"})
-        # TODO: Add error handling of timeout
-        logger.info("returned with %s", free_return)
-        if free_return is RETURN_MESSAGES["OK"] or RETURN_MESSAGES["OK_SKIPPED"]:
-            answer = {}
-            if os.path.isfile(f"{FOLDER_HISTORY}{os.path.sep}{did}"):
-                answer[did] = {
-                    "Identification": json.load(
-                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
-                    ).get("Identification", None),
-                    "Reservation": json.load(
-                        open(f"{FOLDER_HISTORY}{os.path.sep}{did}")
-                    ).get("Free", None),
-                }
+        device_state = get_state_from_file(did, "Reservation")
+        if device_state == {}:
+            answer = {"Error code": 11, "Error": "Device not found", did: {}}
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
-        answer = {"Error code": 11, "Error": "Device not found", did: {}}
+        if device_state.get("Reservation", None) is None:
+            answer = {
+                "Error code": 10,
+                "Error": "No reservation found",
+                did: device_state,
+            }
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        device_actor = ActorSystem().createActor(Actor, globalName=did)
+        logger.debug("Ask device actor to FREE...")
+        free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"})
+        logger.debug("returned with %s", free_return)
+        return_error = free_return["ERROR_CODE"]
+        if return_error == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
+            answer = {}
+            answer[did] = get_state_from_file(did, "Free")
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        if return_error is RETURN_MESSAGES["OCCUPIED"]["ERROR_CODE"]:
+            answer = {
+                "Error code": return_error,
+                "Error": "Already reserved by other party",
+            }
+            answer[did] = get_state_from_file(did, "Free")
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        answer = {"Error code": 99, "Error": "Unexpected error", did: {}}
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )

@@ -29,7 +29,7 @@ Container(is1, $is, "verwaltet Gerätebelegung, stellt eine Internetschnittstell
 Rel(is1, listener, "1. meldet Gerät A", "mDNS Multicast")
 Rel(listener, device_actor1, "2. erzeugt", "createActor")
 Rel(listener, device_actor1, "3. SETUP", "message")
-Rel(device_actor1, device_files, "4. Datei/Link",  "JSON Identification")
+Rel(device_actor1, device_files, "4. Datei",  "JSON Identification")
 Rel(api, app, "5. GET list", "JSON/HTTP")
 Rel(api, device_files, "6. liest", "JSON/HTTP")
 Rel(app, api, "7. GET reserve", "JSON/HTTP")

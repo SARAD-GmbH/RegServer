@@ -14,7 +14,8 @@ from datetime import datetime
 
 from flask import json
 from overrides import overrides  # type: ignore
-from registrationserver2 import FOLDER_AVAILABLE, FOLDER_HISTORY, logger
+from registrationserver2 import logger
+from registrationserver2.config import config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.redirector_actor import RedirectorActor
 from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
@@ -69,9 +70,8 @@ class DeviceBaseActor(Actor):
         self._config: dict = {}
         self._file: json = None
         self.df_content = {}
-        self.link = None
-        self.__folder_history: str = FOLDER_HISTORY + os.path.sep
-        self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
+        self.dev_file = None
+        self.__dev_folder: str = config["DEV_FOLDER"] + os.path.sep
         self.my_redirector = None
         self.app = None
         self.user = None
@@ -137,16 +137,13 @@ class DeviceBaseActor(Actor):
             getattr(self, return_function)(msg, sender)
 
     def _setup(self, msg: dict, sender) -> None:
-        filename = fr"{self.__folder_history}{self.globalName}"
-        if self.link is None:
-            self.link = fr"{self.__folder_available}{self.globalName}"
-            if not os.path.exists(filename):
-                open(filename, "a").close()
-            if not os.path.exists(self.link):
-                logger.info("Linking %s to %s", self.link, filename)
-                os.link(filename, self.link)
+        if self.dev_file is None:
+            self.dev_file = fr"{self.__dev_folder}{self.globalName}"
+            if not os.path.exists(self.dev_file):
+                open(self.dev_file, "a").close()
+                logger.info("Device file %s created", self.dev_file)
             self._file = msg["PAR"]
-            with open(filename, "w+") as file_stream:
+            with open(self.dev_file, "w+") as file_stream:
                 file_stream.write(self._file)
             return_message = {
                 "RETURN": "SETUP",
@@ -154,7 +151,7 @@ class DeviceBaseActor(Actor):
             }
             self.send(sender, return_message)
             return
-        with open(filename, "w+") as file_stream:
+        with open(self.dev_file, "w+") as file_stream:
             file_stream.write(self._file)
         return_message = {
             "RETURN": "SETUP",
@@ -165,12 +162,9 @@ class DeviceBaseActor(Actor):
 
     def _kill(self, msg: dict, sender):
         logger.info("Shutting down actor %s, Message: %s", self.globalName, msg)
-        filename = fr"{self.__folder_history}{self.globalName}"
-        self.link = fr"{self.__folder_available}{self.globalName}"
-        if os.path.exists(self.link):
-            os.unlink(self.link)
-        if os.path.exists(filename):
-            os.remove(filename)
+        self.dev_file = fr"{self.__dev_folder}{self.globalName}"
+        if os.path.exists(self.dev_file):
+            os.remove(self.dev_file)
         if self.my_redirector is not None:
             logger.debug("Send KILL to redirector %s", self.my_redirector)
             self.send(self.my_redirector, ActorExitRequest())
@@ -269,7 +263,7 @@ class DeviceBaseActor(Actor):
         self.df_content["Reservation"] = reservation
         self._file = json.dumps(self.df_content)
         logger.info("self._file: %s", self._file)
-        with open(self.link, "w+") as file_stream:
+        with open(self.dev_file, "w+") as file_stream:
             file_stream.write(self._file)
         logger.debug("Send CONNECT command to redirector %s", self.my_redirector)
         self.send(self.my_redirector, {"CMD": "CONNECT"})
@@ -314,7 +308,7 @@ class DeviceBaseActor(Actor):
             self.df_content.pop("Reservation", None)
             self._file = json.dumps(self.df_content)
             logger.info("self._file: %s", self._file)
-            with open(self.link, "w+") as file_stream:
+            with open(self.dev_file, "w+") as file_stream:
                 file_stream.write(self._file)
             self.my_redirector = None
             return_message = {

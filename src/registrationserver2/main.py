@@ -19,7 +19,7 @@ import threading
 from thespian.actors import ActorSystem  # type: ignore
 
 import registrationserver2.logdef
-from registrationserver2 import FOLDER_AVAILABLE, logger
+from registrationserver2 import logger
 from registrationserver2.config import actor_config, config
 from registrationserver2.modules.mqtt.mqtt_subscriber import \
     SaradMqttSubscriber
@@ -44,13 +44,14 @@ def main():
                 mqtt_subscriber.stop()
         ActorSystem().shutdown()
         logger.debug("Actor system shut down finished.")
-        if os.path.exists(FOLDER_AVAILABLE):
-            logger.debug("Cleaning folder from available instruments")
-            for root, _, files in os.walk(FOLDER_AVAILABLE):
+        dev_folder = config["DEV_FOLDER"]
+        if os.path.exists(dev_folder):
+            logger.debug("Cleaning device folder")
+            for root, _, files in os.walk(dev_folder):
                 for name in files:
-                    link = os.path.join(root, name)
+                    filename = os.path.join(root, name)
                     logger.debug("[Del]:\tRemoved: %s", name)
-                    os.unlink(link)
+                    os.remove(filename)
         if os.name == "nt":
             os.kill(os.getpid(), signal.SIGTERM)
         sys.exit(0)

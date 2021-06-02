@@ -18,7 +18,7 @@ import socket
 import threading
 
 import hashids  # type: ignore
-from registrationserver2 import FOLDER_AVAILABLE, FOLDER_HISTORY, logger
+from registrationserver2 import logger
 from registrationserver2.config import config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
@@ -106,14 +106,11 @@ class MdnsListener(ServiceListener):
                 ip_version=config["ip_version"], interfaces=[self.get_ip(), "127.0.0.1"]
             )
             self.__browser = ServiceBrowser(self.__zeroconf, _type, self)
-            self.__folder_history: str = FOLDER_HISTORY + os.path.sep
-            self.__folder_available: str = FOLDER_AVAILABLE + os.path.sep
-            if not os.path.exists(self.__folder_history):
-                os.makedirs(self.__folder_history)
-            if not os.path.exists(self.__folder_available):
-                os.makedirs(self.__folder_available)
-            logger.debug("Output to: %s", self.__folder_history)
-        # Clean __folder_available for a fresh start
+            self.__dev_folder: str = config["DEV_FOLDER"] + os.path.sep
+            if not os.path.exists(self.__dev_folder):
+                os.makedirs(self.__dev_folder)
+            logger.debug("Output to: %s", self.__dev_folder)
+        # Clean __dev_folder for a fresh start
         self.remove_all_services()
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
@@ -170,10 +167,10 @@ class MdnsListener(ServiceListener):
         with self.__lock:
             logger.info("[Del]:\tRemoved: Service of type %s. Name: %s", type_, name)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
-            link = fr"{self.__folder_available}{name}"
+            dev_file = fr"{self.__dev_folder}{name}"
             logger.debug("[Del]:\tInfo: %s", info)
-            if os.path.exists(link):
-                os.unlink(link)
+            if os.path.exists(dev_file):
+                os.remove(dev_file)
             this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=name)
             logger.debug("Ask to kill the device actor...")
             kill_return = ActorSystem().ask(this_actor, ActorExitRequest())
@@ -181,15 +178,15 @@ class MdnsListener(ServiceListener):
                 logger.critical("Killing the device actor failed.")
 
     def remove_all_services(self) -> None:
-        """Kill all device actors and remove all links to device file from FOLDER_AVAILABLE."""
+        """Kill all device actors and remove all device files from device folder."""
         with self.__lock:
-            if os.path.exists(self.__folder_available):
-                for root, _, files in os.walk(self.__folder_available):
+            if os.path.exists(self.__dev_folder):
+                for root, _, files in os.walk(self.__dev_folder):
                     for name in files:
                         if "_rfc2217" in name:
-                            link = os.path.join(root, name)
+                            dev_file = os.path.join(root, name)
                             logger.debug("[Del]:\tRemoved: %s", name)
-                            os.unlink(link)
+                            os.remove(dev_file)
                             this_actor = ActorSystem().createActor(
                                 Rfc2217Actor, globalName=name
                             )

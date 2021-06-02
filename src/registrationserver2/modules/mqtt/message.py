@@ -104,7 +104,7 @@ RETURN_MESSAGES = {
         "ERROR_CODE": 25,
     },
     "NO_INSTRUMENT_SERVER": {
-        "ERROR_MESSAGE": "No such an instrument server in history",
+        "ERROR_MESSAGE": "No such instrument server available",
         "ERROR_CODE": 26,
     },
     "BLOCKED": {
