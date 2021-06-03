@@ -33,6 +33,24 @@ redirector_actor
    :members:
    :undoc-members:
 
+Modules for local USB and RS-232 connection
+===========================================
+
+win_usb_listener
+----------------
+
+.. automodule:: registrationserver2.modules.usb.win_usb_listener
+   :members:
+   :undoc-members:
+
+usb_actor
+-------------
+
+.. automodule:: registrationserver2.modules.usb.usb_actor
+   :members:
+   :undoc-members:
+
+
 RFC 2217 specific modules
 =========================
 
