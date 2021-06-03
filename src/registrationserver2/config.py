@@ -28,10 +28,11 @@ config = {
 # if LOCAL:
 # TODO: The following line is only for the test phase.
 if os.name == "nt":
-    config["HOST"] = "0.0.0.0"
+    config["HOST"] = "localhost"
 else:
-    # config["HOST"] = "192.168.10.19"
-    config["HOST"] = "192.168.178.20"
+    # config["HOST"] = "192.168.10.19"  # Michael@HomeVPN
+    config["HOST"] = "192.168.10.116"  # Michael@Work
+    # config["HOST"] = "192.168.178.20"  # Michael@Home
 
 if os.name == "nt":
     actor_config = {
