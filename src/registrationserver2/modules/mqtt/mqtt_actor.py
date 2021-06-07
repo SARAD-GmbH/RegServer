@@ -8,9 +8,10 @@ Author
 
 .. uml :: uml-mqtt_actor.puml
 """
+import datetime
 import json
 import time
-import datetime
+
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver2 import logger
@@ -21,7 +22,7 @@ logger.info("%s -> %s", __package__, __file__)
 
 
 class MqttActor(DeviceBaseActor):
-    """ Actor interacting with a new device"""
+    """Actor interacting with a new device"""
 
     # "copy" ACCEPTED_COMMANDS of the DeviceBaseActor
     ACCEPTED_COMMANDS = DeviceBaseActor.ACCEPTED_COMMANDS
@@ -241,7 +242,6 @@ class MqttActor(DeviceBaseActor):
         self._disconnect()
         time.sleep(1)
         super()._kill(msg, sender)
-        # TODO: clear the used memory space
         # TODO: let others like the other actors and this actor's IS MQTT know this actor is killed
 
     def _prepare(self, msg: dict, sender):
@@ -307,14 +307,22 @@ class MqttActor(DeviceBaseActor):
                 host = json.loads(payload).get("Host", None)
                 user = json.loads(payload).get("User", None)
                 timestamp = json.loads(payload).get("Timestamp", None)
-                if ((instr_status) and (app ==self.app) and (host == self.host) and (user == self.user)):
+                if (
+                    (instr_status)
+                    and (app == self.app)
+                    and (host == self.host)
+                    and (user == self.user)
+                ):
                     logger.info(
                         "MQTT Actor '%s' receives a permission of the reservation on the instrument '%s'",
                         self.globalName,
                         self.instr_id,
                     )
                     if timestamp is None:
-                        timestamp = datetime.datetime.utcnow().isoformat(timespec="seconds")+"Z"
+                        timestamp = (
+                            datetime.datetime.utcnow().isoformat(timespec="seconds")
+                            + "Z"
+                        )
                     self.state["RESERVE"]["Active"] = True
                 else:
                     logger.info(
@@ -404,7 +412,11 @@ class MqttActor(DeviceBaseActor):
         """Will be carried out when the client connected to the MQTT broker."""
         if result_code == 0:
             self.is_connected = True
-            logger.info("on_connect, IS ID is %s and instrument ID is %s", self.is_id, self.instr_id)
+            logger.info(
+                "on_connect, IS ID is %s and instrument ID is %s",
+                self.is_id,
+                self.instr_id,
+            )
             for k in self.allowed_sys_topics:
                 self.allowed_sys_topics[k] = (
                     self.is_id + "/" + self.instr_id + self.allowed_sys_options[k]

@@ -75,6 +75,7 @@ class Rfc2217Actor(DeviceBaseActor):
                     logger.debug("Timeout receiving a reply. Retrying...")
                     # TODO This is an ugly workaround for a problem that's
                     # most probably between the Instrument Server and the instrument.
+                    # This should be handled in the Instrument Server instead.
                     self.send(self.myAddress, msg)
                     break
             return_message = {

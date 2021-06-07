@@ -89,7 +89,10 @@ class DeviceBaseActor(Actor):
             self._kill(msg, sender)
             return
         if isinstance(msg, ChildActorExited):
-            # TODO error handling code could be placed here
+            # Error handling code could be placed here
+            # The child actor is the redirector actor.
+            # It will be killed by the _free handler.
+            logger.debug("Redirector actor exited.")
             return
         if not isinstance(msg, dict):
             logger.critical(
