@@ -1,0 +1,36 @@
+@startuml
+box "Registration Server 2"
+	      entity "REST API" as api
+	      entity "device actor" as deviceactor
+        database "device files" as files
+        entity "redirector actor" as redirector
+        entity "Win USB listener" as listener
+end box
+entity "SARAD Instrument" as is
+entity "SARAD app" as app
+
+group setup
+        is -> listener: detect
+        listener -> deviceactor: create actor
+        listener -> deviceactor: SETUP message
+        deviceactor -> files: create file,\nwrite Identification section
+end
+group reservation
+	      api -> deviceactor: RESERVE message
+        deviceactor -> redirector: create actor
+        deviceactor -> redirector: SETUP message
+        deviceactor -> files: write Reservation section
+end
+group data transfer
+	      app -> redirector: send binary paket\n to listening server socket
+        redirector -> deviceactor: SEND message
+        deviceactor -> is: send binary paket\n to listening server socket
+        is -> deviceactor: send binary response from instrument
+        deviceactor -> redirector: forward response as RETURN message
+end
+group free
+	      api -> deviceactor: FREE message
+        deviceactor -> redirector: KILL message
+        deviceactor -> files: write Free section\n remove Reservation section
+end
+@enduml

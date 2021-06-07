@@ -30,8 +30,8 @@ config = {
 if os.name == "nt":
     config["HOST"] = "127.0.0.1"
 else:
-    # config["HOST"] = "192.168.10.19"
-    config["HOST"] = "192.168.178.20"
+    config["HOST"] = "192.168.10.19"
+    # config["HOST"] = "192.168.178.20"
 
 if os.name == "nt":
     actor_config = {

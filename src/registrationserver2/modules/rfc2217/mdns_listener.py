@@ -121,10 +121,14 @@ class MdnsListener(ServiceListener):
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             if info is not None:
                 logger.info("[Add]:\t%s", info.properties)
+
+            short_name = name[:-1]
             # If an actor already exists, this will return
             # the address of the excisting one, else it will create a new one.
             this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=name)
             data = self.convert_properties(name=name, info=info)
+            this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=short_name)
+            data = self.convert_properties(name=short_name, info=info)
             msg = {"CMD": "SETUP", "PAR": data}
             logger.debug("Ask to setup the device actor with %s...", msg)
             setup_return = ActorSystem().ask(this_actor, msg)
