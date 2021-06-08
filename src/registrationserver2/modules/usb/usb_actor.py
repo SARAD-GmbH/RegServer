@@ -17,8 +17,6 @@ from sarad.cluster import SaradCluster
 
 logger.info("%s -> %s", __package__, __file__)
 
-CMD_CYCLE_TIMEOUT = 1
-
 
 class UsbActor(DeviceBaseActor):
     """Actor for dealing with direct serial connections via USB or RS-232"""
