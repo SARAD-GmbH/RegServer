@@ -26,6 +26,7 @@ class LinuxUsbListener:
     def __init__(self):
         logger.info("Linux USB listener started")
         self._cluster: SaradCluster = SaradCluster()
+        self.connected_instruments = []
         context = pyudev.Context()
         for device in context.list_devices(subsystem="tty"):
             self.usb_device_event("add", device)
@@ -55,15 +56,28 @@ class LinuxUsbListener:
         """docstring"""
         if not self.is_valid_device(device):
             return
-        logger.debug("%s device %s", action, device.get("DEVNAME"))
+        port = device.get("DEVNAME")
+        logger.debug("%s device %s", action, port)
         if action == "add":
             try:
-                device_id = self._cluster.update_connected_instruments(
-                    [device.get("DEVNAME")]
-                )[0].device_id
-                logger.debug(device_id)
+                device_id = self._cluster.update_connected_instruments([port])[
+                    0
+                ].device_id
+                logger.debug("Create actor %s", device_id)
+                self.connected_instruments.append(
+                    {"device_id": device_id, "port": port}
+                )
             except IndexError:
-                pass
+                logger.degug("No SARAD instrument at %s", port)
+        elif action == "remove":
+            for instrument in self.connected_instruments:
+                if instrument["port"] == port:
+                    logger.debug("Kill actor %s", instrument["device_id"])
+                    self.connected_instruments.remove(
+                        {"device_id": instrument["device_id"], "port": port}
+                    )
+        else:
+            logger.error("USB device event with action %s", action)
 
 
 if __name__ == "__main__":
