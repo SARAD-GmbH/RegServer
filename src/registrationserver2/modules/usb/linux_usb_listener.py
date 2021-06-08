@@ -12,6 +12,7 @@ Authors
 import hashlib
 import json
 import signal
+import sys
 
 import pyudev  # type: ignore
 from registrationserver2 import logger
@@ -29,6 +30,7 @@ class LinuxUsbListener:
     @staticmethod
     def signal_handler(_signal, _frame):
         logger.info("Linux USB listener stopped")
+        sys.exit(0)
 
     @staticmethod
     def __get_device_hash(device):
