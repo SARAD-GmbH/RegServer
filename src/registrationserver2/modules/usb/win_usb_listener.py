@@ -75,6 +75,9 @@ class USBListener:
 
     def __init__(self):
         self._actor = ActorSystem().createActor(WinUsbManager, globalName="USBListener")
+        ActorSystem().tell(
+            self._actor, {"CMD": "PROCESS_LIST", "DATA": {"list": list()}}
+        )
 
     def _create_listener(self):
         wc = win32gui.WNDCLASS()
