@@ -127,12 +127,12 @@ class RedirectorActor(Actor):
                 "RESULT": {"IP": self._host, "PORT": self._port},
             }
         else:
-            return_message = {
+            return_msg = {
                 "RETURN": "SETUP",
                 "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
             }
         logger.debug("Setup finished with %s", return_msg)
-        self.send(sender, return_message)
+        self.send(sender, return_msg)
 
     def _kill(self, _, sender):
         self.read_list[0].close()
