@@ -13,7 +13,7 @@ import hashlib
 import json
 import signal
 
-import pyudev
+import pyudev  # type: ignore
 from registrationserver2 import logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.usb.usb_actor import UsbActor
@@ -26,17 +26,9 @@ logger.info("%s -> %s", __package__, __file__)
 class LinuxUsbListener:
     """Class to listen for SARAD instruments connected via USB."""
 
-    def __init__(self):
-        logger.info("Linux USB listener started")
-        self._cluster: SaradCluster = SaradCluster()
-        self.connected_instruments = []
-        context = pyudev.Context()
-        for device in context.list_devices(subsystem="tty"):
-            self.usb_device_event("add", device)
-        monitor = pyudev.Monitor.from_netlink(context)
-        monitor.filter_by("tty")
-        usb_stick_observer = pyudev.MonitorObserver(monitor, self.usb_device_event)
-        usb_stick_observer.start()
+    @staticmethod
+    def signal_handler(_signal, _frame):
+        logger.info("Linux USB listener stopped")
 
     @staticmethod
     def __get_device_hash(device):
@@ -48,7 +40,23 @@ class LinuxUsbListener:
         identifier_string = id_model + id_vendor + enc_vendor
         return hashlib.sha224(identifier_string.encode("utf-8")).hexdigest()
 
+    def __init__(self):
+        logger.info("Linux USB listener started")
+        self._cluster: SaradCluster = SaradCluster()
+        self.connected_instruments = []
+        context = pyudev.Context()
+        for device in context.list_devices(subsystem="tty"):
+            self.usb_device_event("add", device)
+        monitor = pyudev.Monitor.from_netlink(context)
+        monitor.filter_by("tty")
+        usb_stick_observer = pyudev.MonitorObserver(monitor, self.usb_device_event)
+        usb_stick_observer.start()
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        signal.pause()
+
     def is_valid_device(self, device):
+        """Check whether there is a physical device connected to the logical interface."""
         device_hash = self.__get_device_hash(device)
         if device_hash is not None:
             logger.debug("Device hash: %s", device_hash)
@@ -127,11 +135,4 @@ class LinuxUsbListener:
 
 
 if __name__ == "__main__":
-
-    def signal_handler(_signal, _frame):
-        logger.info("Linux USB listener stopped")
-
     _ = LinuxUsbListener()
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-    signal.pause()
