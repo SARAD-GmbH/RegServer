@@ -17,8 +17,7 @@ import select
 import socket
 
 from overrides import overrides  # type: ignore
-from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
-                             WakeupMessage)
+from thespian.actors import Actor, ActorExitRequest, WakeupMessage  # type: ignore
 
 from registrationserver2 import logger
 from registrationserver2.config import config
