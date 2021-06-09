@@ -4,9 +4,7 @@ Created on 17.05.2021
 @author: rfoerster
 """
 import json
-import logging
 import subprocess
-from dataclasses import dataclass
 from typing import Callable, List
 
 # import registrationserver2.modules.usb.usb_actor
@@ -18,19 +16,18 @@ from keyboard._nixkeyboard import device
 
 from thespian.actors import ActorSystem
 
+from sarad.cluster import SaradCluster
+
 from registrationserver2.modules.usb.win_usb_manager import WinUsbManager
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
-@dataclass
-class USBSerial:
-    deviceid: str
-    path: str
+from registrationserver2.modules.usb.usb_serial import USBSerial
+from registrationserver2.config import actor_config
+from registrationserver2.logdef import logcfg
+from registrationserver2 import logger
 
 
 class USBListener:
+    _actor = None
+
     WM_DEVICECHANGE_EVENTS = {
         0x0019: (
             "DBT_CONFIGCHANGECANCELED",
@@ -74,10 +71,7 @@ class USBListener:
     }
 
     def __init__(self):
-        self._actor = ActorSystem().createActor(WinUsbManager, globalName="USBListener")
-        ActorSystem().tell(
-            self._actor, {"CMD": "PROCESS_LIST", "DATA": {"list": list()}}
-        )
+        logger.info("[Create] Windows USB Listener")
 
     def _create_listener(self):
         wc = win32gui.WNDCLASS()
@@ -90,7 +84,12 @@ class USBListener:
         )
 
     def start(self):
-        logger.info(f"Listening to drive changes")
+        logger.info("[Start] Windows USB Listener")
+        self._actor = ActorSystem().createActor(WinUsbManager, globalName="USBListener")
+        portlist = self._list()
+        ActorSystem().tell(
+            self._actor, {"CMD": "PROCESS_LIST", "DATA": {"LIST": portlist}}
+        )
         hwnd = self._create_listener()
         logger.debug(f"Created listener window with hwnd={hwnd:x}")
         logger.debug(f"Listening to messages")
@@ -101,18 +100,19 @@ class USBListener:
             logger.info(f"Connected usb device {vars(device)}")
 
     def _on_message(self, hwnd: int, msg: int, wparam: int, lparam: int):
-        # logger.info(f'_on_message(hwnd={hwnd}: int, msg={hex(msg)}: int, wparam={wparam}: int, lparam={lparam}: int)')
         if msg != win32con.WM_DEVICECHANGE:
             return 0
 
         event, description = self.WM_DEVICECHANGE_EVENTS[wparam]
         logger.debug(f"Received message: {event} = {description}")
+        portlist = self._list()
         ActorSystem().tell(
-            self._actor, {"CMD": "PROCESS_LIST", "DATA": {"list": list()}}
+            self._actor, {"CMD": "PROCESS_LIST", "DATA": {"list": portlist}}
         )
 
     @staticmethod
-    def list() -> List[USBSerial]:
+    def _list() -> List[USBSerial]:
+        logger.debug("[LIST] Listening Local Devices")
         proc = subprocess.run(
             args=[
                 "powershell",
@@ -128,6 +128,8 @@ class USBListener:
             return []
         devices = json.loads(proc.stdout)
 
+        logger.debug("[LIST] Found %s", devices)
+
         return [
             USBSerial(deviceid=d["deviceid"], path=fr'\\.\{d["deviceid"]}')
             for d in devices
@@ -137,5 +139,10 @@ class USBListener:
 
 
 if __name__ == "__main__":
+    ActorSystem(
+        systemBase=actor_config["systemBase"],
+        capabilities=actor_config["capabilities"],
+        logDefs=logcfg,
+    )
     listener = USBListener()
     listener.start()

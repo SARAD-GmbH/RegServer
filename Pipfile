@@ -21,8 +21,8 @@ pyyaml = "*"
 appdirs = "*"
 overrides = "*"
 click = "*"
-pywin32 = "*"
 data-collector = {editable = true, git = "https://github.com/SARAD-GmbH/data_collector.git"}
+pywin32 = "*"
 
 [requires]
 python_version = "3"
