@@ -137,4 +137,5 @@ class LinuxUsbListener:
 
 
 if __name__ == "__main__":
+    logger.info("Start Test")
     _ = LinuxUsbListener()

@@ -87,7 +87,7 @@ def main():
     apithread.setDaemon(True)
     apithread.start()
     _ = MdnsListener(_type=config["TYPE"])
-    _ = registrationserver2.modules.usb.UsbListener()
+    _ = registrationserver2.modules.usb.usb_actor.UsbListener()
     mqtt_subscriber = SaradMqttSubscriber()
 
     logger.info("Press Ctrl+C to end!")

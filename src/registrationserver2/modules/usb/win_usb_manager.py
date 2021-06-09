@@ -11,7 +11,7 @@ from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.usb.usb_actor import UsbActor
 from registrationserver2 import logger
 from registrationserver2.modules.usb.usb_serial import USBSerial
-from sarad.cluster import SaradCluster
+import sarad.cluster
 
 
 class WinUsbManager(Actor):
@@ -117,14 +117,13 @@ class WinUsbManager(Actor):
             self._port_list.pop(remove_item)
 
     def _kill(self, msg: dict, sender):
-        sys = ActorSystem()
         for actor in self._actors:
-            sys.tell(actor, {"CMD": "KILL"})
+            self.send(actor, ActorExitRequest())
         self._port_list = {}
 
     def _create_actor(self, device: USBSerial):
         if not hasattr(self, "_cluster"):
-            self._cluster = SaradCluster()
+            self._cluster = sarad.cluster.SaradCluster()
         try:
             instruments = self._cluster.update_connected_instruments([device.deviceid])
             instrument = instruments[0]
@@ -142,7 +141,7 @@ class WinUsbManager(Actor):
                 sarad_type = "unknown"
             global_name = f"{device_id}.{sarad_type}.local"
             logger.debug("Create actor %s", global_name)
-            self._actors[device.deviceid] = ActorSystem().createActor(
+            self._actors[device.deviceid] = self.createActor(
                 UsbActor, globalName=global_name
             )
             data = json.dumps(

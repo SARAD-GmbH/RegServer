@@ -13,7 +13,7 @@ from overrides import overrides  # type: ignore
 from registrationserver2 import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
-from sarad.cluster import SaradCluster
+import sarad.cluster
 
 logger.info("%s -> %s", __package__, __file__)
 
@@ -31,7 +31,7 @@ class UsbActor(DeviceBaseActor):
     @overrides
     def _setup(self, msg: dict, sender) -> None:
         instrument_id = self.globalName.split(".")[0]
-        mycluster: SaradCluster = SaradCluster()
+        mycluster: sarad.cluster.SaradCluster = sarad.cluster.SaradCluster()
         mycluster.update_connected_instruments()
         for instrument in mycluster:
             if instrument.device_id == instrument_id:

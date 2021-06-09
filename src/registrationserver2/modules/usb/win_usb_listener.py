@@ -122,4 +122,5 @@ class WinUsbListener:
 
 
 if __name__ == "__main__":
-    listener = WinUsbListener()
+    logger.info("Start Test")
+    _ = WinUsbListener()
