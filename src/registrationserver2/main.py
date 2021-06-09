@@ -24,6 +24,7 @@ from registrationserver2.config import actor_config, config
 from registrationserver2.modules.mqtt.mqtt_subscriber import \
     SaradMqttSubscriber
 from registrationserver2.modules.rfc2217.mdns_listener import MdnsListener
+from registrationserver2.modules.usb.linux_usb_listener import LinuxUsbListener
 from registrationserver2.restapi import RestApi
 
 
@@ -87,6 +88,7 @@ def main():
     apithread.setDaemon(True)
     apithread.start()
     _ = MdnsListener(_type=config["TYPE"])
+    _ = LinuxUsbListener()
     mqtt_subscriber = SaradMqttSubscriber()
 
     logger.info("Press Ctrl+C to end!")

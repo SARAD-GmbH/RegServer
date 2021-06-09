@@ -60,6 +60,7 @@
             ],
             "markers": "python_version < '3.7'",
             "version": "==0.8"
+        },
         "data-collector": {
             "editable": true,
             "git": "https://github.com/SARAD-GmbH/data_collector.git",

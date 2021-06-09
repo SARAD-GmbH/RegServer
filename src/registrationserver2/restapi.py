@@ -156,7 +156,9 @@ class RestApi:
         if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
         device_state = get_state_from_file(did, "Reservation")
-        if (not "_rfc2217" in did and not "mqtt" in did) or device_state == {}:
+        if (
+            not "_rfc2217" in did and not "mqtt" in did and not "local" in did
+        ) or device_state == {}:
             logger.error("Requested service not supported by actor system.")
             answer = {"Error code": "11", "Error": "Device not found", did: {}}
             return Response(

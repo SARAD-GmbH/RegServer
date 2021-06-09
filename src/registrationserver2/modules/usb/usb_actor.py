@@ -29,14 +29,14 @@ class UsbActor(DeviceBaseActor):
         logger.debug("USB actor created.")
 
     @overrides
-    def _setup(self, msg: dict, sender):
+    def _setup(self, msg: dict, sender) -> None:
         instrument_id = self.globalName.split(".")[0]
         mycluster: SaradCluster = SaradCluster()
         mycluster.update_connected_instruments()
         for instrument in mycluster:
             if instrument.device_id == instrument_id:
                 self.instrument = instrument
-        super()._setup(msg, sender)
+        return super()._setup(msg, sender)
 
     def _send(self, msg: dict, _sender) -> None:
         cmd = msg["PAR"]["DATA"]
