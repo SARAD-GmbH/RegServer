@@ -23,7 +23,7 @@ from registrationserver2.modules.usb.usb_serial import USBSerial
 from registrationserver2 import logger
 
 
-class USBListener:
+class WinUsbListener:
     _actor = None
 
     WM_DEVICECHANGE_EVENTS = {
@@ -70,6 +70,7 @@ class USBListener:
 
     def __init__(self):
         logger.info("[Create] Windows USB Listener")
+        self.start()
 
     def _create_listener(self):
         wc = win32gui.WNDCLASS()
@@ -121,5 +122,4 @@ class USBListener:
 
 
 if __name__ == "__main__":
-    listener = USBListener()
-    listener.start()
+    listener = WinUsbListener()
