@@ -56,7 +56,7 @@
         "data-collector": {
             "editable": true,
             "git": "https://github.com/SARAD-GmbH/data_collector.git",
-            "ref": "27f66e8a54035fe0781cc5c34c153344db773ca1"
+            "ref": "44233c244a2fbe9f2ec237be5a796eb498c33d19"
         },
         "filelock": {
             "hashes": [
