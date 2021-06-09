@@ -3,9 +3,9 @@ Created on 17.05.2021
 
 @author: rfoerster
 """
-import json
-import subprocess
+
 from typing import Callable, List
+from serial.tools.list_ports import comports
 
 # import registrationserver2.modules.usb.usb_actor
 
@@ -20,8 +20,6 @@ from sarad.cluster import SaradCluster
 
 from registrationserver2.modules.usb.win_usb_manager import WinUsbManager
 from registrationserver2.modules.usb.usb_serial import USBSerial
-from registrationserver2.config import actor_config
-from registrationserver2.logdef import logcfg
 from registrationserver2 import logger
 
 
@@ -85,7 +83,7 @@ class USBListener:
 
     def start(self):
         logger.info("[Start] Windows USB Listener")
-        self._actor = ActorSystem().createActor(WinUsbManager, globalName="USBListener")
+        self._actor = ActorSystem().createActor(WinUsbManager, globalName="USBManager")
         portlist = self._list()
         ActorSystem().tell(
             self._actor, {"CMD": "PROCESS_LIST", "DATA": {"LIST": portlist}}
@@ -107,42 +105,21 @@ class USBListener:
         logger.debug(f"Received message: {event} = {description}")
         portlist = self._list()
         ActorSystem().tell(
-            self._actor, {"CMD": "PROCESS_LIST", "DATA": {"list": portlist}}
+            self._actor, {"CMD": "PROCESS_LIST", "DATA": {"LIST": portlist}}
         )
 
     @staticmethod
     def _list() -> List[USBSerial]:
         logger.debug("[LIST] Listening Local Devices")
-        proc = subprocess.run(
-            args=[
-                "powershell",
-                "-noprofile",
-                "-command",
-                "Get-WmiObject -Class win32_serialport | Select-Object deviceid | ConvertTo-Json",
-            ],
-            text=True,
-            stdout=subprocess.PIPE,
-        )
-        if proc.returncode != 0 or not proc.stdout.strip():
-            logger.error("Failed to enumerate drives")
-            return []
-        devices = json.loads(proc.stdout)
+        devices = comports()
 
         logger.debug("[LIST] Found %s", devices)
 
-        return [
-            USBSerial(deviceid=d["deviceid"], path=fr'\\.\{d["deviceid"]}')
-            for d in devices
-        ]
+        return [USBSerial(deviceid=d.device, path=fr"\\.\{d.device}") for d in devices]
 
     # creating actors here if needed
 
 
 if __name__ == "__main__":
-    ActorSystem(
-        systemBase=actor_config["systemBase"],
-        capabilities=actor_config["capabilities"],
-        logDefs=logcfg,
-    )
     listener = USBListener()
     listener.start()

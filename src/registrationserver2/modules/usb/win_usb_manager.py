@@ -88,7 +88,7 @@ class WinUsbManager(Actor):
 
     # Message Handling
     def _process_list(self, msg: dict, sender):
-        logger.debug("[LIST] Processing List %s", msg)
+        logger.info("[LIST] Processing List %s", msg)
         data_key = msg.get("DATA", None)
         if data_key is None:
             return
@@ -105,14 +105,13 @@ class WinUsbManager(Actor):
             self._port_list[current.deviceid] = current
 
         remove = []
-
         for old in self._port_list:
             if old in list_key:
                 continue
             logger.info(f"[Delete] Port {old}")
             remove.append(old)
             if old in self._actors:
-                self.send(self._actors[old].serial, {"CMD": "KILL"})
+                self.send(self._actors[old], ActorExitRequest())
 
         for remove_item in remove:
             self._port_list.pop(remove_item)
@@ -127,9 +126,8 @@ class WinUsbManager(Actor):
         if not hasattr(self, "_cluster"):
             self._cluster = SaradCluster()
         try:
-            instrument = self._cluster.update_connected_instruments([device.deviceid])[
-                0
-            ]
+            instruments = self._cluster.update_connected_instruments([device.deviceid])
+            instrument = instruments[0]
             family = instrument.family["family_id"]
             device_id = instrument.device_id
             if family == 5:

@@ -22,3 +22,6 @@ class USBSerial:
             return other == self.deviceid
 
         return False
+
+    def __str__(self):
+        return f"{self.__class__.__name__}({self.deviceid})"
