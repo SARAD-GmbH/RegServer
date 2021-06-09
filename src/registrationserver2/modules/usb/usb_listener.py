@@ -25,6 +25,3 @@ else:
     registrationserver2.modules.usb.usb_actor.UsbListener = (
         registrationserver2.modules.usb.linux_usb_listener.LinuxUsbListener
     )
-
-
-print("!!!!")

@@ -16,8 +16,6 @@ from keyboard._nixkeyboard import device
 
 from thespian.actors import ActorSystem
 
-from sarad.cluster import SaradCluster
-
 from registrationserver2.modules.usb.win_usb_manager import WinUsbManager
 from registrationserver2.modules.usb.usb_serial import USBSerial
 from registrationserver2 import logger
