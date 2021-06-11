@@ -414,9 +414,6 @@ class SaradMqttSubscriber:
                     )
                     return
                 if payload.get("State", None) in (2, 1):
-                    filename_ = (
-                        f"{config['IC_HOSTS_FOLDER']}{os.path.sep}{topic_parts[0]}"
-                    )
                     logger.info(
                         "[Parse]: To write the properties of this cluster (%s) into file system",
                         topic_parts[0],
@@ -428,7 +425,6 @@ class SaradMqttSubscriber:
                         },
                     }
                     if topic_parts[0] not in self.connected_instruments:
-                        open(filename_, "w+")
                         self._add_host(_msg)
                     else:
                         self._update_host(_msg)

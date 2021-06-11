@@ -47,10 +47,12 @@ def get_state_from_file(device_id: str, cmd_key: str) -> dict:
     filename = f"{config['DEV_FOLDER']}{os.path.sep}{device_id}"
     try:
         if os.path.isfile(filename):
-            answer = {
-                "Identification": json.load(open(filename)).get("Identification", None),
-            }
-            reservation = json.load(open(filename)).get(cmd_key, None)
+            with open(filename) as reader:
+                answer = {
+                    "Identification": json.load(reader).get("Identification", None),
+                }
+            with open(filename) as reader:
+                reservation = json.load(reader).get(cmd_key, None)
             if reservation is not None:
                 answer["Reservation"] = reservation
             return answer
@@ -154,7 +156,9 @@ class RestApi:
         if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
         device_state = get_state_from_file(did, "Reservation")
-        if (not "_rfc2217" in did and not "mqtt" in did) or device_state == {}:
+        if (
+            not "_rfc2217" in did and not "mqtt" in did and not "local" in did
+        ) or device_state == {}:
             logger.error("Requested service not supported by actor system.")
             answer = {"Error code": "11", "Error": "Device not found", did: {}}
             return Response(

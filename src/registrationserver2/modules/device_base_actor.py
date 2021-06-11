@@ -18,8 +18,7 @@ from registrationserver2 import logger
 from registrationserver2.config import config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.redirector_actor import RedirectorActor
-from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
-                             ChildActorExited)
+from thespian.actors import Actor, ActorExitRequest, ChildActorExited  # type: ignore
 
 logger.info("%s -> %s", __package__, __file__)
 
@@ -89,7 +88,10 @@ class DeviceBaseActor(Actor):
             self._kill(msg, sender)
             return
         if isinstance(msg, ChildActorExited):
-            # TODO error handling code could be placed here
+            # Error handling code could be placed here
+            # The child actor is the redirector actor.
+            # It will be killed by the _free handler.
+            logger.debug("Redirector actor exited.")
             return
         if not isinstance(msg, dict):
             logger.critical(

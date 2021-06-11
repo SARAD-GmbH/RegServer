@@ -1,8 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "ac6121a599f1bc84e62c334e82b7f44bb0a66a97faecd0588fa83b663b456c12"
-            "sha256": "b94a52b64c406d4dd72e2b7b3b47e5c2d3569ec9b90923cda21b1d05b02b2696"
+            "sha256": "3f9f51d30914a8d0d2abb64b21e084103cd8dc0549acbeca3aeaa4d5ffa99c6b"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -27,9 +26,9 @@
         },
         "bitvector": {
             "hashes": [
-                "sha256:a5e94cbb4804213b1f0c32d84517cd8f0bb8c689b5eb8055d351632e220a5edd"
+                "sha256:cac2fbccf11e325115827ed7be03e5fd62615227b0bbf3fa5a18a842a221839c"
             ],
-            "version": "==3.4.9"
+            "version": "==3.5.0"
         },
         "click": {
             "hashes": [
@@ -65,7 +64,7 @@
         "data-collector": {
             "editable": true,
             "git": "https://github.com/SARAD-GmbH/data_collector.git",
-            "ref": "57543af34a31f3956c53764d3fc06f628e523e3f"
+            "ref": "44233c244a2fbe9f2ec237be5a796eb498c33d19"
         },
         "filelock": {
             "hashes": [
@@ -389,11 +388,11 @@
         },
         "importlib-metadata": {
             "hashes": [
-                "sha256:2d932ea08814f745863fd20172fe7de4794ad74567db78f2377343e24520a5b6",
-                "sha256:c2e27fa8b6c8b34ebfcd4056ae2ca290e36250d1fbeceec85c1c67c711449fac"
+                "sha256:833b26fb89d5de469b24a390e9df088d4e52e4ba33b01dc5e0e4f41b81a16c00",
+                "sha256:b142cc1dd1342f31ff04bb7d022492b09920cb64fed867cd3ea6f80fe3ebd139"
             ],
-            "markers": "python_version < '3.8'",
-            "version": "==4.3.1"
+            "markers": "python_version >= '3.6'",
+            "version": "==4.5.0"
         },
         "iniconfig": {
             "hashes": [

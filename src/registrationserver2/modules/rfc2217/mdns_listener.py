@@ -121,49 +121,30 @@ class MdnsListener(ServiceListener):
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             if info is not None:
                 logger.info("[Add]:\t%s", info.properties)
-
-            short_name = name[:-1]
-            # If an actor already exists, this will return
-            # the address of the excisting one, else it will create a new one.
-            this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=name)
-            data = self.convert_properties(name=name, info=info)
-            this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=short_name)
-            data = self.convert_properties(name=short_name, info=info)
-            msg = {"CMD": "SETUP", "PAR": data}
-            logger.debug("Ask to setup the device actor with %s...", msg)
-            setup_return = ActorSystem().ask(this_actor, msg)
-            if not setup_return["ERROR_CODE"] in (
-                RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
-            ):
-                logger.critical("Adding a new service failed. Kill device actor.")
-                ActorSystem().tell(this_actor, ActorExitRequest())
+                # Take the first 3 elements to form a short_name
+                short_name = ".".join(name.split(".", 3)[:-1])
+                # If an actor already exists, this will return
+                # the address of the excisting one, else it will create a new one.
+                this_actor = ActorSystem().createActor(
+                    Rfc2217Actor, globalName=short_name
+                )
+                data = self.convert_properties(name=name, info=info)
+                msg = {"CMD": "SETUP", "PAR": data}
+                logger.debug("Ask to setup the device actor with %s...", msg)
+                setup_return = ActorSystem().ask(this_actor, msg)
+                if not setup_return["ERROR_CODE"] in (
+                    RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                    RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
+                ):
+                    logger.critical("Adding a new service failed. Kill device actor.")
+                    ActorSystem().tell(this_actor, ActorExitRequest())
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=C0103
         """Hook, being called when a service
         representing a device is being updated"""
-        with self.__lock:
-            logger.info("[Update]:\tService of type %s. Name: %s", type_, name)
-            info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
-            if not info:
-                return
-            logger.info("[Update]:\tGot Info: %s", info)
-            # If an actor already exists, this will return
-            # the address of the excisting one, else it will create a new one.
-            this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=name)
-            data = self.convert_properties(name=name, info=info)
-            msg = {"CMD": "SETUP", "PAR": data}
-            logger.debug("Ask to setup the device actor with %s...", msg)
-            setup_return = ActorSystem().ask(this_actor, msg)
-            logger.info(setup_return)
-            # TODO Handle setup_return == None
-            if not setup_return["ERROR_CODE"] in (
-                RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
-            ):
-                logger.critical("Adding a new service failed. Kill device actor.")
-                ActorSystem().tell(this_actor, ActorExitRequest())
+        logger.info("[Update]:\tService of type %s. Name: %s", type_, name)
+        self.add_service(zc, type_, name)
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Hook, being called when a regular shutdown of a service
