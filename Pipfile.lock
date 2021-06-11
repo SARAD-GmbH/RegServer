@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "3f9f51d30914a8d0d2abb64b21e084103cd8dc0549acbeca3aeaa4d5ffa99c6b"
+            "sha256": "7f2b54855899a1f60760320592007d4f94475640cf608e4449cc7f917dd6ed35"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -56,7 +56,7 @@
         "data-collector": {
             "editable": true,
             "git": "https://github.com/SARAD-GmbH/data_collector.git",
-            "ref": "44233c244a2fbe9f2ec237be5a796eb498c33d19"
+            "ref": "ff417bbb333d692f13b21e3eff00713b94e4b59f"
         },
         "filelock": {
             "hashes": [
@@ -103,6 +103,14 @@
             ],
             "markers": "python_version >= '3.6'",
             "version": "==3.0.1"
+        },
+        "keyboard": {
+            "hashes": [
+                "sha256:63ed83305955939ca5c9a73755e5cc43e8242263f5ad5fd3bb7e0b032f3d308b",
+                "sha256:8e9c2422f1217e0bd84489b9ecd361027cc78415828f4fe4f88dd4acd587947b"
+            ],
+            "index": "pypi",
+            "version": "==0.13.5"
         },
         "markupsafe": {
             "hashes": [

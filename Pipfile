@@ -23,6 +23,7 @@ overrides = "*"
 click = "*"
 data-collector = {editable = true, git = "https://github.com/SARAD-GmbH/data_collector.git"}
 pywin32 = "*"
+keyboard = "*"
 
 [requires]
 python_version = "3"
