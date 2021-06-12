@@ -80,7 +80,8 @@ class WinUsbListener:
             class_atom, self.__class__.__name__, 0, 0, 0, 0, 0, 0, 0, wc.hInstance, None
         )
 
-    def start(self):
+    def run(self):
+        """Start listening for new devices"""
         logger.info("[Start] Windows USB Listener")
         self._actor = ActorSystem().createActor(WinUsbManager, globalName="USBManager")
         portlist = self._list()
