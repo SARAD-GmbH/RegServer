@@ -5,24 +5,21 @@ Created on 17.05.2021
 """
 
 from typing import Callable, List
-from serial.tools.list_ports import comports
-
-# import registrationserver2.modules.usb.usb_actor
 
 import win32api
 import win32con
 import win32gui
-from keyboard._nixkeyboard import device
-
+from registrationserver2 import logger
+from registrationserver2.modules.usb.usb_serial import USBSerial
+from registrationserver2.modules.usb.win_usb_manager import WinUsbManager
+from serial.tools.list_ports import comports
 from thespian.actors import ActorSystem
 
-from registrationserver2.modules.usb.win_usb_manager import WinUsbManager
-from registrationserver2.modules.usb.usb_serial import USBSerial
-from registrationserver2 import logger
+# import registrationserver2.modules.usb.usb_actor
 
 
 class WinUsbListener:
-    _actor = None
+    """Process listening for new connected SARAD instruments -- Windows implementation."""
 
     WM_DEVICECHANGE_EVENTS = {
         0x0019: (
@@ -66,9 +63,15 @@ class WinUsbListener:
         0xFFFF: ("DBT_USERDEFINED", "The meaning of this message is user-defined."),
     }
 
+    @staticmethod
+    def _list() -> List[USBSerial]:
+        logger.debug("[LIST] Get a list of local serial devices")
+        devices = comports()
+        logger.debug("[LIST] Found %s", devices)
+        return [USBSerial(deviceid=d.device, path=fr"\\.\{d.device}") for d in devices]
+
     def __init__(self):
-        logger.info("[Create] Windows USB Listener")
-        self.start()
+        self._actor = ActorSystem().createActor(WinUsbManager, globalName="USBManager")
 
     def _create_listener(self):
         wc = win32gui.WNDCLASS()
@@ -83,41 +86,23 @@ class WinUsbListener:
     def run(self):
         """Start listening for new devices"""
         logger.info("[Start] Windows USB Listener")
-        self._actor = ActorSystem().createActor(WinUsbManager, globalName="USBManager")
         portlist = self._list()
         ActorSystem().tell(
             self._actor, {"CMD": "PROCESS_LIST", "DATA": {"LIST": portlist}}
         )
         hwnd = self._create_listener()
-        logger.debug(f"Created listener window with hwnd={hwnd:x}")
-        logger.debug(f"Listening to messages")
+        logger.debug("Created listener window with hwnd=%s", hwnd)
+        logger.debug("Listening to messages")
         win32gui.PumpMessages()
 
-    def on_change(self, devices: List[USBSerial]):
-        for device in devices:
-            logger.info(f"Connected usb device {vars(device)}")
-
-    def _on_message(self, hwnd: int, msg: int, wparam: int, lparam: int):
-        if msg != win32con.WM_DEVICECHANGE:
-            return 0
-
-        event, description = self.WM_DEVICECHANGE_EVENTS[wparam]
-        logger.debug(f"Received message: {event} = {description}")
-        portlist = self._list()
-        ActorSystem().tell(
-            self._actor, {"CMD": "PROCESS_LIST", "DATA": {"LIST": portlist}}
-        )
-
-    @staticmethod
-    def _list() -> List[USBSerial]:
-        logger.debug("[LIST] Listening Local Devices")
-        devices = comports()
-
-        logger.debug("[LIST] Found %s", devices)
-
-        return [USBSerial(deviceid=d.device, path=fr"\\.\{d.device}") for d in devices]
-
-    # creating actors here if needed
+    def _on_message(self, _hwnd: int, msg: int, wparam: int, _lparam: int):
+        if msg == win32con.WM_DEVICECHANGE:
+            event, description = self.WM_DEVICECHANGE_EVENTS[wparam]
+            logger.debug("Received message: %s = %s", event, description)
+            portlist = self._list()
+            ActorSystem().tell(
+                self._actor, {"CMD": "PROCESS_LIST", "DATA": {"LIST": portlist}}
+            )
 
 
 if __name__ == "__main__":
