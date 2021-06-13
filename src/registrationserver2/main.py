@@ -19,11 +19,12 @@ import threading
 from thespian.actors import ActorSystem  # type: ignore
 
 import registrationserver2.logdef
+import registrationserver2.modules.usb.usb_listener
 from registrationserver2 import logger
 from registrationserver2.config import actor_config, config
-from registrationserver2.modules.mqtt.mqtt_subscriber import SaradMqttSubscriber
+from registrationserver2.modules.mqtt.mqtt_subscriber import \
+    SaradMqttSubscriber
 from registrationserver2.modules.rfc2217.mdns_listener import MdnsListener
-import registrationserver2.modules.usb.usb_listener
 from registrationserver2.restapi import RestApi
 
 
@@ -86,8 +87,14 @@ def main():
     )
     apithread.setDaemon(True)
     apithread.start()
+    usb_listener = registrationserver2.modules.usb.usb_actor.UsbListener()
+    usb_listener_thread = threading.Thread(
+        target=usb_listener.run,
+    )
+    usb_listener_thread.setDaemon(True)
+    usb_listener_thread.start()
+
     _ = MdnsListener(_type=config["TYPE"])
-    _ = registrationserver2.modules.usb.usb_actor.UsbListener()
     mqtt_subscriber = SaradMqttSubscriber()
 
     logger.info("Press Ctrl+C to end!")

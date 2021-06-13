@@ -11,8 +11,6 @@ Authors
 """
 import hashlib
 import json
-import signal
-import sys
 
 import pyudev  # type: ignore
 from registrationserver2 import logger
@@ -28,11 +26,6 @@ class LinuxUsbListener:
     """Class to listen for SARAD instruments connected via USB."""
 
     @staticmethod
-    def signal_handler(_signal, _frame):
-        logger.info("Linux USB listener stopped")
-        sys.exit(0)
-
-    @staticmethod
     def __get_device_hash(device):
         id_model = device.get("ID_MODEL_ID")
         id_vendor = device.get("ID_VENDOR_ID")
@@ -46,6 +39,9 @@ class LinuxUsbListener:
         logger.info("Linux USB listener started")
         self._cluster: SaradCluster = SaradCluster()
         self.connected_instruments = []
+
+    def run(self):
+        """Start listening and keep listening until SIGTERM or SIGINT"""
         context = pyudev.Context()
         for device in context.list_devices(subsystem="tty"):
             self.usb_device_event("add", device)
@@ -53,9 +49,6 @@ class LinuxUsbListener:
         monitor.filter_by("tty")
         usb_stick_observer = pyudev.MonitorObserver(monitor, self.usb_device_event)
         usb_stick_observer.start()
-        signal.signal(signal.SIGINT, self.signal_handler)
-        signal.signal(signal.SIGTERM, self.signal_handler)
-        signal.pause()
 
     def is_valid_device(self, device):
         """Check whether there is a physical device connected to the logical interface."""
@@ -66,7 +59,7 @@ class LinuxUsbListener:
         return False
 
     def usb_device_event(self, action, device):
-        """docstring"""
+        """Handler that will be carried out, when a new serial device is detected"""
         if not self.is_valid_device(device):
             return
         port = device.get("DEVNAME")

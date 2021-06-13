@@ -1,23 +1,28 @@
-# Standard library imports
-from overrides import overrides  # type: ignore
+"""Actor creating one new device actor for every new instrument
+
+Created
+    2021-06-09
+
+Authors
+    Riccardo Förster <foerster@sarad.de>,
+    Michael Strey <strey@sarad.de>
+
+"""
 import json
 
-# library imports
-from thespian.actors import Actor, ActorExitRequest, ChildActorExited, ActorSystem  # type: ignore
-from serial.serialutil import SerialException
-
-# Self imports
+from overrides import overrides  # type: ignore
+from registrationserver2 import logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.usb.usb_actor import UsbActor
-from registrationserver2 import logger
 from registrationserver2.modules.usb.usb_serial import USBSerial
-import sarad.cluster
+from sarad.cluster import SaradCluster
+from serial.serialutil import SerialException
+from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
+                             ChildActorExited)
 
 
 class WinUsbManager(Actor):
-    """
-    classdocs
-    """
+    """Actor creating one new device actor for every new instrument"""
 
     ACCEPTED_COMMANDS = {"PROCESS_LIST": "_process_list"}
 
@@ -26,8 +31,12 @@ class WinUsbManager(Actor):
         "KILL": "_return_from_kill",
     }
 
-    _port_list = {}
-    _actors = {}
+    @overrides
+    def __init__(self):
+        super().__init__()
+        self._port_list = {}
+        self._actors = {}
+        self._cluster = SaradCluster()
 
     @overrides
     def receiveMessage(self, msg, sender):
@@ -87,7 +96,7 @@ class WinUsbManager(Actor):
             getattr(self, return_function)(msg, sender)
 
     # Message Handling
-    def _process_list(self, msg: dict, sender):
+    def _process_list(self, msg: dict, _sender):
         logger.info("[LIST] Processing List %s", msg)
         data_key = msg.get("DATA", None)
         if data_key is None:
@@ -100,7 +109,7 @@ class WinUsbManager(Actor):
         for current in list_key:
             if current in self._port_list:
                 continue
-            logger.info(f"[Add] Port {current}")
+            logger.info("[Add] Port %s", current)
             self._create_actor(current)
             self._port_list[current.deviceid] = current
 
@@ -108,7 +117,7 @@ class WinUsbManager(Actor):
         for old in self._port_list:
             if old in list_key:
                 continue
-            logger.info(f"[Delete] Port {old}")
+            logger.info("[Delete] Port %s", old)
             remove.append(old)
             if old in self._actors:
                 self.send(self._actors[old], ActorExitRequest())
@@ -116,14 +125,12 @@ class WinUsbManager(Actor):
         for remove_item in remove:
             self._port_list.pop(remove_item)
 
-    def _kill(self, msg: dict, sender):
+    def _kill(self, _msg: dict, _sender):
         for actor in self._actors:
             self.send(actor, ActorExitRequest())
         self._port_list = {}
 
     def _create_actor(self, device: USBSerial):
-        if not hasattr(self, "_cluster"):
-            self._cluster = sarad.cluster.SaradCluster()
         try:
             instruments = self._cluster.update_connected_instruments([device.deviceid])
             instrument = instruments[0]
