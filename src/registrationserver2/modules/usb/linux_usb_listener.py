@@ -11,8 +11,6 @@ Authors
 """
 import hashlib
 import json
-import signal
-import sys
 
 import pyudev  # type: ignore
 from registrationserver2 import logger
@@ -61,7 +59,7 @@ class LinuxUsbListener:
         return False
 
     def usb_device_event(self, action, device):
-        """docstring"""
+        """Handler that will be carried out, when a new serial device is detected"""
         if not self.is_valid_device(device):
             return
         port = device.get("DEVNAME")

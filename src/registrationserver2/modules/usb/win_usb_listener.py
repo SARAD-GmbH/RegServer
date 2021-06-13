@@ -1,10 +1,13 @@
-"""
-Created on 17.05.2021
+"""Process listening for new connected SARAD instruments -- Windows implementation.
 
-@author: rfoerster
-"""
+Created
+    2021-05-17
 
-from typing import Callable, List
+Author
+    Riccardo Foerster <rfoerster@sarad.de>
+
+"""
+from typing import List
 
 import win32api
 import win32con

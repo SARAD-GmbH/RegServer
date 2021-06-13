@@ -1,13 +1,19 @@
-"""
-Created on 09.06.2021
+""" Simple dataclass to store properties of a serial device
 
-@author: rfoerster
+Created
+    2021-06-09
+
+Author
+    Riccardo Foerster <rfoerster@sarad.de>
+
 """
 from dataclasses import dataclass
 
 
 @dataclass
 class USBSerial:
+    """Simple dataclass to store properties of a serial device"""
+
     deviceid: str
     path: str
 
