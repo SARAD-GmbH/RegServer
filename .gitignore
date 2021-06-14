@@ -19,4 +19,5 @@
 !/.env
 # Coding style
 !pylintrc
+!/*.ps1
 flycheck*
