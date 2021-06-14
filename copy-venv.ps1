@@ -9,3 +9,4 @@ Get-ChildItem -Path $source_packages1 -Directory | Copy-Item -Destination $targe
 Copy-Item -Path $source_packages2 -Destination $target_packages -Force -Recurse
 Get-ChildItem -Path $source_bin -File | Copy-Item -Destination $target_bin -Force
 Get-ChildItem -Path $source_bin -Directory | Copy-Item -Destination $target_packages -Force -Recurse
+Copy-Item -Path "$($target_packages)\pywin32_system32\pywintypes38.dll" -Destination "$($target_packages)\win32\"
