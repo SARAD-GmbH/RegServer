@@ -221,7 +221,7 @@ class DeviceBaseActor(Actor):
                 return
             return_message = {
                 "RETURN": "RESERVE",
-                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
             }
             self.send(self.sender_api, return_message)
             return
@@ -293,7 +293,7 @@ class DeviceBaseActor(Actor):
             return
         return_message = {
             "RETURN": "FREE",
-            "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
         }
         self.send(sender, return_message)
         return
