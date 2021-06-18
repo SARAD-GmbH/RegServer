@@ -427,7 +427,7 @@ class MqttActor(DeviceBaseActor):
                 self.subscriber,
                 {
                     "RETURN": "PREPARE",
-                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+                    "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
                 },
             )
         else:
@@ -510,7 +510,7 @@ class MqttActor(DeviceBaseActor):
             logger.info("Already disconnected")
         logger.info("To stop the MQTT thread!")
         self.mqttc.loop_stop()
-        logger.info("Disconnection gracefully: %s", RETURN_MESSAGES["OK_SKIPPED"])
+        logger.info("Disconnected gracefully")
 
     def _publish(self, msg: dict) -> dict:
         logger.info("Work state: publish")
@@ -553,7 +553,7 @@ class MqttActor(DeviceBaseActor):
             }
         return {
             "RETURN": "PUBLISH",
-            "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
         }
 
     def _subscribe(self, msg: dict) -> dict:
@@ -616,7 +616,7 @@ class MqttActor(DeviceBaseActor):
                 }
             return {
                 "RETURN": "SUBSCRIBE",
-                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
             }
         return {
             "RETURN": "SUBSCRIBE",
