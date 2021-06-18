@@ -20,7 +20,7 @@ LOCAL = False
 config = {
     "MDNS_TIMEOUT": 3000,
     "TYPE": "_rfc2217._tcp.local.",
-    "LEVEL": logging.DEBUG,
+    "LEVEL": logging.INFO,
     "PORT_RANGE": range(50000, 50500),
     "ip_version": IPVersion.All,
 }

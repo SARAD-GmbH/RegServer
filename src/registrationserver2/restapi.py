@@ -17,8 +17,7 @@ import socket
 import sys
 
 from flask import Flask, Response, json, request
-from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import Actor, ActorSystem, PoisonMessage
+from thespian.actors import Actor, ActorSystem  # type: ignore
 
 from registrationserver2 import FREE_KEYWORD, RESERVE_KEYWORD, logger
 from registrationserver2.config import config
@@ -73,7 +72,7 @@ class RestApi:
     api = Flask(__name__)
 
     class Dummy:
-        """Dummy output which just ignored messages"""
+        """Dummy output to ignore stdout"""
 
         @staticmethod
         def write(arg=None, **kwargs):
@@ -152,7 +151,9 @@ class RestApi:
         except Exception:  # pylint: disable=broad-except
             logger.exception("Fatal error")
             request_host = request.environ["REMOTE_ADDR"]
-        logger.info("%s: %s --> %s", did, attribute_who, request_host)
+        logger.info(
+            "Request reservation of %s for %s@%s", did, attribute_who, request_host
+        )
         if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
         device_state = get_state_from_file(did, "Reservation")

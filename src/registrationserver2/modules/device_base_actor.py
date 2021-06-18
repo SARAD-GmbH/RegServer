@@ -18,7 +18,8 @@ from registrationserver2 import logger
 from registrationserver2.config import config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.redirector_actor import RedirectorActor
-from thespian.actors import Actor, ActorExitRequest, ChildActorExited  # type: ignore
+from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
+                             ChildActorExited)
 
 logger.info("%s -> %s", __package__, __file__)
 
@@ -233,7 +234,7 @@ class DeviceBaseActor(Actor):
 
     def _create_redirector(self) -> bool:
         """Create redirector actor"""
-        logger.info(self.my_redirector)
+        logger.debug(self.my_redirector)
         if self.my_redirector is None:
             short_id = self.globalName.split(".")[0]
             logger.debug(
@@ -260,11 +261,11 @@ class DeviceBaseActor(Actor):
             "Port": port,
             "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         }
-        logger.info("Reservation: %s", reservation)
+        logger.debug("Reservation: %s", reservation)
         self.df_content = json.loads(self._file)
         self.df_content["Reservation"] = reservation
         self._file = json.dumps(self.df_content)
-        logger.info("self._file: %s", self._file)
+        logger.debug("self._file: %s", self._file)
         with open(self.dev_file, "w+") as file_stream:
             file_stream.write(self._file)
         logger.debug("Send CONNECT command to redirector %s", self.my_redirector)
@@ -274,6 +275,12 @@ class DeviceBaseActor(Actor):
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
         }
         logger.debug("Return %s to %s", return_message, sender)
+        logger.info(
+            "Reservation of %s for %s@%s successful",
+            self.globalName,
+            self.user,
+            self.host,
+        )
         self.send(self.sender_api, return_message)
 
     def _free(self, msg: dict, sender):

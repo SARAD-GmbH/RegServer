@@ -16,7 +16,7 @@ from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.usb.usb_actor import UsbActor
 from registrationserver2.modules.usb.usb_serial import USBSerial
 from sarad.cluster import SaradCluster
-from serial.serialutil import SerialException
+from serial.serialutil import SerialException  # type: ignore
 from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
                              ChildActorExited)
 
@@ -40,6 +40,7 @@ class WinUsbManager(Actor):
 
     @overrides
     def receiveMessage(self, msg, sender):
+        # pylint: disable=too-many-return-statements
         """
         Handles received Actor messages / verification of the message format
         """
@@ -48,7 +49,7 @@ class WinUsbManager(Actor):
             self._kill(msg, sender)
             return
         if isinstance(msg, ChildActorExited):
-            # TODO error handling code could be placed here
+            # error handling code could be placed here
             return
         if not isinstance(msg, dict):
             logger.critical(
@@ -164,11 +165,11 @@ class WinUsbManager(Actor):
                 }
             )
             msg = {"CMD": "SETUP", "PAR": data}
-            logger.debug("Ask to setup the device actor with %s...", msg)
+            logger.info("Ask to setup device actor %s with msg %s...", global_name, msg)
             self.send(self._actors[device.deviceid], msg)
 
         except IndexError:
-            logger.debug("No SARAD instrument at %s", device.deviceid)
+            logger.info("No SARAD instrument at %s", device.deviceid)
 
         except SerialException:
             logger.debug("Error Opening %s", device.deviceid)

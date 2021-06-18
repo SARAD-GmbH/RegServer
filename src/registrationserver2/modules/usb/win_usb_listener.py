@@ -9,19 +9,18 @@ Author
 """
 from typing import List
 
-import win32api
-import win32con
-import win32gui
+import win32api  # pylint: disable=import-error
+import win32con  # pylint: disable=import-error
+import win32gui  # pylint: disable=import-error
 from registrationserver2 import logger
 from registrationserver2.modules.usb.usb_serial import USBSerial
 from registrationserver2.modules.usb.win_usb_manager import WinUsbManager
-from serial.tools.list_ports import comports
-from thespian.actors import ActorSystem
-
-# import registrationserver2.modules.usb.usb_actor
+from serial.tools.list_ports import comports  # type: ignore
+from thespian.actors import ActorSystem  # type: ignore
 
 
 class WinUsbListener:
+    # pylint: disable=too-few-public-methods
     """Process listening for new connected SARAD instruments -- Windows implementation."""
 
     WM_DEVICECHANGE_EVENTS = {
@@ -40,7 +39,10 @@ class WinUsbListener:
         ),
         0x8001: (
             "DBT_DEVICEQUERYREMOVE",
-            "Permission is requested to remove a device or piece of media. Any application can deny this request and cancel the removal.",
+            (
+                "Permission is requested to remove a device or piece of media."
+                "Any application can deny this request and cancel the removal."
+            ),
         ),
         0x8002: (
             "DBT_DEVICEQUERYREMOVEFAILED",
@@ -77,13 +79,23 @@ class WinUsbListener:
         self._actor = ActorSystem().createActor(WinUsbManager, globalName="USBManager")
 
     def _create_listener(self):
-        wc = win32gui.WNDCLASS()
-        wc.lpfnWndProc = self._on_message
-        wc.lpszClassName = self.__class__.__name__
-        wc.hInstance = win32api.GetModuleHandle(None)
-        class_atom = win32gui.RegisterClass(wc)
+        win_class = win32gui.WNDCLASS()
+        win_class.lpfnWndProc = self._on_message
+        win_class.lpszClassName = self.__class__.__name__
+        win_class.hInstance = win32api.GetModuleHandle(None)
+        class_atom = win32gui.RegisterClass(win_class)
         return win32gui.CreateWindow(
-            class_atom, self.__class__.__name__, 0, 0, 0, 0, 0, 0, 0, wc.hInstance, None
+            class_atom,
+            self.__class__.__name__,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            win_class.hInstance,
+            None,
         )
 
     def run(self):

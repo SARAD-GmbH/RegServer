@@ -98,7 +98,7 @@ class LinuxUsbListener:
                     }
                 )
                 msg = {"CMD": "SETUP", "PAR": data}
-                logger.debug("Ask to setup the device actor with %s...", msg)
+                logger.info("Ask to setup device actor %s with %s", global_name, msg)
                 setup_return = ActorSystem().ask(this_actor, msg)
                 if not setup_return["ERROR_CODE"] in (
                     RETURN_MESSAGES["OK"]["ERROR_CODE"],
@@ -111,14 +111,14 @@ class LinuxUsbListener:
         elif action == "remove":
             for instrument in self.connected_instruments:
                 if instrument["port"] == port:
-                    logger.debug("Kill actor %s", instrument["global_name"])
+                    global_name = instrument["global_name"]
                     self.connected_instruments.remove(
-                        {"global_name": instrument["global_name"], "port": port}
+                        {"global_name": global_name, "port": port}
                     )
                     this_actor = ActorSystem().createActor(
-                        UsbActor, globalName=instrument["global_name"]
+                        UsbActor, globalName=global_name
                     )
-                    logger.debug("Ask to kill the device actor...")
+                    logger.info("Ask to kill device actor %s", global_name)
                     kill_return = ActorSystem().ask(this_actor, ActorExitRequest())
                     if (
                         not kill_return["ERROR_CODE"]
@@ -130,5 +130,5 @@ class LinuxUsbListener:
 
 
 if __name__ == "__main__":
-    logger.info("Start Test")
+    logger.debug("Start Test")
     _ = LinuxUsbListener()

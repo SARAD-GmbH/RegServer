@@ -17,7 +17,8 @@ import select
 import socket
 
 from overrides import overrides  # type: ignore
-from thespian.actors import Actor, ActorExitRequest, WakeupMessage  # type: ignore
+from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
+                             WakeupMessage)
 
 from registrationserver2 import logger
 from registrationserver2.config import config
@@ -167,7 +168,7 @@ class RedirectorActor(Actor):
         }
         data = self.conn.recv(1024)
         if data:
-            logger.info("%s from %s", data, self._socket_info)
+            logger.debug("%s from %s", data, self._socket_info)
             try:
                 reply = switcher[data]
                 self.conn.sendall(reply)
