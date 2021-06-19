@@ -19,10 +19,10 @@ from registrationserver2.modules.usb.usb_actor import UsbActor
 from sarad.cluster import SaradCluster
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 
-logger.info("%s -> %s", __package__, __file__)
+logger.debug("%s -> %s", __package__, __file__)
 
 
-class LinuxUsbListener:
+class UsbListener:
     """Class to listen for SARAD instruments connected via USB."""
 
     @staticmethod
@@ -75,7 +75,7 @@ class LinuxUsbListener:
                     sarad_type = "sarad-1688"
                 else:
                     logger.error(
-                        "[Add Instrument]: unknown instrument family (index: %s)",
+                        "[Add Instrument] Unknown instrument family (%s)",
                         family,
                     )
                     sarad_type = "unknown"
@@ -94,7 +94,8 @@ class LinuxUsbListener:
                             "Serial number": instrument.serial_number,
                             "Host": "127.0.0.1",
                             "Protocol": sarad_type,
-                        }
+                        },
+                        "Serial": port,
                     }
                 )
                 msg = {"CMD": "SETUP", "PAR": data}
@@ -107,7 +108,7 @@ class LinuxUsbListener:
                     logger.critical("Adding a new service failed. Kill device actor.")
                     ActorSystem().tell(this_actor, ActorExitRequest())
             except IndexError:
-                logger.degug("No SARAD instrument at %s", port)
+                logger.debug("No SARAD instrument at %s", port)
         elif action == "remove":
             for instrument in self.connected_instruments:
                 if instrument["port"] == port:
@@ -131,4 +132,4 @@ class LinuxUsbListener:
 
 if __name__ == "__main__":
     logger.debug("Start Test")
-    _ = LinuxUsbListener()
+    _ = UsbListener()

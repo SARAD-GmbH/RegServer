@@ -25,7 +25,7 @@ from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
-logger.info("%s -> %s", __package__, __file__)
+logger.debug("%s -> %s", __package__, __file__)
 
 
 class MdnsListener(ServiceListener):
@@ -117,10 +117,10 @@ class MdnsListener(ServiceListener):
         """Hook, being called when a new service
         representing a device is being detected"""
         with self.__lock:
-            logger.info("[Add]:\tFound: Service of type %s. Name: %s", type_, name)
+            logger.info("[Add] Found service %s of type %s", name, type_)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             if info is not None:
-                logger.info("[Add]:\t%s", info.properties)
+                logger.info("[Add] %s", info.properties)
                 # Take the first 3 elements to form a short_name
                 short_name = ".".join(name.split(".", 3)[:-1])
                 # If an actor already exists, this will return
@@ -143,17 +143,17 @@ class MdnsListener(ServiceListener):
         # pylint: disable=C0103
         """Hook, being called when a service
         representing a device is being updated"""
-        logger.info("[Update]:\tService of type %s. Name: %s", type_, name)
+        logger.info("[Update] Service %s of type %s", name, type_)
         self.add_service(zc, type_, name)
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Hook, being called when a regular shutdown of a service
         representing a device is being detected"""
         with self.__lock:
-            logger.info("[Del]:\tRemoved: Service of type %s. Name: %s", type_, name)
+            logger.info("[Del] Service %s of type %s", name, type_)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             dev_file = fr"{self.__dev_folder}{name}"
-            logger.debug("[Del]:\tInfo: %s", info)
+            logger.debug("[Del] Info: %s", info)
             if os.path.exists(dev_file):
                 os.remove(dev_file)
             this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=name)
@@ -170,7 +170,7 @@ class MdnsListener(ServiceListener):
                     for name in files:
                         if "_rfc2217" in name:
                             dev_file = os.path.join(root, name)
-                            logger.debug("[Del]:\tRemoved: %s", name)
+                            logger.debug("[Del] Removed %s", name)
                             os.remove(dev_file)
                             this_actor = ActorSystem().createActor(
                                 Rfc2217Actor, globalName=name

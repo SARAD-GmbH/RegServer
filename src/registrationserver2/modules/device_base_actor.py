@@ -21,7 +21,7 @@ from registrationserver2.redirector_actor import RedirectorActor
 from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
                              ChildActorExited)
 
-logger.info("%s -> %s", __package__, __file__)
+logger.debug("%s -> %s", __package__, __file__)
 
 
 class DeviceBaseActor(Actor):
@@ -164,7 +164,7 @@ class DeviceBaseActor(Actor):
         return
 
     def _kill(self, msg: dict, sender):
-        logger.info("Shutting down actor %s, Message: %s", self.globalName, msg)
+        logger.info("%s for actor %s", msg, self.globalName)
         self.dev_file = fr"{self.__dev_folder}{self.globalName}"
         if os.path.exists(self.dev_file):
             os.remove(self.dev_file)

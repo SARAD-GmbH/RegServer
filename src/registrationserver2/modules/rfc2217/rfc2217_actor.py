@@ -18,7 +18,7 @@ from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from thespian.actors import ActorSystem  # type: ignore
 
-logger.info("%s -> %s", __package__, __file__)
+logger.debug("%s -> %s", __package__, __file__)
 
 CMD_CYCLE_TIMEOUT = 1
 

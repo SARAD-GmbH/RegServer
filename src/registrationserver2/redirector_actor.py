@@ -24,7 +24,7 @@ from registrationserver2 import logger
 from registrationserver2.config import config
 from registrationserver2.modules.messages import RETURN_MESSAGES
 
-logger.info("%s -> %s", __package__, __file__)
+logger.debug("%s -> %s", __package__, __file__)
 
 
 class RedirectorActor(Actor):

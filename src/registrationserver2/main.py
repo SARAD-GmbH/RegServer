@@ -19,7 +19,12 @@ import threading
 from thespian.actors import ActorSystem  # type: ignore
 
 import registrationserver2.logdef
-import registrationserver2.modules.usb.usb_listener
+
+if os.name == "nt":
+    from registrationserver2.modules.usb.win_usb_listener import UsbListener
+else:
+    from registrationserver2.modules.usb.linux_usb_listener import UsbListener
+
 from registrationserver2 import logger
 from registrationserver2.config import actor_config, config
 from registrationserver2.modules.mqtt.mqtt_subscriber import \
@@ -51,7 +56,7 @@ def main():
             for root, _, files in os.walk(dev_folder):
                 for name in files:
                     filename = os.path.join(root, name)
-                    logger.debug("[Del]:\tRemoved: %s", name)
+                    logger.debug("[Del] %s removed", name)
                     os.remove(filename)
         if os.name == "nt":
             os.kill(os.getpid(), signal.SIGTERM)
@@ -87,7 +92,7 @@ def main():
     )
     apithread.setDaemon(True)
     apithread.start()
-    usb_listener = registrationserver2.modules.usb.usb_actor.UsbListener()
+    usb_listener = UsbListener()
     usb_listener_thread = threading.Thread(
         target=usb_listener.run,
     )

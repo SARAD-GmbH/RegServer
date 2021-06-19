@@ -19,7 +19,7 @@ from serial.tools.list_ports import comports  # type: ignore
 from thespian.actors import ActorSystem  # type: ignore
 
 
-class WinUsbListener:
+class UsbListener:
     # pylint: disable=too-few-public-methods
     """Process listening for new connected SARAD instruments -- Windows implementation."""
 
@@ -122,4 +122,4 @@ class WinUsbListener:
 
 if __name__ == "__main__":
     logger.info("Start Test")
-    _ = WinUsbListener()
+    _ = UsbListener()
