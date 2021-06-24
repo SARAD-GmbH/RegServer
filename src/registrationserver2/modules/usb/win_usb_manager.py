@@ -161,7 +161,8 @@ class WinUsbManager(Actor):
                         "Serial number": instrument.serial_number,
                         "Host": "127.0.0.1",
                         "Protocol": sarad_type,
-                    }
+                    },
+                    "Serial": device,
                 }
             )
             msg = {"CMD": "SETUP", "PAR": data}
