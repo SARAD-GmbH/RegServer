@@ -12,7 +12,7 @@ from typing import List
 import win32api  # pylint: disable=import-error
 import win32con  # pylint: disable=import-error
 import win32gui  # pylint: disable=import-error
-from registrationserver2 import logger
+from registrationserver2.logger import logger
 from registrationserver2.modules.usb.usb_serial import USBSerial
 from registrationserver2.modules.usb.win_usb_manager import WinUsbManager
 from serial.tools.list_ports import comports  # type: ignore

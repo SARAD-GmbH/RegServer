@@ -13,7 +13,7 @@ import time
 
 import serial.rfc2217  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver2 import logger
+from registrationserver2.logger import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from thespian.actors import ActorSystem  # type: ignore

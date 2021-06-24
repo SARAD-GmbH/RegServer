@@ -11,7 +11,7 @@ Authors
 import json
 
 from overrides import overrides  # type: ignore
-from registrationserver2 import logger
+from registrationserver2.logger import logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.usb.usb_actor import UsbActor
 from registrationserver2.modules.usb.usb_serial import USBSerial
@@ -162,7 +162,7 @@ class WinUsbManager(Actor):
                         "Host": "127.0.0.1",
                         "Protocol": sarad_type,
                     },
-                    "Serial": device,
+                    "Serial": device.deviceid,
                 }
             )
             msg = {"CMD": "SETUP", "PAR": data}

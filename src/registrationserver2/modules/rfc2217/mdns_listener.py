@@ -18,8 +18,8 @@ import socket
 import threading
 
 import hashids  # type: ignore
-from registrationserver2 import logger
 from registrationserver2.config import config
+from registrationserver2.logger import logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore

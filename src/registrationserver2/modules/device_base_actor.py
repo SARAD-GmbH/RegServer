@@ -14,8 +14,8 @@ from datetime import datetime
 
 from flask import json
 from overrides import overrides  # type: ignore
-from registrationserver2 import logger
 from registrationserver2.config import config
+from registrationserver2.logger import logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.redirector_actor import RedirectorActor
 from thespian.actors import (Actor, ActorExitRequest,  # type: ignore

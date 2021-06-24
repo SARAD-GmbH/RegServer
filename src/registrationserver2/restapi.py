@@ -19,13 +19,15 @@ import sys
 from flask import Flask, Response, json, request
 from thespian.actors import Actor, ActorSystem  # type: ignore
 
-from registrationserver2 import FREE_KEYWORD, RESERVE_KEYWORD, logger
 from registrationserver2.config import config
+from registrationserver2.logger import logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 
 logger.debug("%s -> %s", __package__, __file__)
 
 MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
+RESERVE_KEYWORD = "reserve"
+FREE_KEYWORD = "free"
 
 
 def get_state_from_file(device_id: str, cmd_key: str) -> dict:

@@ -14,8 +14,8 @@ import json
 import os
 
 import paho.mqtt.client as MQTT  # type: ignore
-from registrationserver2 import logger
 from registrationserver2.config import config, mqtt_config
+from registrationserver2.logger import logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
 from thespian.actors import ActorSystem  # type: ignore

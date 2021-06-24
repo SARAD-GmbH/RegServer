@@ -20,8 +20,8 @@ from overrides import overrides  # type: ignore
 from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
                              WakeupMessage)
 
-from registrationserver2 import logger
 from registrationserver2.config import config
+from registrationserver2.logger import logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 
 logger.debug("%s -> %s", __package__, __file__)
