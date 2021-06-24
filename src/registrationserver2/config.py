@@ -17,12 +17,17 @@ from zeroconf import IPVersion
 
 LOCAL = False
 
+home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
+app_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
+
 config = {
     "MDNS_TIMEOUT": 3000,
     "TYPE": "_rfc2217._tcp.local.",
     "LEVEL": logging.INFO,
-    "PORT_RANGE": range(50000, 50500),
     "ip_version": IPVersion.All,
+    "DEV_FOLDER": f"{app_folder}devices",
+    "IC_HOSTS_FOLDER": f"{app_folder}hosts",
+    "PORT_RANGE": range(50000, 50500),
 }
 
 if os.name == "nt":
