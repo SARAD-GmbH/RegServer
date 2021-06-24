@@ -165,7 +165,7 @@ class WinUsbManager(Actor):
                 }
             )
             msg = {"CMD": "SETUP", "PAR": data}
-            logger.info("Ask to setup device actor %s with msg %s...", global_name, msg)
+            logger.info("Ask to setup device actor %s with msg %s", global_name, msg)
             self.send(self._actors[device.deviceid], msg)
 
         except IndexError:
