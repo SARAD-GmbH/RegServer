@@ -13,7 +13,7 @@ import json
 
 import sarad.cluster
 from overrides import overrides  # type: ignore
-from registrationserver2 import logger
+from registrationserver2.logger import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
 
@@ -40,10 +40,12 @@ class UsbActor(DeviceBaseActor):
             mycluster: sarad.cluster.SaradCluster = sarad.cluster.SaradCluster()
             mycluster.update_connected_instruments([serial_port])
             self.instrument = mycluster.connected_instruments[0]
+            logger.debug("self.instrument is %s", self.instrument)
             assert instrument_id == self.instrument
-        except Exception:  # pylint: disable=broad-except
+        except Exception as this_exception:  # pylint: disable=broad-except
             logger.critical(
-                "Error during setup of USB device actor -- kill actor for a restart"
+                "Error during setup of USB device actor %s -- kill actor for a restart",
+                this_exception
             )
             self._kill(msg, sender)
         return super()._setup(msg, sender)

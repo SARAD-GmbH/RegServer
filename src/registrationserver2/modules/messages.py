@@ -4,10 +4,6 @@ Created on 08.12.2020
 @author: rfoerster
 """
 
-from registrationserver2 import logger
-
-logger.debug("%s -> %s", __package__, __file__)
-
 RETURN_MESSAGES = {
     # The message received by the actor was not in an expected format.
     "ILLEGAL_WRONGFORMAT": {

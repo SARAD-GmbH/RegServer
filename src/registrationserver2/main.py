@@ -18,15 +18,16 @@ import threading
 
 from thespian.actors import ActorSystem  # type: ignore
 
-import registrationserver2.logdef
-
 if os.name == "nt":
     from registrationserver2.modules.usb.win_usb_listener import UsbListener
 else:
     from registrationserver2.modules.usb.linux_usb_listener import UsbListener
 
-from registrationserver2 import logger
+from zeroconf import IPVersion
+
 from registrationserver2.config import actor_config, config
+from registrationserver2.logdef import logcfg
+from registrationserver2.logger import logger
 from registrationserver2.modules.mqtt.mqtt_subscriber import \
     SaradMqttSubscriber
 from registrationserver2.modules.rfc2217.mdns_listener import MdnsListener
@@ -79,7 +80,7 @@ def main():
     ActorSystem(
         systemBase=actor_config["systemBase"],
         capabilities=actor_config["capabilities"],
-        logDefs=registrationserver2.logdef.logcfg,
+        logDefs=logcfg,
     )
     logger.debug("Actor system started.")
     restapi = RestApi()
@@ -113,4 +114,20 @@ def main():
 
 
 if __name__ == "__main__":
+    # =======================
+    # Default values for configuration,
+    # is applied if a value is not set in config.py
+    # =======================
+    home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
+    app_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
+    config.setdefault("DEV_FOLDER", f"{app_folder}devices")
+    config.setdefault("IC_HOSTS_FOLDER", f"{app_folder}hosts")
+    config.setdefault("TYPE", "_rfc2217._tcp.local.")
+    config.setdefault("MDNS_TIMEOUT", 3000)
+    config.setdefault("PORT_RANGE", range(50000, 50500))
+    config.setdefault("HOST", "127.0.0.1")
+    config.setdefault("systemBase", "multiprocTCPBase")
+    config.setdefault("capabilities", "{'Admin Port': 1901}")
+    config.setdefault("ip_version", IPVersion.All)
+
     main()

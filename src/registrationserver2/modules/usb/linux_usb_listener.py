@@ -13,7 +13,7 @@ import hashlib
 import json
 
 import pyudev  # type: ignore
-from registrationserver2 import logger
+from registrationserver2.logger import logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.usb.usb_actor import UsbActor
 from sarad.cluster import SaradCluster
