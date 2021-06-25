@@ -7,6 +7,9 @@ import logging.config
 
 from registrationserver2.logdef import logcfg
 
-logging.config.dictConfig(logcfg)
-logger = logging.getLogger("Reg. Server")
-logger.info("Logging system initialized.")
+try:
+    logger
+except NameError:
+    logging.config.dictConfig(logcfg)
+    logger = logging.getLogger("Reg. Server")
+    logger.info("Logging system initialized.")
