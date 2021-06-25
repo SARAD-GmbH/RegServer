@@ -47,19 +47,16 @@ def main():
         if mqtt_subscriber is not None:
             if mqtt_subscriber.is_connected:
                 mqtt_subscriber.stop()
-        ActorSystem().shutdown()
-        logger.debug("Actor system shut down finished.")
         dev_folder = config["DEV_FOLDER"]
         if os.path.exists(dev_folder):
-            logger.debug("Cleaning device folder")
+            logger.info("Cleaning device folder")
             for root, _, files in os.walk(dev_folder):
                 for name in files:
                     filename = os.path.join(root, name)
-                    logger.debug("[Del] %s removed", name)
+                    logger.info("[Del] %s removed", name)
                     os.remove(filename)
-        if os.name == "nt":
-            os.kill(os.getpid(), signal.SIGTERM)
-        sys.exit(0)
+        ActorSystem().shutdown()
+        logger.info("Actor system shut down finished.")
 
     def signal_handler(_sig, _frame):
         """On Ctrl+C: stop MQTT loop"""
