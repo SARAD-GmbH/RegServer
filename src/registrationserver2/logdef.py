@@ -36,7 +36,7 @@ if config["LOG_FILE"] is not None:
     log_file = config["LOG_FILE"]
     FILENAME = log_folder + log_file
     os.makedirs(os.path.dirname(FILENAME), exist_ok=True)
-    with open(FILENAME, "w") as f:
+    with open(FILENAME, "a") as f:
         pass
 else:
     FILENAME = "registrationserver.log"
