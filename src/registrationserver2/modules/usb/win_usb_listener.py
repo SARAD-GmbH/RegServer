@@ -7,16 +7,18 @@ Author
     Riccardo Foerster <rfoerster@sarad.de>
 
 """
+import json
 from typing import List
 
 import win32api  # pylint: disable=import-error
 import win32con  # pylint: disable=import-error
 import win32gui  # pylint: disable=import-error
 from registrationserver2.logger import logger
-from registrationserver2.modules.usb.win_usb_manager import WinUsbManager
+from registrationserver2.modules.usb.usb_actor import UsbActor
+from sarad.cluster import SaradCluster
 from serial import Serial
 from serial.serialutil import SerialException
-from thespian.actors import ActorSystem  # type: ignore
+from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 
 
 class UsbListener:
@@ -89,7 +91,9 @@ class UsbListener:
         return result
 
     def __init__(self):
-        self._actor = ActorSystem().createActor(WinUsbManager, globalName="USBManager")
+        self._port_list = []
+        self._actors = {}
+        self._cluster = SaradCluster()
 
     def _create_listener(self):
         win_class = win32gui.WNDCLASS()
@@ -111,13 +115,26 @@ class UsbListener:
             None,
         )
 
+    def _process_list(self):
+        ports = self._list()
+        logger.info("[LIST] Processing list %s", ports)
+        for current in ports:
+            if current not in self._port_list:
+                logger.info("[Add] Port %s", current)
+                self._create_actor(current)
+                self._port_list.append(current)
+
+        for old in self._port_list:
+            if old not in ports:
+                logger.info("[Delete] Port %s", old)
+                self._port_list.remove(old)
+                if old in self._actors:
+                    ActorSystem().tell(self._actors[old], ActorExitRequest())
+
     def run(self):
         """Start listening for new devices"""
         logger.info("[Start] Windows USB Listener")
-        portlist = self._list()
-        ActorSystem().tell(
-            self._actor, {"CMD": "PROCESS_LIST", "DATA": {"LIST": portlist}}
-        )
+        self._process_list()
         hwnd = self._create_listener()
         logger.debug("Created listener window with hwnd=%s", hwnd)
         logger.debug("Listening to messages")
@@ -127,11 +144,51 @@ class UsbListener:
         if msg == win32con.WM_DEVICECHANGE:
             event, description = self.WM_DEVICECHANGE_EVENTS[wparam]
             logger.debug("Received message: %s = %s", event, description)
-            portlist = self._list()
-            ActorSystem().tell(
-                self._actor, {"CMD": "PROCESS_LIST", "DATA": {"LIST": portlist}}
-            )
+            self._process_list()
 
+    def _create_actor(self, serial_device: str):
+        try:
+            instruments = self._cluster.update_connected_instruments([serial_device])
+            instrument = instruments[0]
+            family = instrument.family["family_id"]
+            device_id = instrument.device_id
+            if family == 5:
+                sarad_type = "sarad-dacm"
+            elif family in [1, 2]:
+                sarad_type = "sarad-1688"
+            else:
+                logger.error(
+                    "[Add Instrument]: unknown instrument family (index: %s)",
+                    family,
+                )
+                sarad_type = "unknown"
+            global_name = f"{device_id}.{sarad_type}.local"
+            logger.debug("Create actor %s", global_name)
+            self._actors[serial_device] = ActorSystem().createActor(
+                UsbActor, globalName=global_name
+            )
+            data = json.dumps(
+                {
+                    "Identification": {
+                        "Name": instrument.type_name,
+                        "Family": family,
+                        "Type": instrument.type_id,
+                        "Serial number": instrument.serial_number,
+                        "Host": "127.0.0.1",
+                        "Protocol": sarad_type,
+                    },
+                    "Serial": serial_device,
+                }
+            )
+            msg = {"CMD": "SETUP", "PAR": data}
+            logger.info("Ask to setup device actor %s with msg %s", global_name, msg)
+            ActorSystem().tell(self._actors[serial_device], msg)
+
+        except IndexError:
+            logger.info("No SARAD instrument at %s", serial_device)
+
+        except SerialException:
+            logger.debug("Error opening %s", serial_device)
 
 if __name__ == "__main__":
     logger.info("Start Test")
