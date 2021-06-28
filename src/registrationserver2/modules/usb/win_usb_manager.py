@@ -14,7 +14,6 @@ from overrides import overrides  # type: ignore
 from registrationserver2.logger import logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.usb.usb_actor import UsbActor
-from registrationserver2.modules.usb.usb_serial import USBSerial
 from sarad.cluster import SaradCluster
 from serial.serialutil import SerialException  # type: ignore
 from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
@@ -34,7 +33,7 @@ class WinUsbManager(Actor):
     @overrides
     def __init__(self):
         super().__init__()
-        self._port_list = {}
+        self._port_list = []
         self._actors = {}
         self._cluster = SaradCluster()
 
@@ -108,32 +107,26 @@ class WinUsbManager(Actor):
         if not isinstance(list_key, list):
             return
         for current in list_key:
-            if current in self._port_list:
-                continue
-            logger.info("[Add] Port %s", current)
-            self._create_actor(current)
-            self._port_list[current.deviceid] = current
+            if current not in self._port_list:
+                logger.info("[Add] Port %s", current)
+                self._create_actor(current)
+                self._port_list.append(current)
 
-        remove = []
         for old in self._port_list:
-            if old in list_key:
-                continue
-            logger.info("[Delete] Port %s", old)
-            remove.append(old)
-            if old in self._actors:
-                self.send(self._actors[old], ActorExitRequest())
-
-        for remove_item in remove:
-            self._port_list.pop(remove_item)
+            if old not in list_key:
+                logger.info("[Delete] Port %s", old)
+                self._port_list.remove(old)
+                if old in self._actors:
+                    self.send(self._actors[old], ActorExitRequest())
 
     def _kill(self, _msg: dict, _sender):
         for actor in self._actors:
             self.send(actor, ActorExitRequest())
-        self._port_list = {}
+        self._port_list = []
 
-    def _create_actor(self, device: USBSerial):
+    def _create_actor(self, serial_device: str):
         try:
-            instruments = self._cluster.update_connected_instruments([device.deviceid])
+            instruments = self._cluster.update_connected_instruments([serial_device])
             instrument = instruments[0]
             family = instrument.family["family_id"]
             device_id = instrument.device_id
@@ -149,7 +142,7 @@ class WinUsbManager(Actor):
                 sarad_type = "unknown"
             global_name = f"{device_id}.{sarad_type}.local"
             logger.debug("Create actor %s", global_name)
-            self._actors[device.deviceid] = self.createActor(
+            self._actors[serial_device] = self.createActor(
                 UsbActor, globalName=global_name
             )
             data = json.dumps(
@@ -162,15 +155,15 @@ class WinUsbManager(Actor):
                         "Host": "127.0.0.1",
                         "Protocol": sarad_type,
                     },
-                    "Serial": device.deviceid,
+                    "Serial": serial_device,
                 }
             )
             msg = {"CMD": "SETUP", "PAR": data}
             logger.info("Ask to setup device actor %s with msg %s", global_name, msg)
-            self.send(self._actors[device.deviceid], msg)
+            self.send(self._actors[serial_device], msg)
 
         except IndexError:
-            logger.info("No SARAD instrument at %s", device.deviceid)
+            logger.info("No SARAD instrument at %s", serial_device)
 
         except SerialException:
-            logger.debug("Error Opening %s", device.deviceid)
+            logger.debug("Error opening %s", serial_device)

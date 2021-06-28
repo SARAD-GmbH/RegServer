@@ -13,9 +13,9 @@ import win32api  # pylint: disable=import-error
 import win32con  # pylint: disable=import-error
 import win32gui  # pylint: disable=import-error
 from registrationserver2.logger import logger
-from registrationserver2.modules.usb.usb_serial import USBSerial
 from registrationserver2.modules.usb.win_usb_manager import WinUsbManager
-from serial.tools.list_ports import comports  # type: ignore
+from serial import Serial
+from serial.serialutil import SerialException
 from thespian.actors import ActorSystem  # type: ignore
 
 
@@ -69,11 +69,24 @@ class UsbListener:
     }
 
     @staticmethod
-    def _list() -> List[USBSerial]:
+    def _list() -> List[str]:
+        """ Lists serial port names
+
+        :returns:
+            A list of the serial ports available on the system
+        """
         logger.debug("[LIST] Get a list of local serial devices")
-        devices = comports()
-        logger.debug("[LIST] Found %s", devices)
-        return [USBSerial(deviceid=d.device, path=fr"\\.\{d.device}") for d in devices]
+        ports = ['COM%s' % (i + 1) for i in range(256)]
+        result = []
+        for port in ports:
+            try:
+                serial = Serial(port)
+                serial.close()
+                result.append(port)
+            except (OSError, SerialException):
+                pass
+        logger.debug("[LIST] Found %s", result)
+        return result
 
     def __init__(self):
         self._actor = ActorSystem().createActor(WinUsbManager, globalName="USBManager")
