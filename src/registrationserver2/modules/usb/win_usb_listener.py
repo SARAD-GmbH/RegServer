@@ -99,6 +99,7 @@ class UsbListener:
         logger.info("[LIST] Remove all device actors")
         for actor in self._actors:
             ActorSystem().tell(actor, ActorExitRequest())
+        self._actors = {}
         logger.info("[LIST] Creat new device actors")
         for instrument in self._cluster.connected_instruments:
             self._create_actor(instrument)
