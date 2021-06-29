@@ -96,8 +96,8 @@ class UsbListener:
 
     def _process_list(self):
         logger.info("[LIST] Process updated device list")
-        logger.info("[LIST] Remove all device actors")
-        for actor in self._actors:
+        logger.info("[LIST] Remove all device actors %s", self._actors)
+        for actor in self._actors.values():
             ActorSystem().tell(actor, ActorExitRequest())
         self._actors = {}
         logger.info("[LIST] Creat new device actors")
@@ -107,6 +107,7 @@ class UsbListener:
     def run(self):
         """Start listening for new devices"""
         logger.info("[Start] Windows USB Listener")
+        self._cluster.update_connected_instruments()
         self._process_list()
         hwnd = self._create_listener()
         logger.debug("Created listener window with hwnd=%s", hwnd)
