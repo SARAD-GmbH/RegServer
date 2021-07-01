@@ -8,7 +8,6 @@ Author
 
 """
 import json
-from typing import List
 
 import win32api  # pylint: disable=import-error
 import win32con  # pylint: disable=import-error
@@ -17,7 +16,6 @@ from registrationserver2.config import config
 from registrationserver2.logger import logger
 from registrationserver2.modules.usb.usb_actor import UsbActor
 from sarad.cluster import SaradCluster
-from serial import Serial
 from serial.serialutil import SerialException
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 
@@ -78,6 +76,7 @@ class UsbListener:
         self._cluster = SaradCluster(
             native_ports=native_ports, ignore_ports=ignore_ports
         )
+        self._active_ports = set(self._cluster.active_ports)
 
     def _create_listener(self):
         win_class = win32gui.WNDCLASS()
@@ -99,21 +98,14 @@ class UsbListener:
             None,
         )
 
-    def _process_list(self):
-        logger.info("[LIST] Process updated device list")
-        logger.info("[LIST] Remove all device actors %s", self._actors)
-        for actor in self._actors.values():
-            _ = ActorSystem().ask(actor, ActorExitRequest())
-        self._actors = {}
-        logger.info("[LIST] Creat new device actors")
-        for instrument in self._cluster.connected_instruments:
-            self._create_actor(instrument)
-
     def run(self):
         """Start listening for new devices"""
         logger.info("[Start] Windows USB Listener")
         self._cluster.update_connected_instruments()
-        self._process_list()
+        self._actors = {}
+        logger.info("[LIST] Creat new device actors")
+        for instrument in self._cluster.connected_instruments:
+            self._create_actor(instrument)
         hwnd = self._create_listener()
         logger.debug("Created listener window with hwnd=%s", hwnd)
         logger.debug("Listening to messages")
@@ -122,10 +114,21 @@ class UsbListener:
     def _on_message(self, _hwnd: int, msg: int, wparam: int, _lparam: int):
         if msg == win32con.WM_DEVICECHANGE:
             event, description = self.WM_DEVICECHANGE_EVENTS[wparam]
-            logger.info("Received message: %s = %s", event, description)
-            if event in ("DBT_DEVICEARRIVAL", "DBT_DEVICEREMOVECOMPLETE"):
-                self._cluster.update_connected_instruments()
-                self._process_list()
+            logger.debug("Received message: %s = %s", event, description)
+            if event in "DBT_DEVICEARRIVAL":
+                new_ports = self._cluster.active_ports.difference(self._active_ports)
+                logger.info("%s plugged in", new_ports)
+                for new_port in new_ports:
+                    self._cluster.update_connected_instruments(new_port)
+                    self._create_actor(self._cluster.connected_instruments[0])
+                return
+            if event in "DBT_DEVICEREMOVECOMPLETE":
+                gone_ports = self._active_ports.difference(self._cluster.active_ports)
+                logger.info("%s plugged out", gone_ports)
+                for gone_port in gone_ports:
+                    _ = ActorSystem().ask(self._actors[gone_port], ActorExitRequest())
+                    del self._actors[gone_port]
+            return
 
     def _create_actor(self, instrument):
         serial_device = instrument.port
