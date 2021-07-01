@@ -13,6 +13,7 @@ from typing import List
 import win32api  # pylint: disable=import-error
 import win32con  # pylint: disable=import-error
 import win32gui  # pylint: disable=import-error
+from registrationserver2.config import config
 from registrationserver2.logger import logger
 from registrationserver2.modules.usb.usb_actor import UsbActor
 from sarad.cluster import SaradCluster
@@ -72,7 +73,11 @@ class UsbListener:
 
     def __init__(self):
         self._actors = {}
-        self._cluster = SaradCluster()
+        native_ports = config.get("NATIVE_SERIAL_PORTS", [])
+        ignore_ports = config.get("IGNORED_SERIAL_PORTS", [])
+        self._cluster = SaradCluster(
+            native_ports=native_ports, ignore_ports=ignore_ports
+        )
 
     def _create_listener(self):
         win_class = win32gui.WNDCLASS()

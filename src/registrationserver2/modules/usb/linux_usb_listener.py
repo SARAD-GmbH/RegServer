@@ -13,6 +13,7 @@ import hashlib
 import json
 
 import pyudev  # type: ignore
+from registrationserver2.config import config
 from registrationserver2.logger import logger
 from registrationserver2.modules.messages import RETURN_MESSAGES
 from registrationserver2.modules.usb.usb_actor import UsbActor
@@ -37,7 +38,11 @@ class UsbListener:
 
     def __init__(self):
         logger.info("Linux USB listener started")
-        self._cluster: SaradCluster = SaradCluster()
+        native_ports = config.get("NATIVE_SERIAL_PORTS", [])
+        ignore_ports = config.get("IGNORED_SERIAL_PORTS", [])
+        self._cluster: SaradCluster = SaradCluster(
+            native_ports=native_ports, ignore_ports=ignore_ports
+        )
         self.connected_instruments = []
 
     def run(self):
