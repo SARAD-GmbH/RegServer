@@ -34,21 +34,21 @@ config.setdefault("LOG_FILE", "registrationserver.log")
 if config["LOG_FILE"] is not None:
     log_folder = config["LOG_FOLDER"]
     log_file = config["LOG_FILE"]
-    FILENAME = log_folder + log_file
-    os.makedirs(os.path.dirname(FILENAME), exist_ok=True)
-    with open(FILENAME, "a") as f:
+    LOGFILENAME = log_folder + log_file
+    os.makedirs(os.path.dirname(LOGFILENAME), exist_ok=True)
+    with open(LOGFILENAME, "a") as f:
         pass
 else:
-    FILENAME = "registrationserver.log"
+    LOGFILENAME = "registrationserver.log"
 
 logcfg = {
     "version": 1,
     "formatters": {
         "normal": {
-            "format": "%(asctime)-15s %(levelname)-6s %(module)-15s %(process)d %(message)s"
+            "format": "%(asctime)-15s %(levelname)-10s %(module)-17s %(process)d %(message)s"
         },
         "actor": {
-            "format": "%(asctime)-15s %(levelname)-6s %(actorAddress)-15s %(process)d %(message)s"
+            "format": "%(asctime)-15s %(levelname)-10s %(actorAddress)-17s %(process)d %(message)s"
         },
     },
     "filters": {
@@ -57,22 +57,18 @@ logcfg = {
     },
     "handlers": {
         "f1": {
-            "class": "logging.handlers.RotatingFileHandler",
+            "class": "logging.FileHandler",
             "formatter": "normal",
-            "filename": FILENAME,
-            "maxBytes": 81920,
-            "backupCount": 5,
+            "filename": LOGFILENAME,
             "filters": ["notActorLog"],
             "mode": "a",
             "encoding": "utf-8",
             "level": LOGLEVEL,
         },
         "f2": {
-            "class": "logging.handlers.RotatingFileHandler",
+            "class": "logging.FileHandler",
             "formatter": "actor",
-            "filename": FILENAME,
-            "maxBytes": 81920,
-            "backupCount": 5,
+            "filename": LOGFILENAME,
             "filters": ["isActorLog"],
             "mode": "a",
             "encoding": "utf-8",

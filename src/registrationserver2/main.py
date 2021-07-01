@@ -24,7 +24,7 @@ else:
     from registrationserver2.modules.usb.linux_usb_listener import UsbListener
 
 from registrationserver2.config import actor_config, config
-from registrationserver2.logdef import logcfg
+from registrationserver2.logdef import logcfg, LOGFILENAME
 from registrationserver2.logger import logger
 from registrationserver2.modules.mqtt.mqtt_subscriber import \
     SaradMqttSubscriber
@@ -62,6 +62,12 @@ def main():
         """On Ctrl+C: stop MQTT loop"""
         logger.info("You pressed Ctrl+C!")
         main.run = False
+
+    try:
+        with open(LOGFILENAME, "w") as f:
+            pass
+    except Exception:
+        logger.error("Initialization of log file failed.")
 
     mqtt_subscriber = None
 
