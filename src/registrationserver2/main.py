@@ -13,7 +13,6 @@ Authors
 import atexit
 import os
 import signal
-import sys
 import threading
 
 from thespian.actors import ActorSystem  # type: ignore
@@ -24,7 +23,7 @@ else:
     from registrationserver2.modules.usb.linux_usb_listener import UsbListener
 
 from registrationserver2.config import actor_config, config
-from registrationserver2.logdef import logcfg, LOGFILENAME
+from registrationserver2.logdef import LOGFILENAME, logcfg
 from registrationserver2.logger import logger
 from registrationserver2.modules.mqtt.mqtt_subscriber import \
     SaradMqttSubscriber
@@ -64,10 +63,11 @@ def main():
         main.run = False
 
     try:
-        with open(LOGFILENAME, "w") as f:
+        with open(LOGFILENAME, "w") as _:
             pass
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         logger.error("Initialization of log file failed.")
+    logger.info("Logging system initialized.")
 
     mqtt_subscriber = None
 

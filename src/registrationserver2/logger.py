@@ -1,7 +1,11 @@
-# =======================
-# Logging configuration
-# The order is important! Setup logger after the actor system.
-# =======================
+"""Creation of the logger singleton
+
+Created
+    2021-06-17
+
+Authors
+    Michael Strey <strey@sarad.de>
+"""
 import logging
 import logging.config
 
@@ -12,4 +16,3 @@ try:
 except NameError:
     logging.config.dictConfig(logcfg)
     logger = logging.getLogger("Reg. Server")
-    logger.info("Logging system initialized.")

@@ -5,23 +5,13 @@ Created
 
 Authors
     copied from Thespian documentation
+    simplified by Michael Strey <strey@sarad.de>
 """
 import logging
 import logging.handlers
 import os
 
 from registrationserver2.config import config
-
-
-class actorLogFilter(logging.Filter):
-    def filter(self, logrecord):
-        return "actorAddress" in logrecord.__dict__
-
-
-class notActorLogFilter(logging.Filter):
-    def filter(self, logrecord):
-        return "actorAddress" not in logrecord.__dict__
-
 
 LOGLEVEL = config["LEVEL"]
 
@@ -45,42 +35,24 @@ logcfg = {
     "version": 1,
     "formatters": {
         "normal": {
-            "format": "%(asctime)-15s %(levelname)-10s %(module)-17s %(process)d %(message)s"
+            "format": "%(asctime)-15s %(levelname)-8s %(module)-18s %(message)s"
         },
-        "actor": {
-            "format": "%(asctime)-15s %(levelname)-10s %(actorAddress)-17s %(process)d %(message)s"
-        },
-    },
-    "filters": {
-        "isActorLog": {"()": actorLogFilter},
-        "notActorLog": {"()": notActorLogFilter},
     },
     "handlers": {
-        "f1": {
+        "file": {
             "class": "logging.FileHandler",
             "formatter": "normal",
+            "level": LOGLEVEL,
             "filename": LOGFILENAME,
-            "filters": ["notActorLog"],
             "mode": "a",
             "encoding": "utf-8",
-            "level": LOGLEVEL,
-        },
-        "f2": {
-            "class": "logging.FileHandler",
-            "formatter": "actor",
-            "filename": LOGFILENAME,
-            "filters": ["isActorLog"],
-            "mode": "a",
-            "encoding": "utf-8",
-            "level": LOGLEVEL,
         },
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "normal",
-            # "filters": ["isActorLog", "notActorLog"],
             "level": LOGLEVEL,
             "stream": "ext://sys.stdout",
         },
     },
-    "loggers": {"": {"handlers": ["f1", "f2", "console"], "level": LOGLEVEL}},
+    "loggers": {"": {"handlers": ["file", "console"], "level": LOGLEVEL}},
 }
