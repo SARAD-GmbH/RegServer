@@ -98,7 +98,7 @@ class UsbListener:
         logger.info("[LIST] Process updated device list")
         logger.info("[LIST] Remove all device actors %s", self._actors)
         for actor in self._actors.values():
-            ActorSystem().tell(actor, ActorExitRequest())
+            _ = ActorSystem().ask(actor, ActorExitRequest())
         self._actors = {}
         logger.info("[LIST] Creat new device actors")
         for instrument in self._cluster.connected_instruments:
@@ -117,9 +117,10 @@ class UsbListener:
     def _on_message(self, _hwnd: int, msg: int, wparam: int, _lparam: int):
         if msg == win32con.WM_DEVICECHANGE:
             event, description = self.WM_DEVICECHANGE_EVENTS[wparam]
-            logger.debug("Received message: %s = %s", event, description)
-            self._cluster.update_connected_instruments()
-            self._process_list()
+            logger.info("Received message: %s = %s", event, description)
+            if event in ("DBT_DEVICEARRIVAL", "DBT_DEVICEREMOVECOMPLETE"):
+                self._cluster.update_connected_instruments()
+                self._process_list()
 
     def _create_actor(self, instrument):
         serial_device = instrument.port
