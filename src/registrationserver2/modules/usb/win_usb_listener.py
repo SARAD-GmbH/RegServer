@@ -134,6 +134,9 @@ class UsbListener:
                 )
                 logger.info("%s plugged out", gone_ports)
                 self._cluster.update_connected_instruments(list(gone_ports))
+                current_active_ports = set(
+                    instr.port for instr in self._cluster.connected_instruments
+                )
                 for gone_port in gone_ports:
                     try:
                         ActorSystem().tell(self._actors[gone_port], ActorExitRequest())
@@ -144,19 +147,48 @@ class UsbListener:
                         )
                     self._active_ports.remove(gone_port)
                 try:
-                    assert (
-                        set(instr.port for instr in self._cluster.connected_instruments)
-                        == self._active_ports
-                    )
+                    assert current_active_ports == self._active_ports
                 except AssertionError:
                     logger.error(
                         "%s must be equal to %s",
-                        set(
-                            instr.port for instr in self._cluster.connected_instruments
-                        ),
+                        current_active_ports,
                         self._active_ports,
                     )
             return
+
+    def update_native_ports(self):
+        """Check all RS-232 ports that are listed in the config
+        for connected instruments. This function has to be called either by the app
+        or by a polling routine."""
+        native_ports = set(self._cluster.native_ports)
+        active_ports = self._active_ports
+        old_activ_native_ports = native_ports.intersection(active_ports)
+        new_instruments = self._cluster.update_connected_instruments(
+            self._cluster.native_ports
+        )
+        for instrument in new_instruments:
+            self._create_actor(instrument)
+            self._active_ports.add(instrument.port)
+        current_active_ports = set(
+            instr.port for instr in self._cluster.connected_instruments
+        )
+        current_active_native_ports = native_ports.intersection(current_active_ports)
+        gone_ports = old_activ_native_ports.difference(current_active_native_ports)
+        for gone_port in gone_ports:
+            try:
+                ActorSystem().tell(self._actors[gone_port], ActorExitRequest())
+                del self._actors[gone_port]
+            except KeyError:
+                logger.error("%s removed, that never was added properly", gone_port)
+                self._active_ports.remove(gone_port)
+            try:
+                assert current_active_ports == self._active_ports
+            except AssertionError:
+                logger.error(
+                    "%s must be equal to %s",
+                    current_active_ports,
+                    self._active_ports,
+                )
 
     def _create_actor(self, instrument):
         serial_device = instrument.port
