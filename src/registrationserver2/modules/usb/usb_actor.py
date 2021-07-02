@@ -13,7 +13,6 @@ import json
 
 import sarad.cluster
 from overrides import overrides  # type: ignore
-from registrationserver2.config import config
 from registrationserver2.logger import logger
 from registrationserver2.modules.device_base_actor import DeviceBaseActor
 from registrationserver2.modules.messages import RETURN_MESSAGES
@@ -37,13 +36,9 @@ class UsbActor(DeviceBaseActor):
         try:
             data = json.loads(msg["PAR"])
             serial_port = data["Serial"]
-            logger.info(serial_port)
-            native_ports = config.get("NATIVE_SERIAL_PORTS", [])
-            ignore_ports = config.get("IGNORED_SERIAL_PORTS", [])
-            mycluster: sarad.cluster.SaradCluster = sarad.cluster.SaradCluster(
-                native_ports=native_ports, ignore_ports=ignore_ports
-            )
-            self.instrument = mycluster.update_connected_instruments([serial_port])[0]
+            logger.debug(serial_port)
+            mycluster: sarad.cluster.SaradCluster = sarad.cluster.SaradCluster()
+            self.instrument = mycluster.get_instrument(instrument_id, serial_port)
             logger.debug("self.instrument is %s", self.instrument)
             assert instrument_id == self.instrument
         except Exception as this_exception:  # pylint: disable=broad-except
