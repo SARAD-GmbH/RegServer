@@ -16,7 +16,6 @@ from registrationserver2.config import config
 from registrationserver2.logger import logger
 from registrationserver2.modules.usb.usb_actor import UsbActor
 from sarad.cluster import SaradCluster
-from serial.serialutil import SerialException
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 
 
@@ -118,29 +117,45 @@ class UsbListener:
             if event in "DBT_DEVICEARRIVAL":
                 logger.info("Old active ports: %s", self._active_ports)
                 logger.info("New active ports: %s", set(self._cluster.active_ports))
-                new_ports = set(self._cluster.active_ports).difference(self._active_ports)
+                new_ports = set(self._cluster.active_ports).difference(
+                    self._active_ports
+                )
                 logger.info("%s plugged in", new_ports)
-                new_instruments = self._cluster.update_connected_instruments(list(new_ports))
+                new_instruments = self._cluster.update_connected_instruments(
+                    list(new_ports)
+                )
                 for instrument in new_instruments:
                     self._create_actor(instrument)
                     self._active_ports.add(instrument.port)
                 return
             if event in "DBT_DEVICEREMOVECOMPLETE":
-                gone_ports = self._active_ports.difference(set(self._cluster.active_ports))
+                gone_ports = self._active_ports.difference(
+                    set(self._cluster.active_ports)
+                )
                 logger.info("%s plugged out", gone_ports)
-                connected_instruments = self._cluster.update_connected_instruments(list(gone_ports))
+                self._cluster.update_connected_instruments(list(gone_ports))
                 for gone_port in gone_ports:
                     try:
                         ActorSystem().tell(self._actors[gone_port], ActorExitRequest())
                         del self._actors[gone_port]
                     except KeyError:
-                        logger.error("%s removed, that never was added properly", gone_port)
+                        logger.error(
+                            "%s removed, that never was added properly", gone_port
+                        )
                     self._active_ports.remove(gone_port)
-                # TODO assertion to test connected_instruments against self._active_ports
                 try:
-                    assert set(instr.port for instr in self._cluster.connected_instruments) == self._active_ports
+                    assert (
+                        set(instr.port for instr in self._cluster.connected_instruments)
+                        == self._active_ports
+                    )
                 except AssertionError:
-                    logger.error("%s must be equal to %s", set(instr.port for instr in self._cluster.connected_instruments), self._active_ports)
+                    logger.error(
+                        "%s must be equal to %s",
+                        set(
+                            instr.port for instr in self._cluster.connected_instruments
+                        ),
+                        self._active_ports,
+                    )
             return
 
     def _create_actor(self, instrument):
