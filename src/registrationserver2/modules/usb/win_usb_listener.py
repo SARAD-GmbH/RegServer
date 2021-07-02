@@ -116,18 +116,31 @@ class UsbListener:
             event, description = self.WM_DEVICECHANGE_EVENTS[wparam]
             logger.debug("Received message: %s = %s", event, description)
             if event in "DBT_DEVICEARRIVAL":
-                new_ports = self._cluster.active_ports.difference(self._active_ports)
+                logger.info("Old active ports: %s", self._active_ports)
+                logger.info("New active ports: %s", set(self._cluster.active_ports))
+                new_ports = set(self._cluster.active_ports).difference(self._active_ports)
                 logger.info("%s plugged in", new_ports)
-                for new_port in new_ports:
-                    self._cluster.update_connected_instruments(new_port)
-                    self._create_actor(self._cluster.connected_instruments[0])
+                new_instruments = self._cluster.update_connected_instruments(list(new_ports))
+                for instrument in new_instruments:
+                    self._create_actor(instrument)
+                    self._active_ports.add(instrument.port)
                 return
             if event in "DBT_DEVICEREMOVECOMPLETE":
-                gone_ports = self._active_ports.difference(self._cluster.active_ports)
+                gone_ports = self._active_ports.difference(set(self._cluster.active_ports))
                 logger.info("%s plugged out", gone_ports)
+                connected_instruments = self._cluster.update_connected_instruments(list(gone_ports))
                 for gone_port in gone_ports:
-                    _ = ActorSystem().ask(self._actors[gone_port], ActorExitRequest())
-                    del self._actors[gone_port]
+                    try:
+                        ActorSystem().tell(self._actors[gone_port], ActorExitRequest())
+                        del self._actors[gone_port]
+                    except KeyError:
+                        logger.error("%s removed, that never was added properly", gone_port)
+                    self._active_ports.remove(gone_port)
+                # TODO assertion to test connected_instruments against self._active_ports
+                try:
+                    assert set(instr.port for instr in self._cluster.connected_instruments) == self._active_ports
+                except AssertionError:
+                    logger.error("%s must be equal to %s", set(instr.port for instr in self._cluster.connected_instruments), self._active_ports)
             return
 
     def _create_actor(self, instrument):
@@ -164,7 +177,7 @@ class UsbListener:
         )
         msg = {"CMD": "SETUP", "PAR": data}
         logger.info("Ask to setup device actor %s with msg %s", global_name, msg)
-        _ = ActorSystem().ask(self._actors[serial_device], msg)
+        ActorSystem().tell(self._actors[serial_device], msg)
 
 
 if __name__ == "__main__":

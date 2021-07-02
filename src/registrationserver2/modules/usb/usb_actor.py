@@ -43,8 +43,7 @@ class UsbActor(DeviceBaseActor):
             mycluster: sarad.cluster.SaradCluster = sarad.cluster.SaradCluster(
                 native_ports=native_ports, ignore_ports=ignore_ports
             )
-            mycluster.update_connected_instruments([serial_port])
-            self.instrument = mycluster.connected_instruments[0]
+            self.instrument = mycluster.update_connected_instruments([serial_port])[0]
             logger.debug("self.instrument is %s", self.instrument)
             assert instrument_id == self.instrument
         except Exception as this_exception:  # pylint: disable=broad-except
