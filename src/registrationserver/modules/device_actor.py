@@ -7,17 +7,17 @@ Authors
     Riccardo Förster <foerster@sarad.de>,
     Michael Strey <strey@sarad.de>
 
-.. uml :: uml-device_base_actor.puml
+.. uml :: uml-device_actor.puml
 """
 import os
 from datetime import datetime
 
 from flask import json
 from overrides import overrides  # type: ignore
-from registrationserver2.config import config
-from registrationserver2.logger import logger
-from registrationserver2.modules.messages import RETURN_MESSAGES
-from registrationserver2.redirector_actor import RedirectorActor
+from registrationserver.config import config
+from registrationserver.logger import logger
+from registrationserver.modules.messages import RETURN_MESSAGES
+from registrationserver.redirect_actor import RedirectorActor
 from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
                              ChildActorExited)
 

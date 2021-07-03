@@ -13,9 +13,9 @@ import json
 
 import sarad.cluster
 from overrides import overrides  # type: ignore
-from registrationserver2.logger import logger
-from registrationserver2.modules.device_base_actor import DeviceBaseActor
-from registrationserver2.modules.messages import RETURN_MESSAGES
+from registrationserver.logger import logger
+from registrationserver.modules.device_actor import DeviceBaseActor
+from registrationserver.modules.messages import RETURN_MESSAGES
 
 logger.debug("%s -> %s", __package__, __file__)
 

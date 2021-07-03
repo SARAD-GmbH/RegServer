@@ -7,16 +7,16 @@ Created
 Authors
     Michael Strey <strey@sarad.de>
 
-.. uml :: uml-linux_usb_listener.puml
+.. uml :: uml-unix_listener.puml
 """
 import hashlib
 import json
 
 import pyudev  # type: ignore
-from registrationserver2.config import config
-from registrationserver2.logger import logger
-from registrationserver2.modules.messages import RETURN_MESSAGES
-from registrationserver2.modules.usb.usb_actor import UsbActor
+from registrationserver.config import config
+from registrationserver.logger import logger
+from registrationserver.modules.messages import RETURN_MESSAGES
+from registrationserver.modules.usb.usb_actor import UsbActor
 from sarad.cluster import SaradCluster
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 

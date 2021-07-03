@@ -1,7 +1,7 @@
 """Stub file for type checking with Mypy"""
 from typing import Any
 
-from registrationserver2.modules.device_base_actor import DeviceBaseActor
+from registrationserver.modules.device_actor import DeviceBaseActor
 
 
 class MqttActor(DeviceBaseActor):

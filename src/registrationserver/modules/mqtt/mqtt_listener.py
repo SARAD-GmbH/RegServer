@@ -8,16 +8,16 @@ Author
     Yang, Yixiang
     Michael Strey <strey@sarad.de>
 
-.. uml :: uml-mqtt_subscriber.puml
+.. uml :: uml-mqtt_listener.puml
 """
 import json
 import os
 
 import paho.mqtt.client as MQTT  # type: ignore
-from registrationserver2.config import config, mqtt_config
-from registrationserver2.logger import logger
-from registrationserver2.modules.messages import RETURN_MESSAGES
-from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
+from registrationserver.config import config, mqtt_config
+from registrationserver.logger import logger
+from registrationserver.modules.messages import RETURN_MESSAGES
+from registrationserver.modules.mqtt.mqtt_actor import MqttActor
 from thespian.actors import ActorSystem  # type: ignore
 from thespian.actors import ActorExitRequest
 

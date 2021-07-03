@@ -84,7 +84,7 @@ during the development (for instance test), use
 Make sure that port 8000 is not used by any other application.
 
     cd src
-    python -m registrationserver2.main
+    python -m registrationserver.main
 
 to start the program.
 

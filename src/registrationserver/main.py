@@ -18,23 +18,22 @@ import threading
 from thespian.actors import ActorSystem  # type: ignore
 
 if os.name == "nt":
-    from registrationserver2.modules.usb.win_usb_listener import UsbListener
+    from registrationserver.modules.usb.win_listener import UsbListener
 else:
-    from registrationserver2.modules.usb.linux_usb_listener import UsbListener
+    from registrationserver.modules.usb.unix_listener import UsbListener
 
-from registrationserver2.config import actor_config, config
-from registrationserver2.logdef import LOGFILENAME, logcfg
-from registrationserver2.logger import logger
-from registrationserver2.modules.mqtt.mqtt_subscriber import \
-    SaradMqttSubscriber
-from registrationserver2.modules.rfc2217.mdns_listener import MdnsListener
-from registrationserver2.restapi import RestApi
+from registrationserver.config import actor_config, config
+from registrationserver.logdef import LOGFILENAME, logcfg
+from registrationserver.logger import logger
+from registrationserver.modules.mqtt.mqtt_listener import SaradMqttSubscriber
+from registrationserver.modules.rfc2217.mdns_listener import MdnsListener
+from registrationserver.restapi import RestApi
 
 
 def main():
     """Starting the RegistrationServer2
 
-    * starts the actor system by importing registrationserver2
+    * starts the actor system by importing registrationserver
     * starts the API thread
     * starts the MdnsListener
     """
@@ -43,9 +42,9 @@ def main():
     def cleanup():  # pylint: disable=unused-variable
         """Make sure all sub threads are stopped, including the REST API"""
         logger.info("Cleaning up before closing.")
-        if mqtt_subscriber is not None:
-            if mqtt_subscriber.is_connected:
-                mqtt_subscriber.stop()
+        if mqtt_listener is not None:
+            if mqtt_listener.is_connected:
+                mqtt_listener.stop()
         dev_folder = config["DEV_FOLDER"]
         if os.path.exists(dev_folder):
             logger.info("Cleaning device folder")
@@ -69,7 +68,7 @@ def main():
         logger.error("Initialization of log file failed.")
     logger.info("Logging system initialized.")
 
-    mqtt_subscriber = None
+    mqtt_listener = None
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
@@ -102,14 +101,14 @@ def main():
     usb_listener_thread.start()
 
     _ = MdnsListener(_type=config["TYPE"])
-    mqtt_subscriber = SaradMqttSubscriber()
+    mqtt_listener = SaradMqttSubscriber()
 
     logger.info("Press Ctrl+C to end!")
     main.run = True
     logger.debug("Start the MQTT subscriber loop")
     while main.run:
-        if mqtt_subscriber is not None:
-            mqtt_subscriber.mqtt_loop()
+        if mqtt_listener is not None:
+            mqtt_listener.mqtt_loop()
     cleanup()
     logger.debug("This is the end, my only friend, the end.")
 

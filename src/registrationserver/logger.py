@@ -9,7 +9,7 @@ Authors
 import logging
 import logging.config
 
-from registrationserver2.logdef import logcfg
+from registrationserver.logdef import logcfg
 
 try:
     logger

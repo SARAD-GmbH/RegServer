@@ -11,7 +11,7 @@ import logging
 import logging.handlers
 import os
 
-from registrationserver2.config import config
+from registrationserver.config import config
 
 LOGLEVEL = config["LEVEL"]
 
@@ -35,7 +35,7 @@ logcfg = {
     "version": 1,
     "formatters": {
         "normal": {
-            "format": "%(asctime)-15s %(levelname)-8s %(module)-18s %(message)s"
+            "format": "%(asctime)-15s %(levelname)-8s %(module)-14s %(message)s"
         },
     },
     "handlers": {

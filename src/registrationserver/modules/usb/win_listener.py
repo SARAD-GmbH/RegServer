@@ -12,9 +12,9 @@ import json
 import win32api  # pylint: disable=import-error
 import win32con  # pylint: disable=import-error
 import win32gui  # pylint: disable=import-error
-from registrationserver2.config import config
-from registrationserver2.logger import logger
-from registrationserver2.modules.usb.usb_actor import UsbActor
+from registrationserver.config import config
+from registrationserver.logger import logger
+from registrationserver.modules.usb.usb_actor import UsbActor
 from sarad.cluster import SaradCluster
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 

@@ -1,7 +1,7 @@
 from thespian.actors import ActorSystem
 
-from registrationserver2 import config, logdef
-from registrationserver2.modules.rfc2217.rfc2217_actor import Rfc2217Actor
+from registrationserver import config, logdef
+from registrationserver.modules.rfc2217.rfc2217_actor import Rfc2217Actor
 
 if __name__ == "__main__":
 

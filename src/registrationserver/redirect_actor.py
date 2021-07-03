@@ -9,7 +9,7 @@ Authors
     Riccardo Förster <foerster@sarad.de>,
     Michael Strey <strey@sarad.de>
 
-.. uml :: uml-redirector_actor.puml
+.. uml :: uml-redirect_actor.puml
 
 """
 import datetime
@@ -20,9 +20,9 @@ from overrides import overrides  # type: ignore
 from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
                              WakeupMessage)
 
-from registrationserver2.config import config
-from registrationserver2.logger import logger
-from registrationserver2.modules.messages import RETURN_MESSAGES
+from registrationserver.config import config
+from registrationserver.logger import logger
+from registrationserver.modules.messages import RETURN_MESSAGES
 
 logger.debug("%s -> %s", __package__, __file__)
 
