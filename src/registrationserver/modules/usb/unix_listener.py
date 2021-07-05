@@ -10,20 +10,17 @@ Authors
 .. uml :: uml-unix_listener.puml
 """
 import hashlib
-import json
 
 import pyudev  # type: ignore
-from registrationserver.config import config
+from overrides import overrides  # type: ignore
 from registrationserver.logger import logger
-from registrationserver.modules.messages import RETURN_MESSAGES
-from registrationserver.modules.usb.usb_actor import UsbActor
-from sarad.cluster import SaradCluster
+from registrationserver.modules.usb.base_listener import BaseListener
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)
 
 
-class UsbListener:
+class UsbListener(BaseListener):
     """Class to listen for SARAD instruments connected via USB."""
 
     @staticmethod
@@ -36,15 +33,7 @@ class UsbListener:
         identifier_string = id_model + id_vendor + enc_vendor
         return hashlib.sha224(identifier_string.encode("utf-8")).hexdigest()
 
-    def __init__(self):
-        logger.info("Linux USB listener started")
-        native_ports = config.get("NATIVE_SERIAL_PORTS", [])
-        ignore_ports = config.get("IGNORED_SERIAL_PORTS", [])
-        self._cluster: SaradCluster = SaradCluster(
-            native_ports=native_ports, ignore_ports=ignore_ports
-        )
-        self.connected_instruments = []
-
+    @overrides
     def run(self):
         """Start listening and keep listening until SIGTERM or SIGINT"""
         context = pyudev.Context()
@@ -54,6 +43,7 @@ class UsbListener:
         monitor.filter_by("tty")
         usb_stick_observer = pyudev.MonitorObserver(monitor, self.usb_device_event)
         usb_stick_observer.start()
+        super().run()
 
     def is_valid_device(self, device):
         """Check whether there is a physical device connected to the logical interface."""
@@ -72,65 +62,14 @@ class UsbListener:
         if action == "add":
             try:
                 instrument = self._cluster.update_connected_instruments([port])[0]
-                family = instrument.family["family_id"]
-                device_id = instrument.device_id
-                if family == 5:
-                    sarad_type = "sarad-dacm"
-                elif family in [1, 2]:
-                    sarad_type = "sarad-1688"
-                else:
-                    logger.error(
-                        "[Add Instrument] Unknown instrument family (%s)",
-                        family,
-                    )
-                    sarad_type = "unknown"
-                global_name = f"{device_id}.{sarad_type}.local"
-                logger.debug("Create actor %s", global_name)
-                self.connected_instruments.append(
-                    {"global_name": global_name, "port": port}
-                )
-                this_actor = ActorSystem().createActor(UsbActor, globalName=global_name)
-                data = json.dumps(
-                    {
-                        "Identification": {
-                            "Name": instrument.type_name,
-                            "Family": family,
-                            "Type": instrument.type_id,
-                            "Serial number": instrument.serial_number,
-                            "Host": "127.0.0.1",
-                            "Protocol": sarad_type,
-                        },
-                        "Serial": port,
-                    }
-                )
-                msg = {"CMD": "SETUP", "PAR": data}
-                logger.info("Ask to setup device actor %s with %s", global_name, msg)
-                setup_return = ActorSystem().ask(this_actor, msg)
-                if not setup_return["ERROR_CODE"] in (
-                    RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                    RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
-                ):
-                    logger.critical("Adding a new service failed. Kill device actor.")
-                    ActorSystem().tell(this_actor, ActorExitRequest())
+                self._create_actor(instrument)
             except IndexError:
                 logger.debug("No SARAD instrument at %s", port)
         elif action == "remove":
-            for instrument in self.connected_instruments:
-                if instrument["port"] == port:
-                    global_name = instrument["global_name"]
-                    self.connected_instruments.remove(
-                        {"global_name": global_name, "port": port}
-                    )
-                    this_actor = ActorSystem().createActor(
-                        UsbActor, globalName=global_name
-                    )
-                    logger.info("Ask to kill device actor %s", global_name)
-                    kill_return = ActorSystem().ask(this_actor, ActorExitRequest())
-                    if (
-                        not kill_return["ERROR_CODE"]
-                        == RETURN_MESSAGES["OK"]["ERROR_CODE"]
-                    ):
-                        logger.critical("Killing the device actor failed.")
+            for active_port in self._actors:
+                if active_port == port:
+                    ActorSystem().tell(self._actors[active_port], ActorExitRequest())
+                    self._actors.pop(active_port, None)
         else:
             logger.error("USB device event with action %s", action)
 
