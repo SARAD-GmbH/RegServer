@@ -12,6 +12,7 @@ Author
 """
 import json
 import os
+import time
 
 import paho.mqtt.client as MQTT  # type: ignore
 from registrationserver.config import config, mqtt_config
@@ -100,10 +101,29 @@ class SaradMqttSubscriber:
         self.mqttc.on_message = self.on_message
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
-        self.mqttc.connect(self.mqtt_broker, port=self.port)
+
         ic_hosts_folder = f"{config['IC_HOSTS_FOLDER']}{os.path.sep}"
         if not os.path.exists(ic_hosts_folder):
             os.makedirs(ic_hosts_folder)
+
+        self._connect()
+
+    def _connect(self):
+        sucess = False
+        retry_intervall = mqtt_config.get("RETRY_INTERVALL", 60)
+
+        while not sucess:
+            try:
+                logger.info(
+                    "Attempting to connect to broker %s: %s",
+                    self.mqtt_broker,
+                    self.port,
+                )
+                self.mqttc.connect(self.mqtt_broker, port=self.port)
+                sucess = True
+            except Exception as e:
+                logger.error("Could not Connecect to Broker, retrying...: %s", e)
+                time.sleep(retry_intervall)
 
     def mqtt_loop(self):
         """Running one cycle of the MQTT loop"""
@@ -491,6 +511,9 @@ class SaradMqttSubscriber:
             self.ungr_disconn = 0
             logger.info("[on_disconnect] Gracefully disconnected from MQTT broker.")
         self.is_connected = False
+
+        if self.ungr_disconn > 0:
+            self._connect()
 
     def on_subscribe(self, _client, _userdata, msg_id, _grant_qos):
         """Here should be a docstring."""
