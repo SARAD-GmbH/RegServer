@@ -53,6 +53,12 @@ logcfg = {
             "level": LOGLEVEL,
             "stream": "ext://sys.stdout",
         },
+        "socket": {
+            "class": "logging.handlers.SocketHandler",
+            "level": LOGLEVEL,
+            "host": "localhost",
+            "port": logging.handlers.DEFAULT_TCP_LOGGING_PORT,
+        },
     },
-    "loggers": {"": {"handlers": ["file", "console"], "level": LOGLEVEL}},
+    "loggers": {"": {"handlers": ["file", "console", "socket"], "level": LOGLEVEL}},
 }
