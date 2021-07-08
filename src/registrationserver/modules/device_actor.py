@@ -18,8 +18,7 @@ from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.redirect_actor import RedirectorActor
-from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
-                             ChildActorExited)
+from thespian.actors import Actor, ActorExitRequest, ChildActorExited  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)
 

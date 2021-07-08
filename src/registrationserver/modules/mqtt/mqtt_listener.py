@@ -122,7 +122,7 @@ class SaradMqttSubscriber:
                 self.mqttc.connect(self.mqtt_broker, port=self.port)
                 success = True
             except Exception as e:
-                logger.error("Could not Connecect to Broker, retrying...: %s", e)
+                logger.error("Could not connect to Broker, retrying...: %s", e)
                 time.sleep(retry_intervall)
 
     def mqtt_loop(self):
