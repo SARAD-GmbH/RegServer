@@ -109,10 +109,10 @@ class SaradMqttSubscriber:
         self._connect()
 
     def _connect(self):
-        sucess = False
+        success = False
         retry_intervall = mqtt_config.get("RETRY_INTERVALL", 60)
 
-        while not sucess:
+        while not success and self.ungr_disconn > 0:
             try:
                 logger.info(
                     "Attempting to connect to broker %s: %s",
@@ -120,7 +120,7 @@ class SaradMqttSubscriber:
                     self.port,
                 )
                 self.mqttc.connect(self.mqtt_broker, port=self.port)
-                sucess = True
+                success = True
             except Exception as e:
                 logger.error("Could not Connecect to Broker, retrying...: %s", e)
                 time.sleep(retry_intervall)
@@ -556,6 +556,8 @@ class SaradMqttSubscriber:
             logger.warning("[Disconnect] Already disconnected ungracefully")
         else:
             logger.warning("[Disconnect] Called but nothing to do")
+
+        self.ungr_disconn = 0
 
     def _subscribe(self, topic: str, qos: int) -> dict:
         logger.debug("[Subscribe]")
