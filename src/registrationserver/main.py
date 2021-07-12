@@ -90,14 +90,14 @@ def main():
             "0.0.0.0",
             8000,
         ),
+        daemon=True,
     )
-    apithread.setDaemon(True)
     apithread.start()
     usb_listener = UsbListener()
     usb_listener_thread = threading.Thread(
         target=usb_listener.run,
+        daemon=True,
     )
-    usb_listener_thread.setDaemon(True)
     usb_listener_thread.start()
 
     _ = MdnsListener(_type=config["TYPE"])

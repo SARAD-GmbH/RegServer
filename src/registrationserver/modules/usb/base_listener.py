@@ -33,7 +33,10 @@ class BaseListener:
 
     def run(self):
         """Start listening for new devices"""
-        polling2.poll(lambda: self.update_native_ports(), step=60, poll_forever=True)
+        native_ports = set(self._cluster.native_ports)
+        if native_ports is not set():
+            logger.info("Start polling RS-232 ports %s", native_ports)
+            polling2.poll(lambda: self.update_native_ports(), step=60, poll_forever=True)
 
     def update_native_ports(self):
         """Check all RS-232 ports that are listed in the config
@@ -42,6 +45,7 @@ class BaseListener:
         native_ports = set(self._cluster.native_ports)
         active_ports = set(self._actors.keys())
         old_activ_native_ports = native_ports.intersection(active_ports)
+        logger.debug("[Poll] Old active native ports: %s", old_activ_native_ports)
         new_instruments = self._cluster.update_connected_instruments(
             self._cluster.native_ports
         )
