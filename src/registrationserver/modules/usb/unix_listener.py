@@ -68,8 +68,7 @@ class UsbListener(BaseListener):
         elif action == "remove":
             for active_port in self._actors:
                 if active_port == port:
-                    ActorSystem().tell(self._actors[active_port], ActorExitRequest())
-                    self._actors.pop(active_port, None)
+                    self._remove_actor(active_port)
         else:
             logger.error("USB device event with action %s", action)
 

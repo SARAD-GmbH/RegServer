@@ -103,3 +103,10 @@ class BaseListener:
         msg = {"CMD": "SETUP", "PAR": data}
         logger.info("Ask to setup device actor %s with msg %s", global_name, msg)
         ActorSystem().tell(self._actors[serial_device], msg)
+
+    def _remove_actor(self, gone_port):
+        try:
+            ActorSystem().tell(self._actors[gone_port], ActorExitRequest())
+            self._actors.pop(gone_port, None)
+        except KeyError:
+            logger.error("%s removed, that never was added properly", gone_port)

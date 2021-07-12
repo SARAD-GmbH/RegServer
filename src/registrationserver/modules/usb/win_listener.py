@@ -106,33 +106,26 @@ class UsbListener(BaseListener):
         if msg == win32con.WM_DEVICECHANGE:
             event, description = self.WM_DEVICECHANGE_EVENTS[wparam]
             logger.debug("Received message: %s = %s", event, description)
-            old_active_ports = set(self._actors.keys())
-            if event in "DBT_DEVICEARRIVAL":
-                logger.info("Old active ports: %s", old_active_ports)
-                logger.info("New active ports: %s", set(self._cluster.active_ports))
-                new_ports = set(self._cluster.active_ports).difference(old_active_ports)
-                logger.info("%s plugged in", new_ports)
-                new_instruments = self._cluster.update_connected_instruments(
-                    list(new_ports)
-                )
-                for instrument in new_instruments:
-                    self._create_actor(instrument)
-                return
-            if event in "DBT_DEVICEREMOVECOMPLETE":
-                gone_ports = set(self._actors.keys()).difference(old_active_ports)
-                logger.info("%s plugged out", gone_ports)
-                self._cluster.update_connected_instruments(list(gone_ports))
-                current_active_ports = set(
-                    instr.port for instr in self._cluster.connected_instruments
-                )
-                for gone_port in gone_ports:
-                    try:
-                        ActorSystem().tell(self._actors[gone_port], ActorExitRequest())
-                        self._actors.pop(gone_port, None)
-                    except KeyError:
-                        logger.error(
-                            "%s removed, that never was added properly", gone_port
-                        )
+            if event in ("DBT_DEVICEARRIVAL", "DBT_DEVICEREMOVECOMPLETE"):
+                old_active_ports = set(self._actors.keys())
+                logger.debug("Old active ports: %s", old_active_ports)
+                current_active_ports = set(self._cluster.active_ports)
+                logger.debug("Current active ports: %s", current_active_ports)
+                if event in "DBT_DEVICEARRIVAL":
+                    new_ports = current_active_ports.difference(old_active_ports)
+                    logger.info("%s plugged in", new_ports)
+                    new_instruments = self._cluster.update_connected_instruments(
+                        list(new_ports)
+                    )
+                    for instrument in new_instruments:
+                        self._create_actor(instrument)
+                    return
+                if event in "DBT_DEVICEREMOVECOMPLETE":
+                    gone_ports = old_active_ports.difference(current_active_ports)
+                    logger.info("%s plugged out", gone_ports)
+                    self._cluster.update_connected_instruments(list(gone_ports))
+                    for gone_port in gone_ports:
+                        self._remove_actor(gone_port)
                 try:
                     assert current_active_ports == set(self._actors.keys())
                 except AssertionError:
