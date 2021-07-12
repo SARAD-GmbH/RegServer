@@ -12,9 +12,10 @@ import win32api  # pylint: disable=import-error
 import win32con  # pylint: disable=import-error
 import win32gui  # pylint: disable=import-error
 from overrides import overrides  # type: ignore
+from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
+
 from registrationserver.logger import logger
 from registrationserver.modules.usb.base_listener import BaseListener
-from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 
 
 class UsbListener(BaseListener):

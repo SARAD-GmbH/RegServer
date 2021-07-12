@@ -15,12 +15,14 @@ import os
 import time
 
 import paho.mqtt.client as MQTT  # type: ignore
+from thespian.actors import ActorSystem  # type: ignore
+from thespian.actors import ActorExitRequest
+
 from registrationserver.config import config, mqtt_config
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.mqtt.mqtt_actor import MqttActor
-from thespian.actors import ActorSystem  # type: ignore
-from thespian.actors import ActorExitRequest
+
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -121,8 +123,8 @@ class SaradMqttSubscriber:
                 )
                 self.mqttc.connect(self.mqtt_broker, port=self.port)
                 success = True
-            except Exception as e:
-                logger.error("Could not connect to Broker, retrying...: %s", e)
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.error("Could not connect to Broker, retrying...: %s", exception)
                 time.sleep(retry_intervall)
 
     def mqtt_loop(self):

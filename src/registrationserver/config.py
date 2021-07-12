@@ -55,5 +55,5 @@ mqtt_config = {
     # "MQTT_BROKER": "127.0.0.1",
     "MQTT_BROKER": "85.214.243.156",  # Mosquitto running on sarad.de
     "PORT": 1883,
-    "RETRY_INTERVALL": 60,
+    "RETRY_INTERVALL": 5,
 }
