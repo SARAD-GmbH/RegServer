@@ -60,5 +60,5 @@ logcfg = {
             "port": logging.handlers.DEFAULT_TCP_LOGGING_PORT,
         },
     },
-    "loggers": {"": {"handlers": ["file", "console", "socket"], "level": LOGLEVEL}},
+    "loggers": {"": {"handlers": ["file", "console"], "level": LOGLEVEL}},
 }
