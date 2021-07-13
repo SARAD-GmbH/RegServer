@@ -17,11 +17,11 @@ src: Python Source Files
 * modules: Contains all instrument server specific code ( required to connect to
   specific instrumentserver)
 
-  * modules/device_base_actor.py: Base Class for Instrument specific Actors
+  * modules/device_actor.py: Base Class for Instrument specific Actors
   * modules/rfc2217 : module for connecting to the rfc2217gateway
 
 * main.py: code entry point
 * config.py: configuraition file
-* redirector_actor.py: is created when a reservation is successfull, will manage
+* redirect_actor.py: is created when a reservation is successfull, will manage
   incomming messages from the app, and relay them to the device specific actors
 * restapi: rest api endpoint

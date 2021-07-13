@@ -8,18 +8,21 @@ Author
     Yang, Yixiang
     Michael Strey <strey@sarad.de>
 
-.. uml :: uml-mqtt_subscriber.puml
+.. uml :: uml-mqtt_listener.puml
 """
 import json
 import os
+import time
 
 import paho.mqtt.client as MQTT  # type: ignore
-from registrationserver2.config import config, mqtt_config
-from registrationserver2.logger import logger
-from registrationserver2.modules.messages import RETURN_MESSAGES
-from registrationserver2.modules.mqtt.mqtt_actor import MqttActor
 from thespian.actors import ActorSystem  # type: ignore
 from thespian.actors import ActorExitRequest
+
+from registrationserver.config import config, mqtt_config
+from registrationserver.logger import logger
+from registrationserver.modules.messages import RETURN_MESSAGES
+from registrationserver.modules.mqtt.mqtt_actor import MqttActor
+
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -100,10 +103,29 @@ class SaradMqttSubscriber:
         self.mqttc.on_message = self.on_message
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
-        self.mqttc.connect(self.mqtt_broker, port=self.port)
+
         ic_hosts_folder = f"{config['IC_HOSTS_FOLDER']}{os.path.sep}"
         if not os.path.exists(ic_hosts_folder):
             os.makedirs(ic_hosts_folder)
+
+        self._connect()
+
+    def _connect(self):
+        success = False
+        retry_intervall = mqtt_config.get("RETRY_INTERVALL", 60)
+
+        while not success and self.ungr_disconn > 0:
+            try:
+                logger.info(
+                    "Attempting to connect to broker %s: %s",
+                    self.mqtt_broker,
+                    self.port,
+                )
+                self.mqttc.connect(self.mqtt_broker, port=self.port)
+                success = True
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.error("Could not connect to Broker, retrying...: %s", exception)
+                time.sleep(retry_intervall)
 
     def mqtt_loop(self):
         """Running one cycle of the MQTT loop"""
@@ -492,6 +514,9 @@ class SaradMqttSubscriber:
             logger.info("[on_disconnect] Gracefully disconnected from MQTT broker.")
         self.is_connected = False
 
+        if self.ungr_disconn > 0:
+            self._connect()
+
     def on_subscribe(self, _client, _userdata, msg_id, _grant_qos):
         """Here should be a docstring."""
         logger.debug("[on_subscribe] msg_id is %s", msg_id)
@@ -533,6 +558,8 @@ class SaradMqttSubscriber:
             logger.warning("[Disconnect] Already disconnected ungracefully")
         else:
             logger.warning("[Disconnect] Called but nothing to do")
+
+        self.ungr_disconn = 0
 
     def _subscribe(self, topic: str, qos: int) -> dict:
         logger.debug("[Subscribe]")

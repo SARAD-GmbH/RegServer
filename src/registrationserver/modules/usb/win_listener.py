@@ -5,21 +5,21 @@ Created
 
 Author
     Riccardo Foerster <rfoerster@sarad.de>
+    Michael Strey <strey@sarad.de>
 
 """
-from typing import List
+
+import threading
 
 import win32api  # pylint: disable=import-error
 import win32con  # pylint: disable=import-error
 import win32gui  # pylint: disable=import-error
-from registrationserver2.logger import logger
-from registrationserver2.modules.usb.usb_serial import USBSerial
-from registrationserver2.modules.usb.win_usb_manager import WinUsbManager
-from serial.tools.list_ports import comports  # type: ignore
-from thespian.actors import ActorSystem  # type: ignore
+from overrides import overrides  # type: ignore
+from registrationserver.logger import logger
+from registrationserver.modules.usb.base_listener import BaseListener
 
 
-class UsbListener:
+class UsbListener(BaseListener):
     # pylint: disable=too-few-public-methods
     """Process listening for new connected SARAD instruments -- Windows implementation."""
 
@@ -68,16 +68,6 @@ class UsbListener:
         0xFFFF: ("DBT_USERDEFINED", "The meaning of this message is user-defined."),
     }
 
-    @staticmethod
-    def _list() -> List[USBSerial]:
-        logger.debug("[LIST] Get a list of local serial devices")
-        devices = comports()
-        logger.debug("[LIST] Found %s", devices)
-        return [USBSerial(deviceid=d.device, path=fr"\\.\{d.device}") for d in devices]
-
-    def __init__(self):
-        self._actor = ActorSystem().createActor(WinUsbManager, globalName="USBManager")
-
     def _create_listener(self):
         win_class = win32gui.WNDCLASS()
         win_class.lpfnWndProc = self._on_message
@@ -98,26 +88,62 @@ class UsbListener:
             None,
         )
 
+    @overrides
     def run(self):
         """Start listening for new devices"""
         logger.info("[Start] Windows USB Listener")
-        portlist = self._list()
-        ActorSystem().tell(
-            self._actor, {"CMD": "PROCESS_LIST", "DATA": {"LIST": portlist}}
-        )
+        self._cluster.update_connected_instruments()
+        self._actors = {}
+        logger.info("[LIST] Creat new device actors")
+        for instrument in self._cluster.connected_instruments:
+            self._create_actor(instrument)
         hwnd = self._create_listener()
         logger.debug("Created listener window with hwnd=%s", hwnd)
         logger.debug("Listening to messages")
+        rs232_listener_thread = threading.Thread(
+            target=super().run,
+            daemon=True,
+        )
+        rs232_listener_thread.start()
         win32gui.PumpMessages()
 
     def _on_message(self, _hwnd: int, msg: int, wparam: int, _lparam: int):
         if msg == win32con.WM_DEVICECHANGE:
             event, description = self.WM_DEVICECHANGE_EVENTS[wparam]
             logger.debug("Received message: %s = %s", event, description)
-            portlist = self._list()
-            ActorSystem().tell(
-                self._actor, {"CMD": "PROCESS_LIST", "DATA": {"LIST": portlist}}
-            )
+            if event in ("DBT_DEVICEARRIVAL", "DBT_DEVICEREMOVECOMPLETE"):
+                native_ports = set(self._cluster.native_ports)
+                logger.debug("Native ports: %s", native_ports)
+                old_active_ports = set(self._actors.keys()).difference(native_ports)
+                logger.debug("Old active ports: %s", old_active_ports)
+                current_active_ports = set(self._cluster.active_ports).difference(
+                    native_ports
+                )
+                logger.debug("Current active ports: %s", current_active_ports)
+                if event in "DBT_DEVICEARRIVAL":
+                    new_ports = current_active_ports.difference(old_active_ports)
+                    logger.info("%s plugged in", new_ports)
+                    new_instruments = self._cluster.update_connected_instruments(
+                        list(new_ports)
+                    )
+                    for instrument in new_instruments:
+                        self._create_actor(instrument)
+                    return
+                if event in "DBT_DEVICEREMOVECOMPLETE":
+                    gone_ports = old_active_ports.difference(current_active_ports)
+                    logger.info("%s plugged out", gone_ports)
+                    self._cluster.update_connected_instruments(list(gone_ports))
+                    for gone_port in gone_ports:
+                        self._remove_actor(gone_port)
+                try:
+                    assert current_active_ports == set(self._actors.keys())
+                except AssertionError:
+                    logger.error(
+                        "%s must be equal to %s",
+                        current_active_ports,
+                        set(self._actors.keys()),
+                    )
+            return
 
 
 if __name__ == "__main__":

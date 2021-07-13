@@ -28,6 +28,8 @@ config = {
     "DEV_FOLDER": f"{app_folder}devices",
     "IC_HOSTS_FOLDER": f"{app_folder}hosts",
     "PORT_RANGE": range(50000, 50500),
+    "NATIVE_SERIAL_PORTS": ["COM1"],
+    "IGNORED_SERIAL_PORTS": ["COM2", "COM3", "COM4", "COM5", "COM6"],
 }
 
 if os.name == "nt":
@@ -53,4 +55,5 @@ mqtt_config = {
     # "MQTT_BROKER": "127.0.0.1",
     "MQTT_BROKER": "85.214.243.156",  # Mosquitto running on sarad.de
     "PORT": 1883,
+    "RETRY_INTERVALL": 5,
 }

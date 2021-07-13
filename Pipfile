@@ -24,6 +24,7 @@ click = "*"
 data-collector = {editable = true, git = "https://github.com/SARAD-GmbH/data_collector.git"}
 pywin32 = "*"
 keyboard = "*"
+polling2 = "*"
 
 [requires]
 python_version = "3"
