@@ -1,3 +1,4 @@
+Push-Location $(Split-Path $Script:MyInvocation.MyCommand.Path)
 $target = "Y:\Software\Sarad_dev\RadonVision"
 $venvoutput = pipenv --venv
 $target_bin = "$($target)\bin\"
