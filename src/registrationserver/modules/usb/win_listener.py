@@ -5,16 +5,16 @@ Created
 
 Author
     Riccardo Foerster <rfoerster@sarad.de>
+    Michael Strey <strey@sarad.de>
 
 """
 
 import threading
+
 import win32api  # pylint: disable=import-error
 import win32con  # pylint: disable=import-error
 import win32gui  # pylint: disable=import-error
 from overrides import overrides  # type: ignore
-from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
-
 from registrationserver.logger import logger
 from registrationserver.modules.usb.base_listener import BaseListener
 
@@ -116,7 +116,9 @@ class UsbListener(BaseListener):
                 logger.debug("Native ports: %s", native_ports)
                 old_active_ports = set(self._actors.keys()).difference(native_ports)
                 logger.debug("Old active ports: %s", old_active_ports)
-                current_active_ports = set(self._cluster.active_ports).difference(native_ports)
+                current_active_ports = set(self._cluster.active_ports).difference(
+                    native_ports
+                )
                 logger.debug("Current active ports: %s", current_active_ports)
                 if event in "DBT_DEVICEARRIVAL":
                     new_ports = current_active_ports.difference(old_active_ports)

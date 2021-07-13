@@ -15,7 +15,6 @@ import pyudev  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.logger import logger
 from registrationserver.modules.usb.base_listener import BaseListener
-from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -66,9 +65,7 @@ class UsbListener(BaseListener):
             except IndexError:
                 logger.debug("No SARAD instrument at %s", port)
         elif action == "remove":
-            for active_port in self._actors:
-                if active_port == port:
-                    self._remove_actor(active_port)
+            self._remove_actor(port)
         else:
             logger.error("USB device event with action %s", action)
 

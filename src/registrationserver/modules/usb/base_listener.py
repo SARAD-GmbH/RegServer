@@ -36,7 +36,9 @@ class BaseListener:
         native_ports = set(self._cluster.native_ports)
         if native_ports is not set():
             logger.info("Start polling RS-232 ports %s", native_ports)
-            polling2.poll(lambda: self.update_native_ports(), step=60, poll_forever=True)
+            polling2.poll(
+                lambda: self.update_native_ports(), step=60, poll_forever=True
+            )
 
     def update_native_ports(self):
         """Check all RS-232 ports that are listed in the config
@@ -109,8 +111,13 @@ class BaseListener:
         ActorSystem().tell(self._actors[serial_device], msg)
 
     def _remove_actor(self, gone_port):
-        try:
-            ActorSystem().tell(self._actors[gone_port], ActorExitRequest())
-            self._actors.pop(gone_port, None)
-        except KeyError:
-            logger.error("%s removed, that never was added properly", gone_port)
+        if gone_port in self._actors:
+            try:
+                ActorSystem().tell(self._actors[gone_port], ActorExitRequest())
+                self._actors.pop(gone_port, None)
+            except KeyError:
+                logger.error("%s removed, that never was added properly", gone_port)
+        else:
+            logger.error(
+                "Tried to remove %s, that never was added properly.", gone_port
+            )
