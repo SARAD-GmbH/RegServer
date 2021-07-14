@@ -60,7 +60,7 @@ class BaseListener:
         gone_ports = old_activ_native_ports.difference(current_active_native_ports)
         for gone_port in gone_ports:
             try:
-                ActorSystem().tell(self._actors[gone_port], ActorExitRequest())
+                ActorSystem().ask(self._actors[gone_port], ActorExitRequest())
                 del self._actors[gone_port]
             except KeyError:
                 logger.error("%s removed, that never was added properly", gone_port)
@@ -108,12 +108,12 @@ class BaseListener:
         )
         msg = {"CMD": "SETUP", "PAR": data}
         logger.info("Ask to setup device actor %s with msg %s", global_name, msg)
-        ActorSystem().tell(self._actors[serial_device], msg)
+        ActorSystem().ask(self._actors[serial_device], msg)
 
     def _remove_actor(self, gone_port):
         if gone_port in self._actors:
             try:
-                ActorSystem().tell(self._actors[gone_port], ActorExitRequest())
+                ActorSystem().ask(self._actors[gone_port], ActorExitRequest())
                 self._actors.pop(gone_port, None)
             except KeyError:
                 logger.error("%s removed, that never was added properly", gone_port)

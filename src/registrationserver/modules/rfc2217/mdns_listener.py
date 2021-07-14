@@ -137,7 +137,7 @@ class MdnsListener(ServiceListener):
                     RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
                 ):
                     logger.critical("Adding a new service failed. Kill device actor.")
-                    ActorSystem().tell(this_actor, ActorExitRequest())
+                    ActorSystem().ask(this_actor, ActorExitRequest())
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=C0103

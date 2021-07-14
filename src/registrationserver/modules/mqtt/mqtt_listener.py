@@ -182,7 +182,7 @@ class SaradMqttSubscriber:
             RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
         ):
             logger.debug("[add_instr] %s", setup_return)
-            ActorSystem().tell(this_actor, ActorExitRequest())
+            ActorSystem().ask(this_actor, ActorExitRequest())
             del self.connected_instruments[is_id][instr_id]
             return
         prep_msg = {
@@ -202,7 +202,7 @@ class SaradMqttSubscriber:
         ):
             logger.debug("[add_instr] %s", prep_return)
             logger.critical("[add_instr] MQTT actor failed to prepare itself. Kill it.")
-            ActorSystem().tell(this_actor, ActorExitRequest())
+            ActorSystem().ask(this_actor, ActorExitRequest())
             del self.connected_instruments[is_id][instr_id]
             return
         return
@@ -225,7 +225,7 @@ class SaradMqttSubscriber:
         name_ = self.connected_instruments[is_id][instr_id]
         logger.info("[rm_instr] %s", instr_id)
         this_actor = ActorSystem().createActor(MqttActor, globalName=name_)
-        ActorSystem().tell(this_actor, ActorExitRequest())
+        ActorSystem().ask(this_actor, ActorExitRequest())
         return
 
     def _update_instr(self, msg: dict) -> None:
@@ -255,7 +255,7 @@ class SaradMqttSubscriber:
             RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
         ):
             logger.debug(setup_return)
-            ActorSystem().tell(this_actor, ActorExitRequest())
+            ActorSystem().ask(this_actor, ActorExitRequest())
             del self.connected_instruments[is_id][instr_id]
             return
         return
