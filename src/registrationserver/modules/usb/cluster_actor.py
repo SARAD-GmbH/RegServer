@@ -2,14 +2,15 @@
 clusteractor
 """
 
+from typing import List
+
+from registrationserver.config import config
+from registrationserver.logger import logger
+from registrationserver.modules.messages import RETURN_MESSAGES
 from sarad.cluster import SaradCluster
 from sarad.sari import SaradInst
 from serial.tools.list_ports import comports
-
 from thespian.actors import Actor, ActorExitRequest, WakeupMessage
-from registrationserver.logger import logger
-from registrationserver.modules.messages import RETURN_MESSAGES
-from registrationserver.config import config
 
 
 class ClusterActor(Actor):
@@ -18,14 +19,14 @@ class ClusterActor(Actor):
     """
 
     _cluster: SaradCluster = SaradCluster()
-    _loop: list[str]
+    _loop: List[str] = []
     _loop_started: bool = False
 
     ACCEPTED_COMMANDS = {
         "SEND": "_send",
         "LIST": "_list",
         "LIST-USB": "_list_usb",
-        "LIST-NATVE": "_list_natives",
+        "LIST-NATIVE": "_list_natives",
         "LOOP": "_loop",
         "LOOP_REMOVE": "_loop_remove",
         "DO_LOOP": "_do_loop",
