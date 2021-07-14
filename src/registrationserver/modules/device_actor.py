@@ -18,7 +18,8 @@ from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.redirect_actor import RedirectorActor
-from thespian.actors import Actor, ActorExitRequest, ChildActorExited  # type: ignore
+from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
+                             ChildActorExited)
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -47,7 +48,7 @@ class DeviceBaseActor(Actor):
         set the timeout itself)
 
     * FREE: is being called when the end-user-application is done requesting or
-        sending data, should return true as soon the freeing process has been
+        sending data, should return True as soon the freeing process has been
         initialized
     """
 
@@ -301,19 +302,17 @@ class DeviceBaseActor(Actor):
         """Completes the _free function with the reply from the redirector actor after
         it received the KILL command."""
         if not msg["ERROR_CODE"]:
-            # Write Free section into device file
+            # Overwrite Reserve section in device file
             self.df_content = json.loads(self._file)
-            free = {
+            reservation = {
                 "Active": False,
                 "App": self.df_content["Reservation"]["App"],
                 "Host": self.df_content["Reservation"]["Host"],
                 "User": self.df_content["Reservation"]["User"],
                 "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
             }
-            logger.info("Free: %s", free)
-            self.df_content["Free"] = free
-            # Remove Reservation section
-            self.df_content.pop("Reservation", None)
+            logger.info("[Free] %s", reservation)
+            self.df_content["Reservation"] = reservation
             self._file = json.dumps(self.df_content)
             logger.info("self._file: %s", self._file)
             with open(self.dev_file, "w+") as file_stream:

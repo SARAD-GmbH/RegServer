@@ -34,6 +34,6 @@ group free
         deviceactor -> is: Free request
         is -> deviceactor: Free response
         deviceactor -> redirector: KILL message
-        deviceactor -> files: write Free section\n remove Reservation section
+        deviceactor -> files: overwrite Reservation section
 end
 @enduml

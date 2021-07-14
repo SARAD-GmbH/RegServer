@@ -24,7 +24,7 @@ group free
         app -> api: HTTP request GET /list/<id>/free
         api -> deviceactor: FREE message
         deviceactor -> deviceactor: manage the Free request
-        deviceactor -> files: write Free section\nremove Reservation section
+        deviceactor -> files: overwrite Reservation section
         deviceactor -> api: RETURN
         api -> files: read
         api -> app: HTTP response

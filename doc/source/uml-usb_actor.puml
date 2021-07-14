@@ -31,6 +31,6 @@ end
 group free
 	      api -> deviceactor: FREE message
         deviceactor -> redirector: KILL message
-        deviceactor -> files: write Free section\n remove Reservation section
+        deviceactor -> files: overwrite Reservation section
 end
 @enduml

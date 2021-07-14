@@ -15,14 +15,12 @@ import os
 import time
 
 import paho.mqtt.client as MQTT  # type: ignore
-from thespian.actors import ActorSystem  # type: ignore
-from thespian.actors import ActorExitRequest
-
 from registrationserver.config import config, mqtt_config
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.mqtt.mqtt_actor import MqttActor
-
+from thespian.actors import ActorSystem  # type: ignore
+from thespian.actors import ActorExitRequest
 
 logger.debug("%s -> %s", __package__, __file__)
 
