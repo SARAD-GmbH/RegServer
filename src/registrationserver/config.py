@@ -30,6 +30,7 @@ config = {
     "PORT_RANGE": range(50000, 50500),
     "NATIVE_SERIAL_PORTS": ["COM1"],
     "IGNORED_SERIAL_PORTS": ["COM2", "COM3", "COM4", "COM5", "COM6"],
+    "LOCAL_RETRY_INTERVALL": 10,
 }
 
 if os.name == "nt":
