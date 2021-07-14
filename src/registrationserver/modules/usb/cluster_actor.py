@@ -4,11 +4,12 @@ clusteractor
 
 from sarad.cluster import SaradCluster
 from sarad.sari import SaradInst
-import serial.tools.list_ports as list_ports
+from serial.tools.list_ports import comports
 
-from thespian.actors import Actor, ActorExitRequest
+from thespian.actors import Actor, ActorExitRequest, WakeupMessage
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
+from registrationserver.config import config
 
 
 class ClusterActor(Actor):
@@ -17,13 +18,92 @@ class ClusterActor(Actor):
     """
 
     _cluster: SaradCluster = SaradCluster()
+    _loop: list[str]
+    _loop_started: bool = False
 
     ACCEPTED_COMMANDS = {
         "SEND": "_send",
         "LIST": "_list",
         "LIST-USB": "_list_usb",
         "LIST-NATVE": "_list_natives",
+        "LOOP": "_loop",
+        "LOOP_REMOVE": "_loop_remove",
+        "DO_LOOP": "_do_loop",
     }
+
+    def __init__(self):
+        super().__init__()
+        logger.info("ClusterActor initialized")
+
+    def _loop(self, msg: dict, sender) -> None:
+        target = msg["PAR"]["PORT"]
+        logger.info("Adding to loop: %s", target)
+        ok: list
+        if isinstance(target, list):
+            for port in target:
+                if self._add_to_loop(port):
+                    ok.append(port)
+        if isinstance(target, str):
+            if self._add_to_loop(target):
+                ok.append(target)
+
+        if not self._loop_started:
+            self.send(self, {"CMD": "DO_LOOP"})
+
+        return {
+            "RETURN": "LOOP",
+            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+            "RESULT": {"DATA": ok},
+        }
+
+    def _loop_remove(self, msg: dict, sender) -> None:
+        target = msg["PAR"]["PORT"]
+        logger.info("Removing from loop: %s", target)
+        ok: list
+        if isinstance(target, list):
+            for port in target:
+                if self._remove_from_loop(port):
+                    ok.append(port)
+        if isinstance(target, str):
+            if self._remove_from_loop(target):
+                ok.append(target)
+
+        if not self._loop:
+            self._loop_started = False
+
+        return {
+            "RETURN": "LOOP",
+            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+            "RESULT": {"DATA": ok},
+        }
+
+    def _do_loop(self, msg: dict, sender) -> None:
+        logger.info("Started Polling: %s", self._loop)
+        if not self._loop_started:
+            self._loop_started = True
+            self.wakeupAfter(config["LOCAL_RETRY_INTERVALL"])
+        else:
+            logger.info("Stopped Polling")
+
+    def _continue_loop(self):
+        self._cluster.update_connected_instruments(self._loop)
+        if self._loop_started:
+            logger.debug("Polling Ports: %s", self._loop)
+            self.wakeupAfter(config["LOCAL_RETRY_INTERVALL"])
+
+    def _remove_from_loop(self, port: str) -> bool:
+        if port in self._loop:
+            if self._loop.count(port) >= 0:
+                self._loop.remove(port)
+            return True
+        return False
+
+    def _add_to_loop(self, port: str) -> bool:
+        if port in [i.device for i in comports()]:
+            if self._loop.count(port) == 0:
+                self._loop.append(port)
+            return True
+        return False
 
     def _send(self, msg: dict, sender) -> None:
         data = msg["PAR"]["DATA"]
@@ -48,7 +128,7 @@ class ClusterActor(Actor):
     def _list_usb(self, msg: dict, sender) -> None:
         result: list[SaradInst]
 
-        ports = [port for port in list_ports.comports() if port.vid and port.pid]
+        ports = [port for port in comports() if port.vid and port.pid]
 
         result = self._cluster.update_connected_instruments(ports)
 
@@ -63,7 +143,7 @@ class ClusterActor(Actor):
     def _list_natives(self, msg: dict, sender) -> None:
         result: list[SaradInst]
 
-        ports = [port for port in list_ports.comports() if not port.pid]
+        ports = [port for port in comports() if not port.pid]
 
         result = self._cluster.update_connected_instruments(ports)
 
@@ -104,6 +184,9 @@ class ClusterActor(Actor):
         Handles received Actor messages / verification of the message format
         """
         logger.debug("Msg: %s, Sender: %s", msg, sender)
+        if isinstance(msg, WakeupMessage):
+            self._continue_loop()
+            return
         if isinstance(msg, ActorExitRequest):
             self._kill(msg, sender)
             return

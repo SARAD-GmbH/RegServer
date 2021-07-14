@@ -16,6 +16,7 @@ import signal
 import threading
 
 from thespian.actors import ActorSystem  # type: ignore
+from registrationserver.modules.usb.cluster_actor import ClusterActor
 
 if os.name == "nt":
     from registrationserver.modules.usb.win_listener import UsbListener
@@ -77,12 +78,14 @@ def main():
     # Initialization of the actor system,
     # can be changed to a distributed system here.
     # =======================
-    ActorSystem(
+    system = ActorSystem(
         systemBase=actor_config["systemBase"],
         capabilities=actor_config["capabilities"],
         logDefs=logcfg,
     )
+    system.createActor(ClusterActor, globalName="cluster")
     logger.debug("Actor system started.")
+
     restapi = RestApi()
     apithread = threading.Thread(
         target=restapi.run,
