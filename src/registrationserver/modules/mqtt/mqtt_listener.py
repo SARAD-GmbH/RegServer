@@ -175,7 +175,7 @@ class SaradMqttSubscriber:
         this_actor = ActorSystem().createActor(MqttActor, globalName=ac_name)
         data = json.dumps(payload)
         setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": data})
-        logger.debug(setup_return)
+        logger.debug("SETUP returns: %s", setup_return)
         if not setup_return["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
             RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],

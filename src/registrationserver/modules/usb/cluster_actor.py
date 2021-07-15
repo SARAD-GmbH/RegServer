@@ -20,10 +20,6 @@ class ClusterActor(Actor):
     classdocs
     """
 
-    _cluster: SaradCluster = SaradCluster()
-    _looplist: List[str] = list()
-    _loop_started: bool = False
-
     ACCEPTED_COMMANDS = {
         "SEND": "_send",
         "LIST": "_list",
@@ -36,6 +32,15 @@ class ClusterActor(Actor):
     }
 
     def __init__(self):
+        self._looplist: List[str] = list()
+        self._loop_started: bool = False
+        self.native_ports = config.get("NATIVE_SERIAL_PORTS", [])
+        self.ignore_ports = config.get("IGNORED_SERIAL_PORTS", [])
+        self._cluster: SaradCluster = SaradCluster(
+            native_ports=self.native_ports, ignore_ports=self.ignore_ports
+        )
+        self._looplist = self._cluster.native_ports
+        self._actors = {}
         super().__init__()
         logger.info("ClusterActor initialized")
 

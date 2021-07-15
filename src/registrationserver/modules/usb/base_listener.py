@@ -13,7 +13,6 @@ import polling2  # type: ignore
 from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.usb.usb_actor import UsbActor
-from sarad.cluster import SaradCluster
 from thespian.actors import ActorExitRequest, ActorSystem, Actor  # type: ignore
 
 
@@ -23,22 +22,14 @@ class BaseListener:
     -- base for OS specific implementations."""
 
     def __init__(self):
-        native_ports = config.get("NATIVE_SERIAL_PORTS", [])
-        ignore_ports = config.get("IGNORED_SERIAL_PORTS", [])
-        self._cluster = SaradCluster(
-            native_ports=native_ports, ignore_ports=ignore_ports
-        )
-        self._active_ports = set(self._cluster.active_ports)
+
         self._actors = {}
+        self._system = ActorSystem()
+        self._cluster = self._system.createActor(Actor, globalName="cluster")
 
     def run(self):
         """Start listening for new devices"""
-        native_ports = set(self._cluster.native_ports)
-        if native_ports is not set():
-            logger.info("Start polling RS-232 ports %s", native_ports)
-            polling2.poll(
-                lambda: self.update_native_ports(), step=60, poll_forever=True
-            )
+        self._system.tell(self._cluster, {"CMD": "DO_LOOP"})
 
     def update_native_ports(self):
         """Check all RS-232 ports that are listed in the config
@@ -48,9 +39,8 @@ class BaseListener:
         active_ports = set(self._actors.keys())
         old_activ_native_ports = native_ports.intersection(active_ports)
         logger.debug("[Poll] Old active native ports: %s", old_activ_native_ports)
-        system = ActorSystem()
-        cluster = system.createActor(Actor, globalName="cluster")
-        cluster_awnser = system.ask(cluster, {"CMD": "LIST-NATIVE"})
+
+        cluster_awnser = self._system.ask(self._cluster, {"CMD": "LIST-NATIVE"})
         new_instruments = cluster_awnser["RESULT"]["DATA"]
 
         for instrument in new_instruments:
@@ -98,7 +88,7 @@ class BaseListener:
         data = json.dumps(
             {
                 "Identification": {
-                    "Name": instrument["NAME"],
+                    "Name": instrument["Name"],
                     "Family": family,
                     "Type": instrument["Type"],
                     "Serial number": instrument["Serial number"],
