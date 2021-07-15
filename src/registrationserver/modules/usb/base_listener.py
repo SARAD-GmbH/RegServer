@@ -14,7 +14,7 @@ from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.usb.usb_actor import UsbActor
 from sarad.cluster import SaradCluster
-from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
+from thespian.actors import ActorExitRequest, ActorSystem, Actor  # type: ignore
 
 
 class BaseListener:
@@ -48,9 +48,11 @@ class BaseListener:
         active_ports = set(self._actors.keys())
         old_activ_native_ports = native_ports.intersection(active_ports)
         logger.debug("[Poll] Old active native ports: %s", old_activ_native_ports)
-        new_instruments = self._cluster.update_connected_instruments(
-            self._cluster.native_ports
-        )
+        system = ActorSystem()
+        cluster = system.createActor(Actor, globalName="cluster")
+        cluster_awnser = system.ask(cluster, {"CMD": "LIST-NATIVE"})
+        new_instruments = cluster_awnser["RESULT"]["DATA"]
+
         for instrument in new_instruments:
             self._create_actor(instrument)
         current_active_ports = set(
@@ -75,9 +77,9 @@ class BaseListener:
                 )
 
     def _create_actor(self, instrument):
-        serial_device = instrument.port
-        family = instrument.family["family_id"]
-        device_id = instrument.device_id
+        serial_device = instrument["Serial Device"]
+        family = instrument["Family"]
+        device_id = instrument["Device ID"]
         if family == 5:
             sarad_type = "sarad-dacm"
         elif family in [1, 2]:
@@ -96,10 +98,10 @@ class BaseListener:
         data = json.dumps(
             {
                 "Identification": {
-                    "Name": instrument.type_name,
+                    "Name": instrument["NAME"],
                     "Family": family,
-                    "Type": instrument.type_id,
-                    "Serial number": instrument.serial_number,
+                    "Type": instrument["Type"],
+                    "Serial number": instrument["Serial number"],
                     "Host": "127.0.0.1",
                     "Protocol": sarad_type,
                 },

@@ -263,7 +263,6 @@ class RestApi:
 
     @staticmethod
     @api.route("/ports/<port>/loop", methods=["GET"])
-    @api.route("/ports/<port>/loop", methods=["GET"])
     def getloopport(port):
         """Loops Local Ports, Used for Testing"""
         system = ActorSystem()
@@ -272,12 +271,27 @@ class RestApi:
 
     @staticmethod
     @api.route("/ports/<port>/stop", methods=["GET"])
-    @api.route("/ports/<port>/stop", methods=["GET"])
     def getstopport(port):
         """Loops Local Ports, Used for Testing"""
         system = ActorSystem()
         cluster = system.createActor(Actor, globalName="cluster")
         return system.ask(cluster, {"CMD": "LOOP-REMOVE", "PAR": {"PORT": port}})
+
+    @staticmethod
+    @api.route("/ports/list-usb", methods=["GET"])
+    def getusbports():
+        """Loops Local Ports, Used for Testing"""
+        system = ActorSystem()
+        cluster = system.createActor(Actor, globalName="cluster")
+        return system.ask(cluster, {"CMD": "LIST-USB"})
+
+    @staticmethod
+    @api.route("/ports/list-native", methods=["GET"])
+    def getnativeports():
+        """Loops Local Ports, Used for Testing"""
+        system = ActorSystem()
+        cluster = system.createActor(Actor, globalName="cluster")
+        return system.ask(cluster, {"CMD": "LIST-NATIVE"})
 
     def run(self, host=None, port=None, debug=None, load_dotenv=True):
         """Start the API"""

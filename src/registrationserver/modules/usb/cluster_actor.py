@@ -146,7 +146,7 @@ class ClusterActor(Actor):
         self.send(sender, return_message)
 
     def _list_ports(self, msg: dict, sender) -> None:  # pylint: disable=unused-argument
-        result: List[SaradInst] = list()
+        result: List[str] = list()
 
         ports = [
             {"PORT": port.device, "PID": port.pid, "VID": port.vid}
@@ -162,11 +162,21 @@ class ClusterActor(Actor):
         self.send(sender, return_message)
 
     def _list_usb(self, msg: dict, sender) -> None:  # pylint: disable=unused-argument
-        result: List[SaradInst] = list()
+        result: List[str] = list()
 
-        ports = [port for port in comports() if port.vid and port.pid]
+        ports = [port.device for port in comports() if port.vid and port.pid]
 
-        result = self._cluster.update_connected_instruments(ports)
+        result = [
+            {
+                "Device ID": instrument.device_id,
+                "Serial Device": instrument.port,
+                "Family": instrument.family["family_id"],
+                "Name": instrument.type_name,
+                "Type": instrument.type_id,
+                "Serial number": instrument.serial_number,
+            }
+            for instrument in self._cluster.update_connected_instruments(ports)
+        ]
 
         logger.debug("and got list: %s", result)
         return_message = {
@@ -174,20 +184,31 @@ class ClusterActor(Actor):
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
             "RESULT": {"DATA": result},
         }
+        logger.debug(return_message)
         self.send(sender, return_message)
 
     def _list_natives(
         self, msg: dict, sender  # pylint: disable=unused-argument
     ) -> None:
-        result: List[SaradInst] = list()
+        result: List[str] = list()
 
-        ports = [port for port in comports() if not port.pid]
+        ports = [port.device for port in comports() if not port.pid]
 
-        result = self._cluster.update_connected_instruments(ports)
+        result = [
+            {
+                "Device ID": instrument.device_id,
+                "Serial Device": instrument.port,
+                "Family": instrument.family["family_id"],
+                "Name": instrument.type_name,
+                "Type": instrument.type_id,
+                "Serial number": instrument.serial_number,
+            }
+            for instrument in self._cluster.update_connected_instruments(ports)
+        ]
 
         logger.debug("and got list: %s", result)
         return_message = {
-            "RETURN": "LIST-USB",
+            "RETURN": "LIST-NATIVE",
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
             "RESULT": {"DATA": result},
         }
