@@ -18,8 +18,7 @@ from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.redirect_actor import RedirectorActor
-from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
-                             ChildActorExited)
+from thespian.actors import Actor, ActorExitRequest, ChildActorExited  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -151,6 +150,7 @@ class DeviceBaseActor(Actor):
             return_message = {
                 "RETURN": "SETUP",
                 "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                "SELF": self.globalName,
             }
             self.send(sender, return_message)
             return
@@ -159,6 +159,7 @@ class DeviceBaseActor(Actor):
         return_message = {
             "RETURN": "SETUP",
             "ERROR_CODE": RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
+            "SELF": self.globalName,
         }
         self.send(sender, return_message)
         return

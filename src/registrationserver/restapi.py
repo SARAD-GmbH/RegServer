@@ -252,6 +252,47 @@ class RestApi:
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
+    @staticmethod
+    @api.route("/ports", methods=["GET"])
+    @api.route("/ports/", methods=["GET"])
+    def getlocalports():
+        """Lists Local Ports, Used for Testing atm"""
+        system = ActorSystem()
+        cluster = system.createActor(Actor, globalName="cluster")
+        return system.ask(cluster, {"CMD": "LIST-PORTS"})
+
+    @staticmethod
+    @api.route("/ports/<port>/loop", methods=["GET"])
+    def getloopport(port):
+        """Loops Local Ports, Used for Testing"""
+        system = ActorSystem()
+        cluster = system.createActor(Actor, globalName="cluster")
+        return system.ask(cluster, {"CMD": "LOOP", "PAR": {"PORT": port}})
+
+    @staticmethod
+    @api.route("/ports/<port>/stop", methods=["GET"])
+    def getstopport(port):
+        """Loops Local Ports, Used for Testing"""
+        system = ActorSystem()
+        cluster = system.createActor(Actor, globalName="cluster")
+        return system.ask(cluster, {"CMD": "LOOP-REMOVE", "PAR": {"PORT": port}})
+
+    @staticmethod
+    @api.route("/ports/list-usb", methods=["GET"])
+    def getusbports():
+        """Loops Local Ports, Used for Testing"""
+        system = ActorSystem()
+        cluster = system.createActor(Actor, globalName="cluster")
+        return system.ask(cluster, {"CMD": "LIST-USB"})
+
+    @staticmethod
+    @api.route("/ports/list-native", methods=["GET"])
+    def getnativeports():
+        """Loops Local Ports, Used for Testing"""
+        system = ActorSystem()
+        cluster = system.createActor(Actor, globalName="cluster")
+        return system.ask(cluster, {"CMD": "LIST-NATIVE"})
+
     def run(self, host=None, port=None, debug=None, load_dotenv=True):
         """Start the API"""
         logger.info("Starting API at %s:%d", host, port)

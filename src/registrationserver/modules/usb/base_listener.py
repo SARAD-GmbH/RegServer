@@ -13,8 +13,7 @@ import polling2  # type: ignore
 from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.usb.usb_actor import UsbActor
-from sarad.cluster import SaradCluster
-from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
+from thespian.actors import ActorExitRequest, ActorSystem, Actor  # type: ignore
 
 
 class BaseListener:
@@ -23,22 +22,14 @@ class BaseListener:
     -- base for OS specific implementations."""
 
     def __init__(self):
-        native_ports = config.get("NATIVE_SERIAL_PORTS", [])
-        ignore_ports = config.get("IGNORED_SERIAL_PORTS", [])
-        self._cluster = SaradCluster(
-            native_ports=native_ports, ignore_ports=ignore_ports
-        )
-        self._active_ports = set(self._cluster.active_ports)
+
         self._actors = {}
+        self._system = ActorSystem()
+        self._cluster = self._system.createActor(Actor, globalName="cluster")
 
     def run(self):
         """Start listening for new devices"""
-        native_ports = set(self._cluster.native_ports)
-        if native_ports is not set():
-            logger.info("Start polling RS-232 ports %s", native_ports)
-            polling2.poll(
-                lambda: self.update_native_ports(), step=60, poll_forever=True
-            )
+        self._system.tell(self._cluster, {"CMD": "DO_LOOP"})
 
     def update_native_ports(self):
         """Check all RS-232 ports that are listed in the config
@@ -48,9 +39,10 @@ class BaseListener:
         active_ports = set(self._actors.keys())
         old_activ_native_ports = native_ports.intersection(active_ports)
         logger.debug("[Poll] Old active native ports: %s", old_activ_native_ports)
-        new_instruments = self._cluster.update_connected_instruments(
-            self._cluster.native_ports
-        )
+
+        cluster_awnser = self._system.ask(self._cluster, {"CMD": "LIST-NATIVE"})
+        new_instruments = cluster_awnser["RESULT"]["DATA"]
+
         for instrument in new_instruments:
             self._create_actor(instrument)
         current_active_ports = set(
@@ -75,9 +67,9 @@ class BaseListener:
                 )
 
     def _create_actor(self, instrument):
-        serial_device = instrument.port
-        family = instrument.family["family_id"]
-        device_id = instrument.device_id
+        serial_device = instrument["Serial Device"]
+        family = instrument["Family"]
+        device_id = instrument["Device ID"]
         if family == 5:
             sarad_type = "sarad-dacm"
         elif family in [1, 2]:
@@ -96,10 +88,10 @@ class BaseListener:
         data = json.dumps(
             {
                 "Identification": {
-                    "Name": instrument.type_name,
+                    "Name": instrument["Name"],
                     "Family": family,
-                    "Type": instrument.type_id,
-                    "Serial number": instrument.serial_number,
+                    "Type": instrument["Type"],
+                    "Serial number": instrument["Serial number"],
                     "Host": "127.0.0.1",
                     "Protocol": sarad_type,
                 },

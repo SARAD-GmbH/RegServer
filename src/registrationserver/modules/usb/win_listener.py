@@ -15,8 +15,11 @@ import win32api  # pylint: disable=import-error
 import win32con  # pylint: disable=import-error
 import win32gui  # pylint: disable=import-error
 from overrides import overrides  # type: ignore
+from typing import List
 from registrationserver.logger import logger
 from registrationserver.modules.usb.base_listener import BaseListener
+from thespian.actors import Actor, ActorSystem
+from registrationserver.config import config
 
 
 class UsbListener(BaseListener):
@@ -88,15 +91,39 @@ class UsbListener(BaseListener):
             None,
         )
 
+    def __init__(self):
+        super().__init__()
+        self._actors: List[Actor] = list()
+
     @overrides
     def run(self):
         """Start listening for new devices"""
         logger.info("[Start] Windows USB Listener")
-        self._cluster.update_connected_instruments()
         self._actors = {}
         logger.info("[LIST] Creat new device actors")
-        for instrument in self._cluster.connected_instruments:
+        usb = self._system.ask(self._cluster, {"CMD": "LIST-USB"})
+        native = self._system.ask(self._cluster, {"CMD": "LIST-NATIVE"})
+
+        if not "RESULT" in usb or not "DATA" in usb:
+            logger.warning("Strange USB List: %s", usb)
+            usb = {"RESULT": {"DATA": []}}
+        if not "RESULT" in native or not "DATA" in native["RESULT"]:
+            logger.warning("Strange Native List: %s", native)
+            usb = {"RESULT": {"DATA": []}}
+
+        logger.debug("GOT %s + %s", usb, native)
+
+        instruments = [
+            instrument
+            for instrument in usb["RESULT"]["DATA"] + native["RESULT"]["DATA"]
+            if instrument["Serial Device"] not in config["IGNORED_SERIAL_PORTS"]
+        ]
+
+        logger.debug("Checking Instruments: %s", instruments)
+
+        for instrument in instruments:
             self._create_actor(instrument)
+
         hwnd = self._create_listener()
         logger.debug("Created listener window with hwnd=%s", hwnd)
         logger.debug("Listening to messages")
