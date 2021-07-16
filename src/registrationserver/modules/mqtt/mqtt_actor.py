@@ -602,7 +602,7 @@ class MqttActor(DeviceBaseActor):
                     "RETURN": "SUBSCRIBE",
                     "ERROR_CODE": RETURN_MESSAGES["SUBSCRIBE_FAILURE"]["ERROR_CODE"],
                 }
-            logger.info("[Subscribe] to %s successfull", sub_info)
+            logger.info("[Subscribe] to %s successful", sub_info)
             return {
                 "RETURN": "SUBSCRIBE",
                 "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
@@ -639,7 +639,7 @@ class MqttActor(DeviceBaseActor):
                 "RETURN": "UNSUBCRIBE",
                 "ERROR_CODE": RETURN_MESSAGES["UNSUBSCRIBE"]["ERROR_CODE"],
             }
-        logger.info("[Unsubscribe] from %s successfull", topics)
+        logger.info("[Unsubscribe] from %s successful", topics)
         return {
             "RETURN": "UNSUBSCRIBE",
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],

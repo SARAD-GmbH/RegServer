@@ -22,6 +22,6 @@ src: Python Source Files
 
 * main.py: code entry point
 * config.py: configuraition file
-* redirect_actor.py: is created when a reservation is successfull, will manage
+* redirect_actor.py: will be created, when a reservation was successful, will manage
   incomming messages from the app, and relay them to the device specific actors
 * restapi: rest api endpoint

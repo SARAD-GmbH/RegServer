@@ -55,8 +55,8 @@ RETURN_MESSAGES = {
         "ERROR_MESSAGE": "Error when unsubscribing from an MQTT topic",
         "ERROR_CODE": 34,
     },
-    "UNKOWN_PORT": {
-        "ERROR_MESSAGE": "Port does not excist",
+    "UNKNOWN_PORT": {
+        "ERROR_MESSAGE": "Port does not exist",
         "ERROR_CODE": 40,
     },
     "OK_SKIPPED": {
