@@ -9,8 +9,6 @@ Author
 """
 import json
 
-import polling2  # type: ignore
-from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.usb.usb_actor import UsbActor
 from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
@@ -32,41 +30,6 @@ class BaseListener:
         """Start listening for new devices"""
         self._system.tell(self._cluster, {"CMD": "DO_LOOP"})
 
-    def update_native_ports(self):
-        """Check all RS-232 ports that are listed in the config
-        for connected instruments. This function has to be called either by the app
-        or by a polling routine."""
-        native_ports = set(self._cluster.native_ports)
-        active_ports = set(self._actors.keys())
-        old_activ_native_ports = native_ports.intersection(active_ports)
-        logger.debug("[Poll] Old active native ports: %s", old_activ_native_ports)
-
-        cluster_answer = self._system.ask(self._cluster, {"CMD": "LIST-NATIVE"})
-        new_instruments = cluster_answer["RESULT"]["DATA"]
-
-        for instrument in new_instruments:
-            self._create_actor(instrument)
-        current_active_ports = set(
-            instr.port for instr in self._cluster.connected_instruments
-        )
-        current_active_native_ports = native_ports.intersection(current_active_ports)
-        gone_ports = old_activ_native_ports.difference(current_active_native_ports)
-        for gone_port in gone_ports:
-            try:
-                ActorSystem().ask(self._actors[gone_port], ActorExitRequest())
-                del self._actors[gone_port]
-            except KeyError:
-                logger.error("%s removed, that never was added properly", gone_port)
-                self._actors.pop(gone_port, None)
-            try:
-                assert current_active_ports == set(self._actors.keys())
-            except AssertionError:
-                logger.error(
-                    "%s must be equal to %s",
-                    current_active_ports,
-                    set(self._actors.keys()),
-                )
-
     def _create_actor(self, instrument):
         serial_device = instrument["Serial Device"]
         family = instrument["Family"]
@@ -83,7 +46,7 @@ class BaseListener:
             sarad_type = "unknown"
         global_name = f"{device_id}.{sarad_type}.local"
         logger.debug("Create actor %s", global_name)
-        self._actors[serial_device] = ActorSystem().createActor(
+        self._actors[serial_device] = self._system.createActor(
             UsbActor, globalName=global_name
         )
         data = json.dumps(
@@ -106,7 +69,7 @@ class BaseListener:
     def _remove_actor(self, gone_port):
         if gone_port in self._actors:
             try:
-                ActorSystem().ask(self._actors[gone_port], ActorExitRequest())
+                self._system.ask(self._actors[gone_port], ActorExitRequest())
                 self._actors.pop(gone_port, None)
             except KeyError:
                 logger.error("%s removed, that never was added properly", gone_port)

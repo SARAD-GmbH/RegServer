@@ -30,14 +30,15 @@ class ClusterActor(Actor):
     }
 
     def __init__(self):
-        self._looplist: List[str] = list()
         self._loop_started: bool = False
-        self.native_ports = config.get("NATIVE_SERIAL_PORTS", [])
-        self.ignore_ports = config.get("IGNORED_SERIAL_PORTS", [])
-        self._cluster: SaradCluster = SaradCluster(
-            native_ports=self.native_ports, ignore_ports=self.ignore_ports
+        self.native_ports = set(config.get("NATIVE_SERIAL_PORTS", []))
+        self.ignore_ports = set(config.get("IGNORED_SERIAL_PORTS", []))
+        self._looplist: List[str] = list(
+            self.native_ports.difference(self.ignore_ports)
         )
-        self._looplist = self._cluster.native_ports
+        self._cluster: SaradCluster = SaradCluster(
+            native_ports=list(self.native_ports), ignore_ports=list(self.ignore_ports)
+        )
         self._actors = {}
         super().__init__()
         logger.info("ClusterActor initialized")
