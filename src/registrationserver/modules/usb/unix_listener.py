@@ -60,8 +60,12 @@ class UsbListener(BaseListener):
         logger.debug("%s device %s", action, port)
         if action == "add":
             try:
-                instrument = self._cluster.update_connected_instruments([port])[0]
-                self._create_actor(instrument)
+                cluster_answer = self._system.ask(
+                    self._cluster,
+                    {"CMD": "LIST", "PAR": {"PORTS": [port]}},
+                )
+                instruments = cluster_answer["RESULT"]["DATA"]
+                self._create_actor(instruments[0])
             except IndexError:
                 logger.debug("No SARAD instrument at %s", port)
         elif action == "remove":

@@ -4,15 +4,13 @@ clusteractor
 
 from typing import List
 
-from serial.tools.list_ports import comports
-from thespian.actors import Actor, ActorExitRequest, WakeupMessage
-
-from sarad.cluster import SaradCluster
-from sarad.sari import SaradInst
-
 from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
+from sarad.cluster import SaradCluster
+from sarad.sari import SaradInst
+from serial.tools.list_ports import comports
+from thespian.actors import Actor, ActorExitRequest, WakeupMessage
 
 
 class ClusterActor(Actor):
@@ -224,13 +222,25 @@ class ClusterActor(Actor):
         target = msg["PAR"].get("PORTS", None)
 
         if not target:
-            result = self._cluster.update_connected_instruments()
+            instruments = self._cluster.update_connected_instruments()
 
         if isinstance(target, str):
-            result = self._cluster.update_connected_instruments([target])
+            instruments = self._cluster.update_connected_instruments([target])
 
         if isinstance(target, list):
-            result = self._cluster.update_connected_instruments(target)
+            instruments = self._cluster.update_connected_instruments(target)
+
+        result = [
+            {
+                "Device ID": instrument.device_id,
+                "Serial Device": instrument.port,
+                "Family": instrument.family["family_id"],
+                "Name": instrument.type_name,
+                "Type": instrument.type_id,
+                "Serial number": instrument.serial_number,
+            }
+            for instrument in instruments
+        ]
 
         logger.debug("and got list: %s", result)
         return_message = {

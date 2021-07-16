@@ -13,7 +13,8 @@ import polling2  # type: ignore
 from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.usb.usb_actor import UsbActor
-from thespian.actors import ActorExitRequest, ActorSystem, Actor  # type: ignore
+from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
+                             ActorSystem)
 
 
 class BaseListener:
@@ -40,8 +41,8 @@ class BaseListener:
         old_activ_native_ports = native_ports.intersection(active_ports)
         logger.debug("[Poll] Old active native ports: %s", old_activ_native_ports)
 
-        cluster_awnser = self._system.ask(self._cluster, {"CMD": "LIST-NATIVE"})
-        new_instruments = cluster_awnser["RESULT"]["DATA"]
+        cluster_answer = self._system.ask(self._cluster, {"CMD": "LIST-NATIVE"})
+        new_instruments = cluster_answer["RESULT"]["DATA"]
 
         for instrument in new_instruments:
             self._create_actor(instrument)

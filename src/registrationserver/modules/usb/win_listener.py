@@ -10,16 +10,16 @@ Author
 """
 
 import threading
+from typing import List
 
 import win32api  # pylint: disable=import-error
 import win32con  # pylint: disable=import-error
 import win32gui  # pylint: disable=import-error
 from overrides import overrides  # type: ignore
-from typing import List
+from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.usb.base_listener import BaseListener
 from thespian.actors import Actor, ActorSystem
-from registrationserver.config import config
 
 
 class UsbListener(BaseListener):
@@ -150,16 +150,20 @@ class UsbListener(BaseListener):
                 if event in "DBT_DEVICEARRIVAL":
                     new_ports = current_active_ports.difference(old_active_ports)
                     logger.info("%s plugged in", new_ports)
-                    new_instruments = self._cluster.update_connected_instruments(
-                        list(new_ports)
+                    cluster_answer = self._system.ask(
+                        self._cluster, {"CMD": "LIST-PORTS"}
                     )
+                    new_instruments = cluster_answer["RESULT"]["DATA"]
                     for instrument in new_instruments:
                         self._create_actor(instrument)
                     return
                 if event in "DBT_DEVICEREMOVECOMPLETE":
                     gone_ports = old_active_ports.difference(current_active_ports)
                     logger.info("%s plugged out", gone_ports)
-                    self._cluster.update_connected_instruments(list(gone_ports))
+                    _ = self._system.ask(
+                        self._cluster,
+                        {"CMD": "LIST", "PAR": {"PORTS": list(gone_ports)}},
+                    )
                     for gone_port in gone_ports:
                         self._remove_actor(gone_port)
                 try:
