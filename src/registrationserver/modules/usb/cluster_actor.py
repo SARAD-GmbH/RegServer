@@ -115,7 +115,7 @@ class ClusterActor(Actor):
             reply = (
                 [instrument for instrument in self._cluster if instrument == target]
                 .pop()
-                .get_transparent_reply(data, reply_length=134, timeout=0.1)
+                .get_message_payload(data, 3)["raw"]
             )
 
         logger.debug("and got reply from instrument: %s", reply)

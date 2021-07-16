@@ -52,9 +52,7 @@ class UsbActor(DeviceBaseActor):
     def _send(self, msg: dict, _sender) -> None:
         cmd = msg["PAR"]["DATA"]
         logger.debug("Actor %s received: %s", self.globalName, cmd)
-        reply = self.instrument.get_transparent_reply(
-            cmd, reply_length=134, timeout=0.1
-        )
+        reply = self.instrument.get_message_payload(cmd, 3)["raw"]
         logger.debug("and got reply from instrument: %s", reply)
         return_message = {
             "RETURN": "SEND",
