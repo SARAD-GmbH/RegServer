@@ -48,16 +48,22 @@ class RedirectorActor(Actor):
         self._host = config["HOST"]
         logger.debug("IP address of Registration Server: %s", self._host)
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         for self._port in config["PORT_RANGE"]:
             try:
                 server_socket.bind((self._host, self._port))
                 self._port = server_socket.getsockname()[1]
                 break
-            except OSError:
-                logger.critical("Cannot use port %d.", self._port)
-        server_socket.listen()  # listen(5) maybe???
+            except OSError as e:
+                logger.error("Cannot use port %d. %s", self._port, e)
+                server_socket.close()
+        try:
+            server_socket.listen()  # listen(5) maybe???
+        except OSError:
+            self._port = None
         self.read_list = [server_socket]
-        logger.info("Socket listening on %s:%d", self._host, self._port)
+        if self._port is not None:
+            logger.info("Socket listening on %s:%d", self._host, self._port)
 
     @overrides
     def receiveMessage(self, msg, sender):
@@ -118,7 +124,16 @@ class RedirectorActor(Actor):
 
     def _setup(self, msg, sender):
         logger.debug("Setup redirector actor")
-        if self.my_parent is None:
+        if self._port is None:
+            logger.critical(
+                "Cannot open socket in the configured port range %s",
+                config["PORT_RANGE"],
+            )
+            return_msg = {
+                "RETURN": "SETUP",
+                "ERROR_CODE": RETURN_MESSAGES["UNKNOWN_PORT"]["ERROR_CODE"],
+            }
+        elif self.my_parent is None:
             parent_name = msg["PAR"]["PARENT_NAME"]
             self.my_parent = self.createActor(Actor, globalName=parent_name)
             return_msg = {

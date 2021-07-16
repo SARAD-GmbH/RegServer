@@ -249,6 +249,18 @@ class DeviceBaseActor(Actor):
 
     def _return_with_socket(self, msg, sender):
         logger.debug("returned with %s", msg)
+        try:
+            assert msg["ERROR_CODE"] in (
+                RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+            )
+        except AssertionError:
+            return_message = {
+                "RETURN": "RESERVE",
+                "ERROR_CODE": RETURN_MESSAGES["UNKNOWN_PORT"]["ERROR_CODE"],
+            }
+            self.send(self.sender_api, return_message)
+            return
         # Write Reservation section into device file
         ip_address = msg["RESULT"]["IP"]
         port = msg["RESULT"]["PORT"]
@@ -282,6 +294,7 @@ class DeviceBaseActor(Actor):
             self.host,
         )
         self.send(self.sender_api, return_message)
+        return
 
     def _free(self, msg: dict, sender):
         """Handler for FREE message from REST API."""
