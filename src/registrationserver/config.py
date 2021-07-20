@@ -30,7 +30,7 @@ config = {
     "PORT_RANGE": range(50000, 50500),
     "NATIVE_SERIAL_PORTS": ["COM1"],
     "IGNORED_SERIAL_PORTS": ["COM2", "COM3", "COM4", "COM5", "COM6"],
-    "LOCAL_RETRY_INTERVALL": 10,
+    "LOCAL_RETRY_INTERVAL": 30,
 }
 
 if os.name == "nt":
@@ -42,7 +42,7 @@ else:
 
 if os.name == "nt":
     actor_config = {
-        "systemBase": "multiprocQueueBase",
+        "systemBase": "multiprocTCPBase",
         "capabilities": {"Admin Port": 1901, "Process Startup Method": "spawn"},
     }
 else:
@@ -56,5 +56,5 @@ mqtt_config = {
     # "MQTT_BROKER": "127.0.0.1",
     "MQTT_BROKER": "85.214.243.156",  # Mosquitto running on sarad.de
     "PORT": 1883,
-    "RETRY_INTERVALL": 5,
+    "RETRY_INTERVAL": 5,
 }

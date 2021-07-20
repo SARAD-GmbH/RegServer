@@ -109,7 +109,7 @@ class ClusterActor(Actor):
             self._create_actor(instrument)
         if not self._loop_started:
             self._loop_started = True
-            self.wakeupAfter(config["LOCAL_RETRY_INTERVALL"])
+            self.wakeupAfter(config["LOCAL_RETRY_INTERVAL"])
         else:
             logger.info("Stopped Polling")
 
@@ -142,7 +142,7 @@ class ClusterActor(Actor):
                     if instrument.port in new_ports:
                         self._create_actor(instrument)
         if self._loop_started and self._looplist:
-            self.wakeupAfter(config["LOCAL_RETRY_INTERVALL"])
+            self.wakeupAfter(config["LOCAL_RETRY_INTERVAL"])
             return
         self._loop_started = False
 

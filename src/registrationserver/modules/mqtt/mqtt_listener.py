@@ -110,7 +110,7 @@ class SaradMqttSubscriber:
 
     def _connect(self):
         success = False
-        retry_intervall = mqtt_config.get("RETRY_INTERVALL", 60)
+        retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
 
         while not success and self.ungr_disconn > 0:
             try:
@@ -123,7 +123,7 @@ class SaradMqttSubscriber:
                 success = True
             except Exception as exception:  # pylint: disable=broad-except
                 logger.error("Could not connect to Broker, retrying...: %s", exception)
-                time.sleep(retry_intervall)
+                time.sleep(retry_interval)
 
     def mqtt_loop(self):
         """Running one cycle of the MQTT loop"""
