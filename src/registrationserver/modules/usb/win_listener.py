@@ -9,17 +9,12 @@ Author
 
 """
 
-import threading
-from typing import List
-
 import win32api  # pylint: disable=import-error
 import win32con  # pylint: disable=import-error
 import win32gui  # pylint: disable=import-error
 from overrides import overrides  # type: ignore
-from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.usb.base_listener import BaseListener
-from thespian.actors import Actor, ActorSystem
 
 
 class UsbListener(BaseListener):
@@ -91,47 +86,12 @@ class UsbListener(BaseListener):
             None,
         )
 
-    def __init__(self):
-        super().__init__()
-        self._actors: List[Actor] = list()
-
     @overrides
     def run(self):
         """Start listening for new devices"""
         logger.info("[Start] Windows USB Listener")
-        self._actors = {}
-        logger.info("[LIST] Creat new device actors")
-        usb = self._system.ask(self._cluster, {"CMD": "LIST-USB"})
-        native = self._system.ask(self._cluster, {"CMD": "LIST-NATIVE"})
-
-        if not "RESULT" in usb or not "DATA" in usb:
-            logger.warning("Strange USB List: %s", usb)
-            usb = {"RESULT": {"DATA": []}}
-        if not "RESULT" in native or not "DATA" in native["RESULT"]:
-            logger.warning("Strange Native List: %s", native)
-            usb = {"RESULT": {"DATA": []}}
-
-        logger.debug("GOT %s + %s", usb, native)
-
-        instruments = [
-            instrument
-            for instrument in usb["RESULT"]["DATA"] + native["RESULT"]["DATA"]
-            if instrument["Serial Device"] not in config["IGNORED_SERIAL_PORTS"]
-        ]
-
-        logger.debug("Checking Instruments: %s", instruments)
-
-        for instrument in instruments:
-            self._create_actor(instrument)
-
         hwnd = self._create_listener()
         logger.debug("Created listener window with hwnd=%s", hwnd)
-        logger.debug("Listening to messages")
-        rs232_listener_thread = threading.Thread(
-            target=super().run,
-            daemon=True,
-        )
-        rs232_listener_thread.start()
         win32gui.PumpMessages()
 
     def _on_message(self, _hwnd: int, msg: int, wparam: int, _lparam: int):
@@ -139,41 +99,11 @@ class UsbListener(BaseListener):
             event, description = self.WM_DEVICECHANGE_EVENTS[wparam]
             logger.debug("Received message: %s = %s", event, description)
             if event in ("DBT_DEVICEARRIVAL", "DBT_DEVICEREMOVECOMPLETE"):
-                native_ports = set(self._cluster.native_ports)
-                logger.debug("Native ports: %s", native_ports)
-                old_active_ports = set(self._actors.keys()).difference(native_ports)
-                logger.debug("Old active ports: %s", old_active_ports)
-                current_active_ports = set(self._cluster.active_ports).difference(
-                    native_ports
-                )
-                logger.debug("Current active ports: %s", current_active_ports)
                 if event in "DBT_DEVICEARRIVAL":
-                    new_ports = current_active_ports.difference(old_active_ports)
-                    logger.info("%s plugged in", new_ports)
-                    cluster_answer = self._system.ask(
-                        self._cluster, {"CMD": "LIST-PORTS"}
-                    )
-                    new_instruments = cluster_answer["RESULT"]["DATA"]
-                    for instrument in new_instruments:
-                        self._create_actor(instrument)
+                    self._system.tell(self._cluster, {"CMD": "ADD", "PAR": {}})
                     return
                 if event in "DBT_DEVICEREMOVECOMPLETE":
-                    gone_ports = old_active_ports.difference(current_active_ports)
-                    logger.info("%s plugged out", gone_ports)
-                    _ = self._system.ask(
-                        self._cluster,
-                        {"CMD": "LIST", "PAR": {"PORTS": list(gone_ports)}},
-                    )
-                    for gone_port in gone_ports:
-                        self._remove_actor(gone_port)
-                try:
-                    assert current_active_ports == set(self._actors.keys())
-                except AssertionError:
-                    logger.error(
-                        "%s must be equal to %s",
-                        current_active_ports,
-                        set(self._actors.keys()),
-                    )
+                    self._system.tell(self._cluster, {"CMD": "REMOVE", "PAR": {}})
             return
 
 

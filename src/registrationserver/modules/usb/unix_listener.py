@@ -36,8 +36,6 @@ class UsbListener(BaseListener):
     def run(self):
         """Start listening and keep listening until SIGTERM or SIGINT"""
         context = pyudev.Context()
-        for device in context.list_devices(subsystem="tty"):
-            self.usb_device_event("add", device)
         monitor = pyudev.Monitor.from_netlink(context)
         monitor.filter_by("tty")
         usb_stick_observer = pyudev.MonitorObserver(monitor, self.usb_device_event)
@@ -59,17 +57,15 @@ class UsbListener(BaseListener):
         port = device.get("DEVNAME")
         logger.debug("%s device %s", action, port)
         if action == "add":
-            try:
-                cluster_answer = self._system.ask(
-                    self._cluster,
-                    {"CMD": "LIST", "PAR": {"PORTS": [port]}},
-                )
-                instruments = cluster_answer["RESULT"]["DATA"]
-                self._create_actor(instruments[0])
-            except IndexError:
-                logger.debug("No SARAD instrument at %s", port)
+            self._system.tell(
+                self._cluster,
+                {"CMD": "ADD", "PAR": {"PORTS": [port]}},
+            )
         elif action == "remove":
-            self._remove_actor(port)
+            self._system.tell(
+                self._cluster,
+                {"CMD": "REMOVE", "PAR": {"PORTS": [port]}},
+            )
         else:
             logger.error("USB device event with action %s", action)
 
