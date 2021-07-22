@@ -47,10 +47,9 @@ class RedirectorActor(Actor):
         self.conn = None
         self._host = config["HOST"]
         logger.debug("IP address of Registration Server: %s", self._host)
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         for self._port in config["PORT_RANGE"]:
             try:
+                server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 server_socket.bind((self._host, self._port))
                 self._port = server_socket.getsockname()[1]
                 break
