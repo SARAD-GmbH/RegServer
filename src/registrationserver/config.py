@@ -36,13 +36,13 @@ config = {
 if os.name == "nt":
     config["HOST"] = "127.0.0.1"
 else:
-    config["HOST"] = "192.168.10.19"  # Michael@HomeVPN
-    # config["HOST"] = "192.168.10.116"  # Michael@Work
+    # config["HOST"] = "192.168.10.19"  # Michael@HomeVPN
+    config["HOST"] = "192.168.10.116"  # Michael@Work
     # config["HOST"] = "192.168.178.20"  # Michael@Home
 
 if os.name == "nt":
     actor_config = {
-        "systemBase": "multiprocTCPBase",
+        "systemBase": "multiprocQueueBase",
         "capabilities": {"Admin Port": 1901, "Process Startup Method": "spawn"},
     }
 else:
