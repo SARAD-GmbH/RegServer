@@ -90,9 +90,6 @@ class MqttActor(DeviceBaseActor):
         qos = msg.get("PAR", None).get("qos", None)
         if qos is None:
             qos = 0
-
-        if not self._subscribe([(self.allowed_sys_topics["MSG"], 0)]):
-            return
         self.state["SEND"]["Pending"] = True
         self.test_cnt = self.test_cnt + 1
         logger.debug("test_cnt = %s", self.test_cnt)
@@ -129,6 +126,8 @@ class MqttActor(DeviceBaseActor):
         )
         if not self.state["RESERVE"]["Pending"]:
             if not self._subscribe([(self.allowed_sys_topics["RESERVE"], 0)]):
+                return
+            if not self._subscribe([(self.allowed_sys_topics["MSG"], 0)]):
                 return
             _msg = {
                 "topic": self.allowed_sys_topics["CTRL"],
