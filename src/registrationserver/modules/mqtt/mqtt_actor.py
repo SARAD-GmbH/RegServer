@@ -100,28 +100,20 @@ class MqttActor(DeviceBaseActor):
         logger.debug("CMD ID is: %s", self.state["SEND"]["CMD_ID"])
         self.state["SEND"]["Sender"] = sender
         _msg = {
-            "CMD": "PUBLISH",
-            "PAR": {
-                "topic": self.allowed_sys_topics["CMD"],
-                "payload": bytes([self.cmd_id]) + data,
-                "qos": qos,
-            },
+            "topic": self.allowed_sys_topics["CMD"],
+            "payload": bytes([self.cmd_id]) + data,
+            "qos": qos,
         }
         _re = self._publish(_msg)
         if self.cmd_id == 255:
             self.cmd_id = 0
         else:
             self.cmd_id = self.cmd_id + 1
-        logger.debug(_re)
-        if not _re["ERROR_CODE"] in (
-            RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-        ):
+        if not _re:
             logger.error(
-                "Failed to publish message with ID %s in topic %s, error code %s",
+                "Failed to publish message with ID %s in topic %s",
                 self.cmd_id,
                 self.allowed_sys_topics["CMD"],
-                _re["ERROR_CODE"],
             )
             self.state["SEND"]["Pending"] = False
             self.test_cnt = self.test_cnt + 1
@@ -139,27 +131,19 @@ class MqttActor(DeviceBaseActor):
             if not self._subscribe([(self.allowed_sys_topics["RESERVE"], 0)]):
                 return
             _msg = {
-                "CMD": "PUBLISH",
-                "PAR": {
-                    "topic": self.allowed_sys_topics["CTRL"],
-                    "payload": json.dumps(
-                        {
-                            "Req": "reserve",
-                            "App": self.app,
-                            "Host": self.host,
-                            "User": self.user,
-                        }
-                    ),
-                    "qos": 0,
-                },
+                "topic": self.allowed_sys_topics["CTRL"],
+                "payload": json.dumps(
+                    {
+                        "Req": "reserve",
+                        "App": self.app,
+                        "Host": self.host,
+                        "User": self.user,
+                    }
+                ),
+                "qos": 0,
             }
             self.state["RESERVE"]["Pending"] = True
-            _re = self._publish(_msg)
-            if not _re["ERROR_CODE"] in (
-                RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-            ):
-                logger.error(_re)
+            if not self._publish(_msg):
                 self.state["RESERVE"]["Pending"] = False
                 return
             logger.debug("[Reserve at IS]: Waiting for reply to reservation request")
@@ -172,20 +156,19 @@ class MqttActor(DeviceBaseActor):
             super()._free(msg, sender)
             return
         _msg = {
-            "CMD": "PUBLISH",
-            "PAR": {
-                "topic": self.allowed_sys_topics["CTRL"],
-                "payload": json.dumps({"Req": "free"}),
-                "qos": 0,
-            },
+            "topic": self.allowed_sys_topics["CTRL"],
+            "payload": json.dumps({"Req": "free"}),
+            "qos": 0,
         }
         _re = self._publish(_msg)
-        logger.debug(_re)
-        if not _re["ERROR_CODE"] in (
-            RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-        ):
-            self.send(sender, {"RETURN": "FREE", "ERROR_CODE": _re["ERROR_CODE"]})
+        if not _re:
+            self.send(
+                sender,
+                {
+                    "RETURN": "FREE",
+                    "ERROR_CODE": RETURN_MESSAGES["PUBLISH"]["ERROR_CODE"],
+                },
+            )
             super()._free(msg, sender)
             return
         logger.info(
@@ -253,21 +236,8 @@ class MqttActor(DeviceBaseActor):
         self.mqttc.loop_start()
 
     def _parse(self, msg: dict) -> None:
-        topic = msg.get("PAR", None).get("topic", None)
-        payload = msg.get("PAR", None).get("payload", None)
-        if topic is None or payload is None:
-            logger.warning(
-                "The topic or payload is none; topic: %s, payload: %s", topic, payload
-            )
-            return
-        if topic not in (
-            self.allowed_sys_topics["MSG"],
-            self.allowed_sys_topics["RESERVE"],
-        ):
-            logger.warning(
-                "The topic is not legal; topic: %s, payload: %s", topic, payload
-            )
-            return
+        topic = msg["topic"]
+        payload = msg["payload"]
         if topic == self.allowed_sys_topics["RESERVE"]:
             if self.state["RESERVE"]["Pending"]:
                 instr_status = json.loads(payload).get("Active", None)
@@ -461,11 +431,8 @@ class MqttActor(DeviceBaseActor):
             logger.error("The payload is none")
         else:
             msg_buf = {
-                "CMD": "PARSE",
-                "PAR": {
-                    "topic": message.topic,
-                    "payload": message.payload,
-                },
+                "topic": message.topic,
+                "payload": message.payload,
             }
             self._parse(msg_buf)
 
@@ -480,30 +447,15 @@ class MqttActor(DeviceBaseActor):
         self.mqttc.loop_stop()
         logger.debug("Disconnected gracefully")
 
-    def _publish(self, msg: dict) -> dict:
+    def _publish(self, msg: dict) -> bool:
         logger.debug("Work state: publish")
         if not self.is_connected:
             logger.warning("Failed to publish the message because of disconnection")
-            return {
-                "RETURN": "PUBLISH",
-                "ERROR_CODE": RETURN_MESSAGES["PUBLISH"]["ERROR_CODE"],
-            }
-        mqtt_topic = msg.get("PAR", None).get("topic", None)
-        mqtt_payload = msg.get("PAR", None).get("payload", None)
-        if (mqtt_topic is None) or not isinstance(mqtt_topic, str):
-            logger.warning("the topic is none or not a string")
-            return {
-                "RETURN": "PUBLISH",
-                "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
-            }
-        if mqtt_payload is None:
-            logger.warning("the payload is none")
-            return {
-                "RETURN": "PUBLISH",
-                "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
-            }
-        mqtt_qos = msg.get("PAR", None).get("qos", None)
-        retain = msg.get("PAR", None).get("retain", None)
+            return False
+        mqtt_topic = msg["topic"]
+        mqtt_payload = msg["payload"]
+        mqtt_qos = msg["qos"]
+        retain = msg.get("retain", None)
         if retain is None:
             retain = False
         logger.debug("To publish")
@@ -515,14 +467,8 @@ class MqttActor(DeviceBaseActor):
         )
         if return_code != MQTT.MQTT_ERR_SUCCESS:
             logger.warning("Publish failed; result code is: %s", return_code)
-            return {
-                "RETURN": "PUBLISH",
-                "ERROR_CODE": RETURN_MESSAGES["PUBLISH"]["ERROR_CODE"],
-            }
-        return {
-            "RETURN": "PUBLISH",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-        }
+            return False
+        return True
 
     def _subscribe(self, sub_info: list) -> bool:
         logger.debug("Work state: subscribe")
