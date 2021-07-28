@@ -24,14 +24,10 @@ logger.debug("%s -> %s", __package__, __file__)
 class MqttActor(DeviceBaseActor):
     """Actor interacting with a new device"""
 
-    # "copy" ACCEPTED_COMMANDS of the DeviceBaseActor
-    ACCEPTED_COMMANDS = DeviceBaseActor.ACCEPTED_COMMANDS
-    # add some new accessible methods
-    ACCEPTED_COMMANDS["PREPARE"] = "_prepare"
-
     @overrides
     def __init__(self):
         super().__init__()
+        self.ACCEPTED_COMMANDS["PREPARE"] = "_prepare"
         self.subscriber = None
         self.is_id = None
         self.instr_id = None
