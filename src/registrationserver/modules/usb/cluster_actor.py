@@ -52,7 +52,7 @@ class ClusterActor(Actor):
         )
         self._actors = {}
         super().__init__()
-        logger.info("ClusterActor initialized")
+        logger.debug("ClusterActor initialized")
 
     def _loop(self, msg: dict, sender) -> None:
         target = msg["PAR"]["PORT"]
@@ -65,10 +65,8 @@ class ClusterActor(Actor):
         if isinstance(target, str):
             if self._add_to_loop(target):
                 ports_ok.append(target)
-
         if not self._loop_started and self._loop:
             self.send(self.myAddress, {"CMD": "DO_LOOP"})
-
         self.send(
             sender,
             {
@@ -89,10 +87,8 @@ class ClusterActor(Actor):
         if isinstance(target, str):
             if self._remove_from_loop(target):
                 ports_ok.append(target)
-
         if not self._looplist:
             self._loop_started = False
-
         self.send(
             sender,
             {
@@ -103,6 +99,7 @@ class ClusterActor(Actor):
         )
 
     def _do_loop(self, _msg: dict, _sender) -> None:
+        logger.debug("[_do_loop]")
         logger.info("Started polling: %s", self._looplist)
         self._cluster.update_connected_instruments()
         for instrument in self._cluster.connected_instruments:
@@ -114,17 +111,21 @@ class ClusterActor(Actor):
             logger.info("Stopped Polling")
 
     def _verified_ports(self) -> List[str]:
+        logger.debug("[_verified_ports]")
         active_ports = [port.device for port in comports()]
         return [port for port in self._looplist if port in active_ports]
 
     def _continue_loop(self):
+        logger.debug("[_continue_loop]")
         if self._looplist:
             verified_rs232_list = self._verified_ports()
             verified_rs232 = set(verified_rs232_list)
             active_ports = set(self._actors.keys())
             active_rs232_ports = verified_rs232.intersection(active_ports)
             logger.debug("Looping over %s of %s", verified_rs232_list, self._looplist)
-            self._cluster.update_connected_instruments(verified_rs232_list)
+            self._cluster.update_connected_instruments(
+                ports_to_test=verified_rs232_list
+            )
             current_active_ports = set(
                 instr.port for instr in self._cluster.connected_instruments
             )
@@ -147,6 +148,7 @@ class ClusterActor(Actor):
         self._loop_started = False
 
     def _remove_from_loop(self, port: str) -> bool:
+        logger.debug("[_remove_from_loop]")
         if port in self._looplist:
             if self._looplist.count(port) >= 0:
                 self._looplist.remove(port)
@@ -154,6 +156,7 @@ class ClusterActor(Actor):
         return False
 
     def _add_to_loop(self, port: str) -> bool:
+        logger.debug("[_add_to_loop]")
         if port in [i.device for i in comports()]:
             if self._looplist.count(port) == 0:
                 self._looplist.append(port)
@@ -161,6 +164,7 @@ class ClusterActor(Actor):
         return False
 
     def _send(self, msg: dict, sender) -> None:
+        logger.debug("[_send]")
         data = msg["PAR"]["DATA"]
         target = msg["PAR"]["Instrument"]
         logger.debug("Actor %s received: %s for: %s", self.globalName, data, target)
@@ -171,7 +175,6 @@ class ClusterActor(Actor):
                 .pop()
                 .get_message_payload(data, 3)["raw"]
             )
-
         logger.debug("and got reply from instrument: %s", reply)
         return_message = {
             "RETURN": "SEND",
@@ -181,13 +184,12 @@ class ClusterActor(Actor):
         self.send(sender, return_message)
 
     def _list_ports(self, _msg: dict, sender) -> None:
+        logger.debug("[_list_ports]")
         result: List[str] = list()
-
         ports = [
             {"PORT": port.device, "PID": port.pid, "VID": port.vid}
             for port in comports()
         ]
-
         logger.debug("and got list: %s", result)
         return_message = {
             "RETURN": "LIST-PORTS",
@@ -197,10 +199,9 @@ class ClusterActor(Actor):
         self.send(sender, return_message)
 
     def _list_usb(self, _msg: dict, sender) -> None:
+        logger.debug("[_list_usb]")
         result: List[str] = list()
-
         ports = [port.device for port in comports() if port.vid and port.pid]
-
         result = [
             {
                 "Device ID": instrument.device_id,
@@ -210,9 +211,10 @@ class ClusterActor(Actor):
                 "Type": instrument.type_id,
                 "Serial number": instrument.serial_number,
             }
-            for instrument in self._cluster.update_connected_instruments(ports)
+            for instrument in self._cluster.update_connected_instruments(
+                ports_to_test=ports
+            )
         ]
-
         logger.debug("and got list: %s", result)
         return_message = {
             "RETURN": "LIST-USB",
@@ -223,10 +225,9 @@ class ClusterActor(Actor):
         self.send(sender, return_message)
 
     def _list_natives(self, _msg: dict, sender) -> None:
+        logger.debug("[_list_natives]")
         result: List[str] = list()
-
         ports = [port.device for port in comports() if not port.pid]
-
         result = [
             {
                 "Device ID": instrument.device_id,
@@ -236,9 +237,10 @@ class ClusterActor(Actor):
                 "Type": instrument.type_id,
                 "Serial number": instrument.serial_number,
             }
-            for instrument in self._cluster.update_connected_instruments(ports)
+            for instrument in self._cluster.update_connected_instruments(
+                ports_to_test=ports
+            )
         ]
-
         logger.debug("and got list: %s", result)
         return_message = {
             "RETURN": "LIST-NATIVE",
@@ -248,18 +250,19 @@ class ClusterActor(Actor):
         self.send(sender, return_message)
 
     def _list(self, msg: dict, sender) -> None:
+        logger.debug("[_list]")
         result: List[SaradInst] = list()
         target = msg["PAR"].get("PORTS", None)
-
         if not target:
             instruments = self._cluster.update_connected_instruments()
-
         if isinstance(target, str):
-            instruments = self._cluster.update_connected_instruments([target])
-
+            instruments = self._cluster.update_connected_instruments(
+                ports_to_test=[target]
+            )
         if isinstance(target, list):
-            instruments = self._cluster.update_connected_instruments(target)
-
+            instruments = self._cluster.update_connected_instruments(
+                ports_to_test=target
+            )
         result = [
             {
                 "Device ID": instrument.device_id,
@@ -271,7 +274,6 @@ class ClusterActor(Actor):
             }
             for instrument in instruments
         ]
-
         logger.debug("and got list: %s", result)
         return_message = {
             "RETURN": "LIST",
@@ -281,6 +283,7 @@ class ClusterActor(Actor):
         self.send(sender, return_message)
 
     def _create_actor(self, instrument):
+        logger.debug("[_create_actor]")
         serial_device = instrument.port
         family = instrument.family["family_id"]
         device_id = instrument.device_id
@@ -315,7 +318,9 @@ class ClusterActor(Actor):
         self.send(self._actors[serial_device], msg)
 
     def _remove_actor(self, gone_port):
+        logger.debug("[_remove_actor]")
         if gone_port in self._actors:
+            logger.debug("Send ActorExitRequest to device actor.")
             self.send(self._actors[gone_port], ActorExitRequest())
             self._actors.pop(gone_port, None)
         else:
@@ -326,53 +331,52 @@ class ClusterActor(Actor):
     def _add(self, msg, _sender):
         """Create device actors for instruments connected to
         the serial ports given in the argument list."""
+        logger.debug("[_add]")
         target = msg["PAR"].get("PORTS", None)
         if target is None:
             old_ports = set(self._actors.keys())
-            instruments = self._cluster.update_connected_instruments()
-            current_ports = set()
-            for instrument in instruments:
-                current_ports.add(instrument.port)
-            new_ports = current_ports.difference(old_ports)
+            new_instruments = self._cluster.update_connected_instruments(
+                ports_to_skip=list(old_ports)
+            )
+            new_ports = set()
+            for instrument in new_instruments:
+                new_ports.add(instrument.port)
             target = list(new_ports)
             for port in target:
                 for instrument in self._cluster.connected_instruments:
                     if instrument.port == port:
                         self._create_actor(instrument)
-        if isinstance(target, str):
-            instruments = self._cluster.update_connected_instruments([target])
-        if isinstance(target, list):
+        else:
+            assert isinstance(target, list)
             if target == []:
                 return
-            instruments = self._cluster.update_connected_instruments(target)
-        for instrument in instruments:
-            self._create_actor(instrument)
+            instruments = self._cluster.update_connected_instruments(
+                ports_to_test=target
+            )
+            for instrument in instruments:
+                self._create_actor(instrument)
         return
 
     def _remove(self, msg, _sender):
         """Kill device actors for instruments that have been unplugged from
         the serial ports given in the argument list."""
+        logger.debug("[_remove]")
         target = msg["PAR"].get("PORTS", None)
         if target is None:
             old_ports = set(self._actors.keys())
-            instruments = self._cluster.update_connected_instruments()
-            current_ports = set()
-            for instrument in instruments:
-                current_ports.add(instrument.port)
+            current_ports = set(port.device for port in comports())
             gone_ports = old_ports.difference(current_ports)
-            target = list(gone_ports)
-            for port in target:
+            logger.debug("Call _remove_actor for %s", gone_ports)
+            for port in gone_ports:
                 self._remove_actor(port)
-        if isinstance(target, str):
-            self._cluster.update_connected_instruments([target])
-            self._remove_actor(target)
-        if isinstance(target, list):
-            self._cluster.update_connected_instruments(target)
+        else:
+            assert isinstance(target, list)
+            self._cluster.update_connected_instruments(ports_to_test=target)
             for port in target:
                 self._remove_actor(port)
 
-    def _kill(self, msg, sender):
-        pass
+    def _kill(self, _msg, sender):
+        logger.debug("[_kill] called from %s", sender)
 
     def receiveMessage(self, msg, sender):
         """

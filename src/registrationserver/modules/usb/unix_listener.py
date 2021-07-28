@@ -59,12 +59,12 @@ class UsbListener(BaseListener):
         if action == "add":
             self._system.tell(
                 self._cluster,
-                {"CMD": "ADD", "PAR": {"PORTS": [port]}},
+                {"CMD": "ADD", "PAR": {}},
             )
         elif action == "remove":
             self._system.tell(
                 self._cluster,
-                {"CMD": "REMOVE", "PAR": {"PORTS": [port]}},
+                {"CMD": "REMOVE", "PAR": {}},
             )
         else:
             logger.error("USB device event with action %s", action)
