@@ -5,7 +5,7 @@ Created
 
 Authors
     Michael Strey <strey@sarad.de>
-    Riccardo Förster <foerster@sarad.de>,
+    Riccardo Förster <foerster@sarad.de>
 
 .. uml :: uml-usb_actor.puml
 """
