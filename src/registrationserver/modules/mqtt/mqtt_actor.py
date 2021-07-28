@@ -95,21 +95,7 @@ class MqttActor(DeviceBaseActor):
         if qos is None:
             qos = 0
 
-        _msg = {
-            "CMD": "SUBSCRIBE",
-            "PAR": {"INFO": [(self.allowed_sys_topics["MSG"], 0)]},
-        }
-        _re = self._subscribe(_msg)
-        logger.debug(_re)
-        if _re["ERROR_CODE"] not in (
-            RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-        ):
-            logger.error(
-                "Subscribe to topic %s failed, error code %s",
-                self.allowed_sys_topics["MSG"],
-                _re["ERROR_CODE"],
-            )
+        if not self._subscribe([(self.allowed_sys_topics["MSG"], 0)]):
             return
         self.state["SEND"]["Pending"] = True
         self.test_cnt = self.test_cnt + 1
@@ -154,16 +140,7 @@ class MqttActor(DeviceBaseActor):
             self.globalName,
         )
         if not self.state["RESERVE"]["Pending"]:
-            _msg = {
-                "CMD": "SUBSCRIBE",
-                "PAR": {"INFO": [(self.allowed_sys_topics["RESERVE"], 0)]},
-            }
-            _re = self._subscribe(_msg)
-            if _re["ERROR_CODE"] not in (
-                RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-            ):
-                logger.error(_re)
+            if not self._subscribe([(self.allowed_sys_topics["RESERVE"], 0)]):
                 return
             _msg = {
                 "CMD": "PUBLISH",
@@ -196,6 +173,7 @@ class MqttActor(DeviceBaseActor):
         logger.debug("Free-Request")
         if msg is None:
             logger.critical("Actor message is None. This schould never happen.")
+            super()._free(msg, sender)
             return
         _msg = {
             "CMD": "PUBLISH",
@@ -212,24 +190,28 @@ class MqttActor(DeviceBaseActor):
             RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
         ):
             self.send(sender, {"RETURN": "FREE", "ERROR_CODE": _re["ERROR_CODE"]})
+            super()._free(msg, sender)
             return
         logger.info(
             "[Free] Unsubscribe MQTT actor %s from 'reserve' and 'msg' topics",
             self.globalName,
         )
         topics = [self.allowed_sys_topics["RESERVE"], self.allowed_sys_topics["MSG"]]
-        _re = self._unsubscribe(topics)
-        if not _re["ERROR_CODE"] in (
-            RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-        ):
-            self.send(sender, {"RETURN": "FREE", "ERROR_CODE": _re["ERROR_CODE"]})
+        if not self._unsubscribe(topics):
+            self.send(
+                sender,
+                {
+                    "RETURN": "FREE",
+                    "ERROR_CODE": RETURN_MESSAGES["UNSUBSCRIBE"]["ERROR_CODE"],
+                },
+            )
+            super()._free(msg, sender)
             return
         super()._free(msg, sender)
 
     def _kill(self, msg: dict, sender):
         logger.debug(self.allowed_sys_topics)
-        self._unsubscribe("+")
+        self._unsubscribe(["+"])
         self._disconnect()
         time.sleep(1)
         super()._kill(msg, sender)
@@ -546,101 +528,26 @@ class MqttActor(DeviceBaseActor):
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
         }
 
-    def _subscribe(self, msg: dict) -> dict:
+    def _subscribe(self, sub_info: list) -> bool:
         logger.debug("Work state: subscribe")
         if not self.is_connected:
             logger.error("[Subscribe] failed, not connected to broker")
-            return {
-                "RETURN": "SUBSCRIBE",
-                "ERROR_CODE": RETURN_MESSAGES["SUBSCRIBE"]["ERROR_CODE"],
-            }
-        sub_info = msg.get("PAR", None).get("INFO", None)
-        if sub_info is None:
-            logger.error("[Subscribe] the INFO for subscribe is None")
-            return {
-                "RETURN": "SUBSCRIBE",
-                "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
-            }
-        if isinstance(sub_info, list):
-            for ele in sub_info:
-                if not isinstance(ele, tuple):
-                    logger.errro(
-                        "[Subscribe] the INFO for subscribe is a list "
-                        "while it contains a non-tuple element"
-                    )
-                    return {
-                        "RETURN": "SUBSCRIBE",
-                        "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"][
-                            "ERROR_CODE"
-                        ],
-                    }
-                if len(ele) != 2:
-                    logger.error(
-                        "[Subscribe] the INFO for subscribe is a list while it contains "
-                        "a tuple element whose length is not equal to 2"
-                    )
-                    return {
-                        "RETURN": "SUBSCRIBE",
-                        "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"][
-                            "ERROR_CODE"
-                        ],
-                    }
-                if len(ele) == 2 and ele[0] is None:
-                    logger.error(
-                        "[Subscribe] the first element of one tuple namely the 'topic' is None"
-                    )
-                    return {
-                        "RETURN": "SUBSCRIBE",
-                        "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"][
-                            "ERROR_CODE"
-                        ],
-                    }
-            return_code, self.mid["SUBSCRIBE"] = self.mqttc.subscribe(sub_info)
-            if return_code != MQTT.MQTT_ERR_SUCCESS:
-                logger.error("Subscribe failed; result code is: %s", return_code)
-                return {
-                    "RETURN": "SUBSCRIBE",
-                    "ERROR_CODE": RETURN_MESSAGES["SUBSCRIBE_FAILURE"]["ERROR_CODE"],
-                }
-            logger.info("[Subscribe] to %s successful", sub_info)
-            return {
-                "RETURN": "SUBSCRIBE",
-                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            }
-        return {
-            "RETURN": "SUBSCRIBE",
-            "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
-        }
+            return False
+        return_code, self.mid["SUBSCRIBE"] = self.mqttc.subscribe(sub_info)
+        if return_code != MQTT.MQTT_ERR_SUCCESS:
+            logger.error("Subscribe failed; result code is: %s", return_code)
+            return False
+        logger.info("[Subscribe] to %s successful", sub_info)
+        return True
 
-    def _unsubscribe(self, topics):
+    def _unsubscribe(self, topics: list) -> bool:
         logger.info("Unsubscribe topic %s", topics)
         if not self.is_connected:
             logger.error("[Unsubscribe] failed, not connected to broker")
-            return {
-                "RETURN": "UNSUBSCRIBE",
-                "ERROR_CODE": RETURN_MESSAGES["UNSUBSCRIBE"]["ERROR_CODE"],
-            }
-        if (
-            topics is None
-            and not isinstance(topics, list)
-            and not isinstance(topics, str)
-        ):
-            logger.error(
-                "[Unsubscribe] The topic is none or it's neither a string nor a list"
-            )
-            return {
-                "RETURN": "UNSUBSCRIBE",
-                "ERROR_CODE": RETURN_MESSAGES["UNSUBSCRIBE"]["ERROR_CODE"],
-            }
+            return False
         return_code, self.mid["UNSUBSCRIBE"] = self.mqttc.unsubscribe(topics)
         if return_code != MQTT.MQTT_ERR_SUCCESS:
             logger.warning("[Unsubscribe] failed; result code is: %s", return_code)
-            return {
-                "RETURN": "UNSUBCRIBE",
-                "ERROR_CODE": RETURN_MESSAGES["UNSUBSCRIBE"]["ERROR_CODE"],
-            }
+            return False
         logger.info("[Unsubscribe] from %s successful", topics)
-        return {
-            "RETURN": "UNSUBSCRIBE",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-        }
+        return True
