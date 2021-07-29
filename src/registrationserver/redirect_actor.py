@@ -49,7 +49,7 @@ class RedirectorActor(Actor):
         logger.debug("IP address of Registration Server: %s", self._host)
         for self._port in config["PORT_RANGE"]:
             try:
-                server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
                 server_socket.bind((self._host, self._port))
                 self._port = server_socket.getsockname()[1]
                 break

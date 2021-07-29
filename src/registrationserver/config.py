@@ -34,7 +34,7 @@ config = {
 }
 
 if os.name == "nt":
-    config["HOST"] = "127.0.0.1"
+    config["HOST"] = "::1"
 else:
     # config["HOST"] = "192.168.10.19"  # Michael@HomeVPN
     config["HOST"] = "192.168.10.116"  # Michael@Work

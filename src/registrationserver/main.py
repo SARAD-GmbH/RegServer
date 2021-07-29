@@ -16,6 +16,7 @@ import signal
 import threading
 
 from thespian.actors import ActorSystem  # type: ignore
+
 from registrationserver.modules.usb.cluster_actor import ClusterActor
 
 if os.name == "nt":
@@ -90,7 +91,7 @@ def main():
     apithread = threading.Thread(
         target=restapi.run,
         args=(
-            "0.0.0.0",
+            config["HOST"],
             8000,
         ),
         daemon=True,
