@@ -10,9 +10,7 @@ Authors
 .. uml:: uml-main.puml
 """
 
-import atexit
 import os
-import signal
 import threading
 
 from thespian.actors import ActorSystem  # type: ignore
@@ -40,13 +38,14 @@ def main():
     * starts the MdnsListener
     """
     # Prepare for closing
-    @atexit.register
     def cleanup():  # pylint: disable=unused-variable
         """Make sure all sub threads are stopped, including the REST API"""
         logger.info("Cleaning up before closing.")
         if mqtt_listener is not None:
             if mqtt_listener.is_connected:
                 mqtt_listener.stop()
+        ActorSystem().shutdown()
+        logger.info("Actor system shut down finished.")
         dev_folder = config["DEV_FOLDER"]
         if os.path.exists(dev_folder):
             logger.info("Cleaning device folder")
@@ -55,13 +54,6 @@ def main():
                     filename = os.path.join(root, name)
                     logger.info("[Del] %s removed", name)
                     os.remove(filename)
-        ActorSystem().shutdown()
-        logger.info("Actor system shut down finished.")
-
-    def signal_handler(_sig, _frame):
-        """On Ctrl+C: stop MQTT loop"""
-        logger.info("You pressed Ctrl+C!")
-        main.run = False
 
     try:
         with open(LOGFILENAME, "w") as _:
@@ -71,9 +63,6 @@ def main():
     logger.info("Logging system initialized.")
 
     mqtt_listener = None
-
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
 
     # =======================
     # Initialization of the actor system,
