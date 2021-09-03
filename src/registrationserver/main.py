@@ -119,20 +119,21 @@ def startup():
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: <program> start|stop")
-        sys.exit()
-
-    start_stop = sys.argv[1]
+        start_stop = "start"
+    else:
+        start_stop = sys.argv[1]
     if start_stop == "start":
         logger.debug("Starting the MQTT subscriber loop")
         mqtt_listener = None
         startup()
         mqtt_listener = SaradMqttSubscriber()
         set_file_flag(True)
-
-    if start_stop == "stop":
+    elif start_stop == "stop":
         logger.debug("Stopping the MQTT subscriber loop")
         set_file_flag(False)
+    else:
+        print("Usage: <program> start|stop")
+        sys.exit()
 
     while is_flag_set():
         mqtt_loop(mqtt_listener)

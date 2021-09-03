@@ -1,5 +1,6 @@
 """Wrapper to start SARAD Registration Server as Windows service"""
 import socket
+import sys
 
 import servicemanager
 import win32event
@@ -9,7 +10,7 @@ import win32serviceutil
 import registrationserver.main
 
 
-class AppServerSvc(win32serviceutil.ServiceFramework):
+class SaradRegistrationServer(win32serviceutil.ServiceFramework):
     _svc_name_ = "SaradRegistrationServer"
     _svc_display_name_ = "SARAD Registration Server"
     _svc_description_ = (
@@ -25,6 +26,7 @@ class AppServerSvc(win32serviceutil.ServiceFramework):
     def SvcStop(self):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.hWaitStop)
+        registrationserver.main.set_file_flag(False)
 
     def SvcDoRun(self):
         servicemanager.LogMsg(
@@ -32,11 +34,13 @@ class AppServerSvc(win32serviceutil.ServiceFramework):
             servicemanager.PYS_SERVICE_STARTED,
             (self._svc_name_, ""),
         )
-        self.main()
-
-    def main(self):
         registrationserver.main.main()
 
 
 if __name__ == "__main__":
-    win32serviceutil.HandleCommandLine(AppServerSvc)
+    if len(sys.argv) == 1:
+        servicemanager.Initialize()
+        servicemanager.PrepareToHostSingle(SaradRegistrationServer)
+        servicemanager.StartServiceCtrlDispatcher()
+    else:
+        win32serviceutil.HandleCommandLine(SaradRegistrationServer)
