@@ -16,6 +16,8 @@ def main():
 
 
 if __name__ == "__main__":
+    # Pyinstaller fix
+    multiprocessing.freeze_support()
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     main()

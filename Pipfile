@@ -7,6 +7,7 @@ verify_ssl = true
 twine = "*"
 wheel = "*"
 pytest = "*"
+pyinstaller = "*"
 
 [packages]
 zeroconf = "*"
@@ -25,6 +26,7 @@ data-collector = {editable = true, git = "https://github.com/SARAD-GmbH/data_col
 pywin32 = "*"
 keyboard = "*"
 polling2 = "*"
+pefile = "*"
 
 [requires]
 python_version = "3"

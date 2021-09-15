@@ -23,14 +23,14 @@ if os.name == "nt":
 else:
     from registrationserver.modules.usb.unix_listener import UsbListener
 
-from registrationserver.config import actor_config, config
+from registrationserver.config import actor_config, config, home
 from registrationserver.logdef import LOGFILENAME, logcfg
 from registrationserver.logger import logger
 from registrationserver.modules.mqtt.mqtt_listener import SaradMqttSubscriber
 from registrationserver.modules.rfc2217.mdns_listener import MdnsListener
 from registrationserver.restapi import RestApi
 
-FLAGFILENAME = "startstop.file"
+FLAGFILENAME = f"{home}{os.path.sep}startstop.file"
 
 
 def set_file_flag(startorstop):
@@ -118,6 +118,7 @@ def startup():
 
 
 def main():
+    logger.debug("Entering main()")
     if len(sys.argv) < 2:
         start_stop = "start"
     else:
@@ -131,9 +132,10 @@ def main():
     elif start_stop == "stop":
         logger.debug("Stopping the MQTT subscriber loop")
         set_file_flag(False)
+        return None
     else:
         print("Usage: <program> start|stop")
-        sys.exit()
+        return None
 
     while is_flag_set():
         mqtt_loop(mqtt_listener)

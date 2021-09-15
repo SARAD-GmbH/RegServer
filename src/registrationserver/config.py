@@ -42,7 +42,7 @@ else:
 
 if os.name == "nt":
     actor_config = {
-        "systemBase": "multiprocQueueBase",
+        "systemBase": "multiprocTCPBase",
         "capabilities": {"Admin Port": 1901, "Process Startup Method": "spawn"},
     }
 else:

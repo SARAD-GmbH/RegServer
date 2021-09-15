@@ -38,6 +38,8 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
 
 
 if __name__ == "__main__":
+    # Pyinstaller fix
+    multiprocessing.freeze_support()
     if len(sys.argv) == 1:
         servicemanager.Initialize()
         servicemanager.PrepareToHostSingle(SaradRegistrationServer)

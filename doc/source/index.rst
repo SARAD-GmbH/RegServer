@@ -14,6 +14,7 @@ Welcome to registrationserver's documentation!
    actor_messages
    folder_structure
    classes
+   service_setup
 
 Indices and tables
 ==================
