@@ -2,9 +2,9 @@
 !include <c4/C4_Component.puml>
 !include <office/Users/user.puml>
 
-HIDE_STEREOTYPE()
+hide stereotype
 
-AddTagSupport("mod", $borderColor="#d73027")
+' AddTagSupport("mod", $borderColor="#d73027")
 
 !$app = "SARAD-App"
 !$rs = "Registration Server 2 (ZeroConf)"

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Wrapper to start SARAD Registration Server as Windows service"""
 import multiprocessing
 import socket
@@ -12,6 +13,8 @@ import registrationserver.main
 
 
 class SaradRegistrationServer(win32serviceutil.ServiceFramework):
+    """SaradRegistrationServer service"""
+
     _svc_name_ = "SaradRegistrationServer"
     _svc_display_name_ = "SARAD Registration Server"
     _svc_description_ = (
@@ -25,11 +28,17 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         socket.setdefaulttimeout(60)
 
     def SvcStop(self):
+        """Function that will be performed on 'service stop'.
+
+        Removes the flag file to cause the main loop to stop."""
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.hWaitStop)
         registrationserver.main.set_file_flag(False)
 
     def SvcDoRun(self):
+        """Function that will be performed on 'service start'.
+
+        Starts the main function of the Registration Server"""
         servicemanager.LogMsg(
             servicemanager.EVENTLOG_INFORMATION_TYPE,
             servicemanager.PYS_SERVICE_STARTED,

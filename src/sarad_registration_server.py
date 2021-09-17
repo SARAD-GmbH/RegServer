@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Wrapper to start and stop SARAD Registration Server"""
 import multiprocessing
 import signal
@@ -6,7 +7,10 @@ import registrationserver.main
 
 
 def signal_handler(_sig, _frame):
-    """On Ctrl+C: stop MQTT loop"""
+    """On Ctrl+C: stop MQTT loop
+
+    The signal handler removes the flag file. This will cause the main MQTT
+    loop to stop and call the cleanup function."""
     registrationserver.main.set_file_flag(False)
 
 

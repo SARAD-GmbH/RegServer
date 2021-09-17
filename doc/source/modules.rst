@@ -5,6 +5,19 @@ Modules
 Base modules
 ============
 
+sarad_registration_server.py
+----------------------------
+
+.. automodule:: sarad_registration_server
+   :members:
+   :undoc-members:
+
+regserver-service.py
+--------------------
+
+.. automodule:: regserver-service
+   :members:
+
 main
 ----
 
