@@ -53,12 +53,31 @@ def mqtt_loop(mqtt_listener):
         mqtt_listener.mqtt_loop()
 
 
-def cleanup(mqtt_listener):  # pylint: disable=unused-variable
-    """Make sure all sub threads are stopped, including the REST API"""
+def cleanup(mqtt_listener, mdns_listener):
+    """Make sure all sub threads are stopped.
+
+    * Stops the mqtt_listener if it is existing
+    * Stops the mdns_listener if it is existing
+    * Initiates the shutdown of the actor system
+    * Checks the device folder (that already should be empty at this time)
+      and removes all files from there
+
+    The REST API thread and the usb_listener_thread don't need
+    extra handling since they are daemonized and will be killed
+    together with the main program.
+
+    Args:
+        mqtt_listener: An instance of SaradMqttSubscriber
+        mdns_listener: An instance of MdnsListener
+
+    Returns:
+        None"""
     logger.info("Cleaning up before closing.")
     if mqtt_listener is not None:
         if mqtt_listener.is_connected:
             mqtt_listener.stop()
+    if mdns_listener is not None:
+        mdns_listener.shutdown()
     ActorSystem().shutdown()
     logger.info("Actor system shut down finished.")
     dev_folder = config["DEV_FOLDER"]
@@ -77,6 +96,9 @@ def startup():
     * starts the actor system by importing registrationserver
     * starts the API thread
     * starts the MdnsListener
+
+    Returns:
+        Object of type MdnsListener
     """
     try:
         with open(LOGFILENAME, "w", encoding="utf8") as _:
@@ -114,7 +136,7 @@ def startup():
     )
     usb_listener_thread.start()
 
-    _ = MdnsListener(service_type=config["TYPE"])
+    return MdnsListener(service_type=config["TYPE"])
 
 
 def main():
@@ -126,7 +148,7 @@ def main():
     if start_stop == "start":
         logger.debug("Starting the MQTT subscriber loop")
         mqtt_listener = None
-        startup()
+        mdns_listener = startup()
         mqtt_listener = SaradMqttSubscriber()
         set_file_flag(True)
     elif start_stop == "stop":
@@ -140,7 +162,7 @@ def main():
     while is_flag_set():
         mqtt_loop(mqtt_listener)
     try:
-        cleanup(mqtt_listener)
+        cleanup(mqtt_listener, mdns_listener)
     except UnboundLocalError:
         pass
     logger.debug("This is the end, my only friend, the end.")

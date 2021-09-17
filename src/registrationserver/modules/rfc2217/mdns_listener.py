@@ -100,16 +100,16 @@ class MdnsListener(ServiceListener):
         """
         self.lock = threading.Lock()
         with self.lock:
-            zeroconf = Zeroconf(
+            self.zeroconf = Zeroconf(
                 ip_version=config["ip_version"], interfaces=[self.get_ip(), "127.0.0.1"]
             )
-            _ = ServiceBrowser(zeroconf, service_type, self)
+            _ = ServiceBrowser(self.zeroconf, service_type, self)
             self.__dev_folder: str = config["DEV_FOLDER"] + os.path.sep
             if not os.path.exists(self.__dev_folder):
                 os.makedirs(self.__dev_folder)
             logger.debug("Output to: %s", self.__dev_folder)
         # Clean __dev_folder for a fresh start
-        self.remove_all_services()
+        self._remove_all_services()
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Hook, being called when a new service
@@ -160,7 +160,7 @@ class MdnsListener(ServiceListener):
             if not kill_return["ERROR_CODE"] == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
                 logger.critical("Killing the device actor failed.")
 
-    def remove_all_services(self) -> None:
+    def _remove_all_services(self) -> None:
         """Kill all device actors and remove all device files from device folder."""
         with self.lock:
             if os.path.exists(self.__dev_folder):
@@ -182,3 +182,8 @@ class MdnsListener(ServiceListener):
                                 == RETURN_MESSAGES["OK"]["ERROR_CODE"]
                             ):
                                 logger.critical("Killing the device actor failed.")
+
+    def shutdown(self) -> None:
+        """Cleanup and shutdown all threads"""
+        self._remove_all_services()
+        self.zeroconf.close()
