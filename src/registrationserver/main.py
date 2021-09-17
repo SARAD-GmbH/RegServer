@@ -37,8 +37,8 @@ def set_file_flag(startorstop):
     # In this case I am using a simple file, but the flag could be
     # anything else: an entry in a database, a specific time...
     if startorstop:
-        with open(FLAGFILENAME, "w") as f:
-            f.write("run")
+        with open(FLAGFILENAME, "w", encoding="utf8") as flag_file:
+            flag_file.write("run")
     else:
         if os.path.isfile(FLAGFILENAME):
             os.unlink(FLAGFILENAME)
@@ -79,7 +79,7 @@ def startup():
     * starts the MdnsListener
     """
     try:
-        with open(LOGFILENAME, "w") as _:
+        with open(LOGFILENAME, "w", encoding="utf8") as _:
             pass
     except Exception:  # pylint: disable=broad-except
         logger.error("Initialization of log file failed.")
@@ -114,7 +114,7 @@ def startup():
     )
     usb_listener_thread.start()
 
-    _ = MdnsListener(_type=config["TYPE"])
+    _ = MdnsListener(service_type=config["TYPE"])
 
 
 def main():

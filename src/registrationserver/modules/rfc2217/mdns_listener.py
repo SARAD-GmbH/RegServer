@@ -36,8 +36,6 @@ class MdnsListener(ServiceListener):
     * removes services when they disapear from the network
     """
 
-    __lock = threading.Lock()
-
     @staticmethod
     def convert_properties(info=None, name=""):
         """Helper function to convert mdns service information
@@ -59,7 +57,7 @@ class MdnsListener(ServiceListener):
         _ids = hids.decode(_device_id)
         if _ids is None:
             return None
-        if not (len(_ids) == 3) or not info.port:
+        if (len(_ids) != 3) or not info.port:
             return None
         _addr = ""
         try:
@@ -96,16 +94,16 @@ class MdnsListener(ServiceListener):
         logger.debug("My IP address is %s", ip_address)
         return ip_address
 
-    def __init__(self, _type):
+    def __init__(self, service_type):
         """
         Initialize a mdns Listener for a specific device group
         """
-        with self.__lock:
-            self.__type: str = type
-            self.__zeroconf = Zeroconf(
+        self.lock = threading.Lock()
+        with self.lock:
+            zeroconf = Zeroconf(
                 ip_version=config["ip_version"], interfaces=[self.get_ip(), "127.0.0.1"]
             )
-            self.__browser = ServiceBrowser(self.__zeroconf, _type, self)
+            _ = ServiceBrowser(zeroconf, service_type, self)
             self.__dev_folder: str = config["DEV_FOLDER"] + os.path.sep
             if not os.path.exists(self.__dev_folder):
                 os.makedirs(self.__dev_folder)
@@ -116,7 +114,7 @@ class MdnsListener(ServiceListener):
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Hook, being called when a new service
         representing a device is being detected"""
-        with self.__lock:
+        with self.lock:
             logger.info("[Add] Found service %s of type %s", name, type_)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             if info is not None:
@@ -149,7 +147,7 @@ class MdnsListener(ServiceListener):
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Hook, being called when a regular shutdown of a service
         representing a device is being detected"""
-        with self.__lock:
+        with self.lock:
             logger.info("[Del] Service %s of type %s", name, type_)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             dev_file = fr"{self.__dev_folder}{name}"
@@ -164,7 +162,7 @@ class MdnsListener(ServiceListener):
 
     def remove_all_services(self) -> None:
         """Kill all device actors and remove all device files from device folder."""
-        with self.__lock:
+        with self.lock:
             if os.path.exists(self.__dev_folder):
                 for root, _, files in os.walk(self.__dev_folder):
                     for name in files:

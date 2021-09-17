@@ -1,4 +1,3 @@
-
 """Listening for mDNS multicast messages announcing the existence of new
 services (SARAD devices) in the local network.
 
@@ -12,15 +11,13 @@ Authors
 .. uml:: uml-mdns_listener.puml
 
 """
-import ipaddress
-import json
-import os
 import socket
 import threading
-from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
+from zeroconf import IPVersion, ServiceBrowser, ServiceListener, Zeroconf
+
+from registrationserver import config
 from registrationserver.logger import logger
-from registrationserver2 import config, logdef
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -32,8 +29,6 @@ class MdnsListener(ServiceListener):
     * updates services with the latest info from mDNS multicast messages
     * removes services when they disapear from the network
     """
-
-    __lock = threading.Lock()
 
     @staticmethod
     def get_ip():
@@ -55,6 +50,7 @@ class MdnsListener(ServiceListener):
         Initialize a mdns Listener for a specific device group
         """
         self.__type: str = type
+        self.__lock = threading.Lock()
         self.__zeroconf = Zeroconf(
             ip_version=IPVersion.All, interfaces=[self.get_ip(), "127.0.0.1"]
         )
@@ -76,8 +72,6 @@ class MdnsListener(ServiceListener):
         """Hook, being called when a regular shutdown of a service
         representing a device is being detected"""
         logger.info("[Del] Service %s of type %s", name, type_)
-
-
 
 
 if __name__ == "__main__":
