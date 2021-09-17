@@ -1,4 +1,5 @@
 """Wrapper to start SARAD Registration Server as Windows service"""
+import multiprocessing
 import socket
 import sys
 
