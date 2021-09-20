@@ -11,7 +11,6 @@ Welcome to registrationserver's documentation!
 
    use_case
    usage
-   modules
    actor_messages
    folder_structure
    classes

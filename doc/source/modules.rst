@@ -18,29 +18,29 @@ regserver-service.py
 .. automodule:: regserver-service
    :members:
 
-main
-----
+registrationserver.main
+-----------------------
 
 .. automodule:: registrationserver.main
    :members:
    :undoc-members:
 
-restapi
--------
+registrationserver.restapi
+--------------------------
 
 .. automodule:: registrationserver.restapi
    :members:
    :undoc-members:
 
-device_actor
------------------
+registrationserver.device_actor
+-------------------------------
 
 .. automodule:: registrationserver.modules.device_actor
    :members:
    :undoc-members:
 
-redirect_actor
-----------------
+registrationserver.redirect_actor
+---------------------------------
 
 .. automodule:: registrationserver.redirect_actor
    :members:
@@ -49,15 +49,15 @@ redirect_actor
 Modules for local USB and RS-232 connection
 ===========================================
 
-win_listener
-----------------
+registrationserver.modules.usb.win_listener
+-------------------------------------------
 
 .. automodule:: registrationserver.modules.usb.win_listener
    :members:
    :undoc-members:
 
-usb_actor
--------------
+registrationserver.modules.usb.usb_actor
+----------------------------------------
 
 .. automodule:: registrationserver.modules.usb.usb_actor
    :members:
@@ -67,32 +67,32 @@ usb_actor
 RFC 2217 specific modules
 =========================
 
-mdns_listener
--------------
+registrationserver.modules.rfc2217.mdns_listener
+------------------------------------------------
 
 .. automodule :: registrationserver.modules.rfc2217.mdns_listener
    :members:
    :undoc-members:
 
-rfc2217_actor
--------------
+registrationserver.modules.rfc2217.rfc2217_actor
+------------------------------------------------
 
 .. automodule:: registrationserver.modules.rfc2217.rfc2217_actor
    :members:
    :undoc-members:
 
 MQTT specific modules
-=========================
+=====================
 
-mqtt_listener
----------------
+registrationserver.modules.mqtt.mqtt_listener
+---------------------------------------------
 
 .. automodule :: registrationserver.modules.mqtt.mqtt_listener
    :members:
    :undoc-members:
 
-mqtt_actor
--------------
+registrationserver.modules.mqtt.mqtt_actor
+------------------------------------------
 
 .. automodule:: registrationserver.modules.mqtt.mqtt_actor
    :members:
@@ -101,15 +101,15 @@ mqtt_actor
 Helper modules
 ==============
 
-config
-------
+registrationserver.config
+-------------------------
 
 .. automodule:: registrationserver.config
    :members:
    :undoc-members:
 
-test
-----
+registrationserver.test
+-----------------------
 
 .. automodule:: registrationserver.test
    :members:

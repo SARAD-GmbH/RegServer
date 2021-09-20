@@ -18,7 +18,8 @@ from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.redirect_actor import RedirectorActor
-from thespian.actors import Actor, ActorExitRequest, ChildActorExited  # type: ignore
+from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
+                             ChildActorExited)
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -206,10 +207,11 @@ class DeviceBaseActor(Actor):
         """Request the reservation of an instrument at the Instrument Server. This function has
         to be implemented (overridden) in the protocol specific modules.
 
-        :param self.app: String identifying the requesting app.
-        :param self.host: String identifying the host running the app.
-        :param self.user: String identifying the user of the app.
-        :param self.sender_api: The actor object asking for reservation.
+        Args:
+            self.app: String identifying the requesting app.
+            self.host: String identifying the host running the app.
+            self.user: String identifying the user of the app.
+            self.sender_api: The actor object asking for reservation.
         """
 
     def _forward_reservation(self, success: bool):
