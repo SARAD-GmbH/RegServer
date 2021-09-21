@@ -11,8 +11,8 @@ datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 block_cipher = None
 
 
-a = Analysis(['srs-service.py'],
-             pathex=['C:\\Users\\mstrey.SARAD\\Privat\\src-registrationserver2\\src'],
+a = Analysis(['regserver-service.py'],
+             pathex=['C:\\Users\\mstrey\\Privat\\src-registrationserver2\\src'],
              binaries=binaries,
              datas=datas,
              hiddenimports=hiddenimports,
@@ -31,7 +31,7 @@ exe = EXE(pyz,
           a.scripts, 
           [],
           exclude_binaries=True,
-          name='srs-service',
+          name='regserver-service',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,
@@ -48,4 +48,4 @@ coll = COLLECT(exe,
                strip=False,
                upx=True,
                upx_exclude=[],
-               name='srs-service')
+               name='regserver-service')
