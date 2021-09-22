@@ -1,7 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = []
+datas = [('setup-rss.bat', '.'),
+        ('remove-rss.bat', '.'),
+        ('firewall.ps1', '.')]
 binaries = []
 hiddenimports = ['thespian.system.multiprocTCPBase', 'win32timezone']
 tmp_ret = collect_all('sarad')

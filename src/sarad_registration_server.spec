@@ -1,10 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [
-        ('*.bat', '.')
-        ('*.ps1', '.')
-        ]
+datas = []
 binaries = []
 hiddenimports = ['thespian.system.multiprocTCPBase']
 tmp_ret = collect_all('sarad')
