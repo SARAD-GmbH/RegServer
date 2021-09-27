@@ -29,7 +29,7 @@ config = {
     "IC_HOSTS_FOLDER": f"{app_folder}hosts",
     "PORT_RANGE": range(50000, 50500),
     "NATIVE_SERIAL_PORTS": ["COM1"],
-    "IGNORED_SERIAL_PORTS": ["COM2", "COM3", "COM4", "COM5", "COM6"],
+    "IGNORED_SERIAL_PORTS": [],
     "LOCAL_RETRY_INTERVAL": 30,
 }
 
