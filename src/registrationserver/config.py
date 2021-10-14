@@ -30,7 +30,7 @@ config = {
     "PORT_RANGE": range(50000, 50500),
     "NATIVE_SERIAL_PORTS": ["COM1"],
     "IGNORED_SERIAL_PORTS": [],
-    "LOCAL_RETRY_INTERVAL": 30,
+    "LOCAL_RETRY_INTERVAL": 30,  # in seconds
 }
 
 if os.name == "nt":
