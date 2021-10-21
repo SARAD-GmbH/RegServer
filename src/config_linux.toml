@@ -1,0 +1,24 @@
+mdns_timeout = 3000
+debug_level = "info"
+ip_version = "all"
+port_range = [50000, 50500]
+native_serial_ports = ["/dev/ttyS0"]
+ignored_serial_ports = []
+local_retry_interval = 30  # in seconds
+api_port = 8000
+# host = "::1"  # Localhost IPv6
+# host = "192.168.10.19"  # Michael@HomeVPN
+host = "ap-strey.hq.sarad.de"  # Michael@Work
+# host = "192.168.178.20"  # Michael@Home
+
+[actor]
+system_base = "multiprocTCPBase"
+admin_port = 1901
+process_startup_method = "fork"
+
+[mqtt]
+mqtt_client_id = "SARAD_Subscriber"
+mqtt_broker = "85.214.243.156"
+# mqtt_broker = "127.0.0.1"
+port = 1883
+retry_interval = 5

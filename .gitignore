@@ -21,3 +21,7 @@
 !pylintrc
 !/*.ps1
 flycheck*
+# Config files
+!/src/*.toml
+# Distribution
+/src/dist

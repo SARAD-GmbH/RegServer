@@ -124,7 +124,7 @@ def startup():
         target=restapi.run,
         args=(
             config["HOST"],
-            8000,
+            config["API_PORT"],
         ),
         daemon=True,
     )

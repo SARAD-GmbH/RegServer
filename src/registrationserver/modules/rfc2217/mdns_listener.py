@@ -101,7 +101,7 @@ class MdnsListener(ServiceListener):
         self.lock = threading.Lock()
         with self.lock:
             self.zeroconf = Zeroconf(
-                ip_version=config["ip_version"], interfaces=[self.get_ip(), "127.0.0.1"]
+                ip_version=config["IP_VERSION"], interfaces=[self.get_ip(), "127.0.0.1"]
             )
             _ = ServiceBrowser(self.zeroconf, service_type, self)
             self.__dev_folder: str = config["DEV_FOLDER"] + os.path.sep

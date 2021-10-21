@@ -27,6 +27,7 @@ pywin32 = "*"
 keyboard = "*"
 polling2 = "*"
 pefile = "*"
+toml = "*"
 
 [requires]
 python_version = "3"
