@@ -9,6 +9,7 @@ Authors
 """
 import logging
 import os
+from typing import List
 
 import toml
 from zeroconf import IPVersion
@@ -33,7 +34,7 @@ if os.name == "nt":
     DEFAULT_NATIVE_SERIAL_PORTS = ["COM1"]
 else:
     DEFAULT_NATIVE_SERIAL_PORTS = ["/dev/ttyS0"]
-DEFAULT_IGNORED_SERIAL_PORTS: list[str] = []
+DEFAULT_IGNORED_SERIAL_PORTS: List[str] = []
 DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
 DEFAULT_API_PORT = 8000
 DEFAULT_HOST = "localhost"
