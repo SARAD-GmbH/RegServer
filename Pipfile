@@ -27,6 +27,7 @@ pywin32 = "*"
 keyboard = "*"
 polling2 = "*"
 pefile = "*"
+pyinstaller = "*"
 toml = "*"
 
 [requires]
