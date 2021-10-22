@@ -173,15 +173,27 @@ class ClusterActor(Actor):
             reply = (
                 [instrument for instrument in self._cluster if instrument == target]
                 .pop()
-                .get_message_payload(data, 3)["raw"]
+                .get_message_payload(data, 3)
             )
         logger.debug("and got reply from instrument: %s", reply)
         return_message = {
             "RETURN": "SEND",
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            "RESULT": {"DATA": reply},
+            "RESULT": {"DATA": reply["raw"]},
         }
         self.send(sender, return_message)
+        while not reply["is_last_frame"]:
+            reply = (
+                [instrument for instrument in self._cluster if instrument == target]
+                .pop()
+                .get_next_payload(3)
+            )
+            return_message = {
+                "RETURN": "SEND",
+                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                "RESULT": {"DATA": reply["raw"]},
+            }
+            self.send(sender, return_message)
 
     def _list_ports(self, _msg: dict, sender) -> None:
         logger.debug("[_list_ports]")

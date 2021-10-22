@@ -54,8 +54,14 @@ class RedirectorActor(Actor):
                 self._port = server_socket.getsockname()[1]
                 break
             except OSError as e:
-                logger.error("Cannot use port %d. %s", self._port, e)
-                server_socket.close()
+                try:
+                    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    server_socket.bind((self._host, self._port))
+                    self._port = server_socket.getsockname()[1]
+                    break
+                except OSError as e:
+                    logger.error("Cannot use port %d. %s", self._port, e)
+                    server_socket.close()
         try:
             server_socket.listen()  # listen(5) maybe???
         except OSError:

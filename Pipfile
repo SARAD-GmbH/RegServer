@@ -28,6 +28,7 @@ keyboard = "*"
 polling2 = "*"
 pefile = "*"
 pyinstaller = "*"
+toml = "*"
 
 [requires]
 python_version = "3"
