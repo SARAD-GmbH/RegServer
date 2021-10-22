@@ -19,16 +19,17 @@ home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
 app_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
     # We are running in a bundle
-    config_path = sys._MEIPASS
+    config_path = f"{os.path.dirname(sys.executable)}{os.path.sep}"
 else:
     config_path = f"{os.path.abspath(os.getcwd())}{os.path.sep}"
 windows_config_file = f"{config_path}config_windows.toml"
 linux_config_file = f"{config_path}config_linux.toml"
 try:
     if os.name == "nt":
-        customization = toml.load(windows_config_file)
+        config_file = windows_config_file
     else:
-        customization = toml.load(linux_config_file)
+        config_file = linux_config_file
+    customization = toml.load(config_file)
 except OSError:
     customization = {}
 
