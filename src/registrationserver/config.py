@@ -9,6 +9,7 @@ Authors
 """
 import logging
 import os
+import sys
 from typing import List
 
 import toml
@@ -16,12 +17,20 @@ from zeroconf import IPVersion
 
 home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
 app_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
-windows_config_file = f"{os.path.abspath(os.getcwd())}{os.path.sep}config_windows.toml"
-linux_config_file = f"{os.path.abspath(os.getcwd())}{os.path.sep}config_linux.toml"
-if os.name == "nt":
-    customization = toml.load(windows_config_file)
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    # We are running in a bundle
+    config_path = sys._MEIPASS
 else:
-    customization = toml.load(linux_config_file)
+    config_path = f"{os.path.abspath(os.getcwd())}{os.path.sep}"
+windows_config_file = f"{config_path}config_windows.toml"
+linux_config_file = f"{config_path}config_linux.toml"
+try:
+    if os.name == "nt":
+        customization = toml.load(windows_config_file)
+    else:
+        customization = toml.load(linux_config_file)
+except OSError:
+    customization = {}
 
 DEFAULT_MDNS_TIMEOUT = 3000
 DEFAULT_TYPE = "_rfc2217._tcp.local."
