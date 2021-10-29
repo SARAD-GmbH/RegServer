@@ -169,3 +169,30 @@ else:
             "retry_interval", DEFAULT_RETRY_INTERVAL
         ),
     }
+
+DEFAULT_ISMQTT_IS_ID = "0001"
+DEFAULT_ISMQTT_DESCRIPTION = "SARAD Instrument Server 1"
+DEFAULT_ISMQTT_PLACE = "Dresden"
+DEFAULT_ISMQTT_LATITUDE = 0
+DEFAULT_ISMQTT_LONGITUDE = 0
+DEFAULT_ISMQTT_HEIGHT = 0
+if customization.get("ismqtt") is None:
+    ismqtt_config = {
+        "IS_ID": DEFAULT_ISMQTT_IS_ID,
+        "DESCRIPTION": DEFAULT_ISMQTT_DESCRIPTION,
+        "PLACE": DEFAULT_ISMQTT_PLACE,
+        "LATITUDE": DEFAULT_ISMQTT_LATITUDE,
+        "LONGITUDE": DEFAULT_ISMQTT_LONGITUDE,
+        "HEIGHT": DEFAULT_ISMQTT_HEIGHT,
+    }
+else:
+    ismqtt_config = {
+        "IS_ID": customization["ismqtt"].get("is_id", DEFAULT_ISMQTT_IS_ID),
+        "DESCRIPTION": customization["ismqtt"].get(
+            "description", DEFAULT_ISMQTT_DESCRIPTION
+        ),
+        "PLACE": customization["ismqtt"].get("place", DEFAULT_ISMQTT_PLACE),
+        "LATITUDE": customization["ismqtt"].get("latitude", DEFAULT_ISMQTT_LATITUDE),
+        "LONGITUDE": customization["ismqtt"].get("longitude", DEFAULT_ISMQTT_LONGITUDE),
+        "HEIGHT": customization["ismqtt"].get("height", DEFAULT_ISMQTT_HEIGHT),
+    }

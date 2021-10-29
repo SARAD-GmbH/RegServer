@@ -39,8 +39,6 @@ class MqttSchedulerActor(Actor):
         """
         *"""
         super().__init__()
-        self.ACCEPTED_COMMANDS["PREPARE"] = "_prepare"
-        self.subscriber = None
         self.is_id = None
         self.instr_id = None
         self.allowed_sys_topics = {

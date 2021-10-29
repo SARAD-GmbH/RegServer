@@ -22,3 +22,11 @@ mqtt_broker = "85.214.243.156"
 # mqtt_broker = "127.0.0.1"
 port = 1883
 retry_interval = 5
+
+[ismqtt]
+is_id = "Instrument Server A"
+description = "A longer text describing this Instrument Server"
+place = "A text describing where the Instrument Controller running this Instrument Server is placed"
+latitude = 51.0764194  # positive values for North, negative for South
+longitude = 13.7383917  # positive values for East, negative for West
+height = 102  # in meters
