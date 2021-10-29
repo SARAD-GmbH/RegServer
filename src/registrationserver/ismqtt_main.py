@@ -13,6 +13,7 @@ import threading
 
 from thespian.actors import ActorSystem  # type: ignore
 
+from registrationserver.modules.mqtt_scheduler import MqttSchedulerActor
 from registrationserver.modules.usb.cluster_actor import ClusterActor
 
 if os.name == "nt":
@@ -28,8 +29,11 @@ FLAGFILENAME = f"{home}{os.path.sep}startstop.file"
 
 
 def set_file_flag(startorstop):
-    # In this case I am using a simple file, but the flag could be
-    # anything else: an entry in a database, a specific time...
+    """Function to create a file that is used as flag in order to detect that the
+    Instrument Server should be stopped.
+
+    In this case I am using a simple file, but the flag could be
+    anything else: an entry in a database, a specific time..."""
     if startorstop:
         with open(FLAGFILENAME, "w", encoding="utf8") as flag_file:
             flag_file.write("run")
@@ -39,6 +43,8 @@ def set_file_flag(startorstop):
 
 
 def is_flag_set():
+    """Function to detect whether the flag indicating that the Instrument Server is
+    going to be stopped was set."""
     return os.path.isfile(FLAGFILENAME)
 
 
@@ -69,9 +75,11 @@ def cleanup():
 
 
 def startup():
-    """Starting the RegistrationServer
+    """Starting the Instrument Server MQTT
 
     * starts the actor system by importing registrationserver
+    * creats the singleton Cluster Actor
+    * creats the singleton MQTT Scheduler Actor
     * starts the usb_listener
 
     Returns:
@@ -94,7 +102,7 @@ def startup():
         logDefs=logcfg,
     )
     system.createActor(ClusterActor, globalName="cluster")
-    # TODO: system.createActor(MqttSchedulerActor, globalName="mqtt_scheduler")
+    system.createActor(MqttSchedulerActor, globalName="mqtt_scheduler")
     logger.debug("Actor system started.")
     usb_listener = UsbListener()
     usb_listener_thread = threading.Thread(
@@ -102,10 +110,10 @@ def startup():
         daemon=True,
     )
     usb_listener_thread.start()
-    return None
 
 
 def main():
+    """This is the main function of the Instrument Server MQTT"""
     logger.debug("Entering main()")
     if len(sys.argv) < 2:
         start_stop = "start"
