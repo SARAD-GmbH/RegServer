@@ -8,15 +8,14 @@ Author
 
 .. uml :: uml-mqtt_scheduler.puml
 """
-import datetime
-import json
 import time
+from typing import Dict
 
 import paho.mqtt.client as MQTT  # type: ignore
-import registrationserver.modules.ismqtt_messages as ismqtt_messages
 from overrides import overrides  # type: ignore
-from registrationserver.config import config, ismqtt_config, mqtt_config
+from registrationserver.config import ismqtt_config, mqtt_config
 from registrationserver.logger import logger
+from registrationserver.modules import ismqtt_messages
 from registrationserver.modules.messages import RETURN_MESSAGES
 from thespian.actors import Actor, ActorExitRequest
 
@@ -29,52 +28,20 @@ class MqttSchedulerActor(Actor):
     ACCEPTED_COMMANDS = {
         "ADD": "_add",
         "REMOVE": "_remove",
-        "SEND": "_send",
     }
     ACCEPTED_RETURNS = {
-        "SEND": "_send_to_app",
-    }
-    ALLOWED_SYS_OPTIONS = {
-        "CTRL": "/control",
-        "RESERVE": "/reservation",
-        "CMD": "/cmd",
-        "MSG": "/msg",
-        "META": "/meta",
+        "SEND": "_send_to_rs",
     }
     MAX_RESERVE_TIME = 300
 
     @overrides
     def __init__(self):
         """
-        *"""
+        * Initialize variables
+        * Connect to MQTT broker
+        * Start MQTT loop
+        """
         super().__init__()
-        self.allowed_sys_topics = {
-            "CTRL": "",
-            "RESERVE": "",
-            "CMD": "",
-            "MSG": "",
-            "META": "",
-        }
-        self.state = {
-            "RESERVE": {
-                "Pending": False,
-                # if there be a reply to wait for, then it should be true
-                "Active": None,
-                # store the reservation status
-            },
-            "SEND": {
-                "Pending": False,
-                # if there be a reply to wait for, then it should be true
-                "CMD_ID": None,
-                # store the CMD ID
-                "Reply": None,
-                "Sender": None,
-                # store the address of the sender
-            },
-        }
-        self.test_cnt = 0
-        logger.debug("test_cnt = %s", self.test_cnt)
-        self.cmd_id = 0
         self.ungr_disconn = 2
         self.is_connected = False
         self.mid = {
@@ -169,200 +136,56 @@ class MqttSchedulerActor(Actor):
             logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
             return
 
-    def _send(self, message: dict, sender) -> None:
-        if message is None:
-            logger.error("[SEND] no contents to send for actor %s", self.globalName)
-            return
-        data = message.get("PAR", None).get("DATA", None)
-        if (data is None) or (not isinstance(data, bytes)):
-            logger.error(
-                "[SEND] no data to send for actor %s or the data are not bytes",
-                self.globalName,
-            )
-            return
-        logger.debug("To send: %s", data)
-        logger.debug("CMD ID is: %s", self.cmd_id)
-        qos = message.get("PAR", None).get("qos", None)
-        if qos is None:
-            qos = 0
-        self.state["SEND"]["Pending"] = True
-        self.test_cnt = self.test_cnt + 1
-        logger.debug("test_cnt = %s", self.test_cnt)
-        self.state["SEND"]["CMD_ID"] = bytes([self.cmd_id])
-        logger.debug("CMD ID is: %s", self.state["SEND"]["CMD_ID"])
-        self.state["SEND"]["Sender"] = sender
-        _msg = {
-            "topic": self.allowed_sys_topics["CMD"],
-            "payload": bytes([self.cmd_id]) + data,
-            "qos": qos,
-        }
-        _re = self._publish(_msg)
-        if self.cmd_id == 255:
-            self.cmd_id = 0
-        else:
-            self.cmd_id = self.cmd_id + 1
-        if not _re:
-            logger.error(
-                "Failed to publish message with ID %s in topic %s",
-                self.cmd_id,
-                self.allowed_sys_topics["CMD"],
-            )
-            self.state["SEND"]["Pending"] = False
-            self.test_cnt = self.test_cnt + 1
-            logger.debug("test_cnt = %s", self.test_cnt)
-            self.state["SEND"]["CMD_ID"] = None
-            return
-        logger.debug("[SEND] send status is %s", self.state["SEND"]["Pending"])
+    def _add(self, msg, sender):
+        """Handler for actor messages with command 'ADD'
 
-    @overrides
-    def _free(self, message, sender) -> None:
-        logger.debug("Free-Request")
-        if message is None:
-            logger.critical("Actor message is None. This schould never happen.")
-            return
-        _msg = {
-            "topic": self.allowed_sys_topics["CTRL"],
-            "payload": json.dumps({"Req": "free"}),
-            "qos": 0,
-        }
-        _re = self._publish(_msg)
-        if not _re:
-            self.send(
-                sender,
-                {
-                    "RETURN": "FREE",
-                    "ERROR_CODE": RETURN_MESSAGES["PUBLISH"]["ERROR_CODE"],
-                },
-            )
-            return
-        logger.info(
-            "[Free] Unsubscribe MQTT actor %s from 'reserve' and 'message' topics",
-            self.globalName,
-        )
-        topics = [self.allowed_sys_topics["RESERVE"], self.allowed_sys_topics["MSG"]]
-        if not self._unsubscribe(topics):
-            self.send(
-                sender,
-                {
-                    "RETURN": "FREE",
-                    "ERROR_CODE": RETURN_MESSAGES["UNSUBSCRIBE"]["ERROR_CODE"],
-                },
-            )
-            return
+        Adds a new instrument to the list of available instruments."""
+        pass
 
-    def _kill(self, _message: dict, _sender):
+    def _remove(self, msg, sender):
+        """Handler for actor messages with command 'REMOVE'
+
+        Removes an instrument from the list of available instruments."""
+        pass
+
+    def _reserve(self, instr_id, reserve_request: Dict[str]):
+        """Handler that will be called from the on_message event handler, when a MQTT
+        control message with a 'reserve' request was received for a specific instrument
+        ID."""
+        pass
+
+    def _free(self, instr_id):
+        """Handler that will be called from the on_message event handler, when a MQTT
+        control message with a 'free' request was received for a specific instrument
+        ID."""
+        pass
+
+    def _kill(self, _msg: dict, _sender):
         self._unsubscribe(["+"])
         self._disconnect()
         time.sleep(1)
 
-    def _parse(self, message: dict) -> None:
-        topic = message["topic"]
-        payload = message["payload"]
-        if topic == self.allowed_sys_topics["RESERVE"]:
-            if self.state["RESERVE"]["Pending"]:
-                instr_status = json.loads(payload).get("Active", None)
-                app = json.loads(payload).get("App", None)
-                host = json.loads(payload).get("Host", None)
-                user = json.loads(payload).get("User", None)
-                timestamp = json.loads(payload).get("Timestamp", None)
-                if (
-                    (instr_status)
-                    and (app == self.app)
-                    and (host == self.host)
-                    and (user == self.user)
-                ):
-                    logger.debug(
-                        "MQTT actor %s receives permission for reservation on instrument %s",
-                        self.globalName,
-                        self.instr_id,
-                    )
-                    if timestamp is None:
-                        timestamp = (
-                            datetime.datetime.utcnow().isoformat(timespec="seconds")
-                            + "Z"
-                        )
-                    self.state["RESERVE"]["Active"] = True
-                else:
-                    logger.debug(
-                        "MQTT actor %s receives decline of reservation on instrument %s",
-                        self.globalName,
-                        self.instr_id,
-                    )
-                    self.state["RESERVE"]["Active"] = False
-                is_reserved = self.state["RESERVE"]["Active"]
-                logger.debug("Instrument reserved %s", is_reserved)
-                self._forward_reservation(is_reserved)
-                self.state["RESERVE"]["Pending"] = False
-                return
-            logger.warning(
-                "MQTT actor %s receives a reply to a non-requested reservation on instrument %s",
-                self.globalName,
-                self.instr_id,
-            )
-            return
-        if topic == self.allowed_sys_topics["MSG"]:
-            logger.debug("[PARSE] send status is: %s", self.state["SEND"]["Pending"])
-            if not isinstance(payload, bytes):
-                logger.error(
-                    "Received a reply that should be bytes while not; the message is %s",
-                    payload,
-                )
-                return
-            if len(payload) == 0:
-                logger.error("Received an empty reply")
-                return
-            if self.state["SEND"]["Pending"]:
-                re_cmd_id = payload[0]
-                st_cmd_id = int.from_bytes(self.state["SEND"]["CMD_ID"], "big")
-                logger.debug("Received CMD ID is %s", re_cmd_id)
-                logger.debug("Stored CMD ID is %s", self.state["SEND"]["CMD_ID"])
-                if re_cmd_id == st_cmd_id:
-                    self.state["SEND"]["Pending"] = False
-                    self.test_cnt = self.test_cnt + 1
-                    logger.debug("test_cnt = %s", self.test_cnt)
-                    logger.debug(
-                        "MQTT actor %s receives a binary reply %s from instrument %s",
-                        self.globalName,
-                        payload[1:],
-                        self.instr_id,
-                    )
-                    self.state["SEND"]["Reply"] = payload[1:]
-                    # self.state["SEND"]["Reply_Status"] = True
-                    _re = {
-                        "RETURN": "SEND",
-                        "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                        "RESULT": {"DATA": self.state["SEND"]["Reply"]},
-                    }
-                    self.send(
-                        self.my_redirector,
-                        _re,
-                    )
-                    return
-                logger.warning(
-                    (
-                        "MQTT actor %s receives a binary reply %s with an unexpected "
-                        "CMD ID %s from instrument %s"
-                    ),
-                    self.globalName,
-                    payload,
-                    re_cmd_id,
-                    self.instr_id,
-                )
-                return
-            logger.warning(
-                "MQTT actor %s receives an unknown binary reply %s from instrument %s",
-                self.globalName,
-                payload,
-                self.instr_id,
-            )
-            return
-        logger.warning(
-            "MQTT actor %s receives an unknown message %s from instrument %s",
-            self.globalName,
-            payload,
-            self.instr_id,
-        )
-        return
+    def _unsubscribe(self, topics: list) -> bool:
+        logger.info("Unsubscribe topic %s", topics)
+        if not self.is_connected:
+            logger.error("[Unsubscribe] failed, not connected to broker")
+            return False
+        return_code, self.mid["UNSUBSCRIBE"] = self.mqttc.unsubscribe(topics)
+        if return_code != MQTT.MQTT_ERR_SUCCESS:
+            logger.warning("[Unsubscribe] failed; result code is: %s", return_code)
+            return False
+        logger.info("[Unsubscribe] from %s successful", topics)
+        return True
+
+    def _disconnect(self):
+        if self.ungr_disconn == 2:
+            logger.debug("Disconnect from MQTT broker!")
+            self.mqttc.disconnect()
+        elif self.ungr_disconn in [0, 1]:
+            self.ungr_disconn = 2
+            logger.debug("Already disconnected")
+        self.mqttc.loop_stop()
+        logger.debug("Disconnected gracefully")
 
     def on_connect(self, _client, _userdata, _flags, result_code):
         """Will be carried out when the client connected to the MQTT broker."""
@@ -373,8 +196,6 @@ class MqttSchedulerActor(Actor):
                 self.is_id,
                 result_code,
             )
-            for k in self.allowed_sys_topics:
-                self.allowed_sys_topics[k] = self.is_id + self.ALLOWED_SYS_OPTIONS[k]
             self.mqttc.publish(
                 retain=True,
                 topic=f"{self.is_id}/meta",
@@ -428,20 +249,18 @@ class MqttSchedulerActor(Actor):
                 instrument_id = message.topic[: -len("cmd") - 1][len(self.is_id) + 1 :]
                 for instrument in mycluster:
                     if instrument.device_id == instrument_id:
-                        if locks.get(instrument.device_id, None):
-                            with locks[instrument.device_id]:
-                                if reservations.get(instrument.device_id, None):
-                                    old = reservations[instrument.device_id]
-                                    reservations[
-                                        instrument.device_id
-                                    ] = ismqtt_messages.Reservation(
-                                        active=old.active,
-                                        app=old.app,
-                                        host=old.host,
-                                        timestamp=time.time(),
-                                        user=old.user,
-                                    )
-                                    self.process_cmd(message, instrument)
+                        if reservations.get(instrument.device_id, None):
+                            old = reservations[instrument.device_id]
+                            reservations[
+                                instrument.device_id
+                            ] = ismqtt_messages.Reservation(
+                                active=old.active,
+                                app=old.app,
+                                host=old.host,
+                                timestamp=time.time(),
+                                user=old.user,
+                            )
+                            self.process_cmd(message, instrument)
                 # TODO: If code gets here, then the instrument got disconnected
                 return
             if (
@@ -474,7 +293,13 @@ class MqttSchedulerActor(Actor):
         logger.debug("Trying to get reply from instrument.")
         # TODO: Actorgerecht aufteilen!
         reply = cmd[:1] + instrument.get_message_payload(cmd[1:], 3)
+
+    def _send_to_rs(self, msg, sender):
+        """Handler for actor messages returning from 'SEND" command
+
+        Forward the payload received from device_actor via MQTT."""
         # TODO: Actorgerecht aufteilen!
+        reply = cmd[:1] + instrument.get_message_payload(cmd[1:], 3)
         self.mqttc.publish(f"{self.is_id}/{device_id}/msg", reply)
 
     def process_control(self, msg, instrument):
@@ -489,8 +314,7 @@ class MqttSchedulerActor(Actor):
             self.process_reserve(instrument, controll)
         if controll.ctype == ismqtt_messages.ControlType.FREE:
             try:
-                with locks[instrument.device_id]:
-                    self.process_free(instrument, controll)
+                self.process_free(instrument, controll)
             except Exception:  # pylint: disable=broad-except
                 logger.exception("Failde tor handle FREE comand")
 
@@ -607,61 +431,3 @@ class MqttSchedulerActor(Actor):
                 )
             ),
         )  # def publish(self, topic, payload=None, qos=0, retain=False, properties=None)
-
-    def _disconnect(self):
-        if self.ungr_disconn == 2:
-            logger.debug("To disconnect from the MQTT-broker!")
-            self.mqttc.disconnect()
-        elif self.ungr_disconn == 1 or self.ungr_disconn == 0:
-            self.ungr_disconn = 2
-            logger.debug("Already disconnected")
-        logger.debug("To stop the MQTT thread!")
-        self.mqttc.loop_stop()
-        logger.debug("Disconnected gracefully")
-
-    def _publish(self, message: dict) -> bool:
-        logger.debug("Work state: publish")
-        if not self.is_connected:
-            logger.warning("Failed to publish the message because of disconnection")
-            return False
-        mqtt_topic = message["topic"]
-        mqtt_payload = message["payload"]
-        mqtt_qos = message["qos"]
-        retain = message.get("retain", None)
-        if retain is None:
-            retain = False
-        logger.debug("To publish")
-        return_code, self.mid["PUBLISH"] = self.mqttc.publish(
-            mqtt_topic,
-            payload=mqtt_payload,
-            qos=mqtt_qos,
-            retain=retain,
-        )
-        if return_code != MQTT.MQTT_ERR_SUCCESS:
-            logger.warning("Publish failed; result code is: %s", return_code)
-            return False
-        return True
-
-    def _subscribe(self, sub_info: list) -> bool:
-        logger.debug("Work state: subscribe")
-        if not self.is_connected:
-            logger.error("[Subscribe] failed, not connected to broker")
-            return False
-        return_code, self.mid["SUBSCRIBE"] = self.mqttc.subscribe(sub_info)
-        if return_code != MQTT.MQTT_ERR_SUCCESS:
-            logger.error("Subscribe failed; result code is: %s", return_code)
-            return False
-        logger.info("[Subscribe] to %s successful", sub_info)
-        return True
-
-    def _unsubscribe(self, topics: list) -> bool:
-        logger.info("Unsubscribe topic %s", topics)
-        if not self.is_connected:
-            logger.error("[Unsubscribe] failed, not connected to broker")
-            return False
-        return_code, self.mid["UNSUBSCRIBE"] = self.mqttc.unsubscribe(topics)
-        if return_code != MQTT.MQTT_ERR_SUCCESS:
-            logger.warning("[Unsubscribe] failed; result code is: %s", return_code)
-            return False
-        logger.info("[Unsubscribe] from %s successful", topics)
-        return True

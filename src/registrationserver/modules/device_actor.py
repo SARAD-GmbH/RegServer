@@ -177,6 +177,10 @@ class DeviceBaseActor(Actor):
         if self.my_redirector is not None:
             logger.debug("Send KILL to redirector %s", self.my_redirector)
             self.send(self.my_redirector, ActorExitRequest())
+        if config["APP_TYPE"] == AppType.ISMQTT:
+            remove_message = {"CMD": "REMOVE", "PAR": {"ID": self.globalName}}
+            mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
+            self.send(mqtt_scheduler, remove_message)
         return_message = {
             "RETURN": "KILL",
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
