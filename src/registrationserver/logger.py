@@ -12,7 +12,7 @@ import logging.config
 from registrationserver.logdef import logcfg
 
 try:
-    logger
+    logger: logging.Logger
 except NameError:
     logging.config.dictConfig(logcfg)
     logger = logging.getLogger("Reg. Server")
