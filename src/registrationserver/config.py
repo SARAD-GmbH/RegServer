@@ -170,8 +170,12 @@ else:
         ),
     }
 
-DEFAULT_ISMQTT_IS_ID = "0001"
-DEFAULT_ISMQTT_DESCRIPTION = "SARAD Instrument Server 1"
+
+try:
+    DEFAULT_ISMQTT_IS_ID = socket.gethostname()
+except Exception:  # pylint: disable=broad-except
+    DEFAULT_ISMQTT_IS_ID = "IS_MQTT" + hex(uuid.getnode())
+DEFAULT_ISMQTT_DESCRIPTION = "SARAD Instrument Server"
 DEFAULT_ISMQTT_PLACE = "Dresden"
 DEFAULT_ISMQTT_LATITUDE = 0
 DEFAULT_ISMQTT_LONGITUDE = 0
