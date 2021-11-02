@@ -14,7 +14,7 @@ from datetime import datetime
 
 from flask import json
 from overrides import overrides  # type: ignore
-from registrationserver.config import config
+from registrationserver.config import AppType, config
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.redirect_actor import RedirectorActor
@@ -143,10 +143,10 @@ class DeviceBaseActor(Actor):
         if self.dev_file is None:
             self.dev_file = fr"{self.__dev_folder}{self.globalName}"
             if not os.path.exists(self.dev_file):
-                open(self.dev_file, "a").close()
+                open(self.dev_file, "a", encoding="utf8").close()
                 logger.info("Device file %s created", self.dev_file)
             self._file = msg["PAR"]
-            with open(self.dev_file, "w+") as file_stream:
+            with open(self.dev_file, "w+", encoding="utf8") as file_stream:
                 file_stream.write(self._file)
             return_message = {
                 "RETURN": "SETUP",
@@ -154,8 +154,12 @@ class DeviceBaseActor(Actor):
                 "SELF": self.globalName,
             }
             self.send(sender, return_message)
+            if config["APP_TYPE"] == AppType.ISMQTT:
+                add_message = {"CMD": "ADD", "PAR": msg["PAR"]}
+                mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
+                self.send(mqtt_scheduler, add_message)
             return
-        with open(self.dev_file, "w+") as file_stream:
+        with open(self.dev_file, "w+", encoding="utf8") as file_stream:
             file_stream.write(self._file)
         return_message = {
             "RETURN": "SETUP",
@@ -199,7 +203,8 @@ class DeviceBaseActor(Actor):
         except LookupError:
             logger.error("ERROR: there is no USER name!")
             return
-        self._reserve_at_is()
+        if config["APP_TYPE"] == AppType.RS:
+            self._reserve_at_is()
         return
 
     def _reserve_at_is(self):
@@ -281,7 +286,7 @@ class DeviceBaseActor(Actor):
         self.df_content["Reservation"] = reservation
         self._file = json.dumps(self.df_content)
         logger.debug("self._file: %s", self._file)
-        with open(self.dev_file, "w+") as file_stream:
+        with open(self.dev_file, "w+", encoding="utf8") as file_stream:
             file_stream.write(self._file)
         logger.debug("Send CONNECT command to redirector %s", self.my_redirector)
         self.send(self.my_redirector, {"CMD": "CONNECT"})
@@ -331,7 +336,7 @@ class DeviceBaseActor(Actor):
             self.df_content["Reservation"] = reservation
             self._file = json.dumps(self.df_content)
             logger.info("self._file: %s", self._file)
-            with open(self.dev_file, "w+") as file_stream:
+            with open(self.dev_file, "w+", encoding="utf8") as file_stream:
                 file_stream.write(self._file)
             self.my_redirector = None
             return_message = {
