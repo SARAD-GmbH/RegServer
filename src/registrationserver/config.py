@@ -10,10 +10,30 @@ Authors
 import logging
 import os
 import sys
+from enum import Enum
 from typing import List
 
 import toml
 from zeroconf import IPVersion
+
+
+class AppType(Enum):
+    """Flag identifying the type of application that is currently running.
+
+    The program can be started either as Instrument Server (ISMQTT or IS2) or
+    as Registration Server (RS).
+    There are three main files:
+    * main.py for the Registration Server
+    * ismqtt_main.py for Instrument Server MQTT
+    * is2_main.py for Instrument Server 2,
+
+    where `config["APP_TYPE]` will be set with the appropriate AppType.
+    """
+
+    ISMQTT = 1
+    IS2 = 2
+    RS = 3
+
 
 home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
 app_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
@@ -33,6 +53,7 @@ try:
 except OSError:
     customization = {}
 
+DEFAULT_APP_TYPE = AppType.RS
 DEFAULT_MDNS_TIMEOUT = 3000
 DEFAULT_TYPE = "_rfc2217._tcp.local."
 DEFAULT_LEVEL = logging.INFO
@@ -76,6 +97,7 @@ except Exception:  # pylint: disable=broad-except
     PORT_RANGE = DEFAULT_PORT_RANGE
 
 config = {
+    "APP_TYPE": DEFAULT_APP_TYPE,
     "MDNS_TIMEOUT": customization.get("mdns_timeout", DEFAULT_MDNS_TIMEOUT),
     "TYPE": customization.get("type", DEFAULT_TYPE),
     "LEVEL": DEBUG_LEVEL,

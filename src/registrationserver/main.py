@@ -23,7 +23,7 @@ if os.name == "nt":
 else:
     from registrationserver.modules.usb.unix_listener import UsbListener
 
-from registrationserver.config import actor_config, config, home
+from registrationserver.config import AppType, actor_config, config, home
 from registrationserver.logdef import LOGFILENAME, logcfg
 from registrationserver.logger import logger
 from registrationserver.modules.mqtt.mqtt_listener import SaradMqttSubscriber
@@ -106,7 +106,7 @@ def startup():
     except Exception:  # pylint: disable=broad-except
         logger.error("Initialization of log file failed.")
     logger.info("Logging system initialized.")
-
+    config["APP_TYPE"] = AppType.RS
     # =======================
     # Initialization of the actor system,
     # can be changed to a distributed system here.
