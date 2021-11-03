@@ -8,11 +8,14 @@ Author:
 """
 import contextlib
 import json
+import os
 import time
 from decimal import Decimal
 from enum import Enum
 from typing import NamedTuple, Optional
 
+from registrationserver.config import config
+from registrationserver.logger import logger
 from sarad.sari import SaradInst
 
 
@@ -141,13 +144,13 @@ def get_instr_control(json_data) -> Control:
     nodata = Reservation(0, False, "", "", "")
     try:
         data = json.loads(json_data.payload)
-        print(data)
+        logger.debug("Payload: %s", data)
         if not "Req" in data:
-            print("Fehler")
+            logger.error("No 'Req' in payload.")
             return Control(ctype=ControlType.UNKNOWN, data=nodata)
         # FREE
         if data["Req"] == "free":
-            print("Free")
+            logger.debug("Free request")
             return Control(
                 ctype=ControlType.FREE,
                 data=Reservation(
@@ -165,7 +168,7 @@ def get_instr_control(json_data) -> Control:
             and "Host" in data
             and "User" in data
         ):
-            print("Reserve")
+            logger.debug("Reserve request")
             return Control(
                 ctype=ControlType.RESERVE,
                 data=Reservation(
@@ -177,50 +180,82 @@ def get_instr_control(json_data) -> Control:
                 ),
             )
     except Exception:  # pylint: disable=broad-except
-        print("Kenn ich nicht.")
+        logger.error("Unknown control message received.")
     return Control(ControlType.UNKNOWN, nodata)
 
 
-def add_instr(*, client, is_id: str, instrument: SaradInst):
+def get_state_from_file(device_id: str) -> dict:
+    """Read the device state from the device file.
+
+    Args:
+        device_id: The device id is used as well as file name as
+                   as global name for the device actor
+
+    Returns:
+        A dictionary containing additional information
+        for the *Identification* of the instrument and it's *Reservation* state
+
+    """
+    filename = f"{config['DEV_FOLDER']}{os.path.sep}{device_id}"
+    try:
+        if os.path.isfile(filename):
+            with open(filename, encoding="utf8") as reader:
+                answer = {
+                    "Identification": json.load(reader).get("Identification"),
+                }
+            with open(filename, encoding="utf8") as reader:
+                reservation = json.load(reader).get("Reservation")
+            if reservation is not None:
+                answer["Reservation"] = reservation
+            return answer
+    except Exception:  # pylint: disable=broad-except
+        logger.exception("Fatal error")
+        return {}
+    return {}
+
+
+def add_instr(*, client, is_id: str, instr_id: str):
     """Helper function to deal with adding/marking an instrument active"""
     # def subscribe(self, topic, qos=0, options=None, properties=None):
-    client.subscribe(topic=f"{is_id}/{instrument.device_id}/control")
-    client.subscribe(topic=f"{is_id}/{instrument.device_id}/cmd")
+    client.subscribe(topic=f"{is_id}/{instr_id}/control")
+    client.subscribe(topic=f"{is_id}/{instr_id}/cmd")
+    identification = get_state_from_file(instr_id)["Identification"]
     mypayload = InstrumentMeta(
         state=2,
         host=is_id,
-        family=instrument.family["family_id"],
-        instrumentType=instrument.type_id,
-        name=instrument.type_name,
-        serial=instrument.serial_number,
+        family=identification.get("Family"),
+        instrumentType=identification.get("Type"),
+        name=identification.get("Name"),
+        serial=identification.get("Serial number"),
     )
-    print(mypayload)
+    logger.debug("Payload: %s", mypayload)
     # def publish(self, topic, payload=None, qos=0, retain=False, properties=None):
     client.publish(
         retain=True,
-        topic=f"{is_id}/{instrument.device_id}/meta",
+        topic=f"{is_id}/{instr_id}/meta",
         payload=get_instr_meta(data=mypayload),
     )
 
 
-def del_instr(*, client, is_id: str, instrument: SaradInst):
+def del_instr(*, client, is_id: str, instr_id: str):
     """Helper function to deal with marking an instrument as removed"""
     # def unsubscribe(self, topic, properties=None):
-    client.unsubscribe(topic=f"{is_id}/{instrument.device_id}/control")
-    client.unsubscribe(topic=f"{is_id}/{instrument.device_id}/cmd")
+    client.unsubscribe(topic=f"{is_id}/{instr_id}/control")
+    client.unsubscribe(topic=f"{is_id}/{instr_id}/cmd")
+    identification = get_state_from_file(instr_id)["Identification"]
     mypayload = get_instr_meta(
         data=InstrumentMeta(
             state=0,
             host=is_id,
-            family=instrument.family["family_id"],
-            instrumentType=instrument.type_id,
-            name=instrument.type_name,
-            serial=instrument.serial_number,
+            family=identification.get("Family"),
+            instrumentType=identification.get("Type"),
+            name=identification.get("Name"),
+            serial=identification.get("Serial number"),
         )
     )
     # def publish(self, topic, payload=None, qos=0, retain=False, properties=None):
     client.publish(
         retain=True,
-        topic=f"{is_id}/{instrument.device_id}/meta",
+        topic=f"{is_id}/{instr_id}/meta",
         payload=mypayload,
     )

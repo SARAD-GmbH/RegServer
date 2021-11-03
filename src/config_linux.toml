@@ -1,5 +1,5 @@
 mdns_timeout = 3000
-debug_level = "info"
+debug_level = "debug"
 ip_version = "all"
 port_range = [50000, 50500]
 native_serial_ports = ["/dev/ttyS0"]

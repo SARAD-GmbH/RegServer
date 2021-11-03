@@ -42,6 +42,8 @@ class MqttSchedulerActor(Actor):
         * Start MQTT loop
         """
         super().__init__()
+        self.cluster = {}
+        self.reservations = {}
         self.ungr_disconn = 2
         self.is_connected = False
         self.mid = {
@@ -140,25 +142,29 @@ class MqttSchedulerActor(Actor):
         """Handler for actor messages with command 'ADD'
 
         Adds a new instrument to the list of available instruments."""
-        pass
+        instr_id = msg["PAR"]["INSTR_ID"]
+        self.cluster[instr_id] = sender
+        logger.debug(
+            "[ADD] %s added to cluster. Complete list is now %s", instr_id, self.cluster
+        )
+        ismqtt_messages.add_instr(
+            client=self.mqttc, is_id=self.is_id, instr_id=instr_id
+        )
 
-    def _remove(self, msg, sender):
+    def _remove(self, msg, _sender):
         """Handler for actor messages with command 'REMOVE'
 
         Removes an instrument from the list of available instruments."""
-        pass
-
-    def _reserve(self, instr_id, reserve_request: Dict[str]):
-        """Handler that will be called from the on_message event handler, when a MQTT
-        control message with a 'reserve' request was received for a specific instrument
-        ID."""
-        pass
-
-    def _free(self, instr_id):
-        """Handler that will be called from the on_message event handler, when a MQTT
-        control message with a 'free' request was received for a specific instrument
-        ID."""
-        pass
+        instr_id = msg["PAR"]["INSTR_ID"]
+        self.cluster.pop(instr_id, None)
+        logger.debug(
+            "[REMOVE] %s removed from cluster. Complete list is now %s",
+            instr_id,
+            self.cluster,
+        )
+        ismqtt_messages.del_instr(
+            client=self.mqttc, is_id=self.is_id, instr_id=instr_id
+        )
 
     def _kill(self, _msg: dict, _sender):
         self._unsubscribe(["+"])
@@ -247,20 +253,18 @@ class MqttSchedulerActor(Actor):
                 and message.topic[-len("cmd") :] == "cmd"
             ):
                 instrument_id = message.topic[: -len("cmd") - 1][len(self.is_id) + 1 :]
-                for instrument in mycluster:
-                    if instrument.device_id == instrument_id:
-                        if reservations.get(instrument.device_id, None):
-                            old = reservations[instrument.device_id]
-                            reservations[
-                                instrument.device_id
-                            ] = ismqtt_messages.Reservation(
+                for instr_id in self.cluster:
+                    if instr_id == instrument_id:
+                        if self.reservations.get(instr_id):
+                            old = self.reservations[instr_id]
+                            self.reservations[instr_id] = ismqtt_messages.Reservation(
                                 active=old.active,
                                 app=old.app,
                                 host=old.host,
                                 timestamp=time.time(),
                                 user=old.user,
                             )
-                            self.process_cmd(message, instrument)
+                            self.process_cmd(message, instr_id)
                 # TODO: If code gets here, then the instrument got disconnected
                 return
             if (
@@ -270,20 +274,20 @@ class MqttSchedulerActor(Actor):
                 instrument_id = message.topic[: -len("control") - 1][
                     len(self.is_id) + 1 :
                 ]
-                for instrument in mycluster:
-                    if instrument.device_id == instrument_id:
-                        self.process_control(message, instrument)
+                for instr_id in self.cluster:
+                    if instr_id == instrument_id:
+                        self.process_control(message, instr_id)
             if (
                 len(message.topic) > len("meta") + len(self.is_id) + 2
                 and message.topic[-len("meta") :] == "meta"
             ):
                 instrument_id = message.topic[: -len("meta") - 1][len(self.is_id) + 1 :]
                 logger.debug("Check if %s is still connected", instrument_id)
-                if instrument_id not in mycluster.connected_instruments:
+                if instrument_id not in self.cluster:
                     logger.debug("%s not connected", instrument_id)
                     self.process_old(message, instrument_id)
 
-    def process_cmd(self, msg, device_id):
+    def process_cmd(self, msg, instr_id):
         """
         Sub-event handler for after a MQTT message was received on a subscribed
         topic this is specific for processing raw SARAD frames
@@ -302,121 +306,115 @@ class MqttSchedulerActor(Actor):
         reply = cmd[:1] + instrument.get_message_payload(cmd[1:], 3)
         self.mqttc.publish(f"{self.is_id}/{device_id}/msg", reply)
 
-    def process_control(self, msg, instrument):
+    def process_control(self, msg, instr_id):
         """
         Sub-Event Handler for after a mqtt message was received on a
         subscribed topic this is specific for processing control messages
         """
         logger.debug(msg.payload)
-        controll = ismqtt_messages.get_instr_control(msg)
-        logger.debug(controll)
-        if controll.ctype == ismqtt_messages.ControlType.RESERVE:
-            self.process_reserve(instrument, controll)
-        if controll.ctype == ismqtt_messages.ControlType.FREE:
+        control = ismqtt_messages.get_instr_control(msg)
+        logger.debug(control)
+        if control.ctype == ismqtt_messages.ControlType.RESERVE:
+            self.process_reserve(instr_id, control)
+        if control.ctype == ismqtt_messages.ControlType.FREE:
             try:
-                self.process_free(instrument, controll)
+                self.process_free(instr_id, control)
             except Exception:  # pylint: disable=broad-except
-                logger.exception("Failde tor handle FREE comand")
+                logger.exception("Failed to handle FREE comand")
 
-    def process_reserve(self, instrument, controll):
-        """
-        Sub-event handler for after a MQTT message was received on a subscribed
-        topic this is specific for processing control messages,
-        reservation requests to be specific
-        """
+    def process_reserve(self, instr_id, control):
+        """Sub event handler that will be called from the on_message event handler, when a MQTT
+        control message with a 'reserve' request was received for a specific instrument
+        ID."""
         logger.debug(
-            "[RESERVE] client=%s, instrument=%s, controll=%s",
+            "[RESERVE] client=%s, instrument=%s, control=%s",
             self.mqttc,
-            instrument,
-            controll,
+            instr_id,
+            control,
         )
         success = False
 
-        if not success and not reservations.get(instrument.device_id, None):
+        if not success and not self.reservations.get(instr_id, None):
             success = True
 
         if not success and (
-            reservations[instrument.device_id].host == controll.data.host
-            and reservations[instrument.device_id].app == controll.data.app
-            and reservations[instrument.device_id].user == controll.data.user
+            self.reservations[instr_id].host == control.data.host
+            and self.reservations[instr_id].app == control.data.app
+            and self.reservations[instr_id].user == control.data.user
         ):
             success = True
 
         if (
             not success
-            and controll.data.timestamp - reservations[instrument.device_id].timestamp
+            and control.data.timestamp - self.reservations[instr_id].timestamp
             > self.MAX_RESERVE_TIME
         ):
             success = True
 
         if success:
-            reservations[instrument.device_id] = ismqtt_messages.Reservation(
+            self.reservations[instr_id] = ismqtt_messages.Reservation(
                 active=True,
-                app=controll.data.app,
-                host=controll.data.host,
-                timestamp=controll.data.timestamp,
-                user=controll.data.user,
+                app=control.data.app,
+                host=control.data.host,
+                timestamp=control.data.timestamp,
+                user=control.data.user,
             )
 
         self.mqttc.publish(
-            topic=f"{self.is_id}/{instrument.device_id}/reservation",
-            payload=ismqtt_messages.get_instr_reservation(
-                reservations[instrument.device_id]
-            ),
+            topic=f"{self.is_id}/{instr_id}/reservation",
+            payload=ismqtt_messages.get_instr_reservation(self.reservations[instr_id]),
         )  # static result
 
-    def process_free(self, instrument, controll):
-        """
-        Sub-Event Handler for after a mqtt message was received on a subscribed
-        topic this is specific for processing control messages,
-        free (dropping reservation) requests to be specific
-        """
+    def process_free(self, instr_id, control):
+        """Sub event handler that will be called from the on_message event handler, when a MQTT
+        control message with a 'free' request was received for a specific instrument
+        ID."""
         logger.debug(
-            "[FREE] client=%s, instrument=%s, controll=%s",
+            "[FREE] client=%s, instr_id=%s, control=%s",
             self.mqttc,
-            instrument,
-            controll,
+            instr_id,
+            control,
         )
         success = False
 
-        if not success and reservations.get(instrument.device_id, None) is None:
+        if not success and self.reservations.get(instr_id, None) is None:
             logger.debug(
                 "[FREE] Instrument is not in the list of reserved instruments."
             )
             success = True
 
         if not success and (
-            reservations[instrument.device_id].host == controll.data.host
-            and reservations[instrument.device_id].app == controll.data.app
-            and reservations[instrument.device_id].user == controll.data.user
+            self.reservations[instr_id].host == control.data.host
+            and self.reservations[instr_id].app == control.data.app
+            and self.reservations[instr_id].user == control.data.user
         ):
             success = True
 
         if not success and (
-            controll.data.timestamp - reservations[instrument.device_id].timestamp
+            control.data.timestamp - self.reservations[instr_id].timestamp
             > self.MAX_RESERVE_TIME
         ):
             success = True
 
         if success:
-            reservations[instrument.device_id] = None
+            self.reservations[instr_id] = None
 
         self.mqttc.publish(
-            topic=f"{self.is_id}/{instrument.device_id}/reservation",
+            topic=f"{self.is_id}/{instr_id}/reservation",
             payload=ismqtt_messages.get_instr_reservation(
                 ismqtt_messages.Reservation(active=False, timestamp=time.time())
             ),
         )
 
-    def process_old(self, msg, instrument_id):
+    def process_old(self, msg, instr_id):
         """
-        Publish a message that instrument_id is not connected.
+        Publish a message that instr_id is not connected.
         """
         old = ismqtt_messages.get_instr_meta_msg(msg)
         if old is None or old.state == 0:
-            logger.debug("Nothing to do with instrument %s", instrument_id)
+            logger.debug("Nothing to do with instrument %s", instr_id)
             return
-        logger.debug("Freeing old instrument %s", instrument_id)
+        logger.debug("Freeing old instrument %s", instr_id)
         self.mqttc.publish(
             topic=msg.topic,
             retain=msg.retain,

@@ -155,7 +155,7 @@ class DeviceBaseActor(Actor):
             }
             self.send(sender, return_message)
             if config["APP_TYPE"] == AppType.ISMQTT:
-                add_message = {"CMD": "ADD", "PAR": msg["PAR"]}
+                add_message = {"CMD": "ADD", "PAR": {"INSTR_ID": self.globalName}}
                 mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
                 self.send(mqtt_scheduler, add_message)
             return
@@ -178,7 +178,7 @@ class DeviceBaseActor(Actor):
             logger.debug("Send KILL to redirector %s", self.my_redirector)
             self.send(self.my_redirector, ActorExitRequest())
         if config["APP_TYPE"] == AppType.ISMQTT:
-            remove_message = {"CMD": "REMOVE", "PAR": {"ID": self.globalName}}
+            remove_message = {"CMD": "REMOVE", "PAR": {"INSTR_ID": self.globalName}}
             mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
             self.send(mqtt_scheduler, remove_message)
         return_message = {
