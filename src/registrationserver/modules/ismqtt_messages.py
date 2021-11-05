@@ -247,6 +247,11 @@ def del_instr(*, client, is_id: str, instr_id: str):
     mypayload = get_instr_meta(
         data=InstrumentMeta(
             state=0,
+            host=is_id,
+            family=0,
+            instrumentType=0,
+            name="unknown",
+            serial=0,
         )
     )
     # def publish(self, topic, payload=None, qos=0, retain=False, properties=None):

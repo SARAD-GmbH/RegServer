@@ -55,9 +55,7 @@ class SaradMqttSubscriber:
     """
 
     @staticmethod
-    def _update_host(msg: dict) -> None:
-        is_id = msg.get("PAR", None).get("is_id", None)
-        data = msg.get("PAR", None).get("payload")
+    def _update_host(is_id, data) -> None:
         if (is_id is None) or (data is None):
             logger.warning(
                 "[Update Host] one or both of the IS ID "
@@ -207,10 +205,8 @@ class SaradMqttSubscriber:
             return
         return
 
-    def _rm_instr(self, msg: dict) -> None:
+    def _rm_instr(self, is_is, instr_id) -> None:
         logger.debug("rm_instr")
-        is_id = msg.get("PAR", None).get("is_id", None)
-        instr_id = msg.get("PAR", None).get("instr_id", None)
         if (is_id is None) or (instr_id is None):
             logger.warning(
                 "[rm_instr] One or both of the IS ID " "and Instrument ID are None."
@@ -260,11 +256,9 @@ class SaradMqttSubscriber:
             return
         return
 
-    def _add_host(self, msg: dict) -> None:
-        is_id = msg.get("PAR", None).get("is_id", None)
-        data = msg.get("PAR", None).get("payload")
+    def _add_host(self, is_id, data) -> None:
         if (is_id is None) or (data is None):
-            logger.warning(
+            logger.error(
                 "[Add Host] One or both of the IS ID and the meta message are None."
             )
             return
@@ -287,23 +281,12 @@ class SaradMqttSubscriber:
         except Exception:  # pylint: disable=broad-except
             logger.critical("Fatal error")
 
-    def _rm_host(self, msg: dict) -> None:
-        try:
-            is_id = msg["PAR"]["is_id"]
-        except Exception:  # pylint: disable=broad-except
-            logger.critical("Fatal error")
-            return
+    def _rm_host(self, is_id) -> None:
         logger.debug("[Remove Host] %s", is_id)
         self._unsubscribe(is_id + "/+/meta")
-        for _instr_id in self.connected_instruments[is_id]:
-            rm_msg = {
-                "PAR": {
-                    "is_id": is_id,
-                    "instr_id": _instr_id,
-                }
-            }
-            logger.info("[Remove Host] Remove instrument %s", _instr_id)
-            self._rm_instr(rm_msg)
+        for instr_id in self.connected_instruments[is_id]:
+            logger.info("[Remove Host] Remove instrument %s", instr_id)
+            self._rm_instr(is_id, instr_id)
         del self.connected_instruments[is_id]
         filename = f"{config['IC_HOSTS_FOLDER']}{os.path.sep}{is_id}"
         if os.path.exists(filename):
@@ -324,16 +307,10 @@ class SaradMqttSubscriber:
         self.connected_instruments = None
         self._disconnect()
 
-    def _parse(self, msg) -> None:
-        logger.debug("PARSE")
-        topic = msg.get("PAR", None).get("topic", None)
-        payload = msg.get("PAR", None).get("payload", None)
+    def _parse(self, topic, payload) -> None:
+        logger.debug("[_parse] topic: %s, payload: %s", topic, payload)
         if topic is None or payload is None:
-            logger.warning(
-                "[Parse] The topic or payload is None; topic %s, payload %s",
-                topic,
-                payload,
-            )
+            logger.error("[_parse] The topic or payload is None")
             return
         topic_parts = topic.split("/")
         split_len = len(topic_parts)
@@ -341,56 +318,45 @@ class SaradMqttSubscriber:
             if topic_parts[1] == "meta":
                 if "State" not in payload:
                     logger.warning(
-                        "[Parse] Received meta message not including state of IS %s",
+                        "[_parse] Received meta message not including state of IS %s",
                         topic_parts[0].decode("utf-8"),
                     )
                     return
                 if payload.get("State", None) is None:
                     logger.warning(
-                        "[Parse] Received meta message from IS %s, including a None state",
+                        "[_parse] Received meta message from IS %s, including a None state",
                         topic_parts[0],
                     )
                     return
                 if payload.get("State", None) in (2, 1):
                     logger.debug(
-                        "[Parse] Write the properties of cluster %s into file",
+                        "[_parse] Write the properties of cluster %s into file",
                         topic_parts[0],
                     )
-                    _msg = {
-                        "PAR": {
-                            "is_id": topic_parts[0],
-                            "payload": payload,
-                        },
-                    }
                     if topic_parts[0] not in self.connected_instruments:
-                        self._add_host(_msg)
+                        self._add_host(topic_parts[0], payload)
                     else:
-                        self._update_host(_msg)
+                        self._update_host(topic_parts[0], payload)
                 elif payload.get("State", None) == 0:
                     if topic_parts[0] in self.connected_instruments:
-                        _msg = {
-                            "PAR": {
-                                "is_id": topic_parts[0],
-                            },
-                        }
                         logger.debug(
-                            "[Parse] Remove host file for cluster %s",
+                            "[_parse] Remove host file for cluster %s",
                             topic_parts[0],
                         )
-                        self._rm_host(_msg)
+                        self._rm_host(topic_parts[0])
                     else:
                         logger.warning(
-                            "[Parse] Subscriber disconnected from unknown IS %s",
+                            "[_parse] Subscriber disconnected from unknown IS %s",
                             topic_parts[0],
                         )
                 else:
                     logger.warning(
-                        "[Parse] Subscriber received a meta message of an unknown cluster %s",
+                        "[_parse] Subscriber received a meta message of an unknown cluster %s",
                         topic_parts[0],
                     )
             else:
                 logger.warning(
-                    "[Parse] Illegal message %s of topic %s from IS %s",
+                    "[_parse] Illegal message %s of topic %s from IS %s",
                     topic,
                     payload,
                     topic_parts[0],
@@ -399,24 +365,24 @@ class SaradMqttSubscriber:
             if topic_parts[2] == "meta":
                 if "State" not in payload:
                     logger.warning(
-                        "[Parse] State of instrument %s missing in meta message from IS %s",
+                        "[_parse] State of instrument %s missing in meta message from IS %s",
                         topic_parts[1],
                         topic_parts[0],
                     )
                     return
-                if payload.get("State", None) is None:
-                    logger.warning(
-                        "[Parse] None state of instrument %s in meta message from IS %s",
+                if payload.get("State") is None:
+                    logger.error(
+                        "[_parse] None state of instrument %s in meta message from IS %s",
                         topic_parts[1],
                         topic_parts[0],
                     )
                     return
-                if payload.get("State", None) in (2, 1):
+                if payload["State"] in (2, 1):
                     if (
                         topic_parts[0] in self.connected_instruments
                     ):  # IS MQTT has been added, namely topic_parts[0] in self.connected_instrument
                         logger.debug(
-                            "[Parse] Write properties of instrument %s into file",
+                            "[_parse] Write properties of instrument %s into file",
                             topic_parts[1],
                         )
                         instr = {
@@ -432,50 +398,44 @@ class SaradMqttSubscriber:
                             self._update_instr(instr)
                     else:
                         logger.warning(
-                            "[Parse] Received a meta message of instrument %s from IS %s not added before",
+                            "[_parse] Received a meta message of instrument %s from IS %s not added before",
                             topic_parts[1],
                             topic_parts[0],
                         )
-                elif payload.get("State", None) == "0":
+                elif payload["State"] == 0:
                     logger.debug("disconnection message")
                     if (topic_parts[0] in self.connected_instruments) and (
                         topic_parts[1] in self.connected_instruments[topic_parts[0]]
                     ):
                         logger.debug(
-                            "[Parse] Remove instrument %s from IS %s",
+                            "[_parse] Remove instrument %s from IS %s",
                             topic_parts[1],
                             topic_parts[0],
                         )
-                        _msg = {
-                            "PAR": {
-                                "is_id": topic_parts[0],
-                                "instr_id": topic_parts[1],
-                            },
-                        }
-                        self._rm_instr(_msg)
+                        self._rm_instr(topic_parts[0], topic_parts[1])
                     else:
                         logger.warning(
-                            "[Parse] Subscriber received disconnect of unknown instrument %s from IS %s",
+                            "[_parse] Subscriber received disconnect of unknown instrument %s from IS %s",
                             topic_parts[1],
                             topic_parts[0],
                         )
                 else:
                     logger.warning(
-                        "[Parse] Subscriber received unknown state of unknown instrument %s from IS %s",
+                        "[_parse] Subscriber received unknown state of unknown instrument %s from IS %s",
                         topic_parts[1],
                         topic_parts[0],
                     )
 
             else:  # Illeagl topics
                 logger.warning(
-                    "[Parse] Unknown message %s under the illegal topic %s, related to instrument %s",
+                    "[_parse] Unknown message %s under the illegal topic %s, related to instrument %s",
                     payload,
                     topic,
                     topic_parts[1],
                 )
         else:  # Acceptable topics can be divided into 2 or 3 parts by '/'
             logger.warning(
-                "[Parse] Unknown message %s under topic %s in illegal format, related to instrument %s",
+                "[_parse] Unknown message %s under topic %s in illegal format, related to instrument %s",
                 payload,
                 topic,
                 topic_parts[1],
@@ -538,14 +498,7 @@ class SaradMqttSubscriber:
         if message.payload is None:
             logger.error("The payload is none")
         else:
-            msg_buf = {
-                "CMD": "PARSE",
-                "PAR": {
-                    "topic": message.topic,
-                    "payload": json.loads(message.payload),
-                },
-            }
-            self._parse(msg_buf)
+            self._parse(message.topic, json.loads(message.payload))
 
     def _disconnect(self):
         if self.ungr_disconn == 2:
