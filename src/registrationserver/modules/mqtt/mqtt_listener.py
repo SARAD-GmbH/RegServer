@@ -305,7 +305,7 @@ class SaradMqttSubscriber:
     def on_is_meta(self, _client, _userdata, message):
         """Handler for all messages of topic +/meta."""
         topic_parts = message.topic.split("/")
-        is_id = topic_parts[0].decode("utf8")
+        is_id = topic_parts[0]
         payload = message.payload
         if "State" not in payload:
             logger.warning(
@@ -349,8 +349,8 @@ class SaradMqttSubscriber:
     def on_instr_meta(self, _client, _userdata, message):
         """Handler for all messages of topic +/+/meta."""
         topic_parts = message.topic.split("/")
-        is_id = topic_parts[0].decode("utf8")
-        instr_id = topic_parts[1].decode("utf8")
+        is_id = topic_parts[0]
+        instr_id = topic_parts[1]
         payload = message.payload
         if "State" not in payload:
             logger.warning(
@@ -458,7 +458,7 @@ class SaradMqttSubscriber:
     def on_message(_client, _userdata, message):
         """Handle MQTT messages that are not handled by the special message_callback
         functions on_is_meta and on_instr_meta."""
-        logger.debug("message received: %s", str(message.payload.decode("utf-8")))
+        logger.debug("message received: %s", message.payload)
         logger.debug("message topic: %s", message.topic)
         logger.debug("message qos: %s", message.qos)
         logger.debug("message retain flag: %s", message.retain)
