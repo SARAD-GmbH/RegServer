@@ -127,11 +127,8 @@ class SaradMqttSubscriber:
         """Running one cycle of the MQTT loop"""
         self.mqttc.loop()
 
-    def _add_instr(self, instr: dict) -> None:
+    def _add_instr(self, is_id, instr_id, payload) -> None:
         # pylint: disable=too-many-return-statements
-        is_id = instr.get("is_id", None)
-        instr_id = instr.get("instr_id", None)
-        payload = instr.get("payload")
         logger.debug("[add_instr] %s", payload)
         if (is_id is None) or (instr_id is None) or (payload is None):
             logger.debug(
@@ -224,11 +221,8 @@ class SaradMqttSubscriber:
         ActorSystem().ask(this_actor, ActorExitRequest())
         return
 
-    def _update_instr(self, msg: dict) -> None:
-        is_id = msg.get("PAR", None).get("is_id", None)
-        instr_id = msg.get("PAR", None).get("instr_id", None)
-        data = json.dumps(msg.get("PAR", None).get("payload"))
-        if (is_id is None) or (instr_id is None) or (data is None):
+    def _update_instr(self, is_id, instr_id, payload) -> None:
+        if (is_id is None) or (instr_id is None) or (payload is None):
             logger.debug(
                 "[update_instr] one or both of the IS ID "
                 "and Instrument ID are None or the meta message is None."
@@ -243,7 +237,7 @@ class SaradMqttSubscriber:
         name_ = self.connected_instruments[is_id][instr_id]
         logger.info("[update_instr] %s", instr_id)
         this_actor = ActorSystem().createActor(MqttActor, globalName=name_)
-        setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": data})
+        setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": payload})
         logger.debug(setup_return)
         if not setup_return["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
@@ -385,17 +379,13 @@ class SaradMqttSubscriber:
                             "[_parse] Write properties of instrument %s into file",
                             topic_parts[1],
                         )
-                        instr = {
-                            "is_id": topic_parts[0],
-                            "instr_id": topic_parts[1],
-                            "payload": payload,
                         }
                         if not (
                             topic_parts[1] in self.connected_instruments[topic_parts[0]]
                         ):
-                            self._add_instr(instr)
+                            self._add_instr(topic_parts[0], topic_parts[1], payload)
                         else:
-                            self._update_instr(instr)
+                            self._update_instr(topic_parts[0], topic_parts[1], payload)
                     else:
                         logger.warning(
                             "[_parse] Received a meta message of instrument %s from IS %s not added before",
