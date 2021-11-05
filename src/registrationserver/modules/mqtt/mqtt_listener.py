@@ -99,6 +99,8 @@ class SaradMqttSubscriber:
         self.mqttc.on_message = self.on_message
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
+        self.mqttc.message_callback_add("+/meta", self.on_is_meta)
+        self.mqttc.message_callback_add("+/+/meta", self.on_instr_meta)
 
         ic_hosts_folder = f"{config['IC_HOSTS_FOLDER']}{os.path.sep}"
         if not os.path.exists(ic_hosts_folder):
@@ -300,133 +302,108 @@ class SaradMqttSubscriber:
         self.connected_instruments = None
         self._disconnect()
 
-    def _parse(self, topic, payload) -> None:
-        logger.debug("[_parse] topic: %s, payload: %s", topic, payload)
-        if topic is None or payload is None:
-            logger.error("[_parse] The topic or payload is None")
+    def on_is_meta(self, _client, _userdata, message):
+        """Handler for all messages of topic +/meta."""
+        topic_parts = message.topic.split("/")
+        is_id = topic_parts[0].decode("utf8")
+        payload = message.payload
+        if "State" not in payload:
+            logger.warning(
+                "[+/meta] Received meta message not including state of IS %s",
+                is_id,
+            )
             return
-        topic_parts = topic.split("/")
-        split_len = len(topic_parts)
-        if split_len == 2:  # topics related to a cluster namely IS MQTT
-            if topic_parts[1] == "meta":
-                if "State" not in payload:
-                    logger.warning(
-                        "[_parse] Received meta message not including state of IS %s",
-                        topic_parts[0].decode("utf-8"),
-                    )
-                    return
-                if payload.get("State", None) is None:
-                    logger.warning(
-                        "[_parse] Received meta message from IS %s, including a None state",
-                        topic_parts[0],
-                    )
-                    return
-                if payload.get("State", None) in (2, 1):
-                    logger.debug(
-                        "[_parse] Write the properties of cluster %s into file",
-                        topic_parts[0],
-                    )
-                    if topic_parts[0] not in self.connected_instruments:
-                        self._add_host(topic_parts[0], payload)
-                    else:
-                        self._update_host(topic_parts[0], payload)
-                elif payload.get("State", None) == 0:
-                    if topic_parts[0] in self.connected_instruments:
-                        logger.debug(
-                            "[_parse] Remove host file for cluster %s",
-                            topic_parts[0],
-                        )
-                        self._rm_host(topic_parts[0])
-                    else:
-                        logger.warning(
-                            "[_parse] Subscriber disconnected from unknown IS %s",
-                            topic_parts[0],
-                        )
-                else:
-                    logger.warning(
-                        "[_parse] Subscriber received a meta message of an unknown cluster %s",
-                        topic_parts[0],
-                    )
+        if payload.get("State") is None:
+            logger.warning(
+                "[+/meta] Received meta message from IS %s, including a None state",
+                is_id,
+            )
+            return
+        if payload["State"] in (2, 1):
+            logger.debug(
+                "[+/meta] Write the properties of cluster %s into file",
+                is_id,
+            )
+            if is_id not in self.connected_instruments:
+                self._add_host(is_id, payload)
+            else:
+                self._update_host(is_id, payload)
+        elif payload["State"] == 0:
+            if is_id in self.connected_instruments:
+                logger.debug(
+                    "[+/meta] Remove host file for cluster %s",
+                    is_id,
+                )
+                self._rm_host(is_id)
             else:
                 logger.warning(
-                    "[_parse] Illegal message %s of topic %s from IS %s",
-                    topic,
-                    payload,
-                    topic_parts[0],
+                    "[+/meta] Subscriber disconnected from unknown IS %s",
+                    is_id,
                 )
-        elif split_len == 3:  # topics related to an instrument
-            if topic_parts[2] == "meta":
-                if "State" not in payload:
-                    logger.warning(
-                        "[_parse] State of instrument %s missing in meta message from IS %s",
-                        topic_parts[1],
-                        topic_parts[0],
-                    )
-                    return
-                if payload.get("State") is None:
-                    logger.error(
-                        "[_parse] None state of instrument %s in meta message from IS %s",
-                        topic_parts[1],
-                        topic_parts[0],
-                    )
-                    return
-                if payload["State"] in (2, 1):
-                    if (
-                        topic_parts[0] in self.connected_instruments
-                    ):  # IS MQTT has been added, namely topic_parts[0] in self.connected_instrument
-                        logger.debug(
-                            "[_parse] Write properties of instrument %s into file",
-                            topic_parts[1],
-                        )
-                        if not (
-                            topic_parts[1] in self.connected_instruments[topic_parts[0]]
-                        ):
-                            self._add_instr(topic_parts[0], topic_parts[1], payload)
-                        else:
-                            self._update_instr(topic_parts[0], topic_parts[1], payload)
-                    else:
-                        logger.warning(
-                            "[_parse] Received a meta message of instrument %s from IS %s not added before",
-                            topic_parts[1],
-                            topic_parts[0],
-                        )
-                elif payload["State"] == 0:
-                    logger.debug("disconnection message")
-                    if (topic_parts[0] in self.connected_instruments) and (
-                        topic_parts[1] in self.connected_instruments[topic_parts[0]]
-                    ):
-                        logger.debug(
-                            "[_parse] Remove instrument %s from IS %s",
-                            topic_parts[1],
-                            topic_parts[0],
-                        )
-                        self._rm_instr(topic_parts[0], topic_parts[1])
-                    else:
-                        logger.warning(
-                            "[_parse] Subscriber received disconnect of unknown instrument %s from IS %s",
-                            topic_parts[1],
-                            topic_parts[0],
-                        )
-                else:
-                    logger.warning(
-                        "[_parse] Subscriber received unknown state of unknown instrument %s from IS %s",
-                        topic_parts[1],
-                        topic_parts[0],
-                    )
-
-            else:  # Illeagl topics
-                logger.warning(
-                    "[_parse] Unknown message %s under the illegal topic %s, related to instrument %s",
-                    payload,
-                    topic,
-                    topic_parts[1],
-                )
-        else:  # Acceptable topics can be divided into 2 or 3 parts by '/'
+        else:
             logger.warning(
-                "[_parse] Unknown message %s under topic %s in illegal format, related to instrument %s",
-                payload,
-                topic,
-                topic_parts[1],
+                "[+/meta] Subscriber received a meta message of an unknown cluster %s",
+                is_id,
+            )
+
+    def on_instr_meta(self, _client, _userdata, message):
+        """Handler for all messages of topic +/+/meta."""
+        topic_parts = message.topic.split("/")
+        is_id = topic_parts[0].decode("utf8")
+        instr_id = topic_parts[1].decode("utf8")
+        payload = message.payload
+        if "State" not in payload:
+            logger.warning(
+                "[+/+/meta] State of instrument %s missing in meta message from IS %s",
+                instr_id,
+                is_id,
+            )
+            return
+        if payload.get("State") is None:
+            logger.error(
+                "[+/+/meta] None state of instrument %s in meta message from IS %s",
+                instr_id,
+                is_id,
+            )
+            return
+        if payload["State"] in (2, 1):
+            if is_id in self.connected_instruments:
+                logger.debug(
+                    "[+/+/meta] Write properties of instrument %s into file",
+                    instr_id,
+                )
+                if instr_id in self.connected_instruments[is_id]:
+                    self._update_instr(is_id, instr_id, payload)
+                else:
+                    self._add_instr(is_id, instr_id, payload)
+            else:
+                logger.warning(
+                    "[+/+/meta] Received a meta message of instr. %s from IS %s not added before",
+                    instr_id,
+                    is_id,
+                )
+        elif payload["State"] == 0:
+            logger.debug("disconnection message")
+            if (is_id in self.connected_instruments) and (
+                instr_id in self.connected_instruments[is_id]
+            ):
+                logger.debug(
+                    "[+/+/meta] Remove instrument %s from IS %s",
+                    instr_id,
+                    is_id,
+                )
+                self._rm_instr(is_id, instr_id)
+            else:
+                logger.warning(
+                    "[+/+/meta] Subscriber received disconnect of unknown instrument %s from IS %s",
+                    instr_id,
+                    is_id,
+                )
+        else:
+            logger.warning(
+                "[+/+/meta] Subscriber received unknown state of unknown instrument %s from IS %s",
+                instr_id,
+                is_id,
             )
 
     def on_connect(self, client, userdata, flags, result_code):
@@ -477,16 +454,18 @@ class SaradMqttSubscriber:
         if msg_id == self.msg_id["UNSUBSCRIBE"]:
             logger.debug("[on_unsubscribe] Unsubscribed from topic")
 
-    def on_message(self, _client, _userdata, message):
-        """Here should be a docstring."""
+    @staticmethod
+    def on_message(_client, _userdata, message):
+        """Handle MQTT messages that are not handled by the special message_callback
+        functions on_is_meta and on_instr_meta."""
         logger.debug("message received: %s", str(message.payload.decode("utf-8")))
         logger.debug("message topic: %s", message.topic)
         logger.debug("message qos: %s", message.qos)
         logger.debug("message retain flag: %s", message.retain)
         if message.payload is None:
-            logger.error("The payload is none")
+            logger.warning("The payload is none")
         else:
-            self._parse(message.topic, json.loads(message.payload))
+            logger.warning("Unknown message")
 
     def _disconnect(self):
         if self.ungr_disconn == 2:
