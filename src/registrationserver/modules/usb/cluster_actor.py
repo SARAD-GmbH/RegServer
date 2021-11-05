@@ -332,6 +332,7 @@ class ClusterActor(Actor):
     def _remove_actor(self, gone_port):
         logger.debug("[_remove_actor]")
         if gone_port in self._actors:
+            self.send(self._actors[gone_port], {"CMD": "REMOVE"})
             logger.debug("Send ActorExitRequest to device actor.")
             self.send(self._actors[gone_port], ActorExitRequest())
             self._actors.pop(gone_port, None)

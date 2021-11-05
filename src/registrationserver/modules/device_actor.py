@@ -15,6 +15,7 @@ from datetime import datetime
 from flask import json
 from overrides import overrides  # type: ignore
 from registrationserver.config import AppType, config
+from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.redirect_actor import RedirectorActor
@@ -57,6 +58,7 @@ class DeviceBaseActor(Actor):
         "RESERVE": "_reserve",
         "FREE": "_free",
         "SETUP": "_setup",
+        "REMOVE": "_remove",
     }
     ACCEPTED_RETURNS = {
         "SETUP": "_return_with_socket",
@@ -155,8 +157,16 @@ class DeviceBaseActor(Actor):
             }
             self.send(sender, return_message)
             if config["APP_TYPE"] == AppType.ISMQTT:
-                add_message = {"CMD": "ADD", "PAR": {"INSTR_ID": self.globalName}}
+                add_message = {
+                    "CMD": "ADD",
+                    "PAR": {"INSTR_ID": short_id(self.globalName)},
+                }
                 mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
+                logger.debug(
+                    "Sending 'ADD' with %s to MQTT scheduler %s",
+                    add_message,
+                    mqtt_scheduler,
+                )
                 self.send(mqtt_scheduler, add_message)
             return
         with open(self.dev_file, "w+", encoding="utf8") as file_stream:
@@ -169,18 +179,26 @@ class DeviceBaseActor(Actor):
         self.send(sender, return_message)
         return
 
+    def _remove(self, _msg, _sender):
+        # Send 'REMOVE' message to MQTT Scheduler
+        if config["APP_TYPE"] == AppType.ISMQTT:
+            remove_message = {
+                "CMD": "REMOVE",
+                "PAR": {"INSTR_ID": short_id(self.globalName)},
+            }
+            mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
+            logger.debug(
+                "Sending 'REMOVE' with %s to MQTT scheduler %s",
+                remove_message,
+                mqtt_scheduler,
+            )
+            self.send(mqtt_scheduler, remove_message)
+
     def _kill(self, msg: dict, sender):
         logger.info("%s for actor %s", msg, self.globalName)
         self.dev_file = fr"{self.__dev_folder}{self.globalName}"
         if os.path.exists(self.dev_file):
             os.remove(self.dev_file)
-        if self.my_redirector is not None:
-            logger.debug("Send KILL to redirector %s", self.my_redirector)
-            self.send(self.my_redirector, ActorExitRequest())
-        if config["APP_TYPE"] == AppType.ISMQTT:
-            remove_message = {"CMD": "REMOVE", "PAR": {"INSTR_ID": self.globalName}}
-            mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
-            self.send(mqtt_scheduler, remove_message)
         return_message = {
             "RETURN": "KILL",
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
@@ -248,11 +266,13 @@ class DeviceBaseActor(Actor):
         """Create redirector actor"""
         logger.debug(self.my_redirector)
         if self.my_redirector is None:
-            short_id = self.globalName.split(".")[0]
             logger.debug(
-                "Trying to create a redirector actor with globalName %s", short_id
+                "Trying to create a redirector actor with globalName %s",
+                short_id(self.globalName),
             )
-            self.my_redirector = self.createActor(RedirectorActor, globalName=short_id)
+            self.my_redirector = self.createActor(
+                RedirectorActor, globalName=short_id(self.globalName)
+            )
             msg = {"CMD": "SETUP", "PAR": {"PARENT_NAME": self.globalName}}
             logger.debug("Send SETUP command to redirector with msg %s", msg)
             self.send(self.my_redirector, msg)

@@ -15,6 +15,7 @@ from enum import Enum
 from typing import NamedTuple, Optional
 
 from registrationserver.config import config
+from registrationserver.helpers import find
 from registrationserver.logger import logger
 from sarad.sari import SaradInst
 
@@ -184,11 +185,11 @@ def get_instr_control(json_data) -> Control:
     return Control(ControlType.UNKNOWN, nodata)
 
 
-def get_state_from_file(device_id: str) -> dict:
+def get_state_from_file(instr_id: str) -> dict:
     """Read the device state from the device file.
 
     Args:
-        device_id: The device id is used as well as file name as
+        instr_id: The device id is used as well as file name as
                    as global name for the device actor
 
     Returns:
@@ -196,7 +197,8 @@ def get_state_from_file(device_id: str) -> dict:
         for the *Identification* of the instrument and it's *Reservation* state
 
     """
-    filename = f"{config['DEV_FOLDER']}{os.path.sep}{device_id}"
+    path = config["DEV_FOLDER"]
+    filename = find(f"{instr_id}*", path)[0]
     try:
         if os.path.isfile(filename):
             with open(filename, encoding="utf8") as reader:
@@ -242,15 +244,9 @@ def del_instr(*, client, is_id: str, instr_id: str):
     # def unsubscribe(self, topic, properties=None):
     client.unsubscribe(topic=f"{is_id}/{instr_id}/control")
     client.unsubscribe(topic=f"{is_id}/{instr_id}/cmd")
-    identification = get_state_from_file(instr_id)["Identification"]
     mypayload = get_instr_meta(
         data=InstrumentMeta(
             state=0,
-            host=is_id,
-            family=identification.get("Family"),
-            instrumentType=identification.get("Type"),
-            name=identification.get("Name"),
-            serial=identification.get("Serial number"),
         )
     )
     # def publish(self, topic, payload=None, qos=0, retain=False, properties=None):

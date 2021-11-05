@@ -9,11 +9,11 @@ Author
 .. uml :: uml-mqtt_scheduler.puml
 """
 import time
-from typing import Dict
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.config import ismqtt_config, mqtt_config
+from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules import ismqtt_messages
 from registrationserver.modules.messages import RETURN_MESSAGES
@@ -293,18 +293,19 @@ class MqttSchedulerActor(Actor):
         topic this is specific for processing raw SARAD frames
         """
         cmd = msg.payload
-        logger.debug("Received command %s", cmd)
-        logger.debug("Trying to get reply from instrument.")
-        # TODO: Actorgerecht aufteilen!
-        reply = cmd[:1] + instrument.get_message_payload(cmd[1:], 3)
+        logger.debug("Forward command %s to device actor", cmd)
+        cmd_msg = {"CMD": "SEND", "PAR": {"DATA": cmd, "HOST": "localhost"}}
+        self.send(self.cluster[instr_id], cmd_msg)
 
     def _send_to_rs(self, msg, sender):
         """Handler for actor messages returning from 'SEND" command
 
         Forward the payload received from device_actor via MQTT."""
-        # TODO: Actorgerecht aufteilen!
-        reply = cmd[:1] + instrument.get_message_payload(cmd[1:], 3)
-        self.mqttc.publish(f"{self.is_id}/{device_id}/msg", reply)
+        reply = msg["RESULT"]["DATA"]
+        for key, value in self.cluster.items():
+            if value == sender:
+                instr_id = key
+        self.mqttc.publish(f"{self.is_id}/{instr_id}/msg", reply)
 
     def process_control(self, msg, instr_id):
         """
