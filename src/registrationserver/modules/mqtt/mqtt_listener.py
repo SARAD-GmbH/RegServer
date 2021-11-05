@@ -306,7 +306,7 @@ class SaradMqttSubscriber:
         """Handler for all messages of topic +/meta."""
         topic_parts = message.topic.split("/")
         is_id = topic_parts[0]
-        payload = message.payload
+        payload = json.loads(message.payload)
         if "State" not in payload:
             logger.warning(
                 "[+/meta] Received meta message not including state of IS %s",
@@ -351,7 +351,7 @@ class SaradMqttSubscriber:
         topic_parts = message.topic.split("/")
         is_id = topic_parts[0]
         instr_id = topic_parts[1]
-        payload = message.payload
+        payload = json.loads(message.payload)
         if "State" not in payload:
             logger.warning(
                 "[+/+/meta] State of instrument %s missing in meta message from IS %s",

@@ -283,7 +283,7 @@ class MqttActor(DeviceBaseActor):
 
     def on_msg(self, _client, _userdata, message):
         """Handler for MQTT messages regarding binary messages from instrument"""
-        payload = message.payload
+        payload = json.loads(message.payload)
         logger.debug("Send status is: %s", self.state["SEND"]["Pending"])
         if not isinstance(payload, bytes):
             logger.error(
