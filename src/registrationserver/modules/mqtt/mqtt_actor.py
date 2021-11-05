@@ -221,6 +221,10 @@ class MqttActor(DeviceBaseActor):
         self.mqttc.on_publish = self.on_publish
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
+        self.mqttc.message_callback_add(
+            self.allowed_sys_topics["RESERVE"], self.on_reserve
+        )
+        self.mqttc.message_callback_add(self.allowed_sys_topics["MSG"], self.on_msg)
         logger.debug(
             "When I die, the instrument shall be given free. This is my last will."
         )
@@ -234,114 +238,106 @@ class MqttActor(DeviceBaseActor):
         self.mqttc.connect(mqtt_broker, port=port)
         self.mqttc.loop_start()
 
-    def _parse(self, msg: dict) -> None:
-        topic = msg["topic"]
-        payload = msg["payload"]
-        if topic == self.allowed_sys_topics["RESERVE"]:
-            if self.state["RESERVE"]["Pending"]:
-                instr_status = json.loads(payload).get("Active", None)
-                app = json.loads(payload).get("App", None)
-                host = json.loads(payload).get("Host", None)
-                user = json.loads(payload).get("User", None)
-                timestamp = json.loads(payload).get("Timestamp", None)
-                if (
-                    (instr_status)
-                    and (app == self.app)
-                    and (host == self.host)
-                    and (user == self.user)
-                ):
-                    logger.debug(
-                        "MQTT actor %s receives permission for reservation on instrument %s",
-                        self.globalName,
-                        self.instr_id,
-                    )
-                    if timestamp is None:
-                        timestamp = (
-                            datetime.datetime.utcnow().isoformat(timespec="seconds")
-                            + "Z"
-                        )
-                    self.state["RESERVE"]["Active"] = True
-                else:
-                    logger.debug(
-                        "MQTT actor %s receives decline of reservation on instrument %s",
-                        self.globalName,
-                        self.instr_id,
-                    )
-                    self.state["RESERVE"]["Active"] = False
-                is_reserved = self.state["RESERVE"]["Active"]
-                logger.debug("Instrument reserved %s", is_reserved)
-                self._forward_reservation(is_reserved)
-                self.state["RESERVE"]["Pending"] = False
-                return
-            logger.warning(
-                "MQTT actor %s receives a reply to a non-requested reservation on instrument %s",
-                self.globalName,
-                self.instr_id,
-            )
-            return
-        if topic == self.allowed_sys_topics["MSG"]:
-            logger.debug("[PARSE] send status is: %s", self.state["SEND"]["Pending"])
-            if not isinstance(payload, bytes):
-                logger.error(
-                    "Received a reply that should be bytes while not; the message is %s",
-                    payload,
-                )
-                return
-            if len(payload) == 0:
-                logger.error("Received an empty reply")
-                return
-            if self.state["SEND"]["Pending"]:
-                re_cmd_id = payload[0]
-                st_cmd_id = int.from_bytes(self.state["SEND"]["CMD_ID"], "big")
-                logger.debug("Received CMD ID is %s", re_cmd_id)
-                logger.debug("Stored CMD ID is %s", self.state["SEND"]["CMD_ID"])
-                if re_cmd_id == st_cmd_id:
-                    self.state["SEND"]["Pending"] = False
-                    self.test_cnt = self.test_cnt + 1
-                    logger.debug("test_cnt = %s", self.test_cnt)
-                    logger.debug(
-                        "MQTT actor %s receives a binary reply %s from instrument %s",
-                        self.globalName,
-                        payload[1:],
-                        self.instr_id,
-                    )
-                    self.state["SEND"]["Reply"] = payload[1:]
-                    # self.state["SEND"]["Reply_Status"] = True
-                    _re = {
-                        "RETURN": "SEND",
-                        "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                        "RESULT": {"DATA": self.state["SEND"]["Reply"]},
-                    }
-                    self.send(
-                        self.my_redirector,
-                        _re,
-                    )
-                    return
-                logger.warning(
-                    (
-                        "MQTT actor %s receives a binary reply %s with an unexpected "
-                        "CMD ID %s from instrument %s"
-                    ),
+    def on_reserve(self, _client, _userdata, message):
+        """Handler for MQTT messages regarding reservation of instruments"""
+        payload = json.loads(message.payload)
+        if self.state["RESERVE"]["Pending"]:
+            instr_status = payload.get("Active")
+            app = payload.get("App")
+            host = payload.get("Host")
+            user = payload.get("User")
+            timestamp = payload.get("Timestamp")
+            if (
+                (instr_status)
+                and (app == self.app)
+                and (host == self.host)
+                and (user == self.user)
+            ):
+                logger.debug(
+                    "MQTT actor %s receives permission for reservation on instrument %s",
                     self.globalName,
-                    payload,
-                    re_cmd_id,
                     self.instr_id,
                 )
+                if timestamp is None:
+                    timestamp = (
+                        datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z"
+                    )
+                self.state["RESERVE"]["Active"] = True
+            else:
+                logger.debug(
+                    "MQTT actor %s receives decline of reservation on instrument %s",
+                    self.globalName,
+                    self.instr_id,
+                )
+                self.state["RESERVE"]["Active"] = False
+            is_reserved = self.state["RESERVE"]["Active"]
+            logger.debug("Instrument reserved %s", is_reserved)
+            self._forward_reservation(is_reserved)
+            self.state["RESERVE"]["Pending"] = False
+            return
+        logger.warning(
+            "MQTT actor %s receives a reply to a non-requested reservation on instrument %s",
+            self.globalName,
+            self.instr_id,
+        )
+
+    def on_msg(self, _client, _userdata, message):
+        """Handler for MQTT messages regarding binary messages from instrument"""
+        payload = message.payload
+        logger.debug("Send status is: %s", self.state["SEND"]["Pending"])
+        if not isinstance(payload, bytes):
+            logger.error(
+                "Received a reply that should be bytes while not; the message is %s",
+                payload,
+            )
+            return
+        if len(payload) == 0:
+            logger.error("Received an empty reply")
+            return
+        if self.state["SEND"]["Pending"]:
+            re_cmd_id = payload[0]
+            st_cmd_id = int.from_bytes(self.state["SEND"]["CMD_ID"], "big")
+            logger.debug("Received CMD ID is %s", re_cmd_id)
+            logger.debug("Stored CMD ID is %s", self.state["SEND"]["CMD_ID"])
+            if re_cmd_id == st_cmd_id:
+                self.state["SEND"]["Pending"] = False
+                self.test_cnt = self.test_cnt + 1
+                logger.debug("test_cnt = %s", self.test_cnt)
+                logger.debug(
+                    "MQTT actor %s receives a binary reply %s from instrument %s",
+                    self.globalName,
+                    payload[1:],
+                    self.instr_id,
+                )
+                self.state["SEND"]["Reply"] = payload[1:]
+                # self.state["SEND"]["Reply_Status"] = True
+                _re = {
+                    "RETURN": "SEND",
+                    "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                    "RESULT": {"DATA": self.state["SEND"]["Reply"]},
+                }
+                self.send(
+                    self.my_redirector,
+                    _re,
+                )
                 return
             logger.warning(
-                "MQTT actor %s receives an unknown binary reply %s from instrument %s",
+                (
+                    "MQTT actor %s receives a binary reply %s with an unexpected "
+                    "CMD ID %s from instrument %s"
+                ),
                 self.globalName,
                 payload,
+                re_cmd_id,
                 self.instr_id,
             )
             return
         logger.warning(
-            "MQTT actor %s receives an unknown message %s from instrument %s",
+            "MQTT actor %s receives an unknown binary reply %s from instrument %s",
             self.globalName,
             payload,
             self.instr_id,
         )
-        return
 
     def on_connect(self, _client, _userdata, _flags, result_code):
         """Will be carried out when the client connected to the MQTT broker."""
@@ -397,9 +393,7 @@ class MqttActor(DeviceBaseActor):
     def on_publish(self, _client, _userdata, mid):
         """Here should be a docstring."""
         # self.rc_pub = 0
-        logger.debug(
-            "The message with Message-ID %d is published to the broker!\n", mid
-        )
+        logger.debug("The message with Message-ID %d is published to the broker!", mid)
         logger.debug("Publish: check the mid")
         if mid == self.mid["PUBLISH"]:
             logger.debug("Publish: mid is matched")
@@ -420,26 +414,23 @@ class MqttActor(DeviceBaseActor):
         if mid == self.mid["UNSUBSCRIBE"]:
             logger.debug("Unsubscribed to the topic successfully!\n")
 
-    def on_message(self, _client, _userdata, message):
-        """Here should be a docstring."""
+    @staticmethod
+    def on_message(_client, _userdata, message):
+        """Handler for all MQTT messages that cannot be handled by on_reserve or on_msg."""
         logger.debug("message received: %s", message.payload)
         logger.debug("message topic: %s", message.topic)
         logger.debug("message qos: %s", message.qos)
         logger.debug("message retain flag: %s", message.retain)
         if message.payload is None:
-            logger.error("The payload is none")
+            logger.warning("The payload is none")
         else:
-            msg_buf = {
-                "topic": message.topic,
-                "payload": message.payload,
-            }
-            self._parse(msg_buf)
+            logger.warning("Unknown MQTT message")
 
     def _disconnect(self):
         if self.ungr_disconn == 2:
             logger.debug("To disconnect from the MQTT-broker!")
             self.mqttc.disconnect()
-        elif self.ungr_disconn == 1 or self.ungr_disconn == 0:
+        elif self.ungr_disconn in (1, 0):
             self.ungr_disconn = 2
             logger.debug("Already disconnected")
         logger.debug("To stop the MQTT thread!")
