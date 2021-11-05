@@ -68,7 +68,7 @@ class SaradMqttSubscriber:
         )
         filename = fr"{config['IC_HOSTS_FOLDER']}{os.path.sep}{is_id}"
         try:
-            with open(filename, "w+") as file_stream:
+            with open(filename, "w+", encoding="utf8") as file_stream:
                 file_stream.write(json.dumps(data))
                 logger.debug("Hosts file %s updated", filename)
         except Exception:  # pylint: disable=broad-except
@@ -202,7 +202,7 @@ class SaradMqttSubscriber:
             return
         return
 
-    def _rm_instr(self, is_is, instr_id) -> None:
+    def _rm_instr(self, is_id, instr_id) -> None:
         logger.debug("rm_instr")
         if (is_id is None) or (instr_id is None):
             logger.warning(
@@ -265,7 +265,7 @@ class SaradMqttSubscriber:
             os.makedirs(ic_hosts_folder)
         filename = fr"{ic_hosts_folder}{is_id}"
         try:
-            with open(filename, "w+") as file_stream:
+            with open(filename, "w+", encoding="utf8") as file_stream:
                 file_stream.write(json.dumps(data))
                 logger.debug("New host file %s created", filename)
             self.connected_instruments[is_id] = {}
@@ -286,7 +286,6 @@ class SaradMqttSubscriber:
         if os.path.exists(filename):
             os.remove(filename)
         logger.info("[Remove Host] Host file for %s removed", is_id)
-        return
 
     def stop(self):
         """Has to be performed when closing the main module
@@ -379,7 +378,6 @@ class SaradMqttSubscriber:
                             "[_parse] Write properties of instrument %s into file",
                             topic_parts[1],
                         )
-                        }
                         if not (
                             topic_parts[1] in self.connected_instruments[topic_parts[0]]
                         ):
@@ -494,7 +492,7 @@ class SaradMqttSubscriber:
         if self.ungr_disconn == 2:
             logger.info("[Disconnect] from MQTT broker")
             self.mqttc.disconnect()
-        elif self.ungr_disconn == 1 or self.ungr_disconn == 0:
+        elif self.ungr_disconn in (1, 0):
             self.ungr_disconn = 2
             logger.warning("[Disconnect] Already disconnected ungracefully")
         else:
