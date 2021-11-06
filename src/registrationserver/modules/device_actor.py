@@ -79,6 +79,7 @@ class DeviceBaseActor(Actor):
         self.user = None
         self.host = None
         self.sender_api = None
+        self.mqtt_scheduler = None
         logger.info("Device actor created.")
 
     @overrides
@@ -156,18 +157,18 @@ class DeviceBaseActor(Actor):
                 "SELF": self.globalName,
             }
             self.send(sender, return_message)
+            self.mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
             if config["APP_TYPE"] == AppType.ISMQTT:
                 add_message = {
                     "CMD": "ADD",
                     "PAR": {"INSTR_ID": short_id(self.globalName)},
                 }
-                mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
                 logger.debug(
                     "Sending 'ADD' with %s to MQTT scheduler %s",
                     add_message,
-                    mqtt_scheduler,
+                    self.mqtt_scheduler,
                 )
-                self.send(mqtt_scheduler, add_message)
+                self.send(self.mqtt_scheduler, add_message)
             return
         with open(self.dev_file, "w+", encoding="utf8") as file_stream:
             file_stream.write(self._file)
@@ -186,13 +187,12 @@ class DeviceBaseActor(Actor):
                 "CMD": "REMOVE",
                 "PAR": {"INSTR_ID": short_id(self.globalName)},
             }
-            mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
             logger.debug(
                 "Sending 'REMOVE' with %s to MQTT scheduler %s",
                 remove_message,
-                mqtt_scheduler,
+                self.mqtt_scheduler,
             )
-            self.send(mqtt_scheduler, remove_message)
+            self.send(self.mqtt_scheduler, remove_message)
 
     def _kill(self, msg: dict, sender):
         logger.info("%s for actor %s", msg, self.globalName)
