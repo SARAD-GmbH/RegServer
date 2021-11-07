@@ -58,7 +58,6 @@ class DeviceBaseActor(Actor):
         "RESERVE": "_reserve",
         "FREE": "_free",
         "SETUP": "_setup",
-        "REMOVE": "_remove",
     }
     ACCEPTED_RETURNS = {
         "SETUP": "_return_with_socket",
@@ -180,7 +179,8 @@ class DeviceBaseActor(Actor):
         self.send(sender, return_message)
         return
 
-    def _remove(self, _msg, _sender):
+    def _kill(self, msg: dict, sender):
+        logger.info("%s for actor %s", msg, self.globalName)
         # Send 'REMOVE' message to MQTT Scheduler
         if config["APP_TYPE"] == AppType.ISMQTT:
             remove_message = {
@@ -193,9 +193,6 @@ class DeviceBaseActor(Actor):
                 self.mqtt_scheduler,
             )
             self.send(self.mqtt_scheduler, remove_message)
-
-    def _kill(self, msg: dict, sender):
-        logger.info("%s for actor %s", msg, self.globalName)
         self.dev_file = fr"{self.__dev_folder}{self.globalName}"
         if os.path.exists(self.dev_file):
             os.remove(self.dev_file)
