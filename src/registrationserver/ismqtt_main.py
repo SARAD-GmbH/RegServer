@@ -10,6 +10,7 @@ Authors
 import os
 import sys
 import threading
+import time
 
 from thespian.actors import ActorSystem  # type: ignore
 
@@ -130,7 +131,7 @@ def main():
         return None
 
     while is_flag_set():
-        pass
+        time.sleep(5)
     try:
         cleanup()
     except UnboundLocalError:
