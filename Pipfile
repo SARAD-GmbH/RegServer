@@ -22,7 +22,6 @@ pyyaml = "*"
 appdirs = "*"
 overrides = "*"
 click = "*"
-data-collector = {editable = true, git = "https://github.com/SARAD-GmbH/data_collector.git"}
 pywin32 = "*"
 keyboard = "*"
 polling2 = "*"
@@ -32,3 +31,7 @@ toml = "*"
 
 [requires]
 python_version = "3"
+
+[packages.data-collector]
+editable = true
+git = "https://github.com/SARAD-GmbH/data_collector.git"
