@@ -102,11 +102,33 @@ class SaradMqttSubscriber:
         self.mqttc.message_callback_add("+/meta", self.on_is_meta)
         self.mqttc.message_callback_add("+/+/meta", self.on_instr_meta)
 
-        ic_hosts_folder = f"{config['IC_HOSTS_FOLDER']}{os.path.sep}"
-        if not os.path.exists(ic_hosts_folder):
-            os.makedirs(ic_hosts_folder)
-
+        self.__ic_hosts_folder: str = config["IC_HOSTS_FOLDER"] + os.path.sep
+        if not os.path.exists(self.__ic_hosts_folder):
+            os.makedirs(self.__ic_hosts_folder)
+        self.__dev_folder: str = config["DEV_FOLDER"] + os.path.sep
+        if not os.path.exists(self.__dev_folder):
+            os.makedirs(self.__dev_folder)
+        logger.debug("Write device files to: %s", self.__dev_folder)
+        # Clean __dev_folder and __ic_hosts_folder for a fresh start
+        self._remove_all_services()
         self._connect()
+
+    def _remove_all_services(self) -> None:
+        """Remove all device files from device folder.
+        Remove all IC hosts form IC hosts folder."""
+        if os.path.exists(self.__dev_folder):
+            for root, _, files in os.walk(self.__dev_folder):
+                for name in files:
+                    if "local" in name:
+                        dev_file = os.path.join(root, name)
+                        logger.debug("[Del] Removed %s", name)
+                        os.remove(dev_file)
+        if os.path.exists(self.__ic_hosts_folder):
+            for root, _, files in os.walk(self.__ic_hosts_folder):
+                for name in files:
+                    host_file = os.path.join(root, name)
+                    logger.debug("[Del] Removed %s", name)
+                    os.remove(host_file)
 
     def _connect(self):
         success = False

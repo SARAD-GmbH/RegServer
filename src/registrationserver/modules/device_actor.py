@@ -58,7 +58,6 @@ class DeviceBaseActor(Actor):
         "RESERVE": "_reserve",
         "FREE": "_free",
         "SETUP": "_setup",
-        "REMOVE": "_remove",
     }
     ACCEPTED_RETURNS = {
         "SETUP": "_return_with_socket",
@@ -79,6 +78,7 @@ class DeviceBaseActor(Actor):
         self.user = None
         self.host = None
         self.sender_api = None
+        self.mqtt_scheduler = None
         logger.info("Device actor created.")
 
     @overrides
@@ -156,18 +156,18 @@ class DeviceBaseActor(Actor):
                 "SELF": self.globalName,
             }
             self.send(sender, return_message)
+            self.mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
             if config["APP_TYPE"] == AppType.ISMQTT:
                 add_message = {
                     "CMD": "ADD",
                     "PAR": {"INSTR_ID": short_id(self.globalName)},
                 }
-                mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
                 logger.debug(
                     "Sending 'ADD' with %s to MQTT scheduler %s",
                     add_message,
-                    mqtt_scheduler,
+                    self.mqtt_scheduler,
                 )
-                self.send(mqtt_scheduler, add_message)
+                self.send(self.mqtt_scheduler, add_message)
             return
         with open(self.dev_file, "w+", encoding="utf8") as file_stream:
             file_stream.write(self._file)
@@ -179,23 +179,20 @@ class DeviceBaseActor(Actor):
         self.send(sender, return_message)
         return
 
-    def _remove(self, _msg, _sender):
+    def _kill(self, msg: dict, sender):
+        logger.info("%s for actor %s", msg, self.globalName)
         # Send 'REMOVE' message to MQTT Scheduler
         if config["APP_TYPE"] == AppType.ISMQTT:
             remove_message = {
                 "CMD": "REMOVE",
                 "PAR": {"INSTR_ID": short_id(self.globalName)},
             }
-            mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
             logger.debug(
                 "Sending 'REMOVE' with %s to MQTT scheduler %s",
                 remove_message,
-                mqtt_scheduler,
+                self.mqtt_scheduler,
             )
-            self.send(mqtt_scheduler, remove_message)
-
-    def _kill(self, msg: dict, sender):
-        logger.info("%s for actor %s", msg, self.globalName)
+            self.send(self.mqtt_scheduler, remove_message)
         self.dev_file = fr"{self.__dev_folder}{self.globalName}"
         if os.path.exists(self.dev_file):
             os.remove(self.dev_file)
