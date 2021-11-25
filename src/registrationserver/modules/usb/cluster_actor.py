@@ -54,7 +54,7 @@ class ClusterActor(Actor):
         super().__init__()
         logger.debug("ClusterActor initialized")
 
-    def _loop(self, msg: dict, sender) -> None:
+    def _loop(self, msg, sender) -> None:
         target = msg["PAR"]["PORT"]
         logger.info("Adding to loop: %s", target)
         ports_ok: List[str] = []
@@ -76,7 +76,7 @@ class ClusterActor(Actor):
             },
         )
 
-    def _loop_remove(self, msg: dict, sender) -> None:
+    def _loop_remove(self, msg, sender) -> None:
         target = msg["PAR"]["PORT"]
         logger.info("Removing from loop: %s", target)
         ports_ok: List[str] = list()
@@ -98,7 +98,7 @@ class ClusterActor(Actor):
             },
         )
 
-    def _do_loop(self, _msg: dict, _sender) -> None:
+    def _do_loop(self, _msg, _sender) -> None:
         logger.debug("[_do_loop]")
         logger.info("Started polling: %s", self._looplist)
         self._cluster.update_connected_instruments()
@@ -163,7 +163,7 @@ class ClusterActor(Actor):
             return True
         return False
 
-    def _send(self, msg: dict, sender) -> None:
+    def _send(self, msg, sender) -> None:
         logger.debug("[_send]")
         data = msg["PAR"]["DATA"]
         target = msg["PAR"]["Instrument"]
@@ -195,7 +195,7 @@ class ClusterActor(Actor):
             }
             self.send(sender, return_message)
 
-    def _list_ports(self, _msg: dict, sender) -> None:
+    def _list_ports(self, _msg, sender) -> None:
         logger.debug("[_list_ports]")
         result: List[str] = list()
         ports = [
@@ -210,7 +210,7 @@ class ClusterActor(Actor):
         }
         self.send(sender, return_message)
 
-    def _list_usb(self, _msg: dict, sender) -> None:
+    def _list_usb(self, _msg, sender) -> None:
         logger.debug("[_list_usb]")
         result: List[str] = list()
         ports = [port.device for port in comports() if port.vid and port.pid]
@@ -236,7 +236,7 @@ class ClusterActor(Actor):
         logger.debug(return_message)
         self.send(sender, return_message)
 
-    def _list_natives(self, _msg: dict, sender) -> None:
+    def _list_natives(self, _msg, sender) -> None:
         logger.debug("[_list_natives]")
         result: List[str] = list()
         ports = [port.device for port in comports() if not port.pid]
@@ -261,7 +261,7 @@ class ClusterActor(Actor):
         }
         self.send(sender, return_message)
 
-    def _list(self, msg: dict, sender) -> None:
+    def _list(self, msg, sender) -> None:
         logger.debug("[_list]")
         result: List[SaradInst] = list()
         target = msg["PAR"].get("PORTS", None)

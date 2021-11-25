@@ -151,7 +151,7 @@ class SaradMqttSubscriber:
         """Running one cycle of the MQTT loop"""
         self.mqttc.loop()
 
-    def _add_instr(self, is_id, instr_id, payload) -> None:
+    def _add_instr(self, is_id, instr_id, payload: dict) -> None:
         # pylint: disable=too-many-return-statements
         logger.debug("[add_instr] %s", payload)
         if (is_id is None) or (instr_id is None) or (payload is None):
@@ -192,8 +192,7 @@ class SaradMqttSubscriber:
             ac_name,
         )
         this_actor = ActorSystem().createActor(MqttActor, globalName=ac_name)
-        data = json.dumps(payload)
-        setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": data})
+        setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": payload})
         logger.debug("SETUP returns: %s", setup_return)
         if not setup_return["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],

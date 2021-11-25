@@ -53,7 +53,7 @@ class Rfc2217Actor(DeviceBaseActor):
             return True
         return False
 
-    def _send(self, msg: dict, _sender) -> None:
+    def _send(self, msg, _sender) -> None:
         if self._connect():
             data = msg["PAR"]["DATA"]
             logger.info("Actor %s received: %s", self.globalName, data)
@@ -93,7 +93,7 @@ class Rfc2217Actor(DeviceBaseActor):
         return
 
     @overrides
-    def _free(self, msg: dict, sender):
+    def _free(self, msg, sender):
         logger.debug("Start to cleanup RFC2217")
         if self.__port is not None:
             if self.__port.isOpen():
@@ -102,7 +102,7 @@ class Rfc2217Actor(DeviceBaseActor):
         super()._free(msg, sender)
 
     @overrides
-    def _kill(self, msg: dict, sender):
+    def _kill(self, msg, sender):
         if self.__port is not None:
             if self.__port.isOpen():
                 self.__port.close()

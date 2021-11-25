@@ -38,7 +38,7 @@ class UsbActor(DeviceBaseActor):
         logger.info("USB actor created.")
 
     @overrides
-    def _setup(self, msg: dict, sender) -> None:
+    def _setup(self, msg, sender) -> None:
         self._cluster = self.createActor(Actor, globalName="cluster")
         self.instrument = self.globalName.split(".")[0]
         try:
@@ -53,7 +53,7 @@ class UsbActor(DeviceBaseActor):
             self._kill(msg, sender)
         return super()._setup(msg, sender)
 
-    def _send(self, msg: dict, _sender) -> None:
+    def _send(self, msg, _sender) -> None:
         cmd = msg["PAR"]["DATA"]
         logger.debug("Actor %s received: %s", self.globalName, cmd)
         self.send(
@@ -61,7 +61,7 @@ class UsbActor(DeviceBaseActor):
             {"CMD": "SEND", "PAR": {"DATA": cmd, "Instrument": self.instrument}},
         )
 
-    def _return_from_send(self, msg: dict, _sender):
+    def _return_from_send(self, msg, _sender):
         reply = msg["RESULT"]["DATA"]
         logger.debug("and got reply from instrument: %s", reply)
         return_message = {

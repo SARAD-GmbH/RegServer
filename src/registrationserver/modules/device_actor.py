@@ -69,7 +69,7 @@ class DeviceBaseActor(Actor):
         logger.debug("Initialize a new device actor.")
         super().__init__()
         self._config: dict = {}
-        self._file: json = None
+        self._file_content: str = None
         self.df_content = {}
         self.dev_file = None
         self.__dev_folder: str = config["DEV_FOLDER"] + os.path.sep
@@ -141,15 +141,19 @@ class DeviceBaseActor(Actor):
                 return
             getattr(self, return_function)(msg, sender)
 
-    def _setup(self, msg: dict, sender) -> None:
+    def _setup(self, msg, sender) -> None:
+        logger.debug("[_setup]")
+        self._file_content = json.dumps(msg["PAR"])
+        logger.debug(
+            "Content received to be written to device file: %s", self._file_content
+        )
         if self.dev_file is None:
             self.dev_file = fr"{self.__dev_folder}{self.globalName}"
             if not os.path.exists(self.dev_file):
                 open(self.dev_file, "a", encoding="utf8").close()
                 logger.info("Device file %s created", self.dev_file)
-            self._file = msg["PAR"]
             with open(self.dev_file, "w+", encoding="utf8") as file_stream:
-                file_stream.write(self._file)
+                file_stream.write(self._file_content)
             return_message = {
                 "RETURN": "SETUP",
                 "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
@@ -170,7 +174,7 @@ class DeviceBaseActor(Actor):
                 self.send(self.mqtt_scheduler, add_message)
             return
         with open(self.dev_file, "w+", encoding="utf8") as file_stream:
-            file_stream.write(self._file)
+            file_stream.write(self._file_content)
         return_message = {
             "RETURN": "SETUP",
             "ERROR_CODE": RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
@@ -179,7 +183,7 @@ class DeviceBaseActor(Actor):
         self.send(sender, return_message)
         return
 
-    def _kill(self, msg: dict, sender):
+    def _kill(self, msg, sender):
         logger.info("%s for actor %s", msg, self.globalName)
         # Send 'REMOVE' message to MQTT Scheduler
         if config["APP_TYPE"] == AppType.ISMQTT:
@@ -203,7 +207,7 @@ class DeviceBaseActor(Actor):
         self.send(sender, return_message)
         logger.debug("Cleanup done before finally killing me.")
 
-    def _reserve(self, msg: dict, sender) -> None:
+    def _reserve(self, msg, sender) -> None:
         """Handler for RESERVE message from REST API."""
         logger.info("Device actor received a RESERVE command with message: %s", msg)
         self.sender_api = sender
@@ -303,12 +307,12 @@ class DeviceBaseActor(Actor):
             "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         }
         logger.debug("Reservation: %s", reservation)
-        self.df_content = json.loads(self._file)
+        self.df_content = json.loads(self._file_content)
         self.df_content["Reservation"] = reservation
-        self._file = json.dumps(self.df_content)
-        logger.debug("self._file: %s", self._file)
+        self._file_content = json.dumps(self.df_content)
+        logger.debug("self._file_content: %s", self._file_content)
         with open(self.dev_file, "w+", encoding="utf8") as file_stream:
-            file_stream.write(self._file)
+            file_stream.write(self._file_content)
         logger.debug("Send CONNECT command to redirector %s", self.my_redirector)
         self.send(self.my_redirector, {"CMD": "CONNECT"})
         return_message = {
@@ -325,7 +329,7 @@ class DeviceBaseActor(Actor):
         self.send(self.sender_api, return_message)
         return
 
-    def _free(self, msg: dict, sender):
+    def _free(self, msg, sender):
         """Handler for FREE message from REST API."""
         logger.info("Device actor received a FREE command. %s", msg)
         self.sender_api = sender
@@ -345,7 +349,7 @@ class DeviceBaseActor(Actor):
         it received the KILL command."""
         if not msg["ERROR_CODE"]:
             # Overwrite Reserve section in device file
-            self.df_content = json.loads(self._file)
+            self.df_content = json.loads(self._file_content)
             reservation = {
                 "Active": False,
                 "App": self.df_content["Reservation"]["App"],
@@ -355,10 +359,10 @@ class DeviceBaseActor(Actor):
             }
             logger.info("[Free] %s", reservation)
             self.df_content["Reservation"] = reservation
-            self._file = json.dumps(self.df_content)
-            logger.info("self._file: %s", self._file)
+            self._file_content = json.dumps(self.df_content)
+            logger.info("self._file_content: %s", self._file_content)
             with open(self.dev_file, "w+", encoding="utf8") as file_stream:
-                file_stream.write(self._file)
+                file_stream.write(self._file_content)
             self.my_redirector = None
             return_message = {
                 "RETURN": "FREE",

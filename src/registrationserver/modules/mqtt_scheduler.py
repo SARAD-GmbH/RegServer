@@ -166,7 +166,7 @@ class MqttSchedulerActor(Actor):
             client=self.mqttc, is_id=self.is_id, instr_id=instr_id
         )
 
-    def _kill(self, _msg: dict, _sender):
+    def _kill(self, _msg, _sender):
         self._unsubscribe(["+"])
         self._disconnect()
         time.sleep(1)

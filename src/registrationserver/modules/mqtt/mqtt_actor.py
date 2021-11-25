@@ -74,7 +74,7 @@ class MqttActor(DeviceBaseActor):
             "UNSUBSCRIBE": None,
         }  # store the current message ID to check
 
-    def _send(self, msg: dict, sender) -> None:
+    def _send(self, msg, sender) -> None:
         if msg is None:
             logger.error("[SEND] no contents to send for actor %s", self.globalName)
             return
@@ -187,14 +187,14 @@ class MqttActor(DeviceBaseActor):
             return
         super()._free(msg, sender)
 
-    def _kill(self, msg: dict, sender):
+    def _kill(self, msg, sender):
         logger.debug(self.allowed_sys_topics)
         self._unsubscribe(["+"])
         self._disconnect()
         time.sleep(1)
         super()._kill(msg, sender)
 
-    def _prepare(self, msg: dict, sender):
+    def _prepare(self, msg, sender):
         logger.debug("Actor name = %s", self.globalName)
         self.subscriber = sender
         mqtt_cid = self.globalName + ".client"
@@ -221,6 +221,11 @@ class MqttActor(DeviceBaseActor):
         self.mqttc.on_publish = self.on_publish
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
+        for k in self.allowed_sys_topics:
+            self.allowed_sys_topics[k] = (
+                self.is_id + "/" + self.instr_id + self.allowed_sys_options[k]
+            )
+            logger.debug("allowed topic: %s", self.allowed_sys_topics[k])
         self.mqttc.message_callback_add(
             self.allowed_sys_topics["RESERVE"], self.on_reserve
         )
@@ -343,16 +348,6 @@ class MqttActor(DeviceBaseActor):
         """Will be carried out when the client connected to the MQTT broker."""
         if result_code == 0:
             self.is_connected = True
-            logger.info(
-                "[CONNECT] IS ID is %s and instrument ID is %s",
-                self.is_id,
-                self.instr_id,
-            )
-            for k in self.allowed_sys_topics:
-                self.allowed_sys_topics[k] = (
-                    self.is_id + "/" + self.instr_id + self.allowed_sys_options[k]
-                )
-                logger.debug("allowed topic: %s", self.allowed_sys_topics[k])
             logger.info("[CONNECT] Connected to MQTT broker")
             self.send(
                 self.subscriber,
@@ -437,7 +432,7 @@ class MqttActor(DeviceBaseActor):
         self.mqttc.loop_stop()
         logger.debug("Disconnected gracefully")
 
-    def _publish(self, msg: dict) -> bool:
+    def _publish(self, msg) -> bool:
         logger.debug("Work state: publish")
         if not self.is_connected:
             logger.warning("Failed to publish the message because of disconnection")
