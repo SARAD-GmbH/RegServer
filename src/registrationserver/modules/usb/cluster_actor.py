@@ -387,6 +387,15 @@ class ClusterActor(Actor):
 
     def _kill(self, _msg, sender):
         logger.debug("[_kill] called from %s", sender)
+        for _port, actor in self._actors.items():
+            self.send(actor, ActorExitRequest())
+        logger.debug("ActorExitRequests to all device actors sent.")
+        return_message = {
+            "RETURN": "KILL",
+            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+        }
+        self.send(sender, return_message)
+        logger.debug("Cleanup done before finally killing me.")
 
     def receiveMessage(self, msg, sender):
         """
