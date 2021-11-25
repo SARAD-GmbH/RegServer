@@ -9,7 +9,6 @@ Authors
 
 .. uml :: uml-usb_actor.puml
 """
-import json
 
 from overrides import overrides  # type: ignore
 from registrationserver.logger import logger
@@ -42,7 +41,7 @@ class UsbActor(DeviceBaseActor):
         self._cluster = self.createActor(Actor, globalName="cluster")
         self.instrument = self.globalName.split(".")[0]
         try:
-            data = json.loads(msg["PAR"])
+            data = msg["PAR"]
             serial_port = data["Serial"]
             logger.debug(serial_port)
         except Exception as this_exception:  # pylint: disable=broad-except
