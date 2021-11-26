@@ -13,6 +13,7 @@ Author
 import json
 import os
 import time
+from typing import Any, Dict
 
 import paho.mqtt.client as MQTT  # type: ignore
 from registrationserver.config import config, mqtt_config
@@ -302,7 +303,7 @@ class SaradMqttSubscriber:
     def _rm_host(self, is_id) -> None:
         logger.debug("[Remove Host] %s", is_id)
         self._unsubscribe(is_id + "/+/meta")
-        instruments_to_remove = {}
+        instruments_to_remove: Dict[str, Any] = {}
         instruments_to_remove[is_id] = {}
         for instr_id in self.connected_instruments[is_id]:
             logger.info("[Remove Host] Mark %s for removal", instr_id)
