@@ -242,6 +242,7 @@ class SaradMqttSubscriber:
         logger.info("[rm_instr] %s", instr_id)
         this_actor = ActorSystem().createActor(MqttActor, globalName=name_)
         ActorSystem().ask(this_actor, ActorExitRequest())
+        del self.connected_instruments[is_id][instr_id]
         return
 
     def _update_instr(self, is_id, instr_id, payload) -> None:
