@@ -10,7 +10,6 @@ Authors
 
 """
 
-import json
 from typing import List
 
 from registrationserver.config import config
@@ -79,7 +78,7 @@ class ClusterActor(Actor):
     def _loop_remove(self, msg, sender) -> None:
         target = msg["PAR"]["PORT"]
         logger.info("Removing from loop: %s", target)
-        ports_ok: List[str] = list()
+        ports_ok: List[str] = []
         if isinstance(target, list):
             for port in target:
                 if self._remove_from_loop(port):
@@ -197,7 +196,7 @@ class ClusterActor(Actor):
 
     def _list_ports(self, _msg, sender) -> None:
         logger.debug("[_list_ports]")
-        result: List[str] = list()
+        result: List[str] = []
         ports = [
             {"PORT": port.device, "PID": port.pid, "VID": port.vid}
             for port in comports()
@@ -212,7 +211,7 @@ class ClusterActor(Actor):
 
     def _list_usb(self, _msg, sender) -> None:
         logger.debug("[_list_usb]")
-        result: List[str] = list()
+        result: List[str] = []
         ports = [port.device for port in comports() if port.vid and port.pid]
         result = [
             {
@@ -238,7 +237,7 @@ class ClusterActor(Actor):
 
     def _list_natives(self, _msg, sender) -> None:
         logger.debug("[_list_natives]")
-        result: List[str] = list()
+        result: List[str] = []
         ports = [port.device for port in comports() if not port.pid]
         result = [
             {
@@ -263,7 +262,7 @@ class ClusterActor(Actor):
 
     def _list(self, msg, sender) -> None:
         logger.debug("[_list]")
-        result: List[SaradInst] = list()
+        result: List[SaradInst] = []
         target = msg["PAR"].get("PORTS", None)
         if not target:
             instruments = self._cluster.update_connected_instruments()
