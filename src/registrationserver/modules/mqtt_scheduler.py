@@ -58,21 +58,19 @@ class MqttSchedulerActor(Actor):
         self.mqttc.on_connect = self.on_connect
         self.mqttc.on_disconnect = self.on_disconnect
         self.mqttc.on_message = self.on_message
-        disconnect = ismqtt_messages.get_is_meta(
-            ismqtt_messages.InstrumentServerMeta(
-                state=0,
-                host=self.is_id,
-                description=ismqtt_config["DESCRIPTION"],
-                place=ismqtt_config["PLACE"],
-                latitude=ismqtt_config["LATITUDE"],
-                longitude=ismqtt_config["LONGITUDE"],
-                height=ismqtt_config["HEIGHT"],
-            ),
+        self.is_meta = ismqtt_messages.InstrumentServerMeta(
+            state=0,
+            host=self.is_id,
+            description=ismqtt_config["DESCRIPTION"],
+            place=ismqtt_config["PLACE"],
+            latitude=ismqtt_config["LATITUDE"],
+            longitude=ismqtt_config["LONGITUDE"],
+            height=ismqtt_config["HEIGHT"],
         )
         self.mqttc.will_set(
             retain=True,
             topic=f"{self.is_id}/meta",
-            payload=disconnect,
+            payload=ismqtt_messages.get_is_meta(self.is_meta),
         )
         mqtt_broker = mqtt_config["MQTT_BROKER"]
         port = mqtt_config["PORT"]
@@ -167,7 +165,9 @@ class MqttSchedulerActor(Actor):
         )
 
     def _kill(self, _msg, _sender):
-        self._unsubscribe(["+"])
+        ismqtt_messages.del_is(
+            client=self.mqttc, is_id=self.is_id, is_meta=self.is_meta._replace(state=0)
+        )
         self._disconnect()
         time.sleep(1)
 
@@ -205,17 +205,7 @@ class MqttSchedulerActor(Actor):
             self.mqttc.publish(
                 retain=True,
                 topic=f"{self.is_id}/meta",
-                payload=ismqtt_messages.get_is_meta(
-                    ismqtt_messages.InstrumentServerMeta(
-                        state=2,
-                        host=self.is_id,
-                        description=ismqtt_config["DESCRIPTION"],
-                        place=ismqtt_config["PLACE"],
-                        latitude=ismqtt_config["LATITUDE"],
-                        longitude=ismqtt_config["LONGITUDE"],
-                        height=ismqtt_config["HEIGHT"],
-                    )
-                ),
+                payload=ismqtt_messages.get_is_meta(self.is_meta._replace(state=2)),
             )
         else:
             self.is_connected = False

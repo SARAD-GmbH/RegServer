@@ -260,3 +260,14 @@ def del_instr(*, client, is_id: str, instr_id: str):
         topic=f"{is_id}/{instr_id}/meta",
         payload=mypayload,
     )
+
+
+def del_is(*, client, is_id: str, is_meta):
+    """Helper function to deal with marking the instrument server as removed"""
+    # def unsubscribe(self, topic, properties=None):
+    client.unsubscribe(topic="+")
+    client.publish(
+        retain=True,
+        topic=f"{is_id}/meta",
+        payload=get_is_meta(is_meta),
+    )
