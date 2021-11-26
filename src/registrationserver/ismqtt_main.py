@@ -65,7 +65,7 @@ def cleanup():
         None"""
     logger.debug("Terminate the ClusterActor")
     cluster_actor = ActorSystem().createActor(Actor, globalName="cluster")
-    response = ActorSystem().ask(cluster_actor, ActorExitRequest(True))
+    response = ActorSystem().ask(cluster_actor, {"CMD": "KILL"})
     logger.debug("Cluster_actor killed: %s", response)
     logger.info("Cleaning up before closing.")
     ActorSystem().shutdown()

@@ -13,6 +13,7 @@ Authors
 from typing import List
 
 from registrationserver.config import config
+from registrationserver.helpers import get_key
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.usb.usb_actor import UsbActor
@@ -37,6 +38,7 @@ class ClusterActor(Actor):
         "LOOP-REMOVE": "_loop_remove",
         "DO_LOOP": "_do_loop",
         "LIST-PORTS": "_list_ports",
+        "KILL": "_kill",
     }
 
     def __init__(self):
@@ -50,6 +52,8 @@ class ClusterActor(Actor):
             native_ports=list(self.native_ports), ignore_ports=list(self.ignore_ports)
         )
         self._actors = {}
+        self._actor_system = None
+        self._kill_flag = False
         super().__init__()
         logger.debug("ClusterActor initialized")
 
@@ -386,15 +390,27 @@ class ClusterActor(Actor):
 
     def _kill(self, _msg, sender):
         logger.debug("[_kill] called from %s", sender)
+        self._actor_system = sender
+        self._kill_flag = True
         for _port, actor in self._actors.items():
             self.send(actor, ActorExitRequest())
         logger.debug("ActorExitRequests to all device actors sent.")
-        return_message = {
-            "RETURN": "KILL",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-        }
-        self.send(sender, return_message)
-        logger.debug("Cleanup done before finally killing me.")
+
+    def _return_from_kill(self, _msg, sender):
+        """Handle RETURN from KILL messages from the device actors.
+        Finally kill myself when the last child confirmed its ActorExitRequest
+        and the kill flag was set."""
+        gone_port = get_key(sender, self._actors)
+        self._actors.pop(gone_port, None)
+        logger.debug("Instrument at port %s removed", gone_port)
+        if (self._actors == {}) and self._kill_flag:
+            logger.debug("Instrument list empty. Killing myself.")
+            return_message = {
+                "RETURN": "KILL",
+                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+            }
+            self.send(self._actor_system, return_message)
+            self.send(self.myAddress, ActorExitRequest())
 
     def receiveMessage(self, msg, sender):
         """
@@ -405,10 +421,10 @@ class ClusterActor(Actor):
             self._continue_loop()
             return
         if isinstance(msg, ActorExitRequest):
-            self._kill(msg, sender)
             return
         if isinstance(msg, ChildActorExited):
             logger.debug("ChildActorExited received")
+            self._return_from_kill(msg, msg.childAddress)
             return
         if not isinstance(msg, dict):
             logger.critical(

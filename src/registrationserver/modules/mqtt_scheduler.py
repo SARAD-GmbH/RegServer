@@ -13,7 +13,7 @@ import time
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.config import ismqtt_config, mqtt_config
-from registrationserver.helpers import short_id
+from registrationserver.helpers import get_key, short_id
 from registrationserver.logger import logger
 from registrationserver.modules import ismqtt_messages
 from registrationserver.modules.messages import RETURN_MESSAGES
@@ -302,9 +302,7 @@ class MqttSchedulerActor(Actor):
 
         Forward the payload received from device_actor via MQTT."""
         reply = msg["RESULT"]["DATA"]
-        for key, value in self.cluster.items():
-            if value == sender:
-                instr_id = key
+        instr_id = get_key(sender, self.cluster)
         self.mqttc.publish(f"{self.is_id}/{instr_id}/msg", reply)
 
     def process_control(self, msg, instr_id):
