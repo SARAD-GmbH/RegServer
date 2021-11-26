@@ -76,7 +76,6 @@ class MqttSchedulerActor(Actor):
         port = mqtt_config["PORT"]
         logger.info("Using MQTT broker %s with port %d", mqtt_broker, port)
         self.mqttc.connect(mqtt_broker, port=port)
-        self.mqttc.subscribe(f"{self.is_id}/+/meta")
         self.mqttc.loop_start()
 
     @overrides
@@ -267,15 +266,6 @@ class MqttSchedulerActor(Actor):
                 for instr_id in self.cluster:
                     if instr_id == instrument_id:
                         self.process_control(message, instr_id)
-            if (
-                len(message.topic) > len("meta") + len(self.is_id) + 2
-                and message.topic[-len("meta") :] == "meta"
-            ):
-                instrument_id = message.topic[: -len("meta") - 1][len(self.is_id) + 1 :]
-                logger.debug("Check if %s is still connected", instrument_id)
-                if instrument_id not in self.cluster:
-                    logger.debug("%s not connected", instrument_id)
-                    self.process_old(message, instrument_id)
 
     def process_cmd(self, msg, instr_id):
         """
@@ -394,27 +384,3 @@ class MqttSchedulerActor(Actor):
                 ismqtt_messages.Reservation(active=False, timestamp=time.time())
             ),
         )
-
-    def process_old(self, msg, instr_id):
-        """
-        Publish a message that instr_id is not connected.
-        """
-        old = ismqtt_messages.get_instr_meta_msg(msg)
-        if old is None or old.state == 0:
-            logger.debug("Nothing to do with instrument %s", instr_id)
-            return
-        logger.debug("Freeing old instrument %s", instr_id)
-        self.mqttc.publish(
-            topic=msg.topic,
-            retain=msg.retain,
-            payload=ismqtt_messages.get_instr_meta(
-                ismqtt_messages.InstrumentMeta(
-                    state=0,
-                    host=old.host,
-                    family=old.family,
-                    instrumentType=old.instrumentType,
-                    name=old.name,
-                    serial=old.serial,
-                )
-            ),
-        )  # def publish(self, topic, payload=None, qos=0, retain=False, properties=None)
