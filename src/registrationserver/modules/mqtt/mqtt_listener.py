@@ -226,7 +226,7 @@ class SaradMqttSubscriber:
         return
 
     def _rm_instr(self, is_id, instr_id) -> None:
-        logger.debug("rm_instr")
+        logger.debug("[rm_instr] %s, %s", is_id, instr_id)
         if (is_id is None) or (instr_id is None):
             logger.warning(
                 "[rm_instr] One or both of the IS ID " "and Instrument ID are None."
@@ -302,10 +302,24 @@ class SaradMqttSubscriber:
     def _rm_host(self, is_id) -> None:
         logger.debug("[Remove Host] %s", is_id)
         self._unsubscribe(is_id + "/+/meta")
+        instruments_to_remove = {}
+        instruments_to_remove[is_id] = {}
         for instr_id in self.connected_instruments[is_id]:
-            logger.info("[Remove Host] Remove instrument %s", instr_id)
-            self._rm_instr(is_id, instr_id)
-        del self.connected_instruments[is_id]
+            logger.info("[Remove Host] Mark %s for removal", instr_id)
+            instruments_to_remove[is_id][instr_id] = self.connected_instruments[is_id][
+                instr_id
+            ]
+        logger.debug("Instruments to be removed: %s", instruments_to_remove)
+        logger.debug("Connected instruments: %s", self.connected_instruments)
+        try:
+            for instr_id in instruments_to_remove[is_id]:
+                self._rm_instr(is_id, instr_id)
+        except KeyError:
+            logger.debug("No instrument to remove.")
+        try:
+            del self.connected_instruments[is_id]
+        except KeyError:
+            logger.error("List of connected hosts corrupted.")
         filename = f"{config['IC_HOSTS_FOLDER']}{os.path.sep}{is_id}"
         if os.path.exists(filename):
             os.remove(filename)
