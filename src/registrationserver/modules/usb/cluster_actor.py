@@ -388,13 +388,26 @@ class ClusterActor(Actor):
             for port in target:
                 self._remove_actor(port)
 
+    def _kill_myself(self, return_actor):
+        logger.debug("Instrument list empty. Killing myself.")
+        return_message = {
+            "RETURN": "KILL",
+            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+        }
+        self.send(return_actor, return_message)
+        self.send(self.myAddress, ActorExitRequest())
+
     def _kill(self, _msg, sender):
         logger.debug("[_kill] called from %s", sender)
         self._actor_system = sender
         self._kill_flag = True
-        for _port, actor in self._actors.items():
-            self.send(actor, ActorExitRequest())
-        logger.debug("ActorExitRequests to all device actors sent.")
+        if self._actors != {}:
+            for _port, actor in self._actors.items():
+                self.send(actor, ActorExitRequest())
+            logger.debug("ActorExitRequests to all device actors sent.")
+        else:
+            logger.debug("No instrument connected. Killing myself.")
+            self._kill_myself(sender)
 
     def _return_from_kill(self, _msg, sender):
         """Handle RETURN from KILL messages from the device actors.
@@ -404,13 +417,8 @@ class ClusterActor(Actor):
         self._actors.pop(gone_port, None)
         logger.debug("Instrument at port %s removed", gone_port)
         if (self._actors == {}) and self._kill_flag:
-            logger.debug("Instrument list empty. Killing myself.")
-            return_message = {
-                "RETURN": "KILL",
-                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            }
-            self.send(self._actor_system, return_message)
-            self.send(self.myAddress, ActorExitRequest())
+            logger.debug("All instrument are unsigned now. Killing myself.")
+            self._kill_myself(self._actor_system)
 
     def receiveMessage(self, msg, sender):
         """
