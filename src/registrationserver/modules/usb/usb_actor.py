@@ -11,6 +11,7 @@ Authors
 """
 
 from overrides import overrides  # type: ignore
+from registrationserver.config import AppType, config
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.modules.messages import RETURN_MESSAGES
@@ -68,7 +69,13 @@ class UsbActor(DeviceBaseActor):
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
             "RESULT": {"DATA": reply},
         }
-        self.send(self.my_redirector, return_message)
+        if config["APP_TYPE"] == AppType.ISMQTT:
+            self.send(self.mqtt_scheduler, return_message)
+        elif config["APP_TYPE"] == AppType.RS:
+            self.send(self.my_redirector, return_message)
+        else:
+            # TODO: Actually there is no else yet.
+            self.send(self.my_redirector, return_message)
 
     @overrides
     def _reserve_at_is(self):
