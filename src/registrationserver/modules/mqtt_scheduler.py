@@ -255,13 +255,7 @@ class MqttSchedulerActor(Actor):
             if instr_id == instrument_id:
                 if self.reservations.get(instr_id):
                     old = self.reservations[instr_id]
-                    self.reservations[instr_id] = ismqtt_messages.Reservation(
-                        active=old.active,
-                        app=old.app,
-                        host=old.host,
-                        timestamp=time.time(),
-                        user=old.user,
-                    )
+                    self.reservations[instr_id] = old._replace(timestamp=time.time())
                     cmd = message.payload
                     logger.debug("Forward command %s to device actor", cmd)
                     cmd_msg = {"CMD": "SEND", "PAR": {"DATA": cmd, "HOST": "localhost"}}
@@ -343,11 +337,7 @@ class MqttSchedulerActor(Actor):
             )
             success = True
 
-        if not success and (
-            self.reservations[instr_id].host == control.data.host
-            and self.reservations[instr_id].app == control.data.app
-            and self.reservations[instr_id].user == control.data.user
-        ):
+        if not success and (self.reservations[instr_id].host == control.data.host):
             success = True
 
         if not success and (
