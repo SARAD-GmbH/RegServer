@@ -148,12 +148,14 @@ def get_instr_control(json_data, old_reservation) -> Control:
         logger.error("No 'Req' in payload.")
         return Control(ctype=ControlType.UNKNOWN, data=nodata)
     # FREE
-    if data["Req"] == "free"
+    if data["Req"] == "free":
         logger.debug("[Free] request")
         if old_reservation is None:
             logger.debug("[FREE] not reserved, nothing to do")
         else:
-            new_reservation = old_reservation._replace(active=False, timestamp=time.time())
+            new_reservation = old_reservation._replace(
+                active=False, timestamp=time.time()
+            )
             return Control(
                 ctype=ControlType.FREE,
                 data=new_reservation,
