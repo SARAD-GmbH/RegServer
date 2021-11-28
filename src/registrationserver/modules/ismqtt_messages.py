@@ -139,7 +139,7 @@ def get_instr_reservation(data: Reservation) -> str:
     )
 
 
-def get_instr_control(json_data) -> Control:
+def get_instr_control(json_data, old_control) -> Control:
     """Converting received MQTT payload into Control object"""
     nodata = Reservation(0, False, "", "", "")
     try:
@@ -149,17 +149,11 @@ def get_instr_control(json_data) -> Control:
             logger.error("No 'Req' in payload.")
             return Control(ctype=ControlType.UNKNOWN, data=nodata)
         # FREE
-        if data["Req"] == "free":
+        if data["Req"] == "free" and old_control is not None:
             logger.debug("Free request")
-            return Control(
+            return old_control._replace(
                 ctype=ControlType.FREE,
-                data=Reservation(
-                    active=False,
-                    app=data["App"],
-                    host=data["Host"],
-                    user=data["User"],
-                    timestamp=time.time(),
-                ),
+                data=old_control.data._replace(active=False, timestamp=time.time()),
             )
         # RESERVE
         if (
