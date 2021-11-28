@@ -13,7 +13,7 @@ import time
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.config import ismqtt_config, mqtt_config
-from registrationserver.helpers import get_key, short_id
+from registrationserver.helpers import get_key
 from registrationserver.logger import logger
 from registrationserver.modules import ismqtt_messages
 from registrationserver.modules.messages import RETURN_MESSAGES
@@ -57,6 +57,8 @@ class MqttSchedulerActor(Actor):
         self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
         self.mqttc.on_disconnect = self.on_disconnect
+        self.mqttc.message_callback_add("+/+/control", self.on_control)
+        self.mqttc.message_callback_add("+/+/cmd", self.on_cmd)
         self.mqttc.on_message = self.on_message
         self.is_meta = ismqtt_messages.InstrumentServerMeta(
             state=0,
@@ -228,54 +230,49 @@ class MqttSchedulerActor(Actor):
             logger.debug("Gracefully disconnected from MQTT broker.")
         self.is_connected = False
 
+    def on_control(self, _client, _userdata, message):
+        """Event handler for all MQTT messages with control topic."""
+        logger.debug("[on_control] %s: %s", message.topic, message.payload)
+        instrument_id = message.topic[: -len("control") - 1][len(self.is_id) + 1 :]
+        for instr_id in self.cluster:
+            if instr_id == instrument_id:
+                control = ismqtt_messages.get_instr_control(message)
+                logger.debug("Control object: %s", control)
+                if control.ctype == ismqtt_messages.ControlType.RESERVE:
+                    self.process_reserve(instr_id, control)
+                if control.ctype == ismqtt_messages.ControlType.FREE:
+                    try:
+                        self.process_free(instr_id, control)
+                    except Exception:  # pylint: disable=broad-except
+                        logger.exception("Failed to handle FREE comand")
+                # TODO: If code gets here, then the instrument got disconnected
+
+    def on_cmd(self, _client, _userdata, message):
+        """Event handler for all MQTT messages with cmd topic."""
+        logger.debug("[on_cmd] %s: %s", message.topic, message.payload)
+        instrument_id = message.topic[: -len("cmd") - 1][len(self.is_id) + 1 :]
+        for instr_id, device_actor in self.cluster.items():
+            if instr_id == instrument_id:
+                if self.reservations.get(instr_id):
+                    old = self.reservations[instr_id]
+                    self.reservations[instr_id] = ismqtt_messages.Reservation(
+                        active=old.active,
+                        app=old.app,
+                        host=old.host,
+                        timestamp=time.time(),
+                        user=old.user,
+                    )
+                    cmd = message.payload
+                    logger.debug("Forward command %s to device actor", cmd)
+                    cmd_msg = {"CMD": "SEND", "PAR": {"DATA": cmd, "HOST": "localhost"}}
+                    self.send(device_actor, cmd_msg)
+
     def on_message(self, _client, _userdata, message):
         """
         Event handler for after a MQTT message was received on a subscribed topic.
-        This could be a control or a cmd message.
+        This will catch only remaining topics that are not control or cmd messages.
         """
-        logger.debug("%s(%s)", message.topic, len(message.topic))
-        if message.payload is None:
-            logger.error("The payload is none")
-        else:
-            if (
-                len(message.topic) > len("cmd") + len(self.is_id) + 2
-                and message.topic[-len("cmd") :] == "cmd"
-            ):
-                instrument_id = message.topic[: -len("cmd") - 1][len(self.is_id) + 1 :]
-                for instr_id in self.cluster:
-                    if instr_id == instrument_id:
-                        if self.reservations.get(instr_id):
-                            old = self.reservations[instr_id]
-                            self.reservations[instr_id] = ismqtt_messages.Reservation(
-                                active=old.active,
-                                app=old.app,
-                                host=old.host,
-                                timestamp=time.time(),
-                                user=old.user,
-                            )
-                            self.process_cmd(message, instr_id)
-                # TODO: If code gets here, then the instrument got disconnected
-                return
-            if (
-                len(message.topic) > len("control") + len(self.is_id) + 2
-                and message.topic[-len("control") :] == "control"
-            ):
-                instrument_id = message.topic[: -len("control") - 1][
-                    len(self.is_id) + 1 :
-                ]
-                for instr_id in self.cluster:
-                    if instr_id == instrument_id:
-                        self.process_control(message, instr_id)
-
-    def process_cmd(self, msg, instr_id):
-        """
-        Sub-event handler for after a MQTT message was received on a subscribed
-        topic this is specific for processing raw SARAD frames
-        """
-        cmd = msg.payload
-        logger.debug("Forward command %s to device actor", cmd)
-        cmd_msg = {"CMD": "SEND", "PAR": {"DATA": cmd, "HOST": "localhost"}}
-        self.send(self.cluster[instr_id], cmd_msg)
+        logger.error("%s(%s): %s", message.topic, len(message.topic), message.payload)
 
     def _send_to_rs(self, msg, sender):
         """Handler for actor messages returning from 'SEND" command
@@ -284,22 +281,6 @@ class MqttSchedulerActor(Actor):
         reply = msg["RESULT"]["DATA"]
         instr_id = get_key(sender, self.cluster)
         self.mqttc.publish(f"{self.is_id}/{instr_id}/msg", reply)
-
-    def process_control(self, msg, instr_id):
-        """
-        Sub-Event Handler for after a mqtt message was received on a
-        subscribed topic this is specific for processing control messages
-        """
-        logger.debug(msg.payload)
-        control = ismqtt_messages.get_instr_control(msg)
-        logger.debug(control)
-        if control.ctype == ismqtt_messages.ControlType.RESERVE:
-            self.process_reserve(instr_id, control)
-        if control.ctype == ismqtt_messages.ControlType.FREE:
-            try:
-                self.process_free(instr_id, control)
-            except Exception:  # pylint: disable=broad-except
-                logger.exception("Failed to handle FREE comand")
 
     def process_reserve(self, instr_id, control):
         """Sub event handler that will be called from the on_message event handler, when a MQTT

@@ -17,7 +17,6 @@ from typing import NamedTuple, Optional
 from registrationserver.config import config
 from registrationserver.helpers import find
 from registrationserver.logger import logger
-from sarad.sari import SaradInst
 
 
 class InstrumentServerMeta(NamedTuple):
@@ -156,9 +155,9 @@ def get_instr_control(json_data) -> Control:
                 ctype=ControlType.FREE,
                 data=Reservation(
                     active=False,
-                    # app=data["App"],
-                    # host=data["Host"],
-                    # user=data["User"],
+                    app=data["App"],
+                    host=data["Host"],
+                    user=data["User"],
                     timestamp=time.time(),
                 ),
             )
