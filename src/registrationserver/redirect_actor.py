@@ -147,6 +147,7 @@ class RedirectorActor(Actor):
                 "RESULT": {"IP": self._host, "PORT": self._port},
             }
         else:
+            logger.debug("my_parent: %s", self.my_parent)
             return_msg = {
                 "RETURN": "SETUP",
                 "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],

@@ -142,39 +142,32 @@ def get_instr_reservation(data: Reservation) -> str:
 def get_instr_control(json_data, old_control) -> Control:
     """Converting received MQTT payload into Control object"""
     nodata = Reservation(0, False, "", "", "")
-    try:
-        data = json.loads(json_data.payload)
-        logger.debug("Payload: %s", data)
-        if not "Req" in data:
-            logger.error("No 'Req' in payload.")
-            return Control(ctype=ControlType.UNKNOWN, data=nodata)
-        # FREE
-        if data["Req"] == "free" and old_control is not None:
-            logger.debug("Free request")
-            return old_control._replace(
-                ctype=ControlType.FREE,
-                data=old_control.data._replace(active=False, timestamp=time.time()),
-            )
-        # RESERVE
-        if (
-            data["Req"] == "reserve"
-            and "App" in data
-            and "Host" in data
-            and "User" in data
-        ):
-            logger.debug("Reserve request")
-            return Control(
-                ctype=ControlType.RESERVE,
-                data=Reservation(
-                    active=False,
-                    app=data["App"],
-                    host=data["Host"],
-                    user=data["User"],
-                    timestamp=time.time(),
-                ),
-            )
-    except Exception:  # pylint: disable=broad-except
-        logger.error("Unknown control message received.")
+    data = json.loads(json_data.payload)
+    logger.debug("Payload: %s", data)
+    if not "Req" in data:
+        logger.error("No 'Req' in payload.")
+        return Control(ctype=ControlType.UNKNOWN, data=nodata)
+    # FREE
+    if data["Req"] == "free" and old_control is not None:
+        logger.debug("Free request")
+        return old_control._replace(
+            ctype=ControlType.FREE,
+            data=old_control.data._replace(active=False, timestamp=time.time()),
+        )
+    # RESERVE
+    if data["Req"] == "reserve" and "App" in data and "Host" in data and "User" in data:
+        logger.debug("Reserve request")
+        return Control(
+            ctype=ControlType.RESERVE,
+            data=Reservation(
+                active=False,
+                app=data["App"],
+                host=data["Host"],
+                user=data["User"],
+                timestamp=time.time(),
+            ),
+        )
+    logger.error("Unknown control message received.")
     return Control(ControlType.UNKNOWN, nodata)
 
 

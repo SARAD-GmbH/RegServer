@@ -265,7 +265,6 @@ class DeviceBaseActor(Actor):
 
     def _create_redirector(self) -> bool:
         """Create redirector actor"""
-        logger.debug(self.my_redirector)
         if self.my_redirector is None:
             logger.debug(
                 "Trying to create a redirector actor with globalName %s",
@@ -278,6 +277,9 @@ class DeviceBaseActor(Actor):
             logger.debug("Send SETUP command to redirector with msg %s", msg)
             self.send(self.my_redirector, msg)
             return True
+        logger.debug(
+            "[create_redirector] Redirector %s already exits.", self.my_redirector
+        )
         return False
 
     def _return_with_socket(self, msg, sender):
