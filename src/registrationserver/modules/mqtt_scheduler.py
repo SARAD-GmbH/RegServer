@@ -261,7 +261,9 @@ class MqttSchedulerActor(Actor):
                 if old is not None:
                     self.reservations[instr_id] = old._replace(timestamp=time.time())
                     cmd = message.payload
-                    logger.debug("Forward command %s to device actor", cmd)
+                    logger.debug(
+                        "Forward command %s to device actor %s", cmd, device_actor
+                    )
                     cmd_msg = {"CMD": "SEND", "PAR": {"DATA": cmd, "HOST": "localhost"}}
                     self.send(device_actor, cmd_msg)
 
