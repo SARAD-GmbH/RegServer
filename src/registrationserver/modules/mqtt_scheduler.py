@@ -257,12 +257,12 @@ class MqttSchedulerActor(Actor):
         logger.debug("[on_cmd] %s: %s", message.topic, message.payload)
         instrument_id = message.topic[: -len("cmd") - 1][len(self.is_id) + 1 :]
         self.cmd_id = message.payload[0]
+        cmd = message.payload[1:]
         for instr_id, device_actor in self.cluster.items():
             if instr_id == instrument_id:
                 old = self.reservations.get(instr_id)
                 if old is not None:
                     self.reservations[instr_id] = old._replace(timestamp=time.time())
-                    cmd = message.payload[1:]
                     logger.debug(
                         "Forward command %s to device actor %s", cmd, device_actor
                     )
