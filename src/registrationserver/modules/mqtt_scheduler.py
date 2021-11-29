@@ -51,6 +51,7 @@ class MqttSchedulerActor(Actor):
             "SUBSCRIBE": None,
             "UNSUBSCRIBE": None,
         }  # store the current message ID to check
+        self.cmd_id = 0
         # Start MQTT client
         self.is_id = ismqtt_config["IS_ID"]
         self.mqttc = MQTT.Client()
@@ -255,12 +256,13 @@ class MqttSchedulerActor(Actor):
         """Event handler for all MQTT messages with cmd topic."""
         logger.debug("[on_cmd] %s: %s", message.topic, message.payload)
         instrument_id = message.topic[: -len("cmd") - 1][len(self.is_id) + 1 :]
+        self.cmd_id = message.payload[0]
         for instr_id, device_actor in self.cluster.items():
             if instr_id == instrument_id:
                 old = self.reservations.get(instr_id)
                 if old is not None:
                     self.reservations[instr_id] = old._replace(timestamp=time.time())
-                    cmd = message.payload
+                    cmd = message.payload[1:]
                     logger.debug(
                         "Forward command %s to device actor %s", cmd, device_actor
                     )
@@ -278,7 +280,7 @@ class MqttSchedulerActor(Actor):
         """Handler for actor messages returning from 'SEND" command
 
         Forward the payload received from device_actor via MQTT."""
-        reply = msg["RESULT"]["DATA"]
+        reply = bytes([self.cmd_id]) + msg["RESULT"]["DATA"]
         instr_id = get_key(sender, self.cluster)
         self.mqttc.publish(f"{self.is_id}/{instr_id}/msg", reply)
 
