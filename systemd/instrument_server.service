@@ -1,0 +1,12 @@
+[Unit]
+Description=Instrument Server
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/home/pi/RegServer/src
+ExecStart=pipenv run python /home/pi/RegServer/src/instrument_server_mqtt.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
