@@ -17,7 +17,8 @@ import socket
 import sys
 
 from flask import Flask, Response, json, request
-from thespian.actors import Actor, ActorSystem  # type: ignore
+from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
+                             ActorSystem, PoisonMessage)
 
 from registrationserver.config import config
 from registrationserver.logger import logger  # type: ignore
@@ -46,11 +47,11 @@ def get_state_from_file(device_id: str) -> dict:
     filename = f"{config['DEV_FOLDER']}{os.path.sep}{device_id}"
     try:
         if os.path.isfile(filename):
-            with open(filename) as reader:
+            with open(filename, encoding="utf8") as reader:
                 answer = {
                     "Identification": json.load(reader).get("Identification", None),
                 }
-            with open(filename) as reader:
+            with open(filename, encoding="utf8") as reader:
                 reservation = json.load(reader).get(cmd_key, None)
             if reservation is not None:
                 answer["Reservation"] = reservation
@@ -173,6 +174,9 @@ class RestApi:
         }
         logger.debug("Ask device actor %s", msg)
         reserve_return = ActorSystem().ask(device_actor, msg)
+        if isinstance(reserve_return, PoisonMessage):
+            logger.critical("Critical error in device_actor. Kill device actor.")
+            ActorSystem().tell(device_actor, ActorExitRequest())
         logger.debug("returned with %s", reserve_return)
         return_error = reserve_return["ERROR_CODE"]
         if return_error in (
@@ -230,6 +234,9 @@ class RestApi:
         device_actor = ActorSystem().createActor(Actor, globalName=did)
         logger.debug("Ask device actor to FREE...")
         free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"})
+        if isinstance(free_return, PoisonMessage):
+            logger.critical("Critical error in device_actor. Kill device actor.")
+            ActorSystem().tell(device_actor, ActorExitRequest())
         logger.debug("returned with %s", free_return)
         return_error = free_return["ERROR_CODE"]
         if return_error == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
@@ -257,41 +264,64 @@ class RestApi:
     @api.route("/ports/", methods=["GET"])
     def getlocalports():
         """Lists Local Ports, Used for Testing atm"""
-        system = ActorSystem()
-        cluster = system.createActor(Actor, globalName="cluster")
-        return system.ask(cluster, {"CMD": "LIST-PORTS"})
+        cluster = ActorSystem().createActor(Actor, globalName="cluster")
+        reply = ActorSystem().ask(cluster, {"CMD": "LIST-PORTS"})
+        if isinstance(reply, PoisonMessage):
+            logger.critical("Critical error in cluster_actor. Kill cluster.")
+            ActorSystem().tell(cluster, ActorExitRequest())
+            return "Critical error"
+        return reply
 
     @staticmethod
     @api.route("/ports/<port>/loop", methods=["GET"])
     def getloopport(port):
         """Loops Local Ports, Used for Testing"""
-        system = ActorSystem()
-        cluster = system.createActor(Actor, globalName="cluster")
-        return system.ask(cluster, {"CMD": "LOOP", "PAR": {"PORT": port}})
+        cluster = ActorSystem().createActor(Actor, globalName="cluster")
+        reply = ActorSystem().ask(cluster, {"CMD": "LOOP", "PAR": {"PORT": port}})
+        if isinstance(reply, PoisonMessage):
+            logger.critical("Critical error in cluster_actor. Kill cluster.")
+            ActorSystem().tell(cluster, ActorExitRequest())
+            return "Critical error"
+        return reply
 
     @staticmethod
     @api.route("/ports/<port>/stop", methods=["GET"])
     def getstopport(port):
         """Loops Local Ports, Used for Testing"""
-        system = ActorSystem()
-        cluster = system.createActor(Actor, globalName="cluster")
-        return system.ask(cluster, {"CMD": "LOOP-REMOVE", "PAR": {"PORT": port}})
+        cluster = ActorSystem().createActor(Actor, globalName="cluster")
+        reply = ActorSystem().ask(
+            cluster, {"CMD": "LOOP-REMOVE", "PAR": {"PORT": port}}
+        )
+        if isinstance(reply, PoisonMessage):
+            logger.critical("Critical error in cluster_actor. Kill cluster.")
+            ActorSystem().tell(cluster, ActorExitRequest())
+            return "Critical error"
+        return reply
 
     @staticmethod
     @api.route("/ports/list-usb", methods=["GET"])
     def getusbports():
         """Loops Local Ports, Used for Testing"""
-        system = ActorSystem()
-        cluster = system.createActor(Actor, globalName="cluster")
-        return system.ask(cluster, {"CMD": "LIST-USB"})
+        cluster = ActorSystem().createActor(Actor, globalName="cluster")
+        reply = ActorSystem().ask(cluster, {"CMD": "LIST-USB"})
+        if isinstance(reply, PoisonMessage):
+            logger.critical("Critical error in cluster_actor. Kill cluster.")
+            ActorSystem().tell(cluster, ActorExitRequest())
+            return "Critical error"
+        return reply
 
     @staticmethod
     @api.route("/ports/list-native", methods=["GET"])
     def getnativeports():
         """Loops Local Ports, Used for Testing"""
         system = ActorSystem()
-        cluster = system.createActor(Actor, globalName="cluster")
-        return system.ask(cluster, {"CMD": "LIST-NATIVE"})
+        cluster = ActorSystem().createActor(Actor, globalName="cluster")
+        reply = ActorSystem().ask(cluster, {"CMD": "LIST-NATIVE"})
+        if isinstance(reply, PoisonMessage):
+            logger.critical("Critical error in cluster_actor. Kill cluster.")
+            ActorSystem().tell(cluster, ActorExitRequest())
+            return "Critical error"
+        return reply
 
     def run(self, host=None, port=None, debug=None, load_dotenv=True):
         """Start the API"""
