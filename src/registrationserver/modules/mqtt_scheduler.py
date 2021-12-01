@@ -77,9 +77,25 @@ class MqttSchedulerActor(Actor):
         )
         mqtt_broker = mqtt_config["MQTT_BROKER"]
         port = mqtt_config["PORT"]
-        logger.info("Using MQTT broker %s with port %d", mqtt_broker, port)
-        self.mqttc.connect(mqtt_broker, port=port)
+        self._connect(mqtt_broker, port)
         self.mqttc.loop_start()
+
+    def _connect(self, mqtt_broker, port):
+        success = False
+        retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
+
+        while not success and self.ungr_disconn > 0:
+            try:
+                logger.info(
+                    "Attempting to connect to broker %s: %s",
+                    mqtt_broker,
+                    port,
+                )
+                self.mqttc.connect(mqtt_broker, port=port)
+                success = True
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.error("Could not connect to Broker, retrying...: %s", exception)
+                time.sleep(retry_interval)
 
     @overrides
     def receiveMessage(self, msg, sender):

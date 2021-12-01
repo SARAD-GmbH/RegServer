@@ -15,11 +15,12 @@ import os
 import re
 import socket
 import sys
+import time
 
 from flask import Flask, Response, json, request
 from thespian.actors import Actor, ActorSystem  # type: ignore
 
-from registrationserver.config import config
+from registrationserver.config import config, mqtt_config
 from registrationserver.logger import logger  # type: ignore
 from registrationserver.modules.messages import RETURN_MESSAGES
 
@@ -46,11 +47,11 @@ def get_state_from_file(device_id: str) -> dict:
     filename = f"{config['DEV_FOLDER']}{os.path.sep}{device_id}"
     try:
         if os.path.isfile(filename):
-            with open(filename) as reader:
+            with open(filename, encoding="utf8") as reader:
                 answer = {
                     "Identification": json.load(reader).get("Identification", None),
                 }
-            with open(filename) as reader:
+            with open(filename, encoding="utf8") as reader:
                 reservation = json.load(reader).get(cmd_key, None)
             if reservation is not None:
                 answer["Reservation"] = reservation
@@ -295,8 +296,16 @@ class RestApi:
 
     def run(self, host=None, port=None, debug=None, load_dotenv=True):
         """Start the API"""
-        logger.info("Starting API at %s:%d", host, port)
-        std = sys.stdout
-        sys.stdout = RestApi.Dummy
-        self.api.run(host=host, port=port, debug=debug, load_dotenv=load_dotenv)
-        sys.stdout = std
+        success = False
+        retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
+        while not success:
+            try:
+                logger.info("Starting API at %s:%d", host, port)
+                std = sys.stdout
+                sys.stdout = RestApi.Dummy
+                self.api.run(host=host, port=port, debug=debug, load_dotenv=load_dotenv)
+                sys.stdout = std
+                success = True
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.error("Could not connect to Broker, retrying...: %s", exception)
+                time.sleep(retry_interval)

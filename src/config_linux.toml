@@ -24,7 +24,7 @@ port = 1883
 retry_interval = 5
 
 [ismqtt]
-is_id = "Instrument Server A"
+is_id = "aranea0001"
 description = "A longer text describing this Instrument Server"
 place = "A text describing where the Instrument Controller running this Instrument Server is placed"
 latitude = 51.0764194  # positive values for North, negative for South
