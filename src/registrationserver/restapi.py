@@ -18,8 +18,8 @@ import sys
 import time
 
 from flask import Flask, Response, json, request
-from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
-                             ActorSystem, PoisonMessage)
+from thespian.actors import ActorExitRequest  # type: ignore
+from thespian.actors import Actor, ActorSystem, PoisonMessage
 
 from registrationserver.config import config, mqtt_config
 from registrationserver.logger import logger  # type: ignore
@@ -315,7 +315,6 @@ class RestApi:
     @api.route("/ports/list-native", methods=["GET"])
     def getnativeports():
         """Loops Local Ports, Used for Testing"""
-        system = ActorSystem()
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
         reply = ActorSystem().ask(cluster, {"CMD": "LIST-NATIVE"})
         if isinstance(reply, PoisonMessage):
