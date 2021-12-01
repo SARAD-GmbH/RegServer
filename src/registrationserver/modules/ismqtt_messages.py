@@ -149,9 +149,13 @@ def get_instr_control(json_data, old_reservation) -> Control:
         return Control(ctype=ControlType.UNKNOWN, data=nodata)
     # FREE
     if data["Req"] == "free":
-        logger.debug("[Free] request")
+        logger.debug("[FREE] request")
         if old_reservation is None:
             logger.debug("[FREE] not reserved, nothing to do")
+            return Control(
+                ctype=ControlType.FREE,
+                data=nodata,
+            )
         else:
             new_reservation = old_reservation._replace(
                 active=False, timestamp=time.time()
@@ -162,7 +166,7 @@ def get_instr_control(json_data, old_reservation) -> Control:
             )
     # RESERVE
     if data["Req"] == "reserve" and "App" in data and "Host" in data and "User" in data:
-        logger.debug("Reserve request")
+        logger.debug("[RESERVE] request")
         return Control(
             ctype=ControlType.RESERVE,
             data=Reservation(
