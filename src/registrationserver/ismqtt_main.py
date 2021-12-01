@@ -13,7 +13,7 @@ import threading
 import time
 
 from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
-                             ActorSystem)
+                             ActorSystem, PoisonMessage)
 
 from registrationserver.modules.mqtt_scheduler import MqttSchedulerActor
 from registrationserver.modules.usb.cluster_actor import ClusterActor
@@ -66,6 +66,9 @@ def cleanup():
     logger.debug("Terminate the ClusterActor")
     cluster_actor = ActorSystem().createActor(Actor, globalName="cluster")
     response = ActorSystem().ask(cluster_actor, {"CMD": "KILL"})
+    if isinstance(response, PoisonMessage):
+        logger.critical("Critical error in cluster_actor. I will try to proceed.")
+        ActorSystem().tell(cluster_actor, ActorExitRequest())
     logger.debug("Cluster_actor killed: %s", response)
     logger.info("Cleaning up before closing.")
     ActorSystem().shutdown()
