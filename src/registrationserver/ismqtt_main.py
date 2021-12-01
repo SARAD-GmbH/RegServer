@@ -134,15 +134,18 @@ def main():
         set_file_flag(True)
     elif start_stop == "stop":
         set_file_flag(False)
+        time.sleep(5)
+        set_file_flag(True)
         return None
     else:
         print("Usage: <program> start|stop")
         return None
 
     while is_flag_set():
-        time.sleep(5)
+        time.sleep(4)
     try:
         cleanup()
+        set_file_flag(False)
     except UnboundLocalError:
         pass
     logger.debug("This is the end, my only friend, the end.")
