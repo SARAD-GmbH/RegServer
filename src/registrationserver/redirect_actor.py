@@ -55,14 +55,14 @@ class RedirectorActor(Actor):
                 server_socket.bind((self._host, self._port))
                 self._port = server_socket.getsockname()[1]
                 break
-            except OSError as e:
+            except OSError:
                 try:
                     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     server_socket.bind((self._host, self._port))
                     self._port = server_socket.getsockname()[1]
                     break
-                except OSError as e:
-                    logger.error("Cannot use port %d. %s", self._port, e)
+                except OSError as exception:
+                    logger.error("Cannot use port %d. %s", self._port, exception)
                     server_socket.close()
         try:
             server_socket.listen()  # listen(5) maybe???
@@ -116,6 +116,9 @@ class RedirectorActor(Actor):
                     return
                 getattr(self, return_function)(msg, sender)
         else:
+            if isinstance(msg, ActorExitRequest):
+                logger.debug("Goodbye world!")
+                return
             if isinstance(msg, WakeupMessage):
                 if msg.payload == "Connect":
                     self._connect_loop(msg, sender)
@@ -153,14 +156,25 @@ class RedirectorActor(Actor):
         logger.debug("Setup finished with %s", return_msg)
         self.send(sender, return_msg)
 
-    def _kill(self, _, sender):
-        self.read_list[0].close()
+    def _kill(self, _msg, _sender):
+        """Handler to exit the redirector actor.
+
+        Send a RETURN KILL message to the device actor (my_parent),
+        then exit this redirector actor."""
+        for my_socket in self.read_list:
+            my_socket.shutdown(socket.SHUT_RDWR)
+            my_socket.close()
         return_message = {
             "RETURN": "KILL",
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
         }
-        self.send(sender, return_message)
-        logger.debug("Cleanup done before finally killing me.")
+        logger.debug(
+            "Confirm redirector actor exit to %s with %s",
+            self.my_parent,
+            return_message,
+        )
+        self.send(self.my_parent, return_message)
+        logger.debug("Sending ActorExitRequest to myself.")
         self.send(self.myAddress, ActorExitRequest())
 
     def _connect_loop(self, _msg, _sender):
@@ -186,19 +200,18 @@ class RedirectorActor(Actor):
             b"B\x80\x7f\xe1\xe1\x00E": b"B\x80\x7f\xe4\xe4\x00E",
             b"B\x81\x7e\xe2\x0c\xee\x00E": b"B\x80\x7f\xe5\xe5\x00E",
         }
-        for i in range(0, 5):
+        for _i in range(0, 5):
             try:
                 data = self.conn.recv(1024)
                 logger.debug("Redirect %s to %s", data, self._socket_info)
                 break
-            except ConnectionResetError:
+            except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")
                 data = None
                 time.sleep(5)
-        if data is None:
+        if data is None or data == b"":
             logger.critical("Application software seems to be dead.")
-            self.conn.close()
-            self.read_list.remove(self.conn)
+            self._kill({}, self.my_parent)
         else:
             logger.debug("%s from %s", data, self._socket_info)
             try:
@@ -210,14 +223,13 @@ class RedirectorActor(Actor):
     def _send_to_app(self, msg, _sender):
         """Redirect any received reply to the socket."""
         data = msg["RESULT"]["DATA"]
-        for i in range(0, 5):
+        for _i in range(0, 5):
             try:
                 self.conn.sendall(data)
                 logger.debug("Redirect %s to %s", data, self._socket_info)
                 return
-            except ConnectionResetError:
+            except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")
                 time.sleep(5)
         logger.critical("Application software seems to be dead.")
-        self.conn.close()
-        self.read_list.remove(self.conn)
+        self._kill({}, self.my_parent)

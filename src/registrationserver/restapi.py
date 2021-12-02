@@ -335,6 +335,6 @@ class RestApi:
                 self.api.run(host=host, port=port, debug=debug, load_dotenv=load_dotenv)
                 sys.stdout = std
                 success = True
-            except Exception as exception:  # pylint: disable=broad-except
-                logger.error("Could not connect to Broker, retrying...: %s", exception)
+            except OSError as exception:
+                logger.critical(exception)
                 time.sleep(retry_interval)
