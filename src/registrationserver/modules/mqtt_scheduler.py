@@ -10,6 +10,8 @@ Author
 """
 import threading
 import time
+import os
+import ssl
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
@@ -93,6 +95,8 @@ class MqttSchedulerActor(Actor):
                     mqtt_broker,
                     port,
                 )
+                if(mqtt_config["TLS_USE_TLS"]):
+                    self.mqttc.tls_set(ca_certs=os.path.expanduser(mqtt_config["TLS_CA_FILE"]), certfile=os.path.expanduser(mqtt_config["TLS_CERT_FILE"]), keyfile=os.path.expanduser(mqtt_config["TLS_KEY_FILE"]), cert_reqs=ssl.CERT_REQUIRED)
                 self.mqttc.connect(mqtt_broker, port=port)
                 success = True
             except Exception as exception:  # pylint: disable=broad-except
