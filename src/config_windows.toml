@@ -23,9 +23,9 @@ mqtt_broker = "85.214.243.156"
 port = 1883
 retry_interval = 5
 tls_use_tls = true
-# tls_ca_file = "\path\to\sarad_cert"
-# tls_cert_file = "\path\to\personal_cert"
-# tls_key_file = "\path\to\personal_key"
+tls_ca_file = "~/.ssl/SARAD/cert_sarad.pem"
+tls_cert_file = "~/.ssl/SARAD/personal_cert.crt"
+tls_key_file = "~/.ssl/SARAD/personal_key.pem"
 
 [ismqtt]
 is_id = "Instrument Server A"

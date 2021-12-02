@@ -38,7 +38,7 @@ class AppType(Enum):
     IS2 = 2
     RS = 3
 
-
+config_failed = False
 home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
 app_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
@@ -180,9 +180,9 @@ DEFAULT_RETRY_INTERVAL = 5
 DEFAULT_TLS_USE_TLS = False
 
 
-DEFAULT_TLS_CA_FILE = f"{config_path}{os.path.sep}tls_cert_sarad"
-DEFAULT_TLS_KEY_FILE = f"{config_path}{os.path.sep}tls_key_personal"
-DEFAULT_TLS_CERT_FILE = f"{config_path}{os.path.sep}tls_cert_personal"
+DEFAULT_TLS_CA_FILE = f"{config_path}tls_cert_sarad.pem"
+DEFAULT_TLS_KEY_FILE = f"{config_path}tls_key_personal.pem"
+DEFAULT_TLS_CERT_FILE = f"{config_path}tls_cert_personal.crt"
 
 
 
@@ -207,22 +207,27 @@ else:
         "RETRY_INTERVAL": customization["mqtt"].get(
             "retry_interval", DEFAULT_RETRY_INTERVAL
         ),
-        "TLS_USE_TLS" : customization["mqtt"].get("TLS_USE_TLS", DEFAULT_TLS_USE_TLS),
-        "TLS_CA_FILE": customization["mqtt"].get("TLS_CA_FILE", DEFAULT_TLS_CA_FILE if customization["mqtt"].get("TLS_USE_TLS",  DEFAULT_TLS_USE_TLS) else None),
-        "TLS_CERT_FILE": customization["mqtt"].get("TLS_CERT_FILE", DEFAULT_TLS_CERT_FILE if customization["mqtt"].get("TLS_USE_TLS", DEFAULT_TLS_USE_TLS) else None),
-        "TLS_KEY_FILE": customization["mqtt"].get("TLS_KEY_FILE", DEFAULT_TLS_KEY_FILE if customization["mqtt"].get("TLS_USE_TLS", DEFAULT_TLS_USE_TLS) else None),
+        "TLS_USE_TLS" : customization["mqtt"].get("tls_use_tls", DEFAULT_TLS_USE_TLS),
+        "TLS_CA_FILE": customization["mqtt"].get("tls_ca_file", DEFAULT_TLS_CA_FILE if customization["mqtt"].get("tls_use_tls",  DEFAULT_TLS_USE_TLS) else None),
+        "TLS_CERT_FILE": customization["mqtt"].get("tls_cert_file", DEFAULT_TLS_CERT_FILE if customization["mqtt"].get("tls_use_tls", DEFAULT_TLS_USE_TLS) else None),
+        "TLS_KEY_FILE": customization["mqtt"].get("tls_key_file", DEFAULT_TLS_KEY_FILE if customization["mqtt"].get("tls_use_tls", DEFAULT_TLS_USE_TLS) else None),
 
     }
 
 if mqtt_config.get("TLS_USE_TLS"):
-    if not mqtt_config.get("TLS_CA_FILE", None) or not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_CA_FILE", None))):
-        logger.error(f"Cannot find ca file (expected at: {mqtt_config.get('TLS_CA_FILE',None)})")
-    if not mqtt_config.get("TLS_CA_FILE", None) or not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_CA_FILE", None))):
-        logger.error(f"Cannot find personal certifacte (expected at: {mqtt_config.get('TLS_CERT_FILE',None)})")
-    if not mqtt_config.get("TLS_CA_FILE", None) or not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_CA_FILE", None))):
-        logger.error(f"Cannot find personal key file (expected at: {mqtt_config.get('TLS_KEY_FILE',None)})")
+    if (not mqtt_config.get("TLS_CA_FILE", None)) or (not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_CA_FILE", None)))):
+        print(f"Cannot find ca file (expected at: {mqtt_config.get('TLS_CA_FILE',None)})")
+        config_failed = True
 
+    if (not mqtt_config.get("TLS_CERT_FILE", None)) or (not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_CERT_FILE", None)))):
+        print(f"Cannot find personal certifacte (expected at: {mqtt_config.get('TLS_CERT_FILE',None)})")
+        config_failed = True
+    if (not mqtt_config.get("TLS_KEY_FILE", None)) or (not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_KEY_FILE", None)))):
+        print(f"Cannot find personal key file (expected at: {mqtt_config.get('TLS_KEY_FILE',None)})")
+        config_failed = True
 
+if config_failed:
+    sys.exit()
 
 try:
     DEFAULT_ISMQTT_IS_ID = socket.gethostname()
