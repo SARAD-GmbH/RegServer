@@ -15,6 +15,7 @@ Authors
 import datetime
 import select
 import socket
+import time
 
 from overrides import overrides  # type: ignore
 from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
@@ -187,20 +188,38 @@ class RedirectorActor(Actor):
             b"B\x80\x7f\xe1\xe1\x00E": b"B\x80\x7f\xe4\xe4\x00E",
             b"B\x81\x7e\xe2\x0c\xee\x00E": b"B\x80\x7f\xe5\xe5\x00E",
         }
-        data = self.conn.recv(1024)
-        if data:
+        for i in range(0, 5):
+            try:
+                data = self.conn.recv(1024)
+                logger.debug("Redirect %s to %s", data, self._socket_info)
+                break
+            except ConnectionResetError:
+                logger.error("Connection reset by SARAD application software.")
+                data = None
+                time.sleep(5)
+        if data is None:
+            logger.critical("Application software seems to be dead.")
+            self.conn.close()
+            self.read_list.remove(self.conn)
+        else:
             logger.debug("%s from %s", data, self._socket_info)
             try:
                 reply = switcher[data]
                 self.conn.sendall(reply)
             except KeyError:
                 self.send(self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}})
-        else:
-            self.conn.close()
-            self.read_list.remove(self.conn)
 
     def _send_to_app(self, msg, _sender):
         """Redirect any received reply to the socket."""
         data = msg["RESULT"]["DATA"]
-        self.conn.sendall(data)
-        logger.debug("Redirect %s to %s", data, self._socket_info)
+        for i in range(0, 5):
+            try:
+                self.conn.sendall(data)
+                logger.debug("Redirect %s to %s", data, self._socket_info)
+                return
+            except ConnectionResetError:
+                logger.error("Connection reset by SARAD application software.")
+                time.sleep(5)
+        logger.critical("Application software seems to be dead.")
+        self.conn.close()
+        self.read_list.remove(self.conn)
