@@ -19,6 +19,7 @@ import toml
 from zeroconf import IPVersion
 
 
+
 class AppType(Enum):
     """Flag identifying the type of application that is currently running.
 
@@ -176,12 +177,25 @@ DEFAULT_MQTT_CLIENT_ID = "SARAD_Subscriber"
 DEFAULT_MQTT_BROKER = "85.214.243.156"  # Mosquitto running on sarad.de
 DEFAULT_PORT = 1883
 DEFAULT_RETRY_INTERVAL = 5
+DEFAULT_TLS_USE_TLS = False
+
+
+DEFAULT_TLS_CA_FILE = f"{config_path}{os.path.sep}tls_cert_sarad"
+DEFAULT_TLS_KEY_FILE = f"{config_path}{os.path.sep}tls_key_personal"
+DEFAULT_TLS_CERT_FILE = f"{config_path}{os.path.sep}tls_cert_personal"
+
+
+
 if customization.get("mqtt") is None:
     mqtt_config = {
         "MQTT_CLIENT_ID": DEFAULT_MQTT_CLIENT_ID,
         "MQTT_BROKER": DEFAULT_MQTT_BROKER,
         "PORT": DEFAULT_PORT,
         "RETRY_INTERVAL": DEFAULT_RETRY_INTERVAL,
+        "TLS_CA_FILE" : DEFAULT_TLS_CA_FILE,
+        "TLS_CERT_FILE" : DEFAULT_TLS_CERT_FILE,
+        "TLS_KEY_FILE" : DEFAULT_TLS_KEY_FILE,
+        "TLS_USE_TLS" : DEFAULT_TLS_USE_TLS
     }
 else:
     mqtt_config = {
@@ -193,7 +207,21 @@ else:
         "RETRY_INTERVAL": customization["mqtt"].get(
             "retry_interval", DEFAULT_RETRY_INTERVAL
         ),
+        "TLS_USE_TLS" : customization["mqtt"].get("TLS_USE_TLS", DEFAULT_TLS_USE_TLS),
+        "TLS_CA_FILE": customization["mqtt"].get("TLS_CA_FILE", DEFAULT_TLS_CA_FILE if customization["mqtt"].get("TLS_USE_TLS",  DEFAULT_TLS_USE_TLS) else None),
+        "TLS_CERT_FILE": customization["mqtt"].get("TLS_CERT_FILE", DEFAULT_TLS_CERT_FILE if customization["mqtt"].get("TLS_USE_TLS", DEFAULT_TLS_USE_TLS) else None),
+        "TLS_KEY_FILE": customization["mqtt"].get("TLS_KEY_FILE", DEFAULT_TLS_KEY_FILE if customization["mqtt"].get("TLS_USE_TLS", DEFAULT_TLS_USE_TLS) else None),
+
     }
+
+if mqtt_config.get("TLS_USE_TLS"):
+    if not mqtt_config.get("TLS_CA_FILE", None) or not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_CA_FILE", None))):
+        logger.error(f"Cannot find ca file (expected at: {mqtt_config.get('TLS_CA_FILE',None)})")
+    if not mqtt_config.get("TLS_CA_FILE", None) or not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_CA_FILE", None))):
+        logger.error(f"Cannot find personal certifacte (expected at: {mqtt_config.get('TLS_CERT_FILE',None)})")
+    if not mqtt_config.get("TLS_CA_FILE", None) or not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_CA_FILE", None))):
+        logger.error(f"Cannot find personal key file (expected at: {mqtt_config.get('TLS_KEY_FILE',None)})")
+
 
 
 try:
