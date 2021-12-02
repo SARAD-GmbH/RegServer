@@ -33,6 +33,7 @@ class RedirectorActor(Actor):
     ACCEPTED_COMMANDS = {
         "SETUP": "_setup",
         "CONNECT": "_connect_loop",
+        "KILL": "_kill",
     }
     ACCEPTED_RETURNS = {
         "SEND": "_send_to_app",
@@ -114,9 +115,6 @@ class RedirectorActor(Actor):
                     return
                 getattr(self, return_function)(msg, sender)
         else:
-            if isinstance(msg, ActorExitRequest):
-                self._kill(msg, sender)
-                return
             if isinstance(msg, WakeupMessage):
                 if msg.payload == "Connect":
                     self._connect_loop(msg, sender)
@@ -125,7 +123,6 @@ class RedirectorActor(Actor):
                 "Received %s from %s. This should never happen.", msg, sender
             )
             logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
-            return
 
     def _setup(self, msg, sender):
         logger.debug("Setup redirector actor")
@@ -163,6 +160,7 @@ class RedirectorActor(Actor):
         }
         self.send(sender, return_message)
         logger.debug("Cleanup done before finally killing me.")
+        self.send(self.myAddress, ActorExitRequest())
 
     def _connect_loop(self, _msg, _sender):
         """Listen to socket and redirect any message from the socket to the device actor"""

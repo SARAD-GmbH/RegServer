@@ -337,7 +337,8 @@ class DeviceBaseActor(Actor):
         self.sender_api = sender
         if self.my_redirector is not None:
             logger.debug("Send KILL to redirector %s", self.my_redirector)
-            self.send(self.my_redirector, ActorExitRequest())
+            kill_cmd = {"CMD": "KILL"}
+            self.send(self.my_redirector, kill_cmd)
             return
         return_message = {
             "RETURN": "FREE",
