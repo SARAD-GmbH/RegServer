@@ -96,6 +96,9 @@ class MqttSchedulerActor(Actor):
                     port,
                 )
                 if(mqtt_config["TLS_USE_TLS"]):
+                    logger.info(
+                        "Setting up TLS: %s | %s | %s",os.path.expanduser(mqtt_config["TLS_CA_FILE"]), os.path.expanduser(mqtt_config["TLS_CERT_FILE"]), os.path.expanduser(mqtt_config["TLS_KEY_FILE"])
+                        )
                     self.mqttc.tls_set(ca_certs=os.path.expanduser(mqtt_config["TLS_CA_FILE"]), certfile=os.path.expanduser(mqtt_config["TLS_CERT_FILE"]), keyfile=os.path.expanduser(mqtt_config["TLS_KEY_FILE"]), cert_reqs=ssl.CERT_REQUIRED)
                 self.mqttc.connect(mqtt_broker, port=port)
                 success = True
