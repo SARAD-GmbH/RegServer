@@ -5,6 +5,7 @@ Created
 
 Author
     Yang, Yixiang
+    Michael Strey <strey@sarad.de>
 
 .. uml :: uml-mqtt_actor.puml
 """
@@ -14,6 +15,7 @@ import time
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
+from registrationserver.config import mqtt_config
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.modules.messages import RETURN_MESSAGES
@@ -239,9 +241,25 @@ class MqttActor(DeviceBaseActor):
             qos=0,
             retain=True,
         )
-        logger.debug("Try to connect to the mqtt broker")
-        self.mqttc.connect(mqtt_broker, port=port)
+        self._connect(mqtt_broker, port)
         self.mqttc.loop_start()
+
+    def _connect(self, mqtt_broker, port):
+        success = False
+        retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
+
+        while not success and self.ungr_disconn > 0:
+            try:
+                logger.info(
+                    "Attempting to connect to broker %s: %s",
+                    mqtt_broker,
+                    port,
+                )
+                self.mqttc.connect(mqtt_broker, port=port)
+                success = True
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.error("Could not connect to Broker, retrying...: %s", exception)
+                time.sleep(retry_interval)
 
     def on_reserve(self, _client, _userdata, message):
         """Handler for MQTT messages regarding reservation of instruments"""

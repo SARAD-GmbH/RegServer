@@ -12,8 +12,8 @@ import sys
 import threading
 import time
 
-from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
-                             ActorSystem, PoisonMessage)
+from thespian.actors import ActorExitRequest  # type: ignore
+from thespian.actors import Actor, ActorSystem, PoisonMessage
 
 from registrationserver.modules.mqtt_scheduler import MqttSchedulerActor
 from registrationserver.modules.usb.cluster_actor import ClusterActor
@@ -68,6 +68,7 @@ def cleanup():
     response = ActorSystem().ask(cluster_actor, {"CMD": "KILL"})
     if isinstance(response, PoisonMessage):
         logger.critical("Critical error in cluster_actor. I will try to proceed.")
+        logger.critical(response.details)
         ActorSystem().tell(cluster_actor, ActorExitRequest())
     logger.debug("Cluster_actor killed: %s", response)
     logger.info("Cleaning up before closing.")
@@ -133,15 +134,18 @@ def main():
         set_file_flag(True)
     elif start_stop == "stop":
         set_file_flag(False)
+        time.sleep(5)
+        set_file_flag(True)
         return None
     else:
         print("Usage: <program> start|stop")
         return None
 
     while is_flag_set():
-        time.sleep(5)
+        time.sleep(4)
     try:
         cleanup()
+        set_file_flag(False)
     except UnboundLocalError:
         pass
     logger.debug("This is the end, my only friend, the end.")

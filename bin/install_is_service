@@ -1,0 +1,113 @@
+#!/bin/bash
+# This script installs all components in a Linux like environment using systemd
+# for startup control. Run from inside the projects root.
+# Run with: sudo -H
+# -H ensures that Python files are installed in the root directory (since systemd
+# runs as root)
+# Recommended command : sudo -H bin/install_service
+
+name=data_collector
+config=instruments.yaml
+systemd=/bin/systemctl
+systemdconfigname=data_collector.service
+systemdconfig=systemd/$systemdconfigname
+systemdtarget=/etc/systemd/system
+etckeeper=/usr/bin/etckeeper
+python3=/usr/bin/python3
+pip3=/usr/bin/pip3
+dry=false
+
+echo $BASH
+
+# Is python3 installed
+if ( ! [ -x $python3 ] ) 
+	then
+		echo "[!]  This installation requires python3 to be installed at $python3.";
+		exit -5;
+fi;
+
+if ( ! [ -x $pip ] ) 
+	then
+		echo "[!] This installation requires pip3 (python3) to be installed at $pip.";
+		exit -6;
+fi;
+
+# Are all files present and ready to be copied?
+
+if ( ! [ -f $config  ] && ! [ -r $config ]  )
+	then
+		echo "[!]  Can't find or read configuraton file: $config, therefore can not copy it to the correct location.";
+		exit -1;
+fi;
+
+# If the configuration directory doesn't excists yet, then we need write access to /etc to create such, exit if not possible.
+if ( ! ( [ -d /etc/$name ] ||  [ -w /etc ] ) )  
+	then 
+		echo "[!]  Can't access /etc, write access is needed to copy the initial settings file." ; 
+		exit -2; 
+fi;
+
+# If the configuration directory exists, then we need write access to it.
+if ( [ -d /etc/$name ] && ! [ -w /etc/$name ] ) 
+	then
+		echo "[!]  Can't access /etc/$name"; 
+		exit -3; 
+fi
+
+# We need write access to all files we want to copy, in case they exist (so we can update them)
+if ( [ -f /etc/$name/$config ] &&  ! [ -w /etc/$name/$config ] ) 
+	then
+		echo "[!]  Can't write new config to /etc/$name/$config " ; 
+		exit -4; 
+fi
+
+# Is systemd installed on the system?
+
+if ( [ -x $systemd ] && [ -f $systemdconfig ] && [ -r $systemdconfig ]   ) 
+	then
+		usesystemd=true;
+	else
+		echo "[-]  Systemd not located at $systemd, or systemd service file not found at $systemdconfig. Skipping autostart configuration.";
+		usesystemd=false;
+fi;
+
+# Does the admin intends to keep track of changes in /etc, and are we able to log those changes?
+if ( [ -d /etc/.git ] && [ -w /etc/.etckeeper  ] &&  [ -x $etckeeper ]  ) 
+	then
+		useetckeeper=true; 
+	else 
+		useetckeeper=false;
+		echo "[-]  Etckeeper not detected, will not attempt to keep track of config changes";
+fi;	
+
+# Create configuration directory, if it doesn't already exist
+if ( ! [ -d /etc/$name ] ) 
+	then 
+		echo "[*] Creating configuration directory ";
+		if ( ! $dry ); then mkdir /etc/$name; else echo "[D]  mkdir /etc/$name;"; fi;
+fi
+
+echo "[*]  Installing instrument database"
+if ( ! $dry ); then install --group=root --owner=root --mode=644 $config "/etc/$name/"; else echo "[D]  install --group=root --owner=root --mode=644 $config /etc/$name/;";  fi;
+echo "[*]  Installing data collector binary";
+if ( ! $dry ); then $pip3 install --editable ./ >> install.log 2>> install.err ; else echo "[D] $pip3 install --editable ./"; fi;
+if ( ! $dry ); then python3 setup.py build >> install.log 2>> install.err; else echo "[D]  python3 setup.py build;"; fi;
+if ( ! $dry ); then python3 setup.py install >> install.log 2>> install.err; else echo "[D]  python3 setup.py install;"; fi;
+	
+
+if ( $usesystemd ) 
+	then 
+		echo "[*]  Installing systemd startup script";
+		if ( ! $dry ); then install --group=root --owner=root $systemdconfig "$systemdtarget/"; else echo "[D]  install --group=root --owner=root $systemdconfig $systemdtarget/;"; fi;
+		if ( ! $dry ); then $systemd enable $systemdconfigname; else echo "[D]  $systemd enable $systemdconfigname";fi;
+
+fi;
+
+if ( $useetckeeper )
+	then
+		echo "[*]  Commiting changes";
+		if ( ! $dry ); then $etckeeper commit "Installing / Updating Data Collector" >> install.log 2>> install.err; else echo "[D]  $etckeeper commit Installing / Updating Data Collector;"; fi;
+
+fi
+
+echo "[*]  Done";

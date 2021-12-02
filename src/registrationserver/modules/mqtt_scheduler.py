@@ -8,6 +8,7 @@ Author
 
 .. uml :: uml-mqtt_scheduler.puml
 """
+import threading
 import time
 
 import paho.mqtt.client as MQTT  # type: ignore
@@ -42,6 +43,7 @@ class MqttSchedulerActor(Actor):
         * Start MQTT loop
         """
         super().__init__()
+        self.lock = threading.Lock()
         self.cluster = {}
         self.reservations = {}
         self.ungr_disconn = 2
@@ -77,9 +79,25 @@ class MqttSchedulerActor(Actor):
         )
         mqtt_broker = mqtt_config["MQTT_BROKER"]
         port = mqtt_config["PORT"]
-        logger.info("Using MQTT broker %s with port %d", mqtt_broker, port)
-        self.mqttc.connect(mqtt_broker, port=port)
+        self._connect(mqtt_broker, port)
         self.mqttc.loop_start()
+
+    def _connect(self, mqtt_broker, port):
+        success = False
+        retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
+
+        while not success and self.ungr_disconn > 0:
+            try:
+                logger.info(
+                    "Attempting to connect to broker %s: %s",
+                    mqtt_broker,
+                    port,
+                )
+                self.mqttc.connect(mqtt_broker, port=port)
+                success = True
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.error("Could not connect to Broker, retrying...: %s", exception)
+                time.sleep(retry_interval)
 
     @overrides
     def receiveMessage(self, msg, sender):
@@ -142,29 +160,33 @@ class MqttSchedulerActor(Actor):
         """Handler for actor messages with command 'ADD'
 
         Adds a new instrument to the list of available instruments."""
-        instr_id = msg["PAR"]["INSTR_ID"]
-        self.cluster[instr_id] = sender
-        logger.debug(
-            "[ADD] %s added to cluster. Complete list is now %s", instr_id, self.cluster
-        )
-        ismqtt_messages.add_instr(
-            client=self.mqttc, is_id=self.is_id, instr_id=instr_id
-        )
+        with self.lock:
+            instr_id = msg["PAR"]["INSTR_ID"]
+            self.cluster[instr_id] = sender
+            logger.debug(
+                "[ADD] %s added to cluster. Complete list is now %s",
+                instr_id,
+                self.cluster,
+            )
+            ismqtt_messages.add_instr(
+                client=self.mqttc, is_id=self.is_id, instr_id=instr_id
+            )
 
     def _remove(self, msg, _sender):
         """Handler for actor messages with command 'REMOVE'
 
         Removes an instrument from the list of available instruments."""
-        instr_id = msg["PAR"]["INSTR_ID"]
-        self.cluster.pop(instr_id, None)
-        logger.debug(
-            "[REMOVE] %s removed from cluster. Complete list is now %s",
-            instr_id,
-            self.cluster,
-        )
-        ismqtt_messages.del_instr(
-            client=self.mqttc, is_id=self.is_id, instr_id=instr_id
-        )
+        with self.lock:
+            instr_id = msg["PAR"]["INSTR_ID"]
+            self.cluster.pop(instr_id, None)
+            logger.debug(
+                "[REMOVE] %s removed from cluster. Complete list is now %s",
+                instr_id,
+                self.cluster,
+            )
+            ismqtt_messages.del_instr(
+                client=self.mqttc, is_id=self.is_id, instr_id=instr_id
+            )
 
     def _kill(self, _msg, _sender):
         ismqtt_messages.del_is(
@@ -233,41 +255,48 @@ class MqttSchedulerActor(Actor):
 
     def on_control(self, _client, _userdata, message):
         """Event handler for all MQTT messages with control topic."""
-        logger.debug("[on_control] %s: %s", message.topic, message.payload)
-        instrument_id = message.topic[: -len("control") - 1][len(self.is_id) + 1 :]
-        for instr_id in self.cluster:
-            if instr_id == instrument_id:
-                old_control = self.reservations.get(instrument_id)
-                control = ismqtt_messages.get_instr_control(message, old_control)
-                logger.debug("Control object: %s", control)
-                if control.ctype == ismqtt_messages.ControlType.RESERVE:
-                    self.process_reserve(instr_id, control)
-                if control.ctype == ismqtt_messages.ControlType.FREE:
-                    self.process_free(instr_id)
-                    logger.debug(
-                        "[FREE] client=%s, instr_id=%s, control=%s",
-                        self.mqttc,
-                        instr_id,
-                        control,
-                    )
-                # TODO: If code gets here, then the instrument got disconnected
+        with self.lock:
+            logger.debug("[on_control] %s: %s", message.topic, message.payload)
+            instrument_id = message.topic[: -len("control") - 1][len(self.is_id) + 1 :]
+            for instr_id in self.cluster:
+                if instr_id == instrument_id:
+                    old_control = self.reservations.get(instrument_id)
+                    control = ismqtt_messages.get_instr_control(message, old_control)
+                    logger.debug("Control object: %s", control)
+                    if control.ctype == ismqtt_messages.ControlType.RESERVE:
+                        self.process_reserve(instr_id, control)
+                    if control.ctype == ismqtt_messages.ControlType.FREE:
+                        self.process_free(instr_id)
+                        logger.debug(
+                            "[FREE] client=%s, instr_id=%s, control=%s",
+                            self.mqttc,
+                            instr_id,
+                            control,
+                        )
+                    # TODO: If code gets here, then the instrument got disconnected
 
     def on_cmd(self, _client, _userdata, message):
         """Event handler for all MQTT messages with cmd topic."""
-        logger.debug("[on_cmd] %s: %s", message.topic, message.payload)
-        instrument_id = message.topic[: -len("cmd") - 1][len(self.is_id) + 1 :]
-        self.cmd_id = message.payload[0]
-        cmd = message.payload[1:]
-        for instr_id, device_actor in self.cluster.items():
-            if instr_id == instrument_id:
-                old = self.reservations.get(instr_id)
-                if old is not None:
-                    self.reservations[instr_id] = old._replace(timestamp=time.time())
-                    logger.debug(
-                        "Forward command %s to device actor %s", cmd, device_actor
-                    )
-                    cmd_msg = {"CMD": "SEND", "PAR": {"DATA": cmd, "HOST": "localhost"}}
-                    self.send(device_actor, cmd_msg)
+        with self.lock:
+            logger.debug("[on_cmd] %s: %s", message.topic, message.payload)
+            instrument_id = message.topic[: -len("cmd") - 1][len(self.is_id) + 1 :]
+            self.cmd_id = message.payload[0]
+            cmd = message.payload[1:]
+            for instr_id, device_actor in self.cluster.items():
+                if instr_id == instrument_id:
+                    old = self.reservations.get(instr_id)
+                    if old is not None:
+                        self.reservations[instr_id] = old._replace(
+                            timestamp=time.time()
+                        )
+                        logger.debug(
+                            "Forward command %s to device actor %s", cmd, device_actor
+                        )
+                        cmd_msg = {
+                            "CMD": "SEND",
+                            "PAR": {"DATA": cmd, "HOST": "localhost"},
+                        }
+                        self.send(device_actor, cmd_msg)
 
     def on_message(self, _client, _userdata, message):
         """

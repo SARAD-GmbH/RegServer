@@ -15,12 +15,13 @@ import os
 import re
 import socket
 import sys
+import time
 
 from flask import Flask, Response, json, request
-from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
-                             ActorSystem, PoisonMessage)
+from thespian.actors import ActorExitRequest  # type: ignore
+from thespian.actors import Actor, ActorSystem, PoisonMessage
 
-from registrationserver.config import config
+from registrationserver.config import config, mqtt_config
 from registrationserver.logger import logger  # type: ignore
 from registrationserver.modules.messages import RETURN_MESSAGES
 
@@ -58,7 +59,7 @@ def get_state_from_file(device_id: str) -> dict:
             return answer
     except Exception:  # pylint: disable=broad-except
         logger.exception("Fatal error")
-        return {}
+        raise
     return {}
 
 
@@ -109,7 +110,8 @@ class RestApi:
             for did in os.listdir(config["DEV_FOLDER"]):
                 answer[did] = get_state_from_file(did)
         except Exception:  # pylint: disable=broad-except
-            logger.exception("Fatal error")
+            logger.critical("Fatal error")
+            raise
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -149,8 +151,7 @@ class RestApi:
         try:
             logger.debug(request.environ["REMOTE_ADDR"])
             request_host = socket.gethostbyaddr(request.environ["REMOTE_ADDR"])[0]
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("Fatal error")
+        except socket.herror:
             request_host = request.environ["REMOTE_ADDR"]
         logger.info(
             "Request reservation of %s for %s@%s", did, attribute_who, request_host
@@ -314,7 +315,6 @@ class RestApi:
     @api.route("/ports/list-native", methods=["GET"])
     def getnativeports():
         """Loops Local Ports, Used for Testing"""
-        system = ActorSystem()
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
         reply = ActorSystem().ask(cluster, {"CMD": "LIST-NATIVE"})
         if isinstance(reply, PoisonMessage):
@@ -325,8 +325,16 @@ class RestApi:
 
     def run(self, host=None, port=None, debug=None, load_dotenv=True):
         """Start the API"""
-        logger.info("Starting API at %s:%d", host, port)
-        std = sys.stdout
-        sys.stdout = RestApi.Dummy
-        self.api.run(host=host, port=port, debug=debug, load_dotenv=load_dotenv)
-        sys.stdout = std
+        success = False
+        retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
+        while not success:
+            try:
+                logger.info("Starting API at %s:%d", host, port)
+                std = sys.stdout
+                sys.stdout = RestApi.Dummy
+                self.api.run(host=host, port=port, debug=debug, load_dotenv=load_dotenv)
+                sys.stdout = std
+                success = True
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.error("Could not connect to Broker, retrying...: %s", exception)
+                time.sleep(retry_interval)
