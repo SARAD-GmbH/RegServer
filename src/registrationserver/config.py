@@ -19,6 +19,7 @@ import toml
 from zeroconf import IPVersion
 
 
+
 class AppType(Enum):
     """Flag identifying the type of application that is currently running.
 
@@ -37,7 +38,7 @@ class AppType(Enum):
     IS2 = 2
     RS = 3
 
-
+config_failed = False
 home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
 app_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
@@ -176,12 +177,25 @@ DEFAULT_MQTT_CLIENT_ID = "SARAD_Subscriber"
 DEFAULT_MQTT_BROKER = "85.214.243.156"  # Mosquitto running on sarad.de
 DEFAULT_PORT = 1883
 DEFAULT_RETRY_INTERVAL = 5
+DEFAULT_TLS_USE_TLS = False
+
+
+DEFAULT_TLS_CA_FILE = f"{config_path}tls_cert_sarad.pem"
+DEFAULT_TLS_KEY_FILE = f"{config_path}tls_key_personal.pem"
+DEFAULT_TLS_CERT_FILE = f"{config_path}tls_cert_personal.crt"
+
+
+
 if customization.get("mqtt") is None:
     mqtt_config = {
         "MQTT_CLIENT_ID": DEFAULT_MQTT_CLIENT_ID,
         "MQTT_BROKER": DEFAULT_MQTT_BROKER,
         "PORT": DEFAULT_PORT,
         "RETRY_INTERVAL": DEFAULT_RETRY_INTERVAL,
+        "TLS_CA_FILE" : DEFAULT_TLS_CA_FILE,
+        "TLS_CERT_FILE" : DEFAULT_TLS_CERT_FILE,
+        "TLS_KEY_FILE" : DEFAULT_TLS_KEY_FILE,
+        "TLS_USE_TLS" : DEFAULT_TLS_USE_TLS
     }
 else:
     mqtt_config = {
@@ -193,8 +207,27 @@ else:
         "RETRY_INTERVAL": customization["mqtt"].get(
             "retry_interval", DEFAULT_RETRY_INTERVAL
         ),
+        "TLS_USE_TLS" : customization["mqtt"].get("tls_use_tls", DEFAULT_TLS_USE_TLS),
+        "TLS_CA_FILE": customization["mqtt"].get("tls_ca_file", DEFAULT_TLS_CA_FILE if customization["mqtt"].get("tls_use_tls",  DEFAULT_TLS_USE_TLS) else None),
+        "TLS_CERT_FILE": customization["mqtt"].get("tls_cert_file", DEFAULT_TLS_CERT_FILE if customization["mqtt"].get("tls_use_tls", DEFAULT_TLS_USE_TLS) else None),
+        "TLS_KEY_FILE": customization["mqtt"].get("tls_key_file", DEFAULT_TLS_KEY_FILE if customization["mqtt"].get("tls_use_tls", DEFAULT_TLS_USE_TLS) else None),
+
     }
 
+if mqtt_config.get("TLS_USE_TLS"):
+    if (not mqtt_config.get("TLS_CA_FILE", None)) or (not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_CA_FILE", None)))):
+        print(f"Cannot find ca file (expected at: {mqtt_config.get('TLS_CA_FILE',None)})")
+        config_failed = True
+
+    if (not mqtt_config.get("TLS_CERT_FILE", None)) or (not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_CERT_FILE", None)))):
+        print(f"Cannot find personal certifacte (expected at: {mqtt_config.get('TLS_CERT_FILE',None)})")
+        config_failed = True
+    if (not mqtt_config.get("TLS_KEY_FILE", None)) or (not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_KEY_FILE", None)))):
+        print(f"Cannot find personal key file (expected at: {mqtt_config.get('TLS_KEY_FILE',None)})")
+        config_failed = True
+
+if config_failed:
+    sys.exit()
 
 try:
     DEFAULT_ISMQTT_IS_ID = socket.gethostname()
