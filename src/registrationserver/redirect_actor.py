@@ -161,9 +161,7 @@ class RedirectorActor(Actor):
 
         Send a RETURN KILL message to the device actor (my_parent),
         then exit this redirector actor."""
-        for my_socket in self.read_list:
-            my_socket.shutdown(socket.SHUT_RDWR)
-            my_socket.close()
+        self.read_list[0].close()
         return_message = {
             "RETURN": "KILL",
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
