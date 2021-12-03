@@ -336,6 +336,11 @@ class DeviceBaseActor(Actor):
         """Handler for FREE message from REST API."""
         logger.info("Device actor received a FREE command. %s", msg)
         self.sender_api = sender
+        return_message = {
+            "RETURN": "FREE",
+            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+        }
+        self.send(self.sender_api, return_message)
         if self.my_redirector is not None:
             logger.debug("Send KILL to redirector %s", self.my_redirector)
             kill_cmd = {"CMD": "KILL"}
@@ -362,11 +367,6 @@ class DeviceBaseActor(Actor):
             with open(self.dev_file, "w+", encoding="utf8") as file_stream:
                 file_stream.write(self._file_content)
             self.my_redirector = None
-            return_message = {
-                "RETURN": "FREE",
-                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            }
-            self.send(self.sender_api, return_message)
             return
         logger.critical("Killing the redirector actor failed with %s", msg)
         return_message = {
