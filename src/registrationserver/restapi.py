@@ -59,7 +59,7 @@ def get_state_from_file(device_id: str) -> dict:
             return answer
     except Exception:  # pylint: disable=broad-except
         logger.exception("Fatal error")
-        return {}
+        raise
     return {}
 
 
@@ -110,7 +110,8 @@ class RestApi:
             for did in os.listdir(config["DEV_FOLDER"]):
                 answer[did] = get_state_from_file(did)
         except Exception:  # pylint: disable=broad-except
-            logger.exception("Fatal error")
+            logger.critical("Fatal error")
+            raise
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -150,8 +151,7 @@ class RestApi:
         try:
             logger.debug(request.environ["REMOTE_ADDR"])
             request_host = socket.gethostbyaddr(request.environ["REMOTE_ADDR"])[0]
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("Fatal error")
+        except socket.herror:
             request_host = request.environ["REMOTE_ADDR"]
         logger.info(
             "Request reservation of %s for %s@%s", did, attribute_who, request_host
@@ -335,6 +335,6 @@ class RestApi:
                 self.api.run(host=host, port=port, debug=debug, load_dotenv=load_dotenv)
                 sys.stdout = std
                 success = True
-            except Exception as exception:  # pylint: disable=broad-except
-                logger.error("Could not connect to Broker, retrying...: %s", exception)
+            except OSError as exception:
+                logger.critical(exception)
                 time.sleep(retry_interval)

@@ -266,19 +266,20 @@ class DeviceBaseActor(Actor):
     def _create_redirector(self) -> bool:
         """Create redirector actor"""
         if self.my_redirector is None:
+            redirector_id = short_id(self.globalName)
             logger.debug(
                 "Trying to create a redirector actor with globalName %s",
-                short_id(self.globalName),
+                redirector_id,
             )
             self.my_redirector = self.createActor(
-                RedirectorActor, globalName=short_id(self.globalName)
+                RedirectorActor, globalName=redirector_id
             )
             msg = {"CMD": "SETUP", "PAR": {"PARENT_NAME": self.globalName}}
             logger.debug("Send SETUP command to redirector with msg %s", msg)
             self.send(self.my_redirector, msg)
             return True
         logger.debug(
-            "[create_redirector] Redirector %s already exits.", self.my_redirector
+            "[create_redirector] Redirector %s already exists.", self.my_redirector
         )
         return False
 
@@ -337,16 +338,11 @@ class DeviceBaseActor(Actor):
         self.sender_api = sender
         if self.my_redirector is not None:
             logger.debug("Send KILL to redirector %s", self.my_redirector)
-            self.send(self.my_redirector, ActorExitRequest())
+            kill_cmd = {"CMD": "KILL"}
+            self.send(self.my_redirector, kill_cmd)
             return
-        return_message = {
-            "RETURN": "FREE",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-        }
-        self.send(sender, return_message)
-        return
 
-    def _return_from_kill(self, msg, _sender):
+    def _return_from_kill(self, msg, sender):
         """Completes the _free function with the reply from the redirector actor after
         it received the KILL command."""
         if not msg["ERROR_CODE"]:

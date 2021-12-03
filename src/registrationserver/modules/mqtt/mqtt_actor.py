@@ -152,44 +152,28 @@ class MqttActor(DeviceBaseActor):
             logger.debug("[Reserve at IS]: Waiting for reply to reservation request")
 
     @overrides
-    def _free(self, msg, sender) -> None:
-        logger.debug("Free-Request")
-        if msg is None:
-            logger.critical("Actor message is None. This schould never happen.")
-            super()._free(msg, sender)
-            return
+    def _return_from_kill(self, msg, sender) -> None:
+        """Handle the return message confirming that the redirector actor was killed.
+
+        Args:
+            msg: a dictionary with at least {"RETURN": "KILL"} as content
+            sender: usually the redirector actor
+        """
+        logger.debug("Redirector actor exited")
         _msg = {
             "topic": self.allowed_sys_topics["CTRL"],
             "payload": json.dumps({"Req": "free"}),
             "qos": 0,
         }
         _re = self._publish(_msg)
-        if not _re:
-            self.send(
-                sender,
-                {
-                    "RETURN": "FREE",
-                    "ERROR_CODE": RETURN_MESSAGES["PUBLISH"]["ERROR_CODE"],
-                },
-            )
-            super()._free(msg, sender)
-            return
         logger.info(
-            "[Free] Unsubscribe MQTT actor %s from 'reserve' and 'msg' topics",
+            "Unsubscribe MQTT actor %s from 'reserve' and 'msg' topics",
             self.globalName,
         )
-        topics = [self.allowed_sys_topics["RESERVE"], self.allowed_sys_topics["MSG"]]
-        if not self._unsubscribe(topics):
-            self.send(
-                sender,
-                {
-                    "RETURN": "FREE",
-                    "ERROR_CODE": RETURN_MESSAGES["UNSUBSCRIBE"]["ERROR_CODE"],
-                },
-            )
-            super()._free(msg, sender)
-            return
-        super()._free(msg, sender)
+        self._unsubscribe(
+            [self.allowed_sys_topics["RESERVE"], self.allowed_sys_topics["MSG"]]
+        )
+        super()._return_from_kill(msg, sender)
 
     def _kill(self, msg, sender):
         logger.debug(self.allowed_sys_topics)
@@ -459,7 +443,6 @@ class MqttActor(DeviceBaseActor):
         logger.debug("Disconnected gracefully")
 
     def _publish(self, msg) -> bool:
-        logger.debug("Work state: publish")
         if not self.is_connected:
             logger.warning("Failed to publish the message because of disconnection")
             return False
@@ -469,7 +452,7 @@ class MqttActor(DeviceBaseActor):
         retain = msg.get("retain", None)
         if retain is None:
             retain = False
-        logger.debug("To publish")
+        logger.debug("Publish %s to %s", mqtt_payload, mqtt_topic)
         return_code, self.mid["PUBLISH"] = self.mqttc.publish(
             mqtt_topic,
             payload=mqtt_payload,
