@@ -435,7 +435,6 @@ class MqttActor(DeviceBaseActor):
         logger.debug("Disconnected gracefully")
 
     def _publish(self, msg) -> bool:
-        logger.debug("Work state: publish")
         if not self.is_connected:
             logger.warning("Failed to publish the message because of disconnection")
             return False
@@ -445,7 +444,7 @@ class MqttActor(DeviceBaseActor):
         retain = msg.get("retain", None)
         if retain is None:
             retain = False
-        logger.debug("To publish")
+        logger.debug("Publish %s to %s", mqtt_payload, mqtt_topic)
         return_code, self.mid["PUBLISH"] = self.mqttc.publish(
             mqtt_topic,
             payload=mqtt_payload,

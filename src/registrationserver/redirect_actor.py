@@ -68,6 +68,7 @@ class RedirectorActor(Actor):
             server_socket.listen()  # listen(5) maybe???
         except OSError:
             self._port = None
+        logger.debug("Server socket: %s", server_socket)
         self.read_list = [server_socket]
         if self._port is not None:
             logger.info("Socket listening on %s:%d", self._host, self._port)
