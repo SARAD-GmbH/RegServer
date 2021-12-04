@@ -8,10 +8,10 @@ Author
 
 .. uml :: uml-mqtt_scheduler.puml
 """
-import threading
-import time
 import os
 import ssl
+import threading
+import time
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
@@ -95,11 +95,19 @@ class MqttSchedulerActor(Actor):
                     mqtt_broker,
                     port,
                 )
-                if(mqtt_config["TLS_USE_TLS"]):
+                if mqtt_config["TLS_USE_TLS"]:
+                    ca_certs = os.path.expanduser(mqtt_config["TLS_CA_FILE"])
+                    certfile = os.path.expanduser(mqtt_config["TLS_CERT_FILE"])
+                    keyfile = os.path.expanduser(mqtt_config["TLS_KEY_FILE"])
                     logger.info(
-                        "Setting up TLS: %s | %s | %s",os.path.expanduser(mqtt_config["TLS_CA_FILE"]), os.path.expanduser(mqtt_config["TLS_CERT_FILE"]), os.path.expanduser(mqtt_config["TLS_KEY_FILE"])
-                        )
-                    self.mqttc.tls_set(ca_certs=os.path.expanduser(mqtt_config["TLS_CA_FILE"]), certfile=os.path.expanduser(mqtt_config["TLS_CERT_FILE"]), keyfile=os.path.expanduser(mqtt_config["TLS_KEY_FILE"]), cert_reqs=ssl.CERT_REQUIRED)
+                        "Setting up TLS: %s | %s | %s", ca_certs, certfile, keyfile
+                    )
+                    self.mqttc.tls_set(
+                        ca_certs=ca_certs,
+                        certfile=certfile,
+                        keyfile=keyfile,
+                        cert_reqs=ssl.CERT_REQUIRED,
+                    )
                 self.mqttc.connect(mqtt_broker, port=port)
                 success = True
             except Exception as exception:  # pylint: disable=broad-except
