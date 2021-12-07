@@ -143,7 +143,7 @@ class SaradMqttSubscriber:
                     self.mqtt_broker,
                     self.port,
                 )
-                if mqtt_config["TLS_USE_TLS"]:
+                if mqtt_config["TLS_USE_TLS"] and self.mqttc._ssl_context is None:
                     ca_certs = os.path.expanduser(mqtt_config["TLS_CA_FILE"])
                     certfile = os.path.expanduser(mqtt_config["TLS_CERT_FILE"])
                     keyfile = os.path.expanduser(mqtt_config["TLS_KEY_FILE"])
