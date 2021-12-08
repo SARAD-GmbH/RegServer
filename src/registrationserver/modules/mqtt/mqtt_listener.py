@@ -94,6 +94,7 @@ class SaradMqttSubscriber:
             self.port,
             mqtt_cid,
         )
+        self._subscriptions = {}
         self.mqttc = MQTT.Client(mqtt_cid)
         self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
@@ -473,7 +474,9 @@ class SaradMqttSubscriber:
         if result_code == 0:
             self.is_connected = True
             logger.info("[on_connect] Connected with MQTT broker.")
-            self._subscribe("+/meta", 0)
+            self.mqttc.subscribe("+/meta", 0)
+            for topic, qos in self._subscriptions.items():
+                self.mqttc.subscribe(topic, qos)
         else:
             self.is_connected = False
             logger.error(
@@ -539,32 +542,22 @@ class SaradMqttSubscriber:
 
         self.ungr_disconn = 0
 
-    def _subscribe(self, topic: str, qos: int) -> dict:
+    def _subscribe(self, topic: str, qos: int) -> bool:
         logger.debug("[Subscribe]")
         result_code, self.msg_id["SUBSCRIBE"] = self.mqttc.subscribe(topic, qos)
         if result_code != MQTT.MQTT_ERR_SUCCESS:
             logger.warning("[Subscribe] failed with result code %s", result_code)
-            return {
-                "RETURN": "SUBSCRIBE",
-                "ERROR_CODE": RETURN_MESSAGES["SUBSCRIBE"]["ERROR_CODE"],
-            }
+            return False
         logger.info("[Subscribe] Subscribed to topic %s", topic)
-        return {
-            "RETURN": "SUBSCRIBE",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-        }
+        self._subscriptions[topic] = qos
+        return True
 
-    def _unsubscribe(self, topic: str) -> dict:
+    def _unsubscribe(self, topic: str) -> bool:
         logger.debug("[Unsubscribe]")
         result_code, self.msg_id["UNSUBSCRIBE"] = self.mqttc.unsubscribe(topic)
         if result_code != MQTT.MQTT_ERR_SUCCESS:
             logger.warning("[Unsubscribe] failed with result code %s", result_code)
-            return {
-                "RETURN": "UNSUBSCRIBE",
-                "ERROR_CODE": RETURN_MESSAGES["UNSUBSCRIBE"]["ERROR_CODE"],
-            }
+            return False
         logger.info("[Unsubscribe] Unsubscribed topic %s", topic)
-        return {
-            "RETURN": "UNSUBSCRIBE",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-        }
+        self._subscriptions.pop(topic)
+        return True
