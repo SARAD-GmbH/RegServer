@@ -212,11 +212,16 @@ def get_state_from_file(instr_id: str) -> dict:
     return {}
 
 
-def add_instr(*, client, is_id: str, instr_id: str):
+def add_instr(*, client, is_id: str, instr_id: str, subscriptions):
     """Helper function to deal with adding/marking an instrument active"""
     # def subscribe(self, topic, qos=0, options=None, properties=None):
-    client.subscribe(topic=f"{is_id}/{instr_id}/control")
-    client.subscribe(topic=f"{is_id}/{instr_id}/cmd")
+    new_subscriptions = [
+        (f"{is_id}/{instr_id}/control", 0),
+        (f"{is_id}/{instr_id}/cmd", 0),
+    ]
+    client.subscribe(new_subscriptions)
+    for (topic, qos) in new_subscriptions:
+        subscriptions[topic] = qos
     identification = get_state_from_file(instr_id)["Identification"]
     mypayload = InstrumentMeta(
         state=2,
@@ -235,11 +240,13 @@ def add_instr(*, client, is_id: str, instr_id: str):
     )
 
 
-def del_instr(*, client, is_id: str, instr_id: str):
+def del_instr(*, client, is_id: str, instr_id: str, subscriptions):
     """Helper function to deal with marking an instrument as removed"""
     # def unsubscribe(self, topic, properties=None):
-    client.unsubscribe(topic=f"{is_id}/{instr_id}/control")
-    client.unsubscribe(topic=f"{is_id}/{instr_id}/cmd")
+    gone_subscriptions = [f"{is_id}/{instr_id}/control", f"{is_id}/{instr_id}/cmd"]
+    client.unsubscribe(gone_subscriptions)
+    for topic in gone_subscriptions:
+        subscriptions.pop(topic)
     mypayload = get_instr_meta(
         data=InstrumentMeta(
             state=0,

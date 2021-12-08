@@ -476,6 +476,7 @@ class SaradMqttSubscriber:
             logger.info("[on_connect] Connected with MQTT broker.")
             self.mqttc.subscribe("+/meta", 0)
             for topic, qos in self._subscriptions.items():
+                logger.debug("Restore subscription to %s", topic)
                 self.mqttc.subscribe(topic, qos)
         else:
             self.is_connected = False

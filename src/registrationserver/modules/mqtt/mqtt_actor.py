@@ -201,6 +201,7 @@ class MqttActor(DeviceBaseActor):
                 },
             )
             return
+        self._subscriptions = {}
         self.mqttc = MQTT.Client(mqtt_cid)
         self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
@@ -366,6 +367,9 @@ class MqttActor(DeviceBaseActor):
         if result_code == 0:
             self.is_connected = True
             logger.info("[CONNECT] Connected to MQTT broker")
+            for topic, qos in self._subscriptions.items():
+                logger.debug("Restore subscription to %s", topic)
+                self.mqttc.subscribe(topic, qos)
             self.send(
                 self.subscriber,
                 {
@@ -481,6 +485,8 @@ class MqttActor(DeviceBaseActor):
             logger.error("Subscribe failed; result code is: %s", return_code)
             return False
         logger.info("[Subscribe] to %s successful", sub_info)
+        for (topic, qos) in sub_info:
+            self._subscriptions[topic] = qos
         return True
 
     def _unsubscribe(self, topics: list) -> bool:
@@ -493,4 +499,6 @@ class MqttActor(DeviceBaseActor):
             logger.warning("[Unsubscribe] failed; result code is: %s", return_code)
             return False
         logger.info("[Unsubscribe] from %s successful", topics)
+        for topic in sub_info:
+            self._subscriptions.pop(topic)
         return True

@@ -50,7 +50,7 @@ class MqttSchedulerActor(Actor):
         self.reservations = {}
         self.ungr_disconn = 2
         self.is_connected = False
-        self.mid = {
+        self.msg_id = {
             "PUBLISH": None,
             "SUBSCRIBE": None,
             "UNSUBSCRIBE": None,
@@ -58,6 +58,7 @@ class MqttSchedulerActor(Actor):
         self.cmd_id = 0
         # Start MQTT client
         self.is_id = ismqtt_config["IS_ID"]
+        self._subscriptions = {}
         self.mqttc = MQTT.Client()
         self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
@@ -184,7 +185,10 @@ class MqttSchedulerActor(Actor):
                 self.cluster,
             )
             ismqtt_messages.add_instr(
-                client=self.mqttc, is_id=self.is_id, instr_id=instr_id
+                client=self.mqttc,
+                is_id=self.is_id,
+                instr_id=instr_id,
+                subscriptions=self._subscriptions,
             )
 
     def _remove(self, msg, _sender):
@@ -200,7 +204,10 @@ class MqttSchedulerActor(Actor):
                 self.cluster,
             )
             ismqtt_messages.del_instr(
-                client=self.mqttc, is_id=self.is_id, instr_id=instr_id
+                client=self.mqttc,
+                is_id=self.is_id,
+                instr_id=instr_id,
+                subscriptions=self._subscriptions,
             )
 
     def _kill(self, _msg, _sender):
@@ -209,18 +216,6 @@ class MqttSchedulerActor(Actor):
         )
         self._disconnect()
         time.sleep(1)
-
-    def _unsubscribe(self, topics: list) -> bool:
-        logger.info("Unsubscribe topic %s", topics)
-        if not self.is_connected:
-            logger.error("[Unsubscribe] failed, not connected to broker")
-            return False
-        return_code, self.mid["UNSUBSCRIBE"] = self.mqttc.unsubscribe(topics)
-        if return_code != MQTT.MQTT_ERR_SUCCESS:
-            logger.warning("[Unsubscribe] failed; result code is: %s", return_code)
-            return False
-        logger.info("[Unsubscribe] from %s successful", topics)
-        return True
 
     def _disconnect(self):
         if self.ungr_disconn == 2:
@@ -241,6 +236,9 @@ class MqttSchedulerActor(Actor):
                 self.is_id,
                 result_code,
             )
+            for topic, qos in self._subscriptions.items():
+                logger.debug("Restore subscription to %s", topic)
+                self.mqttc.subscribe(topic, qos)
             self.mqttc.publish(
                 retain=True,
                 topic=f"{self.is_id}/meta",
@@ -288,7 +286,11 @@ class MqttSchedulerActor(Actor):
                             instr_id,
                             control,
                         )
-                    # TODO: If code gets here, then the instrument got disconnected
+                else:
+                    logger.error(
+                        "[on_control] The requested instrument %s is not connected",
+                        instrument_id,
+                    )
 
     def on_cmd(self, _client, _userdata, message):
         """Event handler for all MQTT messages with cmd topic."""
