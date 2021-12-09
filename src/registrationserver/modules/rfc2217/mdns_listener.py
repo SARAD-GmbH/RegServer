@@ -22,6 +22,7 @@ from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.rfc2217.rfc2217_actor import Rfc2217Actor
+from registrationserver.shutdown import system_shutdown
 from thespian.actors import (ActorExitRequest, ActorSystem,  # type: ignore
                              PoisonMessage)
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
@@ -133,9 +134,10 @@ class MdnsListener(ServiceListener):
                 setup_return = ActorSystem().ask(this_actor, msg)
                 if isinstance(setup_return, PoisonMessage):
                     logger.critical(
-                        "Critical error in rfc2217_actor. Kill device actor."
+                        "Critical error in rfc2217_actor. Stop and shutdown system."
                     )
-                    ActorSystem().ask(this_actor, ActorExitRequest())
+                    system_shutdown()
+                    return
                 if not setup_return["ERROR_CODE"] in (
                     RETURN_MESSAGES["OK"]["ERROR_CODE"],
                     RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],

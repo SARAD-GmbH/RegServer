@@ -17,11 +17,12 @@ from registrationserver.helpers import get_key
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.usb.usb_actor import UsbActor
+from registrationserver.shutdown import system_shutdown
 from sarad.cluster import SaradCluster
 from sarad.sari import SaradInst
 from serial.tools.list_ports import comports
 from thespian.actors import (Actor, ActorExitRequest, ChildActorExited,
-                             WakeupMessage)
+                             PoisonMessage, WakeupMessage)
 
 
 class ClusterActor(Actor):
@@ -434,11 +435,16 @@ class ClusterActor(Actor):
             logger.debug("ChildActorExited received")
             self._return_from_kill(msg, msg.childAddress)
             return
+        if isinstance(msg, PoisonMessage):
+            logger.critical("PoisonMessage --> System shutdown.")
+            system_shutdown()
+            return
         if not isinstance(msg, dict):
             logger.critical(
                 "Received %s from %s. This should never happen.", msg, sender
             )
             logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
+            system_shutdown()
             return
         return_key = msg.get("RETURN", None)
         cmd_key = msg.get("CMD", None)
@@ -449,6 +455,7 @@ class ClusterActor(Actor):
                 "Received %s from %s. This should never happen.", msg, sender
             )
             logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_MESSAGE"])
+            system_shutdown()
             return
         if cmd_key is not None:
             cmd_function = self.ACCEPTED_COMMANDS.get(cmd_key, None)
@@ -459,6 +466,7 @@ class ClusterActor(Actor):
                 logger.critical(
                     RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"]["ERROR_MESSAGE"]
                 )
+                system_shutdown()
                 return
             if getattr(self, cmd_function, None) is None:
                 logger.critical(
@@ -467,5 +475,6 @@ class ClusterActor(Actor):
                 logger.critical(
                     RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"]["ERROR_MESSAGE"]
                 )
+                system_shutdown()
                 return
             getattr(self, cmd_function)(msg, sender)

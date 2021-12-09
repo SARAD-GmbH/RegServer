@@ -15,6 +15,7 @@ from registrationserver.config import AppType, config
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.modules.messages import RETURN_MESSAGES
+from registrationserver.shutdown import system_shutdown
 from thespian.actors import Actor
 
 logger.debug("%s -> %s", __package__, __file__)
@@ -47,10 +48,10 @@ class UsbActor(DeviceBaseActor):
             logger.debug(serial_port)
         except Exception as this_exception:  # pylint: disable=broad-except
             logger.critical(
-                "Error during setup of USB device actor %s -- kill actor for a restart",
+                "Error during setup of USB device actor %s -- system shutdown",
                 this_exception,
             )
-            self._kill(msg, sender)
+            system_shutdown()
         return super()._setup(msg, sender)
 
     def _send(self, msg, _sender) -> None:

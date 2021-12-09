@@ -18,12 +18,12 @@ import sys
 import time
 
 from flask import Flask, Response, json, request
-from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import Actor, ActorSystem, PoisonMessage
 
 from registrationserver.config import config, mqtt_config
 from registrationserver.logger import logger  # type: ignore
 from registrationserver.modules.messages import RETURN_MESSAGES
+from registrationserver.shutdown import system_shutdown
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -176,8 +176,12 @@ class RestApi:
         logger.debug("Ask device actor %s", msg)
         reserve_return = ActorSystem().ask(device_actor, msg)
         if isinstance(reserve_return, PoisonMessage):
-            logger.critical("Critical error in device_actor. Kill device actor.")
-            ActorSystem().tell(device_actor, ActorExitRequest())
+            logger.critical("Critical error in device actor. Stop and shutdown system.")
+            system_shutdown()
+            answer = {"Error code": 99, "Error": "Unexpected error", did: {}}
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
         logger.debug("returned with %s", reserve_return)
         return_error = reserve_return["ERROR_CODE"]
         if return_error in (
@@ -236,8 +240,12 @@ class RestApi:
         logger.debug("Ask device actor to FREE...")
         free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"})
         if isinstance(free_return, PoisonMessage):
-            logger.critical("Critical error in device_actor. Kill device actor.")
-            ActorSystem().tell(device_actor, ActorExitRequest())
+            logger.critical("Critical error in device actor. Stop and shutdown system.")
+            system_shutdown()
+            answer = {"Error code": 99, "Error": "Unexpected error", did: {}}
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
         logger.debug("returned with %s", free_return)
         return_error = free_return["ERROR_CODE"]
         if return_error == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
@@ -268,9 +276,14 @@ class RestApi:
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
         reply = ActorSystem().ask(cluster, {"CMD": "LIST-PORTS"})
         if isinstance(reply, PoisonMessage):
-            logger.critical("Critical error in cluster_actor. Kill cluster.")
-            ActorSystem().tell(cluster, ActorExitRequest())
-            return "Critical error"
+            logger.critical(
+                "Critical error in cluster actor. Stop and shutdown system."
+            )
+            system_shutdown()
+            answer = {"Error code": 99, "Error": "Unexpected error"}
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
         return reply
 
     @staticmethod
@@ -280,9 +293,14 @@ class RestApi:
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
         reply = ActorSystem().ask(cluster, {"CMD": "LOOP", "PAR": {"PORT": port}})
         if isinstance(reply, PoisonMessage):
-            logger.critical("Critical error in cluster_actor. Kill cluster.")
-            ActorSystem().tell(cluster, ActorExitRequest())
-            return "Critical error"
+            logger.critical(
+                "Critical error in cluster actor. Stop and shutdown system."
+            )
+            system_shutdown()
+            answer = {"Error code": 99, "Error": "Unexpected error"}
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
         return reply
 
     @staticmethod
@@ -294,9 +312,14 @@ class RestApi:
             cluster, {"CMD": "LOOP-REMOVE", "PAR": {"PORT": port}}
         )
         if isinstance(reply, PoisonMessage):
-            logger.critical("Critical error in cluster_actor. Kill cluster.")
-            ActorSystem().tell(cluster, ActorExitRequest())
-            return "Critical error"
+            logger.critical(
+                "Critical error in cluster actor. Stop and shutdown system."
+            )
+            system_shutdown()
+            answer = {"Error code": 99, "Error": "Unexpected error"}
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
         return reply
 
     @staticmethod
@@ -306,9 +329,14 @@ class RestApi:
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
         reply = ActorSystem().ask(cluster, {"CMD": "LIST-USB"})
         if isinstance(reply, PoisonMessage):
-            logger.critical("Critical error in cluster_actor. Kill cluster.")
-            ActorSystem().tell(cluster, ActorExitRequest())
-            return "Critical error"
+            logger.critical(
+                "Critical error in cluster actor. Stop and shutdown system."
+            )
+            system_shutdown()
+            answer = {"Error code": 99, "Error": "Unexpected error"}
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
         return reply
 
     @staticmethod
@@ -318,9 +346,14 @@ class RestApi:
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
         reply = ActorSystem().ask(cluster, {"CMD": "LIST-NATIVE"})
         if isinstance(reply, PoisonMessage):
-            logger.critical("Critical error in cluster_actor. Kill cluster.")
-            ActorSystem().tell(cluster, ActorExitRequest())
-            return "Critical error"
+            logger.critical(
+                "Critical error in cluster actor. Stop and shutdown system."
+            )
+            system_shutdown()
+            answer = {"Error code": 99, "Error": "Unexpected error"}
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
         return reply
 
     def run(self, host=None, port=None, debug=None, load_dotenv=True):

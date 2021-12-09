@@ -16,6 +16,7 @@ from overrides import overrides  # type: ignore
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.modules.messages import RETURN_MESSAGES
+from registrationserver.shutdown import system_shutdown
 from thespian.actors import ActorSystem  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)
@@ -48,7 +49,11 @@ class Rfc2217Actor(DeviceBaseActor):
                 self.__port = serial.rfc2217.Serial(port_ident)
                 # move the send ( test if connection is up and if not create)
             except Exception:  # pylint: disable=broad-except
-                logger.exception("Fatal error")
+                logger.critical(
+                    "Fatal error connecting Instrument Server. System shutdown."
+                )
+                system_shutdown()
+                return False
         if self.__port and self.__port.is_open:
             return True
         return False

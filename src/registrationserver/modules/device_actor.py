@@ -19,8 +19,9 @@ from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.redirect_actor import RedirectorActor
-from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
-                             ChildActorExited)
+from registrationserver.shutdown import system_shutdown
+from thespian.actors import ActorExitRequest  # type: ignore
+from thespian.actors import Actor, ChildActorExited, PoisonMessage
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -96,11 +97,16 @@ class DeviceBaseActor(Actor):
             # It will be killed by the _free handler.
             logger.debug("Redirector actor exited.")
             return
+        if isinstance(msg, PoisonMessage):
+            logger.critical("PoisonMessage --> System shutdown.")
+            system_shutdown()
+            return
         if not isinstance(msg, dict):
             logger.critical(
                 "Received %s from %s. This should never happen.", msg, sender
             )
             logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
+            system_shutdown()
             return
         return_key = msg.get("RETURN", None)
         cmd_key = msg.get("CMD", None)
@@ -111,6 +117,7 @@ class DeviceBaseActor(Actor):
                 "Received %s from %s. This should never happen.", msg, sender
             )
             logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_MESSAGE"])
+            system_shutdown()
             return
         if cmd_key is not None:
             cmd_function = self.ACCEPTED_COMMANDS.get(cmd_key, None)
@@ -121,6 +128,7 @@ class DeviceBaseActor(Actor):
                 logger.critical(
                     RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"]["ERROR_MESSAGE"]
                 )
+                system_shutdown()
                 return
             if getattr(self, cmd_function, None) is None:
                 logger.critical(
@@ -129,6 +137,7 @@ class DeviceBaseActor(Actor):
                 logger.critical(
                     RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"]["ERROR_MESSAGE"]
                 )
+                system_shutdown()
                 return
             getattr(self, cmd_function)(msg, sender)
         elif return_key is not None:
@@ -150,7 +159,9 @@ class DeviceBaseActor(Actor):
         if self.dev_file is None:
             self.dev_file = fr"{self.__dev_folder}{self.globalName}"
             if not os.path.exists(self.dev_file):
-                open(self.dev_file, "a", encoding="utf8").close()
+                open(
+                    self.dev_file, "a", encoding="utf8"
+                ).close()  # pylint: disable=consider-using-with
                 logger.info("Device file %s created", self.dev_file)
             with open(self.dev_file, "w+", encoding="utf8") as file_stream:
                 file_stream.write(self._file_content)
@@ -374,4 +385,5 @@ class DeviceBaseActor(Actor):
             "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
         }
         self.send(self.sender_api, return_message)
+        system_shutdown()
         return

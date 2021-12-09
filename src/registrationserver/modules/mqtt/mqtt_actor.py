@@ -21,6 +21,7 @@ from registrationserver.config import mqtt_config
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.modules.messages import RETURN_MESSAGES
+from registrationserver.shutdown import system_shutdown
 
 logger.debug("%s -> %s", __package__, __file__)
 

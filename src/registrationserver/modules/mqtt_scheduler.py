@@ -20,7 +20,8 @@ from registrationserver.helpers import get_key
 from registrationserver.logger import logger
 from registrationserver.modules import ismqtt_messages
 from registrationserver.modules.messages import RETURN_MESSAGES
-from thespian.actors import Actor, ActorExitRequest
+from registrationserver.shutdown import system_shutdown
+from thespian.actors import Actor, ActorExitRequest, PoisonMessage
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -166,10 +167,15 @@ class MqttSchedulerActor(Actor):
             if isinstance(msg, ActorExitRequest):
                 self._kill(msg, sender)
                 return
+            if isinstance(msg, PoisonMessage):
+                logger.critical("PoisonMessage --> System shutdown.")
+                system_shutdown()
+                return
             logger.critical(
                 "Received %s from %s. This should never happen.", msg, sender
             )
             logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
+            system_shutdown()
             return
 
     def _add(self, msg, sender):

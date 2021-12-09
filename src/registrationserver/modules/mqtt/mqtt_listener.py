@@ -21,6 +21,7 @@ from registrationserver.config import config, mqtt_config
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.mqtt.mqtt_actor import MqttActor
+from registrationserver.shutdown import system_shutdown
 from thespian.actors import (ActorExitRequest, ActorSystem,  # type: ignore
                              PoisonMessage)
 
@@ -210,8 +211,9 @@ class SaradMqttSubscriber:
         this_actor = ActorSystem().createActor(MqttActor, globalName=ac_name)
         setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": payload})
         if isinstance(setup_return, PoisonMessage):
-            logger.critical("Critical error in mqtt_actor. Kill device actor.")
-            ActorSystem().tell(this_actor, ActorExitRequest())
+            logger.critical("Critical error in mqtt_actor. Stop and shutdown system.")
+            system_shutdown()
+            return
         logger.debug("SETUP returns: %s", setup_return)
         if not setup_return["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
@@ -232,8 +234,9 @@ class SaradMqttSubscriber:
         }
         prep_return = ActorSystem().ask(this_actor, prep_msg)
         if isinstance(prep_return, PoisonMessage):
-            logger.critical("Critical error in mqtt_actor. Kill device actor.")
-            ActorSystem().tell(this_actor, ActorExitRequest())
+            logger.critical("Critical error in mqtt_actor. Stop and shutdown system.")
+            system_shutdown()
+            return
         logger.debug(prep_return)
         if not prep_return["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
@@ -285,8 +288,9 @@ class SaradMqttSubscriber:
         this_actor = ActorSystem().createActor(MqttActor, globalName=name_)
         setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": payload})
         if isinstance(setup_return, PoisonMessage):
-            logger.critical("Critical error in mqtt_actor. Kill device actor.")
-            ActorSystem().tell(this_actor, ActorExitRequest())
+            logger.critical("Critical error in mqtt_actor. Stop and shutdown system.")
+            system_shutdown()
+            return
         logger.debug(setup_return)
         if not setup_return["ERROR_CODE"] in (
             RETURN_MESSAGES["OK"]["ERROR_CODE"],
