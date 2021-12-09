@@ -26,28 +26,7 @@ else:
 from registrationserver.config import AppType, actor_config, config, home
 from registrationserver.logdef import LOGFILENAME, logcfg
 from registrationserver.logger import logger
-
-FLAGFILENAME = f"{home}{os.path.sep}startstop.file"
-
-
-def set_file_flag(startorstop):
-    """Function to create a file that is used as flag in order to detect that the
-    Instrument Server should be stopped.
-
-    In this case I am using a simple file, but the flag could be
-    anything else: an entry in a database, a specific time..."""
-    if startorstop:
-        with open(FLAGFILENAME, "w", encoding="utf8") as flag_file:
-            flag_file.write("run")
-    else:
-        if os.path.isfile(FLAGFILENAME):
-            os.unlink(FLAGFILENAME)
-
-
-def is_flag_set():
-    """Function to detect whether the flag indicating that the Instrument Server is
-    going to be stopped was set."""
-    return os.path.isfile(FLAGFILENAME)
+from registrationserver.shutdown import is_flag_set, set_file_flag
 
 
 def cleanup():

@@ -29,23 +29,7 @@ from registrationserver.logger import logger
 from registrationserver.modules.mqtt.mqtt_listener import SaradMqttSubscriber
 from registrationserver.modules.rfc2217.mdns_listener import MdnsListener
 from registrationserver.restapi import RestApi
-
-FLAGFILENAME = f"{home}{os.path.sep}startstop.file"
-
-
-def set_file_flag(startorstop):
-    # In this case I am using a simple file, but the flag could be
-    # anything else: an entry in a database, a specific time...
-    if startorstop:
-        with open(FLAGFILENAME, "w", encoding="utf8") as flag_file:
-            flag_file.write("run")
-    else:
-        if os.path.isfile(FLAGFILENAME):
-            os.unlink(FLAGFILENAME)
-
-
-def is_flag_set():
-    return os.path.isfile(FLAGFILENAME)
+from registrationserver.shutdown import is_flag_set, set_file_flag
 
 
 def mqtt_loop(mqtt_listener):
