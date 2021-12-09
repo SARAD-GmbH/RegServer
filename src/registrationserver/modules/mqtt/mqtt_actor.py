@@ -77,6 +77,7 @@ class MqttActor(DeviceBaseActor):
             "SUBSCRIBE": None,
             "UNSUBSCRIBE": None,
         }  # store the current message ID to check
+        self._subscriptions = {}
 
     def _send(self, msg, sender) -> None:
         if msg is None:
@@ -201,7 +202,6 @@ class MqttActor(DeviceBaseActor):
                 },
             )
             return
-        self._subscriptions = {}
         self.mqttc = MQTT.Client(mqtt_cid)
         self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
@@ -499,6 +499,6 @@ class MqttActor(DeviceBaseActor):
             logger.warning("[Unsubscribe] failed; result code is: %s", return_code)
             return False
         logger.info("[Unsubscribe] from %s successful", topics)
-        for topic in sub_info:
+        for topic in topics:
             self._subscriptions.pop(topic)
         return True
