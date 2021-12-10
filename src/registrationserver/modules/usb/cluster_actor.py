@@ -178,7 +178,7 @@ class ClusterActor(Actor):
             reply = (
                 [instrument for instrument in self._cluster if instrument == target]
                 .pop()
-                .get_message_payload(data, 3)
+                .get_message_payload(data, 5)
             )
         logger.debug("and got reply from instrument: %s", reply)
         return_message = {
@@ -191,7 +191,7 @@ class ClusterActor(Actor):
             reply = (
                 [instrument for instrument in self._cluster if instrument == target]
                 .pop()
-                .get_next_payload(3)
+                .get_next_payload(5)
             )
             return_message = {
                 "RETURN": "SEND",
