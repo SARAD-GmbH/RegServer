@@ -490,3 +490,6 @@ class ClusterActor(Actor):
                 system_shutdown()
                 return
             getattr(self, cmd_function)(msg, sender)
+            return
+        if return_key is not None:
+            logger.debug("RETURN message without handler")
