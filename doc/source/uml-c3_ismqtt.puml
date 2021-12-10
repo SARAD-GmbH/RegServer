@@ -1,0 +1,43 @@
+@startuml
+!include <c4/C4_Component.puml>
+!include <office/Users/user.puml>
+
+hide stereotype
+
+'AddTagSupport("mod", $borderColor="#d73027")
+
+!$rs = "Registration Server MQTT"
+!$instr = "SARAD-Instrument"
+!$instr_m = "SARAD-Instrumente"
+
+Container(rs, $rs, "wählt ein $instr zur Kommunikation aus.")
+
+Container_Boundary(mod, "Lokal-Modul") {
+        Component(listener, "Unix Listener", "Python Class", "Erkennt neue USB-Geräte.")
+        Component(cluster_actor, "Cluster Actor", "Singleton Actor", "erkennt $instr_m, stellt Kommunikationsfunktionen bereit")
+        Component(device_actor1, "Device Actor A", "Actor")
+}
+Container_Boundary(is, "MQTT-Modul") {
+        Component(scheduler, "MQTT Scheduler", "Singleton Actor", "MQTT-Client")
+}
+ComponentDb(device_files, "Gerätedateien", "Dateisystem")
+
+Container(inst, $instr, "(virtueller) COM-Port mit SARAD-Protokoll")
+
+Rel(inst, listener, "1. erkennt Gerät", "USB")
+Rel(listener, cluster_actor, "2. ADD/REMOVE", "message")
+Rel(inst, cluster_actor, "3. erkennt $instr", "USB/RS-232 Polling")
+Rel(cluster_actor, device_actor1, "4. erzeugt", "createActor")
+Rel(cluster_actor, device_actor1, "5. SETUP", "message")
+Rel(device_actor1, device_files, "6. Datei/Link",  "JSON Identification")
+Rel(device_actor1, scheduler, "7. ADD", "Message")
+Rel(scheduler, device_files, "8. liest", "JSON")
+Rel(scheduler, rs, "9. meldet Gerät A", "MQTT")
+Rel(rs, scheduler, "10. Reservierung", "MQTT")
+Rel(scheduler, device_actor1, "11. RESERVE", "Message")
+Rel(scheduler, device_files, "12. schreibt", "JSON Reservation")
+BiRel(rs, scheduler, "13. Binärpaket", "MQTT")
+BiRel(scheduler, device_actor1, "13. Binärpaket", "Messages")
+BiRel(device_actor1, cluster_actor, "13. SEND", "Messages")
+BiRel(inst, cluster_actor, "13. Binärpaket", "COM-Port")
+@enduml

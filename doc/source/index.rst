@@ -3,14 +3,18 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to registrationserver's documentation!
-==============================================
+Contents
+========
 
 .. toctree::
    :maxdepth: 2
 
    use_case
    usage
+   regserver_rfc2217
+   regserver_mqtt
+   regserver_local
+   instrserver_mqtt
    actor_messages
    folder_structure
    classes

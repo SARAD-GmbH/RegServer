@@ -1,0 +1,44 @@
+@startuml
+!include <c4/C4_Component.puml>
+!include <office/Users/user.puml>
+
+hide stereotype
+
+'AddTagSupport("mod", $borderColor="#d73027")
+
+!$app = "SARAD-App"
+!$instr = "SARAD-Instrument"
+!$instr_m = "SARAD-Instrumente"
+
+Container(app, $app, "wählt ein $instr zur Kommunikation aus.")
+
+Container_Boundary(mod, "Lokal-Modul") {
+        Component(listener, "Win/Unix Listener", "Python Class", "Erkennt neue USB-Geräte.")
+        Component(cluster_actor, "Cluster Actor", "Actor", "erkennt $instr_m, stellt Kommunikationsfunktionen bereit")
+        Component(device_actor1, "Device Actor A", "Actor")
+}
+Container_Boundary(rs, "Basis") {
+        Component(api, "REST API", "JSON/HTTP", "Geräteliste mit Status")
+        Component(redirector1, "Redirector Actor A", "Actor", "TCP Socket")
+}
+ComponentDb(device_files, "Gerätedateien", "Dateisystem")
+
+Container(inst, $instr, "(virtueller) COM-Port mit SARAD-Protokoll")
+
+Rel(inst, listener, "1. erkennt Gerät", "USB")
+Rel(listener, cluster_actor, "2. ADD/REMOVE", "message")
+Rel(inst, cluster_actor, "3. erkennt $instr", "USB/RS-232 Polling")
+Rel(cluster_actor, device_actor1, "4. erzeugt", "createActor")
+Rel(cluster_actor, device_actor1, "5. SETUP", "message")
+Rel(device_actor1, device_files, "6. Datei/Link",  "JSON Identification")
+Rel(api, device_files, "7. liest", "JSON/HTTP")
+Rel(api, app, "8. GET list", "JSON/HTTP")
+Rel(app, api, "9. GET reserve", "JSON/HTTP")
+Rel(api, device_actor1, "10. RESERVE", "Message")
+Rel(device_actor1, redirector1, "11. erzeugt", "createActor")
+Rel(device_actor1, device_files, "12. schreibt", "JSON Reservation")
+BiRel(app, redirector1, "13. Binärpaket", "TCP-Socket")
+BiRel(redirector1, device_actor1, "13. Binärpaket", "Messages")
+BiRel(device_actor1, cluster_actor, "13. SEND", "Messages")
+BiRel(inst, cluster_actor, "13. Binärpaket", "COM-Port")
+@enduml
