@@ -208,8 +208,11 @@ class RedirectorActor(Actor):
                 logger.error("Connection reset by SARAD application software.")
                 data = None
                 time.sleep(5)
-        if data is None or data == b"":
+        if data is None:
             logger.critical("Application software seems to be dead.")
+            self._kill({}, self.my_parent)
+        elif data == b"":
+            logger.debug("The application closed the socket.")
             self._kill({}, self.my_parent)
         else:
             logger.debug("%s from %s", data, self._socket_info)
