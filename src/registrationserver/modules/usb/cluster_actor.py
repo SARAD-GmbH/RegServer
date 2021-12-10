@@ -30,6 +30,7 @@ class ClusterActor(Actor):
 
     ACCEPTED_COMMANDS = {
         "ADD": "_add",
+        "FREE": "_free",
         "REMOVE": "_remove",
         "SEND": "_send",
         "LIST": "_list",
@@ -198,6 +199,17 @@ class ClusterActor(Actor):
                 "RESULT": {"DATA": reply["raw"]},
             }
             self.send(sender, return_message)
+
+    def _free(self, msg, _sender) -> None:
+        logger.debug("[_free]")
+        target = msg["PAR"]["Instrument"]
+        instrument: SaradInst
+        if target in self._cluster:
+            (
+                [instrument for instrument in self._cluster if instrument == target]
+                .pop()
+                .release_instrument()
+            )
 
     def _list_ports(self, _msg, sender) -> None:
         logger.debug("[_list_ports]")

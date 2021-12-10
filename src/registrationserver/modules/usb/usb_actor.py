@@ -86,6 +86,13 @@ class UsbActor(DeviceBaseActor):
         """
         self._forward_reservation(True)
 
+    @overrides
+    def _return_from_kill(self, msg, sender):
+        super()._return_from_kill(msg, sender)
+        free_cmd = {"CMD": "FREE", "PAR": {"Instrument": self.instrument}}
+        logger.debug("Send %s to %s", free_cmd, self._cluster)
+        self.send(self._cluster, free_cmd)
+
 
 if __name__ == "__main__":
     pass
