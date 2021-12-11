@@ -194,11 +194,6 @@ class RedirectorActor(Actor):
 
     def _cmd_handler(self):
         """Handle a binary SARAD command received via the socket."""
-        switcher = {
-            b"B\x80\x7f\xe0\xe0\x00E": b"B\xa6\x59\xe3\x0c\x09\x09\x13\x03\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x19\x01E",
-            b"B\x80\x7f\xe1\xe1\x00E": b"B\x80\x7f\xe4\xe4\x00E",
-            b"B\x81\x7e\xe2\x0c\xee\x00E": b"B\x80\x7f\xe5\xe5\x00E",
-        }
         for _i in range(0, 5):
             try:
                 data = self.conn.recv(1024)
@@ -214,17 +209,13 @@ class RedirectorActor(Actor):
             logger.debug("The application closed the socket.")
             self._kill({}, self.my_parent)
         else:
-            try:
-                reply = switcher[data]
-                self.conn.sendall(reply)
-            except KeyError:
-                logger.debug(
-                    "Redirect %s from app, socket %s to device actor %s",
-                    data,
-                    self._socket_info,
-                    self.my_parent,
-                )
-                self.send(self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}})
+            logger.debug(
+                "Redirect %s from app, socket %s to device actor %s",
+                data,
+                self._socket_info,
+                self.my_parent,
+            )
+            self.send(self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}})
 
     def _send_to_app(self, msg, _sender):
         """Redirect any received reply to the socket."""
