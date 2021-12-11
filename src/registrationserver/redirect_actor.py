@@ -202,7 +202,6 @@ class RedirectorActor(Actor):
         for _i in range(0, 5):
             try:
                 data = self.conn.recv(1024)
-                logger.debug("Redirect %s to %s", data, self._socket_info)
                 break
             except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")
@@ -215,11 +214,16 @@ class RedirectorActor(Actor):
             logger.debug("The application closed the socket.")
             self._kill({}, self.my_parent)
         else:
-            logger.debug("%s from %s", data, self._socket_info)
             try:
                 reply = switcher[data]
                 self.conn.sendall(reply)
             except KeyError:
+                logger.debug(
+                    "Redirect %s from app, socket %s to device actor %s",
+                    data,
+                    self._socket_info,
+                    self.my_parent,
+                )
                 self.send(self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}})
 
     def _send_to_app(self, msg, _sender):
@@ -228,7 +232,9 @@ class RedirectorActor(Actor):
         for _i in range(0, 5):
             try:
                 self.conn.sendall(data)
-                logger.debug("Redirect %s to %s", data, self._socket_info)
+                logger.debug(
+                    "Redirect %s from instrument to socket %s", data, self._socket_info
+                )
                 return
             except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")
