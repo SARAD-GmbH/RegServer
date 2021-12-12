@@ -10,7 +10,7 @@ Authors
 
 """
 
-from typing import List
+from typing import Any, Dict, List
 
 from registrationserver.config import config
 from registrationserver.helpers import get_key
@@ -213,7 +213,7 @@ class ClusterActor(Actor):
 
     def _list_ports(self, _msg, sender) -> None:
         logger.debug("[_list_ports]")
-        result: List[str] = []
+        result: List[Dict[str, Any]] = []
         ports = [
             {"PORT": port.device, "PID": port.pid, "VID": port.vid}
             for port in comports()
@@ -228,7 +228,7 @@ class ClusterActor(Actor):
 
     def _list_usb(self, _msg, sender) -> None:
         logger.debug("[_list_usb]")
-        result: List[str] = []
+        result: List[Dict[str, Any]] = []
         ports = [port.device for port in comports() if port.vid and port.pid]
         result = [
             {
@@ -254,7 +254,7 @@ class ClusterActor(Actor):
 
     def _list_natives(self, _msg, sender) -> None:
         logger.debug("[_list_natives]")
-        result: List[str] = []
+        result: List[Dict[str, Any]] = []
         ports = [port.device for port in comports() if not port.pid]
         result = [
             {
@@ -279,7 +279,7 @@ class ClusterActor(Actor):
 
     def _list(self, msg, sender) -> None:
         logger.debug("[_list]")
-        result: List[SaradInst] = []
+        result: List[Dict[str, Any]] = []
         target = msg["PAR"].get("PORTS", None)
         if not target:
             instruments = self._cluster.update_connected_instruments()
