@@ -179,7 +179,9 @@ class MqttActor(DeviceBaseActor):
 
     def _kill(self, msg, sender):
         logger.debug(self.allowed_sys_topics)
-        self._unsubscribe(["+"])
+        success = self._unsubscribe(["+"])
+        if success:
+            logger.debug("Unsubscribed.")
         self._disconnect()
         time.sleep(1)
         super()._kill(msg, sender)
@@ -491,7 +493,7 @@ class MqttActor(DeviceBaseActor):
         return True
 
     def _unsubscribe(self, topics: list) -> bool:
-        logger.info("Unsubscribe topic %s", topics)
+        logger.info("Unsubscribe topics %s", topics)
         if not self.is_connected:
             logger.error("[Unsubscribe] failed, not connected to broker")
             return False
@@ -501,5 +503,9 @@ class MqttActor(DeviceBaseActor):
             return False
         logger.info("[Unsubscribe] from %s successful", topics)
         for topic in topics:
-            self._subscriptions.pop(topic)
+            logger.debug("Pop %s from %s", topic, self._subscriptions)
+            try:
+                self._subscriptions.pop(topic)
+            except KeyError:
+                logger.warning("%s not in list of subscribed topics", topic)
         return True
