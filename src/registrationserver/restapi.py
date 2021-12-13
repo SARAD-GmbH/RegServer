@@ -17,8 +17,11 @@ import socket
 import sys
 import time
 
+from pprint import pprint
+
 from flask import Flask, Response, json, request
 from thespian.actors import Actor, ActorSystem, PoisonMessage
+from thespian.system.messages.status import *
 
 from registrationserver.config import config, mqtt_config
 from registrationserver.logger import logger  # type: ignore
@@ -355,6 +358,23 @@ class RestApi:
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
         return reply
+
+
+    @staticmethod
+    @api.route("/status", methods=["GET"])
+    def getstatus():
+        cluster = ActorSystem().createActor(Actor, globalName="cluster")
+        reply = ActorSystem().ask(actorAddr=cluster,msg=Thespian_StatusReq(),)
+        temp = {}
+        class Temp:
+            write = logger.debug
+
+        formatStatus(reply, tofd=Temp())
+
+        answer = {"Error code": 0}
+        return Response(
+            response=json.dumps(answer), status=200, mimetype="application/json"
+            )
 
     def run(self, host=None, port=None, debug=None, load_dotenv=True):
         """Start the API"""
