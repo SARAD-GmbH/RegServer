@@ -1,0 +1,22 @@
+@startuml
+autonumber "<b>[0]"
+participant "SARAD Instrument" as instr
+participant "Win/Unix Listener" as listener
+participant "Cluster Actor" as cluster
+participant "Device Actor" as device_actor
+participant "Device File" as file
+
+instr -> listener: disconnect USB device
+listener -> cluster: tell CMD: REMOVE
+activate cluster
+cluster -> device_actor: ActorExitRequest()
+activate device_actor
+activate redirector
+device_actor -> redirector: CMD: KILL
+note over redirector: close listening socket
+redirector -> device_actor: RETURN: KILL
+destroy redirector
+device_actor -> file: remove
+device_actor -> cluster: RETURN: KILL
+destroy device_actor
+@enduml

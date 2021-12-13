@@ -1,0 +1,23 @@
+@startuml
+autonumber "<b>[0]"
+participant "SARAD App" as app
+participant "Redirector Actor" as redirector
+participant "Device Actor" as device_actor
+participant "Cluster Actor" as cluster
+participant "Instrument" as instr
+
+activate redirector
+note over redirector: listening server socket
+app -> redirector: send binary cmd
+redirector -> device_actor: CMD: SEND
+activate device_actor
+device_actor -> cluster: CMD: SEND
+activate cluster
+cluster -> instr: get_message_payload()
+cluster -> device_actor: RETURN: SEND
+deactivate cluster
+device_actor -> redirector: RETURN: SEND
+deactivate device_actor
+redirector -> app: send binary msg
+deactivate redirector
+@enduml

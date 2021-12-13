@@ -10,7 +10,7 @@ Authors
 
 """
 
-from typing import List
+from typing import Any, Dict, List
 
 from registrationserver.config import config
 from registrationserver.helpers import get_key
@@ -20,6 +20,7 @@ from registrationserver.modules.usb.usb_actor import UsbActor
 from registrationserver.shutdown import system_shutdown
 from sarad.cluster import SaradCluster
 from sarad.sari import SaradInst
+from serial import SerialException
 from serial.tools.list_ports import comports
 from thespian.actors import (Actor, ActorExitRequest, ChildActorExited,
                              PoisonMessage, WakeupMessage)
@@ -175,30 +176,48 @@ class ClusterActor(Actor):
         logger.debug("Actor %s received: %s for: %s", self.globalName, data, target)
         instrument: SaradInst
         if target in self._cluster:
-            reply = (
-                [instrument for instrument in self._cluster if instrument == target]
-                .pop()
-                .get_message_payload(data, 5)
-            )
+            try:
+                reply = (
+                    [instrument for instrument in self._cluster if instrument == target]
+                    .pop()
+                    .get_message_payload(data, 5)
+                )
+            except (SerialException, OSError):
+                logger.error("Connection to %s lost", target)
+                reply = {"is_valid": False, "is_last_frame": True}
         logger.debug("and got reply from instrument: %s", reply)
-        return_message = {
-            "RETURN": "SEND",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            "RESULT": {"DATA": reply["raw"]},
-        }
-        self.send(sender, return_message)
-        while not reply["is_last_frame"]:
-            reply = (
-                [instrument for instrument in self._cluster if instrument == target]
-                .pop()
-                .get_next_payload(5)
-            )
+        if reply["is_valid"]:
             return_message = {
                 "RETURN": "SEND",
                 "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
                 "RESULT": {"DATA": reply["raw"]},
             }
             self.send(sender, return_message)
+            while not reply["is_last_frame"]:
+                try:
+                    reply = (
+                        [
+                            instrument
+                            for instrument in self._cluster
+                            if instrument == target
+                        ]
+                        .pop()
+                        .get_next_payload(5)
+                    )
+                    return_message = {
+                        "RETURN": "SEND",
+                        "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                        "RESULT": {"DATA": reply["raw"]},
+                    }
+                    self.send(sender, return_message)
+                except (SerialException, OSError):
+                    logger.error("Connection to %s lost", target)
+                    reply = {"is_valid": False, "is_last_frame": True}
+        if not reply["is_valid"]:
+            logger.warning(
+                "Invalid binary message from instrument. Removing %s", sender
+            )
+            self._remove_actor(get_key(sender, self._actors))
 
     def _free(self, msg, _sender) -> None:
         logger.debug("[_free]")
@@ -213,7 +232,7 @@ class ClusterActor(Actor):
 
     def _list_ports(self, _msg, sender) -> None:
         logger.debug("[_list_ports]")
-        result: List[str] = []
+        result: List[Dict[str, Any]] = []
         ports = [
             {"PORT": port.device, "PID": port.pid, "VID": port.vid}
             for port in comports()
@@ -228,7 +247,7 @@ class ClusterActor(Actor):
 
     def _list_usb(self, _msg, sender) -> None:
         logger.debug("[_list_usb]")
-        result: List[str] = []
+        result: List[Dict[str, Any]] = []
         ports = [port.device for port in comports() if port.vid and port.pid]
         result = [
             {
@@ -254,7 +273,7 @@ class ClusterActor(Actor):
 
     def _list_natives(self, _msg, sender) -> None:
         logger.debug("[_list_natives]")
-        result: List[str] = []
+        result: List[Dict[str, Any]] = []
         ports = [port.device for port in comports() if not port.pid]
         result = [
             {
@@ -279,7 +298,7 @@ class ClusterActor(Actor):
 
     def _list(self, msg, sender) -> None:
         logger.debug("[_list]")
-        result: List[SaradInst] = []
+        result: List[Dict[str, Any]] = []
         target = msg["PAR"].get("PORTS", None)
         if not target:
             instruments = self._cluster.update_connected_instruments()

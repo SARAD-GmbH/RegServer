@@ -6,7 +6,7 @@
 SPHINXOPTS    ?=
 SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = source
-BUILDDIR      = /home/SARAD/mstrey/Y/Intranet/html/regserver
+BUILDDIR      = $${HOME}/Y/Intranet/html/regserver
 
 # Put it first so that "make" without argument is like "make help".
 help:

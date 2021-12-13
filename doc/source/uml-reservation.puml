@@ -19,6 +19,7 @@ activate api
                 device_actor -> redirector: create
                 activate redirector
                 device_actor -> redirector: CMD: SETUP
+                note over redirector: listening socket to App
                 redirector -> device_actor: RETURN: SETUP
                 deactivate redirector
                 device_actor -> device_actor: _return_with_socket()

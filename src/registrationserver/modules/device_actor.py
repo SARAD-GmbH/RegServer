@@ -98,6 +98,9 @@ class DeviceBaseActor(Actor):
             logger.debug("Redirector actor exited.")
             return
         if isinstance(msg, PoisonMessage):
+            if msg.poisonMessage.get("CMD") == "SEND":
+                logger.warning("Ignoring PoisonMessage %s", msg.poisonMessage)
+                return
             logger.critical("PoisonMessage --> System shutdown.")
             system_shutdown()
             return
@@ -208,6 +211,8 @@ class DeviceBaseActor(Actor):
                 self.mqtt_scheduler,
             )
             self.send(self.mqtt_scheduler, remove_message)
+        if self.my_redirector is not None:
+            self.send(self.my_redirector, {"CMD": "KILL"})
         self.dev_file = fr"{self.__dev_folder}{self.globalName}"
         if os.path.exists(self.dev_file):
             os.remove(self.dev_file)

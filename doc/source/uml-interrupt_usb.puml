@@ -1,0 +1,25 @@
+@startuml
+autonumber "<b>[0]"
+participant "Instrument" as instr
+participant "Cluster Actor" as cluster
+participant "Device Actor" as device_actor
+participant "Redirector Actor" as redirector
+participant "Device File" as file
+
+activate cluster
+activate instr
+instr -> cluster: invalid reply msg
+destroy instr
+note over cluster: check validity of reply in _send()
+note over cluster: call _remove_actor()
+cluster -> device_actor: ActorExitRequest()
+activate device_actor
+activate redirector
+device_actor -> redirector: CMD: KILL
+note over redirector: close listening socket
+redirector -> device_actor: RETURN: KILL
+destroy redirector
+device_actor -> file: remove
+device_actor -> cluster: RETURN: KILL
+destroy device_actor
+@enduml
