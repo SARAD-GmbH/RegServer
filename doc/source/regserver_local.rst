@@ -12,6 +12,11 @@ Instrument detection
 
 .. uml:: uml-instrument_detection.puml
 
+Instrument removal
+==================
+
+.. uml:: uml-instrument_removal.puml
+
 Reservation
 ===========
 
@@ -34,5 +39,9 @@ Error case: Crashing SARAD App
 
 Error case: Interrupt USB connection
 ====================================
+
+If the USB connection is unstable or disconnected during data transfer,
+the instrument shall be regarded as disconnected.
+In this case, the Cluster Actor has to kill the Device Actor.
 
 .. uml:: uml-interrupt_usb.puml

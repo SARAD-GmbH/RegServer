@@ -20,6 +20,7 @@ from registrationserver.modules.usb.usb_actor import UsbActor
 from registrationserver.shutdown import system_shutdown
 from sarad.cluster import SaradCluster
 from sarad.sari import SaradInst
+from serial import SerialException
 from serial.tools.list_ports import comports
 from thespian.actors import (Actor, ActorExitRequest, ChildActorExited,
                              PoisonMessage, WakeupMessage)
@@ -175,30 +176,48 @@ class ClusterActor(Actor):
         logger.debug("Actor %s received: %s for: %s", self.globalName, data, target)
         instrument: SaradInst
         if target in self._cluster:
-            reply = (
-                [instrument for instrument in self._cluster if instrument == target]
-                .pop()
-                .get_message_payload(data, 5)
-            )
+            try:
+                reply = (
+                    [instrument for instrument in self._cluster if instrument == target]
+                    .pop()
+                    .get_message_payload(data, 5)
+                )
+            except (SerialException, OSError):
+                logger.error("Connection to %s lost", target)
+                reply = {"is_valid": False, "is_last_frame": True}
         logger.debug("and got reply from instrument: %s", reply)
-        return_message = {
-            "RETURN": "SEND",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            "RESULT": {"DATA": reply["raw"]},
-        }
-        self.send(sender, return_message)
-        while not reply["is_last_frame"]:
-            reply = (
-                [instrument for instrument in self._cluster if instrument == target]
-                .pop()
-                .get_next_payload(5)
-            )
+        if reply["is_valid"]:
             return_message = {
                 "RETURN": "SEND",
                 "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
                 "RESULT": {"DATA": reply["raw"]},
             }
             self.send(sender, return_message)
+            while not reply["is_last_frame"]:
+                try:
+                    reply = (
+                        [
+                            instrument
+                            for instrument in self._cluster
+                            if instrument == target
+                        ]
+                        .pop()
+                        .get_next_payload(5)
+                    )
+                    return_message = {
+                        "RETURN": "SEND",
+                        "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                        "RESULT": {"DATA": reply["raw"]},
+                    }
+                    self.send(sender, return_message)
+                except (SerialException, OSError):
+                    logger.error("Connection to %s lost", target)
+                    reply = {"is_valid": False, "is_last_frame": True}
+        if not reply["is_valid"]:
+            logger.warning(
+                "Invalid binary message from instrument. Removing %s", sender
+            )
+            self._remove_actor(get_key(sender, self._actors))
 
     def _free(self, msg, _sender) -> None:
         logger.debug("[_free]")
