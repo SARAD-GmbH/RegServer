@@ -277,26 +277,25 @@ class MqttSchedulerActor(Actor):
         with self.lock:
             logger.debug("[on_control] %s: %s", message.topic, message.payload)
             instrument_id = message.topic[: -len("control") - 1][len(self.is_id) + 1 :]
-            for instr_id in self.cluster:
-                if instr_id == instrument_id:
-                    old_control = self.reservations.get(instrument_id)
-                    control = ismqtt_messages.get_instr_control(message, old_control)
-                    logger.debug("Control object: %s", control)
-                    if control.ctype == ismqtt_messages.ControlType.RESERVE:
-                        self.process_reserve(instr_id, control)
-                    if control.ctype == ismqtt_messages.ControlType.FREE:
-                        self.process_free(instr_id)
-                        logger.debug(
-                            "[FREE] client=%s, instr_id=%s, control=%s",
-                            self.mqttc,
-                            instr_id,
-                            control,
-                        )
-                else:
-                    logger.error(
-                        "[on_control] The requested instrument %s is not connected",
+            if instrument_id in self.cluster:
+                old_control = self.reservations.get(instrument_id)
+                control = ismqtt_messages.get_instr_control(message, old_control)
+                logger.debug("Control object: %s", control)
+                if control.ctype == ismqtt_messages.ControlType.RESERVE:
+                    self.process_reserve(instrument_id, control)
+                if control.ctype == ismqtt_messages.ControlType.FREE:
+                    self.process_free(instrument_id)
+                    logger.debug(
+                        "[FREE] client=%s, instr_id=%s, control=%s",
+                        self.mqttc,
                         instrument_id,
+                        control,
                     )
+            else:
+                logger.error(
+                    "[on_control] The requested instrument %s is not connected",
+                    instrument_id,
+                )
 
     def on_cmd(self, _client, _userdata, message):
         """Event handler for all MQTT messages with cmd topic."""
