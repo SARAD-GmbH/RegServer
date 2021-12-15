@@ -2,7 +2,7 @@
 autonumber "<b>[0]"
 participant "Instrument" as instr
 participant "Cluster Actor" as cluster
-participant "Device Actor" as device_actor
+participant "Device Actor\nusb_actor" as device_actor
 participant "Redirector Actor" as redirector
 participant "Device File" as file
 

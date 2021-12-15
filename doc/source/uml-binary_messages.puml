@@ -2,7 +2,7 @@
 autonumber "<b>[0]"
 participant "SARAD App" as app
 participant "Redirector Actor" as redirector
-participant "Device Actor" as device_actor
+participant "Device Actor\nusb_actor" as device_actor
 participant "Cluster Actor" as cluster
 participant "Instrument" as instr
 

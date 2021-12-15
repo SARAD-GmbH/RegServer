@@ -15,7 +15,7 @@ Container(app, $app, "wählt ein $instr zur Kommunikation aus.")
 Container_Boundary(mod, "Lokal-Modul") {
         Component(listener, "Win/Unix Listener", "Python Class", "Erkennt neue USB-Geräte.")
         Component(cluster_actor, "Cluster Actor", "Actor", "erkennt $instr_m, stellt Kommunikationsfunktionen bereit")
-        Component(device_actor1, "Device Actor A", "Actor")
+        Component(device_actor1, "Device Actor A", "usb_actor")
 }
 Container_Boundary(rs, "Basis") {
         Component(api, "REST API", "JSON/HTTP", "Geräteliste mit Status")

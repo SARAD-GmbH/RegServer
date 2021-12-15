@@ -3,7 +3,7 @@ autonumber "<b>[0]"
 participant "SARAD Instrument" as instr
 participant "Win/Unix Listener" as listener
 participant "Cluster Actor" as cluster
-participant "Device Actor" as device_actor
+participant "Device Actor\nusb_actor" as device_actor
 participant "Device File" as file
 
 instr -> listener: disconnect USB device

@@ -2,7 +2,7 @@
 autonumber "<b>[0]"
 participant "SARAD App" as app
 participant "REST API" as api
-participant "Device Actor" as device_actor
+participant "Device Actor\nusb_actor" as device_actor
 participant "Redirector Actor" as redirector
 participant "Device File" as file
 
