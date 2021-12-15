@@ -1,4 +1,4 @@
-""" Main executable
+""" Main executable when running as Registration Server
 
 Created
     2020-09-30
@@ -22,6 +22,8 @@ if os.name == "nt":
     from registrationserver.modules.usb.win_listener import UsbListener
 else:
     from registrationserver.modules.usb.unix_listener import UsbListener
+
+from datetime import datetime
 
 from registrationserver.config import AppType, actor_config, config, home
 from registrationserver.logdef import LOGFILENAME, logcfg
@@ -144,7 +146,14 @@ def main():
         return None
 
     while is_flag_set():
+        before = datetime.now()
         mqtt_loop(mqtt_listener)
+        after = datetime.now()
+        if (after - before).total_seconds() > 10:
+            logger.debug(
+                "Wakeup from suspension. Shutting down RegServer for a fresh restart."
+            )
+            set_file_flag(False)
     try:
         cleanup(mqtt_listener, mdns_listener)
     except UnboundLocalError:
