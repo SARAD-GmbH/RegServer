@@ -14,6 +14,15 @@ device actors referenced in the dictionary.
 
 """
 
+from typing import Dict
+
+from overrides import overrides  # type: ignore
+from thespian.actors import Actor, PoisonMessage  # type: ignore
+
+from registrationserver.logger import logger
+from registrationserver.modules.messages import RETURN_MESSAGES
+from registrationserver.shutdown import system_shutdown
+
 
 class DeviceDb(Actor):
     """Actor providing a dictionary of devices"""
@@ -24,9 +33,12 @@ class DeviceDb(Actor):
         "READ": "_read",
     }
 
+    ACCEPTED_RETURNS: Dict[str, str] = {}
+
     @overrides
     def __init__(self):
         self._devices = {}
+        super().__init__()
 
     @overrides
     def receiveMessage(self, msg, sender):
@@ -87,7 +99,7 @@ class DeviceDb(Actor):
             system_shutdown()
             return
 
-        def _create(self, msg, sender):
+        def _create(self, msg, _sender):
             try:
                 global_name = msg["PAR"]["GLOBAL_NAME"]
                 actor_address = msg["PAR"]["ACTOR_ADDRESS"]
@@ -95,7 +107,7 @@ class DeviceDb(Actor):
             except KeyError:
                 logger.error("Message is not suited to create a dict entry.")
 
-        def _remove(self, msg, sender):
+        def _remove(self, msg, _sender):
             try:
                 global_name = msg["PAR"]["GLOBAL_NAME"]
                 if global_name in self._devices:
@@ -103,5 +115,5 @@ class DeviceDb(Actor):
             except KeyError:
                 logger.error("Message is not suited to remove a dict entry.")
 
-        def _read(self, msg, sender):
+        def _read(self, _msg, sender):
             self.send(sender, {"RETURN": "READ", "RESULT": self._devices})

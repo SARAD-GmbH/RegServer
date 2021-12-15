@@ -13,28 +13,28 @@
 import os
 import sys
 import threading
+from datetime import datetime
 
 from thespian.actors import ActorSystem  # type: ignore
 
+from registrationserver.config import AppType, actor_config, config
+from registrationserver.device_db import DeviceDb
+from registrationserver.logdef import LOGFILENAME, logcfg
+from registrationserver.logger import logger
+from registrationserver.modules.mqtt.mqtt_listener import SaradMqttSubscriber
+from registrationserver.modules.rfc2217.mdns_listener import MdnsListener
 from registrationserver.modules.usb.cluster_actor import ClusterActor
+from registrationserver.restapi import RestApi
+from registrationserver.shutdown import is_flag_set, set_file_flag
 
 if os.name == "nt":
     from registrationserver.modules.usb.win_listener import UsbListener
 else:
     from registrationserver.modules.usb.unix_listener import UsbListener
 
-from datetime import datetime
-
-from registrationserver.config import AppType, actor_config, config, home
-from registrationserver.logdef import LOGFILENAME, logcfg
-from registrationserver.logger import logger
-from registrationserver.modules.mqtt.mqtt_listener import SaradMqttSubscriber
-from registrationserver.modules.rfc2217.mdns_listener import MdnsListener
-from registrationserver.restapi import RestApi
-from registrationserver.shutdown import is_flag_set, set_file_flag
-
 
 def mqtt_loop(mqtt_listener):
+    """Loop function of the MQTT Listener"""
     if mqtt_listener is not None:
         mqtt_listener.mqtt_loop()
 
@@ -102,6 +102,7 @@ def startup():
         capabilities=actor_config["capabilities"],
         logDefs=logcfg,
     )
+    system.createActor(DeviceDb, globalName="device_db")
     system.createActor(ClusterActor, globalName="cluster")
     logger.debug("Actor system started.")
 
@@ -126,6 +127,7 @@ def startup():
 
 
 def main():
+    """Main function of the Registration Server"""
     logger.debug("Entering main()")
     if len(sys.argv) < 2:
         start_stop = "start"
