@@ -1,11 +1,11 @@
 """Process listening for new connected SARAD instruments
 
-Created
+:Created:
     2021-05-17
 
-Author
-    Riccardo Foerster <rfoerster@sarad.de>
-    Michael Strey <strey@sarad.de>
+:Authors:
+    | Riccardo Foerster <rfoerster@sarad.de>
+    | Michael Strey <strey@sarad.de>
 
 """
 

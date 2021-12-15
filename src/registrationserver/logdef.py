@@ -1,11 +1,11 @@
 """Definition of the logDef dictionary to setup logging in actors
 
-Created
+:Created:
     2021-04-17
 
-Authors
-    copied from Thespian documentation
-    simplified by Michael Strey <strey@sarad.de>
+:Authors:
+    | copied from Thespian documentation
+    | simplified by Michael Strey <strey@sarad.de>
 """
 import logging
 import logging.handlers

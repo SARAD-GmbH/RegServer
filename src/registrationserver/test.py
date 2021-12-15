@@ -1,12 +1,12 @@
 """Listening for mDNS multicast messages announcing the existence of new
 services (SARAD devices) in the local network.
 
-Created
+:Created:
     2020-09-30
 
-Authors
-    Riccardo Förster <foerster@sarad.de>,
-    Michael Strey <strey@sarad.de>
+:Authors:
+    | Riccardo Förster <foerster@sarad.de>,
+    | Michael Strey <strey@sarad.de>
 
 .. uml:: uml-mdns_listener.puml
 

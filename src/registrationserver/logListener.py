@@ -1,7 +1,16 @@
-# from https://docs.python.org/2.4/lib/network-logging.html
-import pickle
+"""Module for the streaming of logging requests to remote clients
+
+Copied from https://docs.python.org/2.4/lib/network-logging.html
+
+:Created:
+    2021-07-12
+
+:Author:
+    | Riccardo Förster <foerster@sarad.de>
+"""
 import logging
 import logging.handlers
+import pickle
 import socketserver
 import struct
 

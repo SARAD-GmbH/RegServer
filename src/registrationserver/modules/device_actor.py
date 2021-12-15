@@ -1,11 +1,11 @@
 """Main actor of the Registration Server
 
-Created
+:Created:
     2020-10-13
 
-Authors
-    Riccardo Förster <foerster@sarad.de>,
-    Michael Strey <strey@sarad.de>
+:Authors:
+    | Riccardo Förster <foerster@sarad.de>,
+    | Michael Strey <strey@sarad.de>
 
 .. uml :: uml-device_actor.puml
 """

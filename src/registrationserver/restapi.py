@@ -1,11 +1,11 @@
 """REST API -- the interface to the SARAD app
 
-Created
+:Created:
     2020-10-02
 
-Authors
-    Riccardo Förster <foerster@sarad.de>,
-    Michael Strey <strey@sarad.de>
+:Authors:
+    | Riccardo Förster <foerster@sarad.de>,
+    | Michael Strey <strey@sarad.de>
 
 .. uml:: uml-restapi.puml
 
@@ -16,7 +16,6 @@ import re
 import socket
 import sys
 import time
-
 from pprint import pprint
 
 from flask import Flask, Response, json, request
@@ -359,13 +358,16 @@ class RestApi:
             )
         return reply
 
-
     @staticmethod
     @api.route("/status", methods=["GET"])
     def getstatus():
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
-        reply = ActorSystem().ask(actorAddr=cluster,msg=Thespian_StatusReq(),)
+        reply = ActorSystem().ask(
+            actorAddr=cluster,
+            msg=Thespian_StatusReq(),
+        )
         temp = {}
+
         class Temp:
             write = logger.debug
 
@@ -374,7 +376,7 @@ class RestApi:
         answer = {"Error code": 0}
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
-            )
+        )
 
     def run(self, host=None, port=None, debug=None, load_dotenv=True):
         """Start the API"""

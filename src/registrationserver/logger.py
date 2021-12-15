@@ -1,10 +1,10 @@
 """Creation of the logger singleton
 
-Created
+:Created:
     2021-06-17
 
-Authors
-    Michael Strey <strey@sarad.de>
+:Author:
+    | Michael Strey <strey@sarad.de>
 """
 import logging
 import logging.config

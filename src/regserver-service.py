@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Wrapper to start SARAD Registration Server as Windows service"""
+"""Wrapper to start SARAD Registration Server as Windows service
+
+:Created:
+    2021-10-21
+
+:Author:
+    | Michael Strey <strey@sarad.de>
+"""
 import multiprocessing
 import socket
 import sys

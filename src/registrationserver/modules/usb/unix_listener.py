@@ -1,11 +1,11 @@
 """Listening for new SARAD instruments appearing on USB or RS-232
 (Linux implementation)
 
-Created
+:Created:
     2021-06-08
 
-Authors
-    Michael Strey <strey@sarad.de>
+:Author:
+    | Michael Strey <strey@sarad.de>
 
 .. uml :: uml-unix_listener.puml
 """

@@ -1,11 +1,11 @@
 """ Main executable when running as Registration Server
 
-Created
+:Created:
     2020-09-30
 
-Authors
-    Riccardo Förster <foerster@sarad.de>,
-    Michael Strey <strey@sarad.de>
+:Authors:
+    | Riccardo Förster <foerster@sarad.de>,
+    | Michael Strey <strey@sarad.de>
 
 .. uml:: uml-main.puml
 """

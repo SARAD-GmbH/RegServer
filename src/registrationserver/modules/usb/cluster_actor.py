@@ -1,12 +1,12 @@
 """Actor to manage the local cluster of connected SARAD instruments.
 Covers as well USB ports as native RS-232 ports.
 
-Created
+:Created:
     2021-07-10
 
-Authors
-    Riccardo Förster <foerster@sarad.de>,
-    Michael Strey <strey@sarad.de>
+:Authors:
+    | Riccardo Förster <foerster@sarad.de>,
+    | Michael Strey <strey@sarad.de>
 
 """
 

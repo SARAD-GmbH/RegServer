@@ -1,11 +1,11 @@
-"""Module for handing the configuration
+"""Module for handling of the configuration
 
-Created
+:Created:
     2020-09-30
 
-Authors
-    Riccardo Förster <foerster@sarad.de>,
-    Michael Strey <strey@sarad.de>
+:Authors:
+    | Riccardo Förster <foerster@sarad.de>,
+    | Michael Strey <strey@sarad.de>
 """
 import logging
 import os

@@ -1,11 +1,11 @@
 """Main actor of the Registration Server -- implementation for MQTT
 
-Created
+:Created:
     2021-02-16
 
-Author
-    Yang, Yixiang
-    Michael Strey <strey@sarad.de>
+:Authors:
+    | Yang, Yixiang
+    | Michael Strey <strey@sarad.de>
 
 .. uml :: uml-mqtt_actor.puml
 """

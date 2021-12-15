@@ -1,12 +1,12 @@
 """Listening for MQTT topics announcing the existence of a new SARAD instrument
 in the MQTT network
 
-Created
+:Created:
     2021-03-10
 
-Author
-    Yang, Yixiang
-    Michael Strey <strey@sarad.de>
+:Authors:
+    | Yang, Yixiang
+    | Michael Strey <strey@sarad.de>
 
 .. uml :: uml-mqtt_listener.puml
 """

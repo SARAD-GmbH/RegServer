@@ -1,11 +1,11 @@
 """Main actor of the Registration Server -- implementation for local connection
 
-Created
+:Created:
     2021-06-01
 
-Authors
-    Michael Strey <strey@sarad.de>
-    Riccardo Förster <foerster@sarad.de>
+:Authors:
+    | Michael Strey <strey@sarad.de>
+    | Riccardo Förster <foerster@sarad.de>
 
 .. uml :: uml-usb_actor.puml
 """

@@ -1,13 +1,12 @@
 """Creates a listening server socket and forwards pakets received over this
 socket as actor messages to the device actor.
 
-
-Created
+:Created:
     2020-12-01
 
-Authors
-    Riccardo Förster <foerster@sarad.de>,
-    Michael Strey <strey@sarad.de>
+:Authors:
+    | Riccardo Förster <foerster@sarad.de>,
+    | Michael Strey <strey@sarad.de>
 
 .. uml :: uml-redirect_actor.puml
 

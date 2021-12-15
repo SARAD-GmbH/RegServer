@@ -1,10 +1,10 @@
 """Dict of allowed return messages for the communication between actors
 
-Created
+:Created:
     2020-12-08
 
-Author
-    Riccardo Förster <foerster@sarad.de>
+:Author:
+    | Riccardo Förster <foerster@sarad.de>
 """
 
 RETURN_MESSAGES = {
