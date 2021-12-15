@@ -125,15 +125,25 @@ class MqttActor(DeviceBaseActor):
             return
         logger.debug("[SEND] send status is %s", self.state["SEND"]["Pending"])
 
+    @overrides
     def _reserve_at_is(self):
+        """Request the reservation of an instrument at the Instrument Server.
+
+        Args:
+            self.app: String identifying the requesting app.
+            self.host: String identifying the host running the app.
+            self.user: String identifying the user of the app.
+            self.sender_api: The actor object asking for reservation.
+        """
         logger.debug(
             "[Reserve] Subscribe MQTT actor %s to the 'reserve' topic",
             self.globalName,
         )
         if not self.state["RESERVE"]["Pending"]:
             if not self._subscribe([(self.allowed_sys_topics["RESERVE"], 0)]):
-                return
-            if not self._subscribe([(self.allowed_sys_topics["MSG"], 0)]):
+                logger.error(
+                    "Subscription to %s went wrong", self.allowed_sys_topics["RESERVE"]
+                )
                 return
             _msg = {
                 "topic": self.allowed_sys_topics["CTRL"],
@@ -266,6 +276,7 @@ class MqttActor(DeviceBaseActor):
 
     def on_reserve(self, _client, _userdata, message):
         """Handler for MQTT messages regarding reservation of instruments"""
+        is_reserved = False
         payload = json.loads(message.payload)
         if self.state["RESERVE"]["Pending"]:
             instr_status = payload.get("Active")
@@ -288,21 +299,26 @@ class MqttActor(DeviceBaseActor):
                     timestamp = (
                         datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z"
                     )
-                self.state["RESERVE"]["Active"] = True
+                if not self._subscribe([(self.allowed_sys_topics["MSG"], 0)]):
+                    logger.error(
+                        "Subscription to %s went wrong", self.allowed_sys_topics["MSG"]
+                    )
+                    return
+                is_reserved = True
             else:
                 logger.debug(
                     "MQTT actor %s receives decline of reservation on instrument %s",
                     self.globalName,
                     self.instr_id,
                 )
-                self.state["RESERVE"]["Active"] = False
-            is_reserved = self.state["RESERVE"]["Active"]
+                is_reserved = False
+            self.state["RESERVE"]["Active"] = is_reserved
             logger.debug("Instrument reserved %s", is_reserved)
-            self._forward_reservation(is_reserved)
+            self._forward_reservation(is_reserved)  # create redirector actor
             self.state["RESERVE"]["Pending"] = False
             return
         logger.warning(
-            "MQTT actor %s receives a reply to a non-requested reservation on instrument %s",
+            "MQTT actor %s received a reply to a non-requested reservation on instrument %s",
             self.globalName,
             self.instr_id,
         )
@@ -479,6 +495,16 @@ class MqttActor(DeviceBaseActor):
         return True
 
     def _subscribe(self, sub_info: list) -> bool:
+        """Subscribe to all topics listed in sub_info
+
+        Args:
+            sub_info (List[Tupel[str, int]]): List of tupels of (topic, qos)
+            to subscribe to
+
+        Returns:
+            bool: True if subscription was successful
+
+        """
         logger.debug("Work state: subscribe")
         if not self.is_connected:
             logger.error("[Subscribe] failed, not connected to broker")
