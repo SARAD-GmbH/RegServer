@@ -17,7 +17,8 @@ device actors referenced in the dictionary.
 from typing import Dict
 
 from overrides import overrides  # type: ignore
-from thespian.actors import Actor, PoisonMessage  # type: ignore
+from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
+                             PoisonMessage)
 
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
@@ -91,6 +92,8 @@ class DeviceDb(Actor):
             if isinstance(msg, PoisonMessage):
                 logger.critical("PoisonMessage --> System shutdown.")
                 system_shutdown()
+                return
+            if isinstance(msg, ActorExitRequest):
                 return
             logger.critical(
                 "Received %s from %s. This should never happen.", msg, sender
