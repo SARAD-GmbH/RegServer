@@ -184,6 +184,7 @@ class MqttSchedulerActor(Actor):
         Adds a new instrument to the list of available instruments."""
         with self.lock:
             instr_id = msg["PAR"]["INSTR_ID"]
+            device_status = msg["PAR"]["DEVICE_STATUS"]
             self.cluster[instr_id] = sender
             logger.debug(
                 "[ADD] %s added to cluster. Complete list is now %s",
@@ -194,6 +195,7 @@ class MqttSchedulerActor(Actor):
                 client=self.mqttc,
                 is_id=self.is_id,
                 instr_id=instr_id,
+                device_status=device_status,
                 subscriptions=self._subscriptions,
             )
 

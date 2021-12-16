@@ -45,8 +45,6 @@ def cleanup(mqtt_listener, mdns_listener):
     * Stops the mqtt_listener if it is existing
     * Stops the mdns_listener if it is existing
     * Initiates the shutdown of the actor system
-    * Checks the device folder (that already should be empty at this time)
-      and removes all files from there
 
     The REST API thread and the usb_listener_thread don't need
     extra handling since they are daemonized and will be killed
@@ -66,14 +64,6 @@ def cleanup(mqtt_listener, mdns_listener):
         mdns_listener.shutdown()
     ActorSystem().shutdown()
     logger.info("Actor system shut down finished.")
-    dev_folder = config["DEV_FOLDER"]
-    if os.path.exists(dev_folder):
-        logger.info("Cleaning device folder")
-        for root, _, files in os.walk(dev_folder):
-            for name in files:
-                filename = os.path.join(root, name)
-                logger.info("[Del] %s removed", name)
-                os.remove(filename)
 
 
 def startup():

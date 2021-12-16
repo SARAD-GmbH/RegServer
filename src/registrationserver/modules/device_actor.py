@@ -9,10 +9,8 @@
 
 .. uml :: uml-device_actor.puml
 """
-import os
 from datetime import datetime
 
-from flask import json
 from overrides import overrides  # type: ignore
 from registrationserver.config import AppType, config
 from registrationserver.helpers import short_id
@@ -59,6 +57,7 @@ class DeviceBaseActor(Actor):
         "RESERVE": "_reserve",
         "FREE": "_free",
         "SETUP": "_setup",
+        "READ": "_read",
     }
     ACCEPTED_RETURNS = {
         "SETUP": "_return_with_socket",
@@ -70,15 +69,13 @@ class DeviceBaseActor(Actor):
         logger.debug("Initialize a new device actor.")
         super().__init__()
         self._config: dict = {}
-        self._file_content: str = None
-        self.df_content = {}
-        self.dev_file = None
-        self.__dev_folder: str = config["DEV_FOLDER"] + os.path.sep
+        self.device_status = {}
         self.my_redirector = None
         self.app = None
         self.user = None
         self.host = None
         self.sender_api = None
+        self.device_db = None
         self.mqtt_scheduler = None
         logger.info("Device actor created.")
 
@@ -155,46 +152,41 @@ class DeviceBaseActor(Actor):
 
     def _setup(self, msg, sender) -> None:
         logger.debug("[_setup]")
-        self._file_content = json.dumps(msg["PAR"])
-        logger.debug(
-            "Content received to be written to device file: %s", self._file_content
-        )
-        if self.dev_file is None:
-            self.dev_file = fr"{self.__dev_folder}{self.globalName}"
-            if not os.path.exists(self.dev_file):
-                open(
-                    self.dev_file, "a", encoding="utf8"
-                ).close()  # pylint: disable=consider-using-with
-                logger.info("Device file %s created", self.dev_file)
-            with open(self.dev_file, "w+", encoding="utf8") as file_stream:
-                file_stream.write(self._file_content)
-            return_message = {
-                "RETURN": "SETUP",
-                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                "SELF": self.globalName,
-            }
-            self.send(sender, return_message)
+        self.device_status = msg["PAR"]
+        logger.debug("Device status: %s", self.device_status)
+        self.device_db = self.createActor(Actor, globalName="device_db")
+        if config["APP_TYPE"] == AppType.ISMQTT:
             self.mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
-            if config["APP_TYPE"] == AppType.ISMQTT:
-                add_message = {
-                    "CMD": "ADD",
-                    "PAR": {"INSTR_ID": short_id(self.globalName)},
-                }
-                logger.debug(
-                    "Sending 'ADD' with %s to MQTT scheduler %s",
-                    add_message,
-                    self.mqtt_scheduler,
-                )
-                self.send(self.mqtt_scheduler, add_message)
-            return
-        with open(self.dev_file, "w+", encoding="utf8") as file_stream:
-            file_stream.write(self._file_content)
+        self.send(
+            self.device_db,
+            {
+                "CMD": "CREATE",
+                "PAR": {
+                    "GLOBAL_NAME": self.globalName,
+                    "ACTOR_ADDRESS": self.myAddress,
+                },
+            },
+        )
         return_message = {
             "RETURN": "SETUP",
-            "ERROR_CODE": RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
+            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
             "SELF": self.globalName,
         }
         self.send(sender, return_message)
+        if self.mqtt_scheduler is not None:
+            add_message = {
+                "CMD": "ADD",
+                "PAR": {
+                    "INSTR_ID": short_id(self.globalName),
+                    "DEVICE_STATUS": self.device_status,
+                },
+            }
+            logger.debug(
+                "Sending 'ADD' with %s to MQTT scheduler %s",
+                add_message,
+                self.mqtt_scheduler,
+            )
+            self.send(self.mqtt_scheduler, add_message)
         return
 
     def _kill(self, msg, sender):
@@ -213,9 +205,9 @@ class DeviceBaseActor(Actor):
             self.send(self.mqtt_scheduler, remove_message)
         if self.my_redirector is not None:
             self.send(self.my_redirector, {"CMD": "KILL"})
-        self.dev_file = fr"{self.__dev_folder}{self.globalName}"
-        if os.path.exists(self.dev_file):
-            os.remove(self.dev_file)
+        self.send(
+            self.device_db, {"CMD": "REMOVE", "PAR": {"GLOBAL_NAME": self.globalName}}
+        )
         return_message = {
             "RETURN": "KILL",
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
@@ -325,26 +317,13 @@ class DeviceBaseActor(Actor):
             "Port": port,
             "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         }
-        logger.debug("Reservation: %s", reservation)
-        self.df_content = json.loads(self._file_content)
-        self.df_content["Reservation"] = reservation
-        self._file_content = json.dumps(self.df_content)
-        logger.debug("self._file_content: %s", self._file_content)
-        with open(self.dev_file, "w+", encoding="utf8") as file_stream:
-            file_stream.write(self._file_content)
-        logger.debug("Send CONNECT command to redirector %s", self.my_redirector)
+        self.device_status["Reservation"] = reservation
+        logger.debug("Reservation state updated: %s", self.device_status)
         self.send(self.my_redirector, {"CMD": "CONNECT"})
         return_message = {
             "RETURN": "RESERVE",
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
         }
-        logger.debug("Return %s to %s", return_message, sender)
-        logger.info(
-            "Reservation of %s for %s@%s successful",
-            self.globalName,
-            self.user,
-            self.host,
-        )
         self.send(self.sender_api, return_message)
         return
 
@@ -367,21 +346,15 @@ class DeviceBaseActor(Actor):
         """Completes the _free function with the reply from the redirector actor after
         it received the KILL command."""
         if not msg["ERROR_CODE"]:
-            # Overwrite Reserve section in device file
-            self.df_content = json.loads(self._file_content)
             reservation = {
                 "Active": False,
-                "App": self.df_content["Reservation"]["App"],
-                "Host": self.df_content["Reservation"]["Host"],
-                "User": self.df_content["Reservation"]["User"],
+                "App": self.device_status["Reservation"]["App"],
+                "Host": self.device_status["Reservation"]["Host"],
+                "User": self.device_status["Reservation"]["User"],
                 "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
             }
             logger.info("[Free] %s", reservation)
-            self.df_content["Reservation"] = reservation
-            self._file_content = json.dumps(self.df_content)
-            logger.info("self._file_content: %s", self._file_content)
-            with open(self.dev_file, "w+", encoding="utf8") as file_stream:
-                file_stream.write(self._file_content)
+            self.device_status["Reservation"] = reservation
             self.my_redirector = None
             return
         logger.critical("Killing the redirector actor failed with %s", msg)
@@ -392,3 +365,14 @@ class DeviceBaseActor(Actor):
         self.send(self.sender_api, return_message)
         system_shutdown()
         return
+
+    def _read(self, msg, sender):
+        """Handler for READ command.
+
+        Sends back a message containing the device_status."""
+        result = {
+            "RETURN": "READ",
+            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+            "RESULT": self.device_status,
+        }
+        self.send(sender, result)

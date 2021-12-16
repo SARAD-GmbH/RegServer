@@ -33,8 +33,6 @@ def cleanup():
     """Make sure all sub threads are stopped.
 
     * Initiates the shutdown of the actor system
-    * Checks the device folder (that already should be empty at this time)
-      and removes all files from there
 
     The usb_listener_thread doesn't need
     extra handling since it is daemonized and will be killed
@@ -53,14 +51,6 @@ def cleanup():
     logger.info("Cleaning up before closing.")
     ActorSystem().shutdown()
     logger.info("Actor system shut down finished.")
-    dev_folder = config["DEV_FOLDER"]
-    if os.path.exists(dev_folder):
-        logger.info("Cleaning device folder")
-        for root, _, files in os.walk(dev_folder):
-            for name in files:
-                filename = os.path.join(root, name)
-                logger.info("[Del] %s removed", name)
-                os.remove(filename)
 
 
 def startup():

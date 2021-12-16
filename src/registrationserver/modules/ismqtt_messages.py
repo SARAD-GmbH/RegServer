@@ -8,14 +8,11 @@ Author:
 """
 import contextlib
 import json
-import os
 import time
 from decimal import Decimal
 from enum import Enum
 from typing import NamedTuple, Optional
 
-from registrationserver.config import config
-from registrationserver.helpers import find
 from registrationserver.logger import logger
 
 
@@ -156,14 +153,11 @@ def get_instr_control(json_data, old_reservation) -> Control:
                 ctype=ControlType.FREE,
                 data=nodata,
             )
-        else:
-            new_reservation = old_reservation._replace(
-                active=False, timestamp=time.time()
-            )
-            return Control(
-                ctype=ControlType.FREE,
-                data=new_reservation,
-            )
+        new_reservation = old_reservation._replace(active=False, timestamp=time.time())
+        return Control(
+            ctype=ControlType.FREE,
+            data=new_reservation,
+        )
     # RESERVE
     if data["Req"] == "reserve" and "App" in data and "Host" in data and "User" in data:
         logger.debug("[RESERVE] request")
@@ -181,38 +175,7 @@ def get_instr_control(json_data, old_reservation) -> Control:
     return Control(ControlType.UNKNOWN, nodata)
 
 
-def get_state_from_file(instr_id: str) -> dict:
-    """Read the device state from the device file.
-
-    Args:
-        instr_id: The device id is used as well as file name as
-                   as global name for the device actor
-
-    Returns:
-        A dictionary containing additional information
-        for the *Identification* of the instrument and it's *Reservation* state
-
-    """
-    path = config["DEV_FOLDER"]
-    filename = find(f"{instr_id}*", path)[0]
-    try:
-        if os.path.isfile(filename):
-            with open(filename, encoding="utf8") as reader:
-                answer = {
-                    "Identification": json.load(reader).get("Identification"),
-                }
-            with open(filename, encoding="utf8") as reader:
-                reservation = json.load(reader).get("Reservation")
-            if reservation is not None:
-                answer["Reservation"] = reservation
-            return answer
-    except Exception:  # pylint: disable=broad-except
-        logger.exception("Fatal error")
-        return {}
-    return {}
-
-
-def add_instr(*, client, is_id: str, instr_id: str, subscriptions):
+def add_instr(*, client, is_id: str, instr_id: str, device_status, subscriptions):
     """Helper function to deal with adding/marking an instrument active"""
     # def subscribe(self, topic, qos=0, options=None, properties=None):
     new_subscriptions = [
@@ -222,7 +185,7 @@ def add_instr(*, client, is_id: str, instr_id: str, subscriptions):
     client.subscribe(new_subscriptions)
     for (topic, qos) in new_subscriptions:
         subscriptions[topic] = qos
-    identification = get_state_from_file(instr_id)["Identification"]
+    identification = device_status["Identification"]
     mypayload = InstrumentMeta(
         state=2,
         host=is_id,

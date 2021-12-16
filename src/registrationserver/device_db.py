@@ -102,21 +102,21 @@ class DeviceDb(Actor):
             system_shutdown()
             return
 
-        def _create(self, msg, _sender):
-            try:
-                global_name = msg["PAR"]["GLOBAL_NAME"]
-                actor_address = msg["PAR"]["ACTOR_ADDRESS"]
-                self._devices[global_name] = actor_address
-            except KeyError:
-                logger.error("Message is not suited to create a dict entry.")
+    def _create(self, msg, _sender):
+        try:
+            global_name = msg["PAR"]["GLOBAL_NAME"]
+            actor_address = msg["PAR"]["ACTOR_ADDRESS"]
+            self._devices[global_name] = actor_address
+        except KeyError:
+            logger.error("Message is not suited to create a dict entry.")
 
-        def _remove(self, msg, _sender):
-            try:
-                global_name = msg["PAR"]["GLOBAL_NAME"]
-                if global_name in self._devices:
-                    self._devices.pop(global_name)
-            except KeyError:
-                logger.error("Message is not suited to remove a dict entry.")
+    def _remove(self, msg, _sender):
+        try:
+            global_name = msg["PAR"]["GLOBAL_NAME"]
+            if global_name in self._devices:
+                self._devices.pop(global_name)
+        except KeyError:
+            logger.error("Message is not suited to remove a dict entry.")
 
-        def _read(self, _msg, sender):
-            self.send(sender, {"RETURN": "READ", "RESULT": self._devices})
+    def _read(self, _msg, sender):
+        self.send(sender, {"RETURN": "READ", "RESULT": self._devices})

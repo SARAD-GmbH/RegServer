@@ -13,7 +13,6 @@ services (SARAD devices) in the local network.
 """
 import ipaddress
 import json
-import os
 import socket
 import threading
 
@@ -23,8 +22,8 @@ from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.rfc2217.rfc2217_actor import Rfc2217Actor
 from registrationserver.shutdown import system_shutdown
-from thespian.actors import (ActorExitRequest, ActorSystem,  # type: ignore
-                             PoisonMessage)
+from thespian.actors import ActorExitRequest  # type: ignore
+from thespian.actors import Actor, ActorSystem, PoisonMessage
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
 logger.debug("%s -> %s", __package__, __file__)
@@ -106,10 +105,6 @@ class MdnsListener(ServiceListener):
                 ip_version=config["IP_VERSION"], interfaces=[self.get_ip(), "127.0.0.1"]
             )
             _ = ServiceBrowser(self.zeroconf, service_type, self)
-            self.__dev_folder: str = config["DEV_FOLDER"] + os.path.sep
-            if not os.path.exists(self.__dev_folder):
-                os.makedirs(self.__dev_folder)
-            logger.debug("Output to: %s", self.__dev_folder)
         # Clean __dev_folder for a fresh start
         self._remove_all_services()
 
@@ -158,10 +153,7 @@ class MdnsListener(ServiceListener):
         with self.lock:
             logger.info("[Del] Service %s of type %s", name, type_)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
-            dev_file = fr"{self.__dev_folder}{name}"
             logger.debug("[Del] Info: %s", info)
-            if os.path.exists(dev_file):
-                os.remove(dev_file)
             this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=name)
             logger.debug("Ask to kill the device actor...")
             kill_return = ActorSystem().ask(this_actor, ActorExitRequest())
@@ -171,25 +163,19 @@ class MdnsListener(ServiceListener):
     def _remove_all_services(self) -> None:
         """Kill all device actors and remove all device files from device folder."""
         with self.lock:
-            if os.path.exists(self.__dev_folder):
-                for root, _, files in os.walk(self.__dev_folder):
-                    for name in files:
-                        if "_rfc2217" in name:
-                            dev_file = os.path.join(root, name)
-                            logger.debug("[Del] Removed %s", name)
-                            os.remove(dev_file)
-                            this_actor = ActorSystem().createActor(
-                                Rfc2217Actor, globalName=name
-                            )
-                            logger.debug("Ask to kill the device actor...")
-                            kill_return = ActorSystem().ask(
-                                this_actor, ActorExitRequest()
-                            )
-                            if (
-                                not kill_return["ERROR_CODE"]
-                                == RETURN_MESSAGES["OK"]["ERROR_CODE"]
-                            ):
-                                logger.critical("Killing the device actor failed.")
+            device_db_actor = ActorSystem().createActor(Actor, globalName="device_db")
+            try:
+                device_db = ActorSystem().ask(device_db_actor, {"CMD": "READ"})[
+                    "RESULT"
+                ]
+            except KeyError:
+                logger.critical("Cannot get appropriate response from DeviceDb actor")
+                raise
+            for _global_name, device_actor in device_db.items():
+                logger.debug("Ask to kill the device actor...")
+                kill_return = ActorSystem().ask(device_actor, ActorExitRequest())
+                if not kill_return["ERROR_CODE"] == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
+                    logger.critical("Killing the device actor failed.")
 
     def shutdown(self) -> None:
         """Cleanup and shutdown all threads"""

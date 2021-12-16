@@ -11,18 +11,16 @@
 
 """
 
-import os
 import re
 import socket
 import sys
 import time
-from pprint import pprint
 
 from flask import Flask, Response, json, request
 from thespian.actors import Actor, ActorSystem, PoisonMessage
-from thespian.system.messages.status import *
+from thespian.system.messages.status import Thespian_StatusReq, formatStatus
 
-from registrationserver.config import config, mqtt_config
+from registrationserver.config import mqtt_config
 from registrationserver.logger import logger  # type: ignore
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.shutdown import system_shutdown
@@ -34,8 +32,8 @@ RESERVE_KEYWORD = "reserve"
 FREE_KEYWORD = "free"
 
 
-def get_state_from_file(device_id: str) -> dict:
-    """Read the device state from the device file.
+def get_device_status(device_id: str) -> dict:
+    """Read the device status from the device actor.
 
     Args:
         device_id: The device id is used as well as file name as
@@ -46,31 +44,25 @@ def get_state_from_file(device_id: str) -> dict:
         for the *Identification* of the instrument and it's *Reservation* state
 
     """
-    cmd_key = "Reservation"
-    filename = f"{config['DEV_FOLDER']}{os.path.sep}{device_id}"
+    device_db_actor = ActorSystem().createActor(Actor, globalName="device_db")
     try:
-        if os.path.isfile(filename):
-            with open(filename, encoding="utf8") as reader:
-                answer = {
-                    "Identification": json.load(reader).get("Identification", None),
-                }
-            with open(filename, encoding="utf8") as reader:
-                reservation = json.load(reader).get(cmd_key, None)
-            if reservation is not None:
-                answer["Reservation"] = reservation
-            return answer
-    except Exception:  # pylint: disable=broad-except
-        logger.exception("Fatal error")
+        device_db = ActorSystem().ask(device_db_actor, {"CMD": "READ"})["RESULT"]
+    except KeyError:
+        logger.critical("Cannot get appropriate response from DeviceDb actor")
         raise
-    return {}
+    try:
+        device_actor = device_db[device_id]
+    except KeyError:
+        logger.warning("%s not in %s", device_id, device_db)
+        return {}
+    return ActorSystem().ask(device_actor, {"CMD": "READ"})["RESULT"]
 
 
 class RestApi:
     """REST API
-    delivers lists and info for devices
-    relays reservation and free requests to the device actors.
-    Information is taken from the device file folder defined
-    in both config.py (settings) and __init__.py (defaults).
+
+    delivers lists and info for devices,
+    relays Reservation and Free requests to the device actors.
     """
 
     api = Flask(__name__)
@@ -108,12 +100,14 @@ class RestApi:
     def get_list():
         """Path for getting the list of active devices"""
         answer = {}
+        device_db_actor = ActorSystem().createActor(Actor, globalName="device_db")
         try:
-            for did in os.listdir(config["DEV_FOLDER"]):
-                answer[did] = get_state_from_file(did)
-        except Exception:  # pylint: disable=broad-except
-            logger.critical("Fatal error")
+            device_db = ActorSystem().ask(device_db_actor, {"CMD": "READ"})["RESULT"]
+        except KeyError:
+            logger.critical("Cannot get appropriate response from DeviceDb actor")
             raise
+        for device_id in device_db:
+            answer[device_id] = get_device_status(device_id)
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -126,7 +120,7 @@ class RestApi:
         if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
         answer = {}
-        answer[did] = get_state_from_file(did)
+        answer[did] = get_device_status(did)
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -160,7 +154,7 @@ class RestApi:
         )
         if not MATCHID.fullmatch(did):
             return json.dumps({"Error": "Wronly formated ID"})
-        device_state = get_state_from_file(did)
+        device_state = get_device_status(did)
         if (
             not "_rfc2217" in did and not "mqtt" in did and not "local" in did
         ) or device_state == {}:
@@ -191,7 +185,7 @@ class RestApi:
             RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
         ):
             answer = {"Error code": return_error, "Error": "OK"}
-            answer[did] = get_state_from_file(did)
+            answer[did] = get_device_status(did)
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
@@ -200,7 +194,7 @@ class RestApi:
                 "Error code": return_error,
                 "Error": "Already reserved by other party",
             }
-            answer[did] = get_state_from_file(did)
+            answer[did] = get_device_status(did)
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
@@ -213,7 +207,7 @@ class RestApi:
     @api.route(f"/list/<did>/{FREE_KEYWORD}", methods=["GET"])
     def free_device(did):
         """Path for freeing a single active device"""
-        device_state = get_state_from_file(did)
+        device_state = get_device_status(did)
         if device_state == {}:
             answer = {"Error code": 11, "Error": "Device not found", did: {}}
             return Response(
@@ -252,7 +246,7 @@ class RestApi:
         return_error = free_return["ERROR_CODE"]
         if return_error == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
             answer = {}
-            answer[did] = get_state_from_file(did)
+            answer[did] = get_device_status(did)
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
@@ -261,7 +255,7 @@ class RestApi:
                 "Error code": return_error,
                 "Error": "Already reserved by other party",
             }
-            answer[did] = get_state_from_file(did)
+            answer[did] = get_device_status(did)
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
@@ -361,14 +355,16 @@ class RestApi:
     @staticmethod
     @api.route("/status", methods=["GET"])
     def getstatus():
+        """Ask actor system to output actor status to debug log"""
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
         reply = ActorSystem().ask(
             actorAddr=cluster,
             msg=Thespian_StatusReq(),
         )
-        temp = {}
 
         class Temp:
+            """Needed for formatStatus"""
+
             write = logger.debug
 
         formatStatus(reply, tofd=Temp())
