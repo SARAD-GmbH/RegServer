@@ -6,12 +6,11 @@ Created:
 Author:
     Riccardo Förster <riccardo.foerster@sarad.de>
 """
-import contextlib
 import json
 import time
 from decimal import Decimal
 from enum import Enum
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 from registrationserver.logger import logger
 
@@ -77,48 +76,6 @@ def get_is_meta(data: InstrumentServerMeta) -> str:
             "Height": data.height or 0,
         }
     )
-
-
-def get_instr_meta(data: InstrumentMeta) -> str:
-    """Converting instrument meta information into MQTT payload"""
-    return json.dumps(
-        {
-            "State": data.state,
-            "Identification": {
-                "Family": data.family,
-                "Host": data.host or "unknown",
-                "Name": data.name,
-                "Type": data.instrumentType,
-                "Serial number": data.serial,
-            },
-        }
-    )
-
-
-def get_instr_meta_msg(json_data) -> Optional[InstrumentMeta]:
-    """Converting MQTT payload containing instrument meta data into InstrumentMeta
-    object"""
-    with contextlib.suppress(json.decoder.JSONDecodeError):
-        data = json.loads(json_data.payload)
-        integrity_check = [
-            "State" not in data,
-            "Identification" not in data,
-            "Family" not in data["Identification"],
-            "Host" not in data["Identification"],
-            "Name" not in data["Identification"],
-            "Serial number" not in data["Identification"],
-        ]
-        if any(integrity_check):
-            return None
-        return InstrumentMeta(
-            state=data["State"],
-            host=data["Identification"]["Host"],
-            family=data["Identification"]["Family"],
-            instrumentType=data["Identification"]["Type"],
-            name=data["Identification"]["Name"],
-            serial=data["Identification"]["Serial number"],
-        )
-    return None
 
 
 def get_instr_reservation(data: Reservation) -> str:
