@@ -176,9 +176,9 @@ DEFAULT_RETRY_INTERVAL = 5
 DEFAULT_TLS_USE_TLS = False
 
 
-DEFAULT_TLS_CA_FILE = f"{config_path}tls_cert_sarad.pem"
-DEFAULT_TLS_KEY_FILE = f"{config_path}tls_key_personal.pem"
-DEFAULT_TLS_CERT_FILE = f"{config_path}tls_cert_personal.crt"
+DEFAULT_TLS_CA_FILE = f"{app_folder}tls_cert_sarad.pem"
+DEFAULT_TLS_KEY_FILE = f"{app_folder}tls_key_personal.pem"
+DEFAULT_TLS_CERT_FILE = f"{app_folder}tls_cert_personal.crt"
 
 
 if customization.get("mqtt") is None:
