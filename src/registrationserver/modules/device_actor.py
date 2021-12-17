@@ -305,7 +305,7 @@ class DeviceBaseActor(Actor):
             }
             self.send(self.sender_api, return_message)
             return
-        # Write Reservation section into device file
+        # Write Reservation section into device status
         ip_address = msg["RESULT"]["IP"]
         port = msg["RESULT"]["PORT"]
         reservation = {

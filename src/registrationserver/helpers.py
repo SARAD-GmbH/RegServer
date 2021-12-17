@@ -17,7 +17,8 @@ def short_id(global_name: str) -> str:
     devided by dots.
 
     Args:
-        global_name (str): long id of the instrument that is used for device file names
+        global_name (str): long id of the instrument that is used
+        as globalName of device actor
 
     Returns:
         str: the short id, that is the first element of the global_name

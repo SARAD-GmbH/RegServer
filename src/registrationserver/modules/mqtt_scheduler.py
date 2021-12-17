@@ -8,10 +8,12 @@ Author
 
 .. uml :: uml-mqtt_scheduler.puml
 """
+import json
 import os
 import ssl
 import threading
 import time
+from datetime import datetime
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
@@ -47,8 +49,9 @@ class MqttSchedulerActor(Actor):
         """
         super().__init__()
         self.lock = threading.Lock()
-        self.cluster = {}
-        self.reservations = {}
+        self.cluster = {}  # {instr_id: actor_address}
+        self.instr_meta = {}  # {instr_id: {<meta>}}
+        self.reservations = {}  # {instr_id: <reservation object>}
         self.ungr_disconn = 2
         self.is_connected = False
         self.msg_id = {
@@ -191,13 +194,19 @@ class MqttSchedulerActor(Actor):
                 instr_id,
                 self.cluster,
             )
-            ismqtt_messages.add_instr(
-                client=self.mqttc,
-                is_id=self.is_id,
-                instr_id=instr_id,
-                device_status=device_status,
-                subscriptions=self._subscriptions,
+            new_subscriptions = [
+                (f"{self.is_id}/{instr_id}/control", 0),
+                (f"{self.is_id}/{instr_id}/cmd", 0),
+            ]
+            self.mqttc.subscribe(new_subscriptions)
+            for (topic, qos) in new_subscriptions:
+                self._subscriptions[topic] = qos
+            identification = device_status["Identification"]
+            message = {"State": 2, "Identification": identification}
+            self.mqttc.publish(
+                f"{self.is_id}/{instr_id}/meta", json.dumps(message), retain=True
             )
+            self.instr_meta[instr_id] = identification
 
     def _remove(self, msg, _sender):
         """Handler for actor messages with command 'REMOVE'
@@ -206,21 +215,30 @@ class MqttSchedulerActor(Actor):
         with self.lock:
             instr_id = msg["PAR"]["INSTR_ID"]
             self.cluster.pop(instr_id, None)
+            self.instr_meta.pop(instr_id, None)
+            self.reservations.pop(instr_id, None)
             logger.debug(
                 "[REMOVE] %s removed from cluster. Complete list is now %s",
                 instr_id,
                 self.cluster,
             )
-            ismqtt_messages.del_instr(
-                client=self.mqttc,
-                is_id=self.is_id,
-                instr_id=instr_id,
-                subscriptions=self._subscriptions,
+            gone_subscriptions = [
+                f"{self.is_id}/{instr_id}/control",
+                f"{self.is_id}/{instr_id}/cmd",
+            ]
+            self.mqttc.unsubscribe(gone_subscriptions)
+            for topic in gone_subscriptions:
+                self._subscriptions.pop(topic)
+            self.mqttc.publish(
+                retain=True,
+                topic=f"{self.is_id}/{instr_id}/meta",
+                payload=json.dumps({"State": 0}),
             )
 
     def _kill(self, _msg, _sender):
-        ismqtt_messages.del_is(
-            client=self.mqttc, is_id=self.is_id, is_meta=self.is_meta._replace(state=0)
+        self.mqttc.unsubscribe(topic="+")
+        self.mqttc.publish(
+            retain=True, topic=f"{self.is_id}/meta", payload=json.dumps({"State": 0})
         )
         self._disconnect()
         time.sleep(1)
@@ -348,37 +366,40 @@ class MqttSchedulerActor(Actor):
             control,
         )
         success = False
-
         if not success and not self.reservations.get(instr_id, None):
             success = True
-
         if not success and (
             self.reservations[instr_id].host == control.data.host
             and self.reservations[instr_id].app == control.data.app
             and self.reservations[instr_id].user == control.data.user
         ):
             success = True
-
         if (
             not success
             and control.data.timestamp - self.reservations[instr_id].timestamp
             > self.MAX_RESERVE_TIME
         ):
             success = True
-
         if success:
-            self.reservations[instr_id] = ismqtt_messages.Reservation(
+            reservation = ismqtt_messages.Reservation(
                 active=True,
                 app=control.data.app,
                 host=control.data.host,
                 timestamp=control.data.timestamp,
                 user=control.data.user,
             )
-
-        self.mqttc.publish(
-            topic=f"{self.is_id}/{instr_id}/reservation",
-            payload=ismqtt_messages.get_instr_reservation(self.reservations[instr_id]),
-        )  # static result
+            self.reservations[instr_id] = reservation
+            reservation_dict = json.loads(
+                ismqtt_messages.get_instr_reservation(reservation)
+            )
+            my_payload = {
+                "State": 2,
+                "Identification": self.instr_meta[instr_id],
+                "Reservation": reservation_dict,
+            }
+            self.mqttc.publish(
+                topic=f"{self.is_id}/{instr_id}/meta", payload=json.dumps(my_payload)
+            )
 
     def process_free(self, instr_id):
         """Sub event handler that will be called from the on_message event handler, when a MQTT
@@ -388,12 +409,18 @@ class MqttSchedulerActor(Actor):
             logger.debug(
                 "[FREE] Instrument is not in the list of reserved instruments."
             )
-        else:
-            self.reservations[instr_id] = None
-
+            return
+        reservation = json.loads(
+            ismqtt_messages.get_instr_reservation(self.reservations[instr_id])
+        )
+        reservation["Active"] = False
+        reservation["Timestamp"] = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        self.reservations[instr_id] = None
+        message = {
+            "State": 2,
+            "Identification": self.instr_meta[instr_id],
+            "Reservation": reservation,
+        }
         self.mqttc.publish(
-            topic=f"{self.is_id}/{instr_id}/reservation",
-            payload=ismqtt_messages.get_instr_reservation(
-                ismqtt_messages.Reservation(active=False, timestamp=time.time())
-            ),
+            topic=f"{self.is_id}/{instr_id}/meta", payload=json.dumps(message)
         )
