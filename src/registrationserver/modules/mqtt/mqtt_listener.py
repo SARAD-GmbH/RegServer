@@ -57,27 +57,6 @@ class SaradMqttSubscriber:
         }
     """
 
-    @staticmethod
-    def _update_host(is_id, data) -> None:
-        if (is_id is None) or (data is None):
-            logger.warning(
-                "[Update Host] one or both of the IS ID "
-                "and the meta message are none"
-            )
-            return
-        logger.info(
-            "[Update Host] Update an already connected host with IS ID %s",
-            is_id,
-        )
-        filename = fr"{config['IC_HOSTS_FOLDER']}{os.path.sep}{is_id}"
-        try:
-            with open(filename, "w+", encoding="utf8") as file_stream:
-                file_stream.write(json.dumps(data))
-                logger.debug("Hosts file %s updated", filename)
-        except Exception:  # pylint: disable=broad-except
-            logger.critical("[Update Host] Fatal error")
-        return
-
     def __init__(self):
         self.mqtt_broker = mqtt_config.get("MQTT_BROKER", "127.0.0.1")
         self.port = mqtt_config.get("PORT", 1883)
@@ -96,6 +75,7 @@ class SaradMqttSubscriber:
             mqtt_cid,
         )
         self._subscriptions = {}
+        self._hosts = {}
         self.mqttc = MQTT.Client(mqtt_cid)
         self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
@@ -105,22 +85,7 @@ class SaradMqttSubscriber:
         self.mqttc.on_unsubscribe = self.on_unsubscribe
         self.mqttc.message_callback_add("+/meta", self.on_is_meta)
         self.mqttc.message_callback_add("+/+/meta", self.on_instr_meta)
-
-        self.__ic_hosts_folder: str = config["IC_HOSTS_FOLDER"] + os.path.sep
-        if not os.path.exists(self.__ic_hosts_folder):
-            os.makedirs(self.__ic_hosts_folder)
-        # Clean __ic_hosts_folder for a fresh start
-        self._remove_all_services()
         self._connect()
-
-    def _remove_all_services(self) -> None:
-        """Remove all IC hosts form IC hosts folder."""
-        if os.path.exists(self.__ic_hosts_folder):
-            for root, _, files in os.walk(self.__ic_hosts_folder):
-                for name in files:
-                    host_file = os.path.join(root, name)
-                    logger.debug("[Del] Removed %s", name)
-                    os.remove(host_file)
 
     def _connect(self):
         success = False
@@ -301,20 +266,24 @@ class SaradMqttSubscriber:
             "[Add Host] Found a new connected host with IS ID %s",
             is_id,
         )
-        ic_hosts_folder = f"{config['IC_HOSTS_FOLDER']}{os.path.sep}"
-        if not os.path.exists(ic_hosts_folder):
-            os.makedirs(ic_hosts_folder)
-        filename = fr"{ic_hosts_folder}{is_id}"
-        try:
-            with open(filename, "w+", encoding="utf8") as file_stream:
-                file_stream.write(json.dumps(data))
-                logger.debug("New host file %s created", filename)
-            self.connected_instruments[is_id] = {}
-            self._subscribe(is_id + "/+/meta", 0)
-            logger.info("[Add Host] IS %s added", is_id)
+        self._hosts[is_id] = data
+        self.connected_instruments[is_id] = {}
+        self._subscribe(is_id + "/+/meta", 0)
+        logger.info("[Add Host] IS %s added", is_id)
+
+    def _update_host(self, is_id, data) -> None:
+        if (is_id is None) or (data is None):
+            logger.warning(
+                "[Update Host] one or both of the IS ID "
+                "and the meta message are none"
+            )
             return
-        except Exception:  # pylint: disable=broad-except
-            logger.critical("Fatal error")
+        logger.info(
+            "[Update Host] Update an already connected host with IS ID %s",
+            is_id,
+        )
+        self._hosts[is_id] = data
+        return
 
     def _rm_host(self, is_id) -> None:
         logger.debug("[Remove Host] %s", is_id)
@@ -335,23 +304,15 @@ class SaradMqttSubscriber:
             logger.debug("No instrument to remove.")
         try:
             del self.connected_instruments[is_id]
+            del self._hosts[is_id]
         except KeyError:
-            logger.error("List of connected hosts corrupted.")
-        filename = f"{config['IC_HOSTS_FOLDER']}{os.path.sep}{is_id}"
-        if os.path.exists(filename):
-            os.remove(filename)
-        logger.info("[Remove Host] Host file for %s removed", is_id)
+            logger.critical("List of connected hosts corrupted.")
+            system_shutdown()
 
     def stop(self):
         """Has to be performed when closing the main module
         in order to clean up the open connections to the MQTT broker."""
         logger.info("[Disconnect] %s", self.connected_instruments)
-        if os.path.exists(config["IC_HOSTS_FOLDER"]):
-            for root, _, files in os.walk(config["IC_HOSTS_FOLDER"]):
-                for name in files:
-                    filename = os.path.join(root, name)
-                    logger.debug("[Del] %s removed", name)
-                    os.remove(filename)
         self.connected_instruments = None
         self._disconnect()
 

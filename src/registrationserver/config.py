@@ -62,7 +62,6 @@ DEFAULT_MDNS_TIMEOUT = 3000
 DEFAULT_TYPE = "_rfc2217._tcp.local."
 DEFAULT_LEVEL = logging.INFO
 DEFAULT_IP_VERSION = IPVersion.All
-DEFAULT_IC_HOST_FOLDER = f"{app_folder}hosts"
 DEFAULT_PORT_RANGE = range(50000, 50500)
 if os.name == "nt":
     DEFAULT_NATIVE_SERIAL_PORTS = ["COM1"]
@@ -105,7 +104,6 @@ config = {
     "TYPE": customization.get("type", DEFAULT_TYPE),
     "LEVEL": DEBUG_LEVEL,
     "IP_VERSION": IP_VERSION,
-    "IC_HOSTS_FOLDER": DEFAULT_IC_HOST_FOLDER,
     "PORT_RANGE": PORT_RANGE,
     "NATIVE_SERIAL_PORTS": customization.get(
         "native_serial_ports", DEFAULT_NATIVE_SERIAL_PORTS

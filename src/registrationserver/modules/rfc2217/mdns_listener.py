@@ -105,8 +105,6 @@ class MdnsListener(ServiceListener):
                 ip_version=config["IP_VERSION"], interfaces=[self.get_ip(), "127.0.0.1"]
             )
             _ = ServiceBrowser(self.zeroconf, service_type, self)
-        # Clean __dev_folder for a fresh start
-        self._remove_all_services()
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         """Hook, being called when a new service
@@ -160,24 +158,6 @@ class MdnsListener(ServiceListener):
             if not kill_return["ERROR_CODE"] == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
                 logger.critical("Killing the device actor failed.")
 
-    def _remove_all_services(self) -> None:
-        """Kill all device actors and remove all device files from device folder."""
-        with self.lock:
-            device_db_actor = ActorSystem().createActor(Actor, globalName="device_db")
-            try:
-                device_db = ActorSystem().ask(device_db_actor, {"CMD": "READ"})[
-                    "RESULT"
-                ]
-            except KeyError:
-                logger.critical("Cannot get appropriate response from DeviceDb actor")
-                raise
-            for _global_name, device_actor in device_db.items():
-                logger.debug("Ask to kill the device actor...")
-                kill_return = ActorSystem().ask(device_actor, ActorExitRequest())
-                if not kill_return["ERROR_CODE"] == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
-                    logger.critical("Killing the device actor failed.")
-
     def shutdown(self) -> None:
-        """Cleanup and shutdown all threads"""
-        self._remove_all_services()
+        """Cleanup"""
         self.zeroconf.close()
