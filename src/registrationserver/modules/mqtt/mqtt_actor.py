@@ -170,12 +170,10 @@ class MqttActor(DeviceBaseActor):
         }
         _re = self._publish(_msg)
         logger.info(
-            "Unsubscribe MQTT actor %s from 'reserve' and 'msg' topics",
+            "Unsubscribe MQTT actor %s from 'msg' topic",
             self.globalName,
         )
-        self._unsubscribe(
-            [self.allowed_sys_topics["RESERVE"], self.allowed_sys_topics["MSG"]]
-        )
+        self._unsubscribe([self.allowed_sys_topics["MSG"]])
         super()._return_from_kill(msg, sender)
 
     def _kill(self, msg, sender):
@@ -383,10 +381,10 @@ class MqttActor(DeviceBaseActor):
                 "Subscribe MQTT actor %s to the 'reservation' topic",
                 self.globalName,
             )
-            if not self._subscribe([(self.allowed_sys_topics["RESERVE"], 0)]):
-                logger.critical(
-                    "Subscription to %s went wrong", self.allowed_sys_topics["RESERVE"]
-                )
+            reserve_topic = self.allowed_sys_topics["RESERVE"]
+            return_code, self.mid["SUBSCRIBE"] = self.mqttc.subscribe(reserve_topic, 0)
+            if return_code != MQTT.MQTT_ERR_SUCCESS:
+                logger.critical("Subscription to %s went wrong", reserve_topic)
                 system_shutdown()
             for topic, qos in self._subscriptions.items():
                 logger.debug("Restore subscription to %s", topic)
@@ -430,26 +428,25 @@ class MqttActor(DeviceBaseActor):
     def on_publish(self, _client, _userdata, mid):
         """Here should be a docstring."""
         # self.rc_pub = 0
-        logger.debug("The message with Message-ID %d is published to the broker!", mid)
-        logger.debug("Publish: check the mid")
+        logger.debug("[on_publish] Message-ID %d was published to the broker", mid)
         if mid == self.mid["PUBLISH"]:
             logger.debug("Publish: mid is matched")
 
     def on_subscribe(self, _client, _userdata, mid, _grant_qos):
         """Here should be a docstring."""
-        logger.debug("on_subscribe")
-        logger.debug("mid is %s", mid)
-        logger.debug("stored mid is %s", self.mid["SUBSCRIBE"])
+        logger.debug(
+            "[on_subscribe] mid: %d, stored mid: %d", mid, self.mid["SUBSCRIBE"]
+        )
         if mid == self.mid["SUBSCRIBE"]:
-            logger.debug("Subscribed to the topic successfully!\n")
+            logger.debug("Subscribed to the topic successfully")
 
     def on_unsubscribe(self, _client, _userdata, mid):
         """Here should be a docstring."""
-        logger.debug("on_unsubscribe")
-        logger.debug("mid is %s", mid)
-        logger.debug("stored mid is %s", self.mid["UNSUBSCRIBE"])
+        logger.debug(
+            "[on_unsubscribe] mid: %d, stored mid: %d", mid, self.mid["UNSUBSCRIBE"]
+        )
         if mid == self.mid["UNSUBSCRIBE"]:
-            logger.debug("Unsubscribed to the topic successfully!\n")
+            logger.debug("Unsubscribed to the topic successfully")
 
     @staticmethod
     def on_message(_client, _userdata, message):
