@@ -249,7 +249,7 @@ class RestApi:
         logger.debug("returned with %s", free_return)
         return_error = free_return["ERROR_CODE"]
         if return_error == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
-            answer = {}
+            answer = {"Error code": 0, "Error": "OK", did: {}}
             answer[did] = get_device_status(did)
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"

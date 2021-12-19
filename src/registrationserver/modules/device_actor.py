@@ -256,6 +256,22 @@ class DeviceBaseActor(Actor):
             logger.error("ERROR: there is no USER name!")
             return
         if config["APP_TYPE"] == AppType.RS:
+            try:
+                if self.device_status["Reservation"]["Active"]:
+                    if self.device_status["Reservation"]["Host"] == self.host:
+                        return_message = {
+                            "RETURN": "RESERVE",
+                            "ERROR_CODE": RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
+                        }
+                    else:
+                        return_message = {
+                            "RETURN": "RESERVE",
+                            "ERROR_CODE": RETURN_MESSAGES["OCCUPIED"]["ERROR_CODE"],
+                        }
+                    self.send(self.sender_api, return_message)
+                    return
+            except KeyError:
+                logger.debug("First reservation since restart of RegServer")
             self._reserve_at_is()
         return
 
@@ -352,10 +368,29 @@ class DeviceBaseActor(Actor):
         """Handler for FREE message from REST API."""
         logger.info("Device actor received a FREE command. %s", msg)
         self.sender_api = sender
-        return_message = {
-            "RETURN": "FREE",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-        }
+        try:
+            if self.device_status["Reservation"]["Active"]:
+                self.device_status["Reservation"]["Active"] = False
+                self.device_status["Reservation"].pop("IP")
+                self.device_status["Reservation"].pop("Port")
+                self.device_status["Reservation"]["Timestamp"] = (
+                    datetime.utcnow().isoformat(timespec="seconds") + "Z"
+                )
+                return_message = {
+                    "RETURN": "FREE",
+                    "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
+                }
+            else:
+                return_message = {
+                    "RETURN": "FREE",
+                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+                }
+        except KeyError:
+            logger.debug("Instr. was not reserved before.")
+            return_message = {
+                "RETURN": "FREE",
+                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
+            }
         self.send(self.sender_api, return_message)
         if self.my_redirector is not None:
             logger.debug("Send KILL to redirector %s", self.my_redirector)
@@ -379,11 +414,6 @@ class DeviceBaseActor(Actor):
             self.my_redirector = None
             return
         logger.critical("Killing the redirector actor failed with %s", msg)
-        return_message = {
-            "RETURN": "FREE",
-            "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-        }
-        self.send(self.sender_api, return_message)
         system_shutdown()
         return
 
