@@ -317,9 +317,7 @@ class DeviceBaseActor(Actor):
                 "Trying to create a redirector actor with globalName %s",
                 redirector_id,
             )
-            self.my_redirector = self.createActor(
-                RedirectorActor, globalName=redirector_id
-            )
+            self.my_redirector = self.createActor(RedirectorActor)
             msg = {"CMD": "SETUP", "PAR": {"PARENT_NAME": self.globalName}}
             logger.debug("Send SETUP command to redirector with msg %s", msg)
             self.send(self.my_redirector, msg)
