@@ -17,7 +17,7 @@ import time
 from typing import Any, Dict
 
 import paho.mqtt.client as MQTT  # type: ignore
-from registrationserver.config import config, mqtt_config
+from registrationserver.config import mqtt_config
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.mqtt.mqtt_actor import MqttActor
@@ -239,21 +239,7 @@ class SaradMqttSubscriber:
         name_ = self.connected_instruments[is_id][instr_id]
         logger.info("[update_instr] %s", instr_id)
         this_actor = ActorSystem().createActor(MqttActor, globalName=name_)
-        setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": payload})
-        if isinstance(setup_return, PoisonMessage):
-            logger.critical("Critical error in mqtt_actor. Stop and shutdown system.")
-            system_shutdown()
-            return
-        logger.debug(setup_return)
-        if not setup_return["ERROR_CODE"] in (
-            RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
-        ):
-            logger.debug(setup_return)
-            ActorSystem().ask(this_actor, ActorExitRequest())
-            del self.connected_instruments[is_id][instr_id]
-            return
+        ActorSystem().tell(this_actor, {"CMD": "UPDATE", "PAR": payload})
         return
 
     def _add_host(self, is_id, data) -> None:
@@ -335,7 +321,7 @@ class SaradMqttSubscriber:
             return
         if payload["State"] in (2, 1):
             logger.debug(
-                "[+/meta] Write the properties of cluster %s into file",
+                "[+/meta] Store the properties of cluster %s",
                 is_id,
             )
             if is_id not in self.connected_instruments:
@@ -383,7 +369,7 @@ class SaradMqttSubscriber:
         if payload["State"] in (2, 1):
             if is_id in self.connected_instruments:
                 logger.debug(
-                    "[+/+/meta] Write properties of instrument %s into file",
+                    "[+/+/meta] Store properties of instrument %s",
                     instr_id,
                 )
                 if instr_id in self.connected_instruments[is_id]:

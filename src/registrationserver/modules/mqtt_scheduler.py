@@ -397,9 +397,9 @@ class MqttSchedulerActor(Actor):
                 "Identification": self.instr_meta[instr_id],
                 "Reservation": reservation_dict,
             }
-            self.mqttc.publish(
-                topic=f"{self.is_id}/{instr_id}/meta", payload=json.dumps(my_payload)
-            )
+            topic = f"{self.is_id}/{instr_id}/reservation"
+            logger.debug("Publish %s on %s", my_payload, topic)
+            self.mqttc.publish(topic=topic, payload=json.dumps(my_payload))
 
     def process_free(self, instr_id):
         """Sub event handler that will be called from the on_message event handler, when a MQTT
@@ -422,5 +422,5 @@ class MqttSchedulerActor(Actor):
             "Reservation": reservation,
         }
         self.mqttc.publish(
-            topic=f"{self.is_id}/{instr_id}/meta", payload=json.dumps(message)
+            topic=f"{self.is_id}/{instr_id}/reservation", payload=json.dumps(message)
         )

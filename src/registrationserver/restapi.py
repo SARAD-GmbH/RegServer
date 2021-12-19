@@ -46,7 +46,8 @@ def get_device_status(device_id: str) -> dict:
     """
     device_db_actor = ActorSystem().createActor(Actor, globalName="device_db")
     try:
-        device_db = ActorSystem().ask(device_db_actor, {"CMD": "READ"})["RESULT"]
+        with ActorSystem().private() as db_sys:
+            device_db = db_sys.ask(device_db_actor, {"CMD": "READ"})["RESULT"]
     except KeyError:
         logger.critical("Cannot get appropriate response from DeviceDb actor")
         raise
@@ -55,7 +56,9 @@ def get_device_status(device_id: str) -> dict:
     except KeyError:
         logger.warning("%s not in %s", device_id, device_db)
         return {}
-    return ActorSystem().ask(device_actor, {"CMD": "READ"})["RESULT"]
+    with ActorSystem().private() as device_sys:
+        result = device_sys.ask(device_actor, {"CMD": "READ"})["RESULT"]
+    return result
 
 
 class RestApi:
@@ -170,7 +173,8 @@ class RestApi:
             "PAR": {"HOST": request_host, "USER": user, "APP": app},
         }
         logger.debug("Ask device actor %s", msg)
-        reserve_return = ActorSystem().ask(device_actor, msg)
+        with ActorSystem().private() as reserve_sys:
+            reserve_return = reserve_sys.ask(device_actor, msg)
         if isinstance(reserve_return, PoisonMessage):
             logger.critical("Critical error in device actor. Stop and shutdown system.")
             system_shutdown()

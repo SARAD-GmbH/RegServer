@@ -57,6 +57,7 @@ class DeviceBaseActor(Actor):
         "RESERVE": "_reserve",
         "FREE": "_free",
         "SETUP": "_setup",
+        "UPDATE": "_update",
         "READ": "_read",
     }
     ACCEPTED_RETURNS = {
@@ -173,6 +174,26 @@ class DeviceBaseActor(Actor):
             "SELF": self.globalName,
         }
         self.send(sender, return_message)
+        if self.mqtt_scheduler is not None:
+            add_message = {
+                "CMD": "ADD",
+                "PAR": {
+                    "INSTR_ID": short_id(self.globalName),
+                    "DEVICE_STATUS": self.device_status,
+                },
+            }
+            logger.debug(
+                "Sending 'ADD' with %s to MQTT scheduler %s",
+                add_message,
+                self.mqtt_scheduler,
+            )
+            self.send(self.mqtt_scheduler, add_message)
+        return
+
+    def _update(self, msg, _sender) -> None:
+        logger.debug("[_update]")
+        self.device_status = msg["PAR"]
+        logger.debug("Device status: %s", self.device_status)
         if self.mqtt_scheduler is not None:
             add_message = {
                 "CMD": "ADD",
