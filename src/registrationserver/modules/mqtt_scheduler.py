@@ -389,17 +389,10 @@ class MqttSchedulerActor(Actor):
                 user=control.data.user,
             )
             self.reservations[instr_id] = reservation
-            reservation_dict = json.loads(
-                ismqtt_messages.get_instr_reservation(reservation)
-            )
-            my_payload = {
-                "State": 2,
-                "Identification": self.instr_meta[instr_id],
-                "Reservation": reservation_dict,
-            }
+            reservation_json = ismqtt_messages.get_instr_reservation(reservation)
             topic = f"{self.is_id}/{instr_id}/reservation"
-            logger.debug("Publish %s on %s", my_payload, topic)
-            self.mqttc.publish(topic=topic, payload=json.dumps(my_payload))
+            logger.debug("Publish %s on %s", reservation_json, topic)
+            self.mqttc.publish(topic=topic, payload=reservation_json)
 
     def process_free(self, instr_id):
         """Sub event handler that will be called from the on_message event handler, when a MQTT
@@ -416,11 +409,7 @@ class MqttSchedulerActor(Actor):
         reservation["Active"] = False
         reservation["Timestamp"] = datetime.utcnow().isoformat(timespec="seconds") + "Z"
         self.reservations[instr_id] = None
-        message = {
-            "State": 2,
-            "Identification": self.instr_meta[instr_id],
-            "Reservation": reservation,
-        }
         self.mqttc.publish(
-            topic=f"{self.is_id}/{instr_id}/reservation", payload=json.dumps(message)
+            topic=f"{self.is_id}/{instr_id}/reservation",
+            payload=json.dumps(reservation),
         )

@@ -277,13 +277,14 @@ class MqttActor(DeviceBaseActor):
     def on_reserve(self, _client, _userdata, message):
         """Handler for MQTT messages regarding reservation of instruments"""
         is_reserved = False
-        payload = json.loads(message.payload)
+        reservation = json.loads(message.payload)
+        self.device_status["Reservation"] = reservation
         if self.state["RESERVE"]["Pending"]:
-            instr_status = payload.get("Active")
-            app = payload.get("App")
-            host = payload.get("Host")
-            user = payload.get("User")
-            timestamp = payload.get("Timestamp")
+            instr_status = reservation.get("Active")
+            app = reservation.get("App")
+            host = reservation.get("Host")
+            user = reservation.get("User")
+            timestamp = reservation.get("Timestamp")
             if (
                 (instr_status)
                 and (app == self.app)
