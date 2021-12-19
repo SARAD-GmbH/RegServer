@@ -135,16 +135,7 @@ class MqttActor(DeviceBaseActor):
             self.user: String identifying the user of the app.
             self.sender_api: The actor object asking for reservation.
         """
-        logger.debug(
-            "[Reserve] Subscribe MQTT actor %s to the 'reserve' topic",
-            self.globalName,
-        )
         if not self.state["RESERVE"]["Pending"]:
-            if not self._subscribe([(self.allowed_sys_topics["RESERVE"], 0)]):
-                logger.error(
-                    "Subscription to %s went wrong", self.allowed_sys_topics["RESERVE"]
-                )
-                return
             _msg = {
                 "topic": self.allowed_sys_topics["CTRL"],
                 "payload": json.dumps(
@@ -278,6 +269,7 @@ class MqttActor(DeviceBaseActor):
         """Handler for MQTT messages regarding reservation of instruments"""
         is_reserved = False
         reservation = json.loads(message.payload)
+        logger.debug("Update reservation state of %s: %s", self.instr_id, reservation)
         self.device_status["Reservation"] = reservation
         if self.state["RESERVE"]["Pending"]:
             instr_status = reservation.get("Active")
@@ -387,6 +379,15 @@ class MqttActor(DeviceBaseActor):
         if result_code == 0:
             self.is_connected = True
             logger.info("[CONNECT] Connected to MQTT broker")
+            logger.debug(
+                "Subscribe MQTT actor %s to the 'reservation' topic",
+                self.globalName,
+            )
+            if not self._subscribe([(self.allowed_sys_topics["RESERVE"], 0)]):
+                logger.critical(
+                    "Subscription to %s went wrong", self.allowed_sys_topics["RESERVE"]
+                )
+                system_shutdown()
             for topic, qos in self._subscriptions.items():
                 logger.debug("Restore subscription to %s", topic)
                 self.mqttc.subscribe(topic, qos)
