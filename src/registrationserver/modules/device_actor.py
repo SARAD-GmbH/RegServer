@@ -12,7 +12,7 @@
 from datetime import datetime
 
 from overrides import overrides  # type: ignore
-from registrationserver.config import AppType, config
+from registrationserver.config import AppType, config, ismqtt_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
@@ -75,7 +75,6 @@ class DeviceBaseActor(Actor):
         self.app = None
         self.user = None
         self.host = None
-        self.is_id = None
         self.sender_api = None
         self.device_db = None
         self.mqtt_scheduler = None
@@ -176,7 +175,7 @@ class DeviceBaseActor(Actor):
         }
         self.send(sender, return_message)
         if self.mqtt_scheduler is not None:
-            self.device_status["Identification"]["Host"] = self.is_id
+            self.device_status["Identification"]["Host"] = ismqtt_config["IS_ID"]
             add_message = {
                 "CMD": "ADD",
                 "PAR": {
