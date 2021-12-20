@@ -9,7 +9,7 @@
 
 .. uml :: uml-device_actor.puml
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from overrides import overrides  # type: ignore
 from registrationserver.config import AppType, config, ismqtt_config
@@ -19,7 +19,8 @@ from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.redirect_actor import RedirectorActor
 from registrationserver.shutdown import system_shutdown
 from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import Actor, ChildActorExited, PoisonMessage
+from thespian.actors import (Actor, ChildActorExited, PoisonMessage,
+                             WakeupMessage)
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -89,6 +90,10 @@ class DeviceBaseActor(Actor):
         if isinstance(msg, ActorExitRequest):
             self._kill(msg, sender)
             return
+        if isinstance(msg, WakeupMessage):
+            if msg.payload == "keep_alive":
+                self._keep_alive(msg, sender)
+            return
         if isinstance(msg, ChildActorExited):
             # Error handling code could be placed here
             # The child actor is the redirector actor.
@@ -153,6 +158,7 @@ class DeviceBaseActor(Actor):
 
     def _setup(self, msg, sender) -> None:
         logger.debug("[_setup]")
+        self.wakeupAfter(timedelta(minutes=1), payload="keep_alive")
         self.device_status = msg["PAR"]
         logger.debug("Device status: %s", self.device_status)
         self.device_db = self.createActor(Actor, globalName="device_db")
@@ -189,7 +195,6 @@ class DeviceBaseActor(Actor):
                 self.mqtt_scheduler,
             )
             self.send(self.mqtt_scheduler, add_message)
-        return
 
     def _update(self, msg, _sender) -> None:
         logger.debug("[_update]")
@@ -209,7 +214,6 @@ class DeviceBaseActor(Actor):
                 self.mqtt_scheduler,
             )
             self.send(self.mqtt_scheduler, add_message)
-        return
 
     def _kill(self, msg, sender):
         logger.info("%s for actor %s", msg, self.globalName)
@@ -426,3 +430,7 @@ class DeviceBaseActor(Actor):
             "RESULT": self.device_status,
         }
         self.send(sender, result)
+
+    def _keep_alive(self, msg, sender):
+        logger.debug("We're on the highway to hell!")
+        self.wakeupAfter(timedelta(minutes=1), payload="keep_alive")
