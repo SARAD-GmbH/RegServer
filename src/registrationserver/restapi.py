@@ -47,17 +47,25 @@ def get_device_status(device_id: str) -> dict:
     device_db_actor = ActorSystem().createActor(Actor, globalName="device_db")
     try:
         with ActorSystem().private() as db_sys:
-            device_db = db_sys.ask(device_db_actor, {"CMD": "READ"})["RESULT"]
+            device_db = db_sys.ask(device_db_actor, {"CMD": "READ"}, 10)["RESULT"]
     except KeyError:
-        logger.critical("Cannot get appropriate response from DeviceDb actor")
-        raise
+        logger.critical(
+            "Emergency shutdown. Cannot get appropriate response from DeviceDb actor."
+        )
+        system_shutdown()
     try:
         device_actor = device_db[device_id]
     except KeyError:
         logger.warning("%s not in %s", device_id, device_db)
         return {}
     with ActorSystem().private() as device_sys:
-        result = device_sys.ask(device_actor, {"CMD": "READ"})["RESULT"]
+        result = device_sys.ask(device_actor, {"CMD": "READ"}, 10)["RESULT"]
+        if result is None:
+            logger.critical(
+                "Emergency shutdown. Ask to device_actor took more than 10 sec."
+            )
+            system_shutdown()
+            return {}
     return result
 
 
@@ -105,10 +113,15 @@ class RestApi:
         answer = {}
         device_db_actor = ActorSystem().createActor(Actor, globalName="device_db")
         try:
-            device_db = ActorSystem().ask(device_db_actor, {"CMD": "READ"})["RESULT"]
+            device_db = ActorSystem().ask(device_db_actor, {"CMD": "READ"}, 10)[
+                "RESULT"
+            ]
         except KeyError:
-            logger.critical("Cannot get appropriate response from DeviceDb actor")
-            raise
+            logger.critical(
+                "Emergency shutdown. Cannot get appropriate response from DeviceDb actor."
+            )
+            system_shutdown()
+            return {}
         for device_id in device_db:
             answer[device_id] = get_device_status(device_id)
         return Response(
@@ -174,7 +187,10 @@ class RestApi:
         }
         logger.debug("Ask device actor %s", msg)
         with ActorSystem().private() as reserve_sys:
-            reserve_return = reserve_sys.ask(device_actor, msg)
+            reserve_return = reserve_sys.ask(device_actor, msg, 10)
+        if reserve_return is None:
+            logger.critical("Emergency shutdown. Timeout in ask.")
+            system_shutdown()
         if isinstance(reserve_return, PoisonMessage):
             logger.critical("Critical error in device actor. Stop and shutdown system.")
             system_shutdown()
@@ -238,7 +254,10 @@ class RestApi:
 
         device_actor = ActorSystem().createActor(Actor, globalName=did)
         logger.debug("Ask device actor to FREE...")
-        free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"})
+        free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"}, 10)
+        if free_return is None:
+            logger.critical("Emergency shutdown. Timeout in ask.")
+            system_shutdown()
         if isinstance(free_return, PoisonMessage):
             logger.critical("Critical error in device actor. Stop and shutdown system.")
             system_shutdown()
@@ -274,7 +293,10 @@ class RestApi:
     def getlocalports():
         """Lists Local Ports, Used for Testing atm"""
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
-        reply = ActorSystem().ask(cluster, {"CMD": "LIST-PORTS"})
+        reply = ActorSystem().ask(cluster, {"CMD": "LIST-PORTS"}, 10)
+        if reply is None:
+            logger.critical("Emergency shutdown. Timeout in ask.")
+            system_shutdown()
         if isinstance(reply, PoisonMessage):
             logger.critical(
                 "Critical error in cluster actor. Stop and shutdown system."
@@ -291,7 +313,10 @@ class RestApi:
     def getloopport(port):
         """Loops Local Ports, Used for Testing"""
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
-        reply = ActorSystem().ask(cluster, {"CMD": "LOOP", "PAR": {"PORT": port}})
+        reply = ActorSystem().ask(cluster, {"CMD": "LOOP", "PAR": {"PORT": port}}, 10)
+        if reply is None:
+            logger.critical("Emergency shutdown. Timeout in ask.")
+            system_shutdown()
         if isinstance(reply, PoisonMessage):
             logger.critical(
                 "Critical error in cluster actor. Stop and shutdown system."
@@ -309,8 +334,11 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
         reply = ActorSystem().ask(
-            cluster, {"CMD": "LOOP-REMOVE", "PAR": {"PORT": port}}
+            cluster, {"CMD": "LOOP-REMOVE", "PAR": {"PORT": port}}, 10
         )
+        if reply is None:
+            logger.critical("Emergency shutdown. Timeout in ask.")
+            system_shutdown()
         if isinstance(reply, PoisonMessage):
             logger.critical(
                 "Critical error in cluster actor. Stop and shutdown system."
@@ -327,7 +355,10 @@ class RestApi:
     def getusbports():
         """Loops Local Ports, Used for Testing"""
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
-        reply = ActorSystem().ask(cluster, {"CMD": "LIST-USB"})
+        reply = ActorSystem().ask(cluster, {"CMD": "LIST-USB"}, 10)
+        if reply is None:
+            logger.critical("Emergency shutdown. Timeout in ask.")
+            system_shutdown()
         if isinstance(reply, PoisonMessage):
             logger.critical(
                 "Critical error in cluster actor. Stop and shutdown system."
@@ -344,7 +375,10 @@ class RestApi:
     def getnativeports():
         """Loops Local Ports, Used for Testing"""
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
-        reply = ActorSystem().ask(cluster, {"CMD": "LIST-NATIVE"})
+        reply = ActorSystem().ask(cluster, {"CMD": "LIST-NATIVE"}, 10)
+        if reply is None:
+            logger.critical("Emergency shutdown. Timeout in ask.")
+            system_shutdown()
         if isinstance(reply, PoisonMessage):
             logger.critical(
                 "Critical error in cluster actor. Stop and shutdown system."
@@ -362,9 +396,11 @@ class RestApi:
         """Ask actor system to output actor status to debug log"""
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
         reply = ActorSystem().ask(
-            actorAddr=cluster,
-            msg=Thespian_StatusReq(),
+            actorAddr=cluster, msg=Thespian_StatusReq(), timeout=10
         )
+        if reply is None:
+            logger.critical("Emergency shutdown. Timeout in ask.")
+            system_shutdown()
 
         class Temp:
             """Needed for formatStatus"""

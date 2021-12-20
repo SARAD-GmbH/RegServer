@@ -162,7 +162,12 @@ class SaradMqttSubscriber:
             ac_name,
         )
         this_actor = ActorSystem().createActor(MqttActor, globalName=ac_name)
-        setup_return = ActorSystem().ask(this_actor, {"CMD": "SETUP", "PAR": payload})
+        setup_return = ActorSystem().ask(
+            this_actor, {"CMD": "SETUP", "PAR": payload}, 10
+        )
+        if setup_return is None:
+            logger.critical("Emergency shutdown. Timeout in ask.")
+            system_shutdown()
         if isinstance(setup_return, PoisonMessage):
             logger.critical("Critical error in mqtt_actor. Stop and shutdown system.")
             system_shutdown()
@@ -185,7 +190,10 @@ class SaradMqttSubscriber:
                 "port": self.port,
             },
         }
-        prep_return = ActorSystem().ask(this_actor, prep_msg)
+        prep_return = ActorSystem().ask(this_actor, prep_msg, 10)
+        if prep_return is None:
+            logger.critical("Emergency shutdown. Timeout in ask.")
+            system_shutdown()
         if isinstance(prep_return, PoisonMessage):
             logger.critical("Critical error in mqtt_actor. Stop and shutdown system.")
             system_shutdown()

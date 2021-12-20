@@ -124,7 +124,10 @@ class MdnsListener(ServiceListener):
                 data = self.convert_properties(name=name, info=info)
                 msg = {"CMD": "SETUP", "PAR": data}
                 logger.debug("Ask to setup the device actor with %s...", msg)
-                setup_return = ActorSystem().ask(this_actor, msg)
+                setup_return = ActorSystem().ask(this_actor, msg, 10)
+                if setup_return is None:
+                    logger.critical("Emergency shutdown. Timeout in ask.")
+                    system_shutdown()
                 if isinstance(setup_return, PoisonMessage):
                     logger.critical(
                         "Critical error in rfc2217_actor. Stop and shutdown system."

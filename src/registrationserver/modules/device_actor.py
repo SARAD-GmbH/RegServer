@@ -144,10 +144,10 @@ class DeviceBaseActor(Actor):
         elif return_key is not None:
             return_function = self.ACCEPTED_RETURNS.get(return_key, None)
             if return_function is None:
-                logger.debug("Ask received the return %s from %s.", msg, sender)
+                logger.debug("Received the return %s from %s.", msg, sender)
                 return
             if getattr(self, return_function, None) is None:
-                logger.debug("Ask received the return %s from %s.", msg, sender)
+                logger.debug("Received the return %s from %s.", msg, sender)
                 return
             getattr(self, return_function)(msg, sender)
 
