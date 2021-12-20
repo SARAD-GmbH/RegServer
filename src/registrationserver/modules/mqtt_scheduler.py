@@ -52,14 +52,15 @@ class MqttSchedulerActor(Actor):
         self.cluster = {}  # {instr_id: actor_address}
         self.instr_meta = {}  # {instr_id: {<meta>}}
         self.reservations = {}  # {instr_id: <reservation object>}
+        # cmd_id to check the correct order of messages
+        self.cmd_ids = {}  # {instr_id: <command id>}
         self.ungr_disconn = 2
         self.is_connected = False
         self.msg_id = {
             "PUBLISH": None,
             "SUBSCRIBE": None,
             "UNSUBSCRIBE": None,
-        }  # store the current message ID to check
-        self.cmd_id = 0
+        }
         # Start MQTT client
         self.is_id = ismqtt_config["IS_ID"]
         self._subscriptions = {}
@@ -322,7 +323,7 @@ class MqttSchedulerActor(Actor):
         with self.lock:
             logger.debug("[on_cmd] %s: %s", message.topic, message.payload)
             instr_id = message.topic[: -len("cmd") - 1][len(self.is_id) + 1 :]
-            self.cmd_id = message.payload[0]
+            self.cmd_ids[instr_id] = message.payload[0]
             cmd = message.payload[1:]
             device_actor = self.cluster.get(instr_id)
             if device_actor is not None:
@@ -344,8 +345,8 @@ class MqttSchedulerActor(Actor):
         """Handler for actor messages returning from 'SEND" command
 
         Forward the payload received from device_actor via MQTT."""
-        reply = bytes([self.cmd_id]) + msg["RESULT"]["DATA"]
         instr_id = get_key(sender, self.cluster)
+        reply = bytes([self.cmd_ids[instr_id]]) + msg["RESULT"]["DATA"]
         self.mqttc.publish(f"{self.is_id}/{instr_id}/msg", reply)
 
     def process_reserve(self, instr_id, control):
