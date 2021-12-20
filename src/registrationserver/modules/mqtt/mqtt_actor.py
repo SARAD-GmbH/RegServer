@@ -147,6 +147,7 @@ class MqttActor(DeviceBaseActor):
                     }
                 ),
                 "qos": 0,
+                "retain": True,
             }
             self.state["RESERVE"]["Pending"] = True
             if not self._publish(_msg):
@@ -167,6 +168,7 @@ class MqttActor(DeviceBaseActor):
             "topic": self.allowed_sys_topics["CTRL"],
             "payload": json.dumps({"Req": "free"}),
             "qos": 0,
+            "retain": True,
         }
         _re = self._publish(_msg)
         logger.info(
@@ -478,9 +480,7 @@ class MqttActor(DeviceBaseActor):
         mqtt_topic = msg["topic"]
         mqtt_payload = msg["payload"]
         mqtt_qos = msg["qos"]
-        retain = msg.get("retain", None)
-        if retain is None:
-            retain = False
+        retain = msg.get("retain", False)
         logger.debug("Publish %s to %s", mqtt_payload, mqtt_topic)
         return_code, self.mid["PUBLISH"] = self.mqttc.publish(
             mqtt_topic,
