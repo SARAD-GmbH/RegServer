@@ -17,8 +17,8 @@ device actors referenced in the dictionary.
 from typing import Dict
 
 from overrides import overrides  # type: ignore
-from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
-                             PoisonMessage)
+from thespian.actors import ActorExitRequest  # type: ignore
+from thespian.actors import Actor, DeadEnvelope, PoisonMessage
 
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
@@ -32,6 +32,7 @@ class DeviceDb(Actor):
         "CREATE": "_create",
         "REMOVE": "_remove",
         "READ": "_read",
+        "SETUP": "_setup",
     }
 
     ACCEPTED_RETURNS: Dict[str, str] = {}
@@ -40,6 +41,9 @@ class DeviceDb(Actor):
     def __init__(self):
         self._devices = {}
         super().__init__()
+
+    def _setup(self, _msg, _sender):
+        self.handleDeadLetters(startHandling=True)
 
     @overrides
     def receiveMessage(self, msg, sender):
@@ -94,6 +98,14 @@ class DeviceDb(Actor):
                 system_shutdown()
                 return
             if isinstance(msg, ActorExitRequest):
+                return
+            if isinstance(msg, DeadEnvelope):
+                logger.critical(
+                    "DeadMessage: %s to deadAddress: %s",
+                    msg.deadMessage,
+                    msg.deadAddress,
+                )
+                system_shutdown()
                 return
             logger.critical(
                 "Received %s from %s. This should never happen.", msg, sender

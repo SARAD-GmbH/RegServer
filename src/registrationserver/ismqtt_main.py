@@ -80,7 +80,8 @@ def startup():
         capabilities=actor_config["capabilities"],
         logDefs=logcfg,
     )
-    system.createActor(DeviceDb, globalName="device_db")
+    device_db = system.createActor(DeviceDb, globalName="device_db")
+    system.tell(device_db, {"CMD": "SETUP"})
     system.createActor(ClusterActor, globalName="cluster")
     system.createActor(MqttSchedulerActor, globalName="mqtt_scheduler")
     logger.debug("Actor system started.")
