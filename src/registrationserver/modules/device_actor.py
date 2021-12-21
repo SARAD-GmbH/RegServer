@@ -93,8 +93,7 @@ class DeviceBaseActor(Actor):
             return
         if isinstance(msg, WakeupMessage):
             if msg.payload == "keep_alive":
-                logger.debug("We're on the highway to hell!")
-                self.wakeupAfter(timedelta(minutes=1), payload="keep_alive")
+                self.wakeupAfter(timedelta(minutes=10), payload="keep_alive")
             return
         if isinstance(msg, ChildActorExited):
             # Error handling code could be placed here
@@ -160,7 +159,7 @@ class DeviceBaseActor(Actor):
 
     def _setup(self, msg, sender) -> None:
         logger.debug("[_setup]")
-        self.wakeupAfter(timedelta(minutes=1), payload="keep_alive")
+        self.wakeupAfter(timedelta(minutes=10), payload="keep_alive")
         self.device_status = msg["PAR"]
         self.device_id = msg["ID"]
         logger.debug("Device status: %s", self.device_status)

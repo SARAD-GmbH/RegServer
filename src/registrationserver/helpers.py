@@ -11,6 +11,9 @@ import os
 
 from thespian.actors import Actor, ActorSystem
 
+from registrationserver.logger import logger
+from registrationserver.shutdown import system_shutdown
+
 
 def short_id(global_name: str) -> str:
     """Get the short_id of a connected instrument from its global_name.
@@ -39,7 +42,7 @@ def find(pattern, path):
         List(str): List of full paths of the files found
     """
     result = []
-    for root, dirs, files in os.walk(path):
+    for root, _dirs, files in os.walk(path):
         for name in files:
             if fnmatch.fnmatch(name, pattern):
                 result.append(os.path.join(root, name))
