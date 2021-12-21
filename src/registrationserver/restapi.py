@@ -21,6 +21,7 @@ from thespian.actors import Actor, ActorSystem, PoisonMessage
 from thespian.system.messages.status import Thespian_StatusReq, formatStatus
 
 from registrationserver.config import mqtt_config
+from registrationserver.helpers import get_device_actor, get_device_status
 from registrationserver.logger import logger  # type: ignore
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.shutdown import system_shutdown
@@ -30,43 +31,6 @@ logger.debug("%s -> %s", __package__, __file__)
 MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 RESERVE_KEYWORD = "reserve"
 FREE_KEYWORD = "free"
-
-
-def get_device_status(device_id: str) -> dict:
-    """Read the device status from the device actor.
-
-    Args:
-        device_id: The device id is used as well as file name as
-                   as global name for the device actor
-
-    Returns:
-        A dictionary containing additional information
-        for the *Identification* of the instrument and it's *Reservation* state
-
-    """
-    device_db_actor = ActorSystem().createActor(Actor, globalName="device_db")
-    try:
-        with ActorSystem().private() as db_sys:
-            device_db = db_sys.ask(device_db_actor, {"CMD": "READ"}, 10)["RESULT"]
-    except KeyError:
-        logger.critical(
-            "Emergency shutdown. Cannot get appropriate response from DeviceDb actor."
-        )
-        system_shutdown()
-    try:
-        device_actor = device_db[device_id]
-    except KeyError:
-        logger.warning("%s not in %s", device_id, device_db)
-        return {}
-    with ActorSystem().private() as device_sys:
-        result = device_sys.ask(device_actor, {"CMD": "READ"}, 10)["RESULT"]
-        if result is None:
-            logger.critical(
-                "Emergency shutdown. Ask to device_actor took more than 10 sec."
-            )
-            system_shutdown()
-            return {}
-    return result
 
 
 class RestApi:
@@ -180,7 +144,7 @@ class RestApi:
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
         # send RESERVE message to device actor
-        device_actor = ActorSystem().createActor(Actor, globalName=did)
+        device_actor = get_device_actor(did)
         msg = {
             "CMD": "RESERVE",
             "PAR": {"HOST": request_host, "USER": user, "APP": app},
@@ -252,7 +216,7 @@ class RestApi:
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
 
-        device_actor = ActorSystem().createActor(Actor, globalName=did)
+        device_actor = get_device_actor(did)
         logger.debug("Ask device actor to FREE...")
         free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"}, 10)
         if free_return is None:

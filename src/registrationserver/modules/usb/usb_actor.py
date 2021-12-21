@@ -40,8 +40,9 @@ class UsbActor(DeviceBaseActor):
 
     @overrides
     def _setup(self, msg, sender) -> None:
+        super()._setup(msg, sender)
         self._cluster = self.createActor(Actor, globalName="cluster")
-        self.instrument = self.globalName.split(".")[0]
+        self.instrument = self.device_id.split(".")[0]
         try:
             data = msg["PAR"]
             serial_port = data["Serial"]
@@ -52,11 +53,10 @@ class UsbActor(DeviceBaseActor):
                 this_exception,
             )
             system_shutdown()
-        return super()._setup(msg, sender)
 
     def _send(self, msg, _sender) -> None:
         cmd = msg["PAR"]["DATA"]
-        logger.debug("Actor %s received: %s", self.globalName, cmd)
+        logger.debug("Actor received: %s", cmd)
         self.send(
             self._cluster,
             {"CMD": "SEND", "PAR": {"DATA": cmd, "Instrument": self.instrument}},

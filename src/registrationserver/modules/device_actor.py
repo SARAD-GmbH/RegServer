@@ -72,6 +72,7 @@ class DeviceBaseActor(Actor):
         super().__init__()
         self._config: dict = {}
         self.device_status = {}
+        self.device_id = None
         self.my_redirector = None
         self.app = None
         self.user = None
@@ -161,6 +162,7 @@ class DeviceBaseActor(Actor):
         logger.debug("[_setup]")
         self.wakeupAfter(timedelta(minutes=1), payload="keep_alive")
         self.device_status = msg["PAR"]
+        self.device_id = msg["ID"]
         logger.debug("Device status: %s", self.device_status)
         self.device_db = self.createActor(Actor, globalName="device_db")
         if config["APP_TYPE"] == AppType.ISMQTT:
@@ -170,7 +172,7 @@ class DeviceBaseActor(Actor):
             {
                 "CMD": "CREATE",
                 "PAR": {
-                    "GLOBAL_NAME": self.globalName,
+                    "GLOBAL_NAME": self.device_id,
                     "ACTOR_ADDRESS": self.myAddress,
                 },
             },
@@ -178,7 +180,7 @@ class DeviceBaseActor(Actor):
         return_message = {
             "RETURN": "SETUP",
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            "SELF": self.globalName,
+            "SELF": self.device_id,
         }
         self.send(sender, return_message)
         if self.mqtt_scheduler is not None:
@@ -186,7 +188,7 @@ class DeviceBaseActor(Actor):
             add_message = {
                 "CMD": "ADD",
                 "PAR": {
-                    "INSTR_ID": short_id(self.globalName),
+                    "INSTR_ID": short_id(self.device_id),
                     "DEVICE_STATUS": self.device_status,
                 },
             }
@@ -205,7 +207,7 @@ class DeviceBaseActor(Actor):
             add_message = {
                 "CMD": "ADD",
                 "PAR": {
-                    "INSTR_ID": short_id(self.globalName),
+                    "INSTR_ID": short_id(self.device_id),
                     "DEVICE_STATUS": self.device_status,
                 },
             }
@@ -217,12 +219,12 @@ class DeviceBaseActor(Actor):
             self.send(self.mqtt_scheduler, add_message)
 
     def _kill(self, msg, sender):
-        logger.info("%s for actor %s", msg, self.globalName)
+        logger.info("%s for actor %s", msg, self.device_id)
         # Send 'REMOVE' message to MQTT Scheduler
         if config["APP_TYPE"] == AppType.ISMQTT:
             remove_message = {
                 "CMD": "REMOVE",
-                "PAR": {"INSTR_ID": short_id(self.globalName)},
+                "PAR": {"INSTR_ID": short_id(self.device_id)},
             }
             logger.debug(
                 "Sending 'REMOVE' with %s to MQTT scheduler %s",
@@ -233,7 +235,7 @@ class DeviceBaseActor(Actor):
         if self.my_redirector is not None:
             self.send(self.my_redirector, {"CMD": "KILL"})
         self.send(
-            self.device_db, {"CMD": "REMOVE", "PAR": {"GLOBAL_NAME": self.globalName}}
+            self.device_db, {"CMD": "REMOVE", "PAR": {"GLOBAL_NAME": self.device_id}}
         )
         return_message = {
             "RETURN": "KILL",
@@ -317,13 +319,9 @@ class DeviceBaseActor(Actor):
     def _create_redirector(self) -> bool:
         """Create redirector actor"""
         if self.my_redirector is None:
-            redirector_id = short_id(self.globalName)
-            logger.debug(
-                "Trying to create a redirector actor with globalName %s",
-                redirector_id,
-            )
+            logger.debug("Trying to create a redirector actor")
             self.my_redirector = self.createActor(RedirectorActor)
-            msg = {"CMD": "SETUP", "PAR": {"PARENT_NAME": self.globalName}}
+            msg = {"CMD": "SETUP", "PAR": {"PARENT_NAME": self.device_id}}
             logger.debug("Send SETUP command to redirector with msg %s", msg)
             self.send(self.my_redirector, msg)
             return True

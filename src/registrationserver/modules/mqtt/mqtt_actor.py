@@ -82,13 +82,12 @@ class MqttActor(DeviceBaseActor):
 
     def _send(self, msg, sender) -> None:
         if msg is None:
-            logger.error("[SEND] no contents to send for actor %s", self.globalName)
+            logger.error("[SEND] no contents to send")
             return
         data = msg.get("PAR", None).get("DATA", None)
         if (data is None) or (not isinstance(data, bytes)):
             logger.error(
-                "[SEND] no data to send for actor %s or the data are not bytes",
-                self.globalName,
+                "[SEND] no data to send or the data are not bytes",
             )
             return
         logger.debug("To send: %s", data)
@@ -171,10 +170,7 @@ class MqttActor(DeviceBaseActor):
             "retain": True,
         }
         _re = self._publish(_msg)
-        logger.info(
-            "Unsubscribe MQTT actor %s from 'msg' topic",
-            self.globalName,
-        )
+        logger.info("Unsubscribe MQTT actor from 'msg' topic")
         self._unsubscribe([self.allowed_sys_topics["MSG"]])
         super()._return_from_kill(msg, sender)
 
@@ -188,10 +184,9 @@ class MqttActor(DeviceBaseActor):
         super()._kill(msg, sender)
 
     def _prepare(self, msg, sender):
-        logger.debug("Actor name = %s", self.globalName)
         self.subscriber = sender
-        mqtt_cid = self.globalName + ".client"
-        self.instr_id = self.globalName.split(".")[0]
+        mqtt_cid = self.device_id + ".client"
+        self.instr_id = self.device_id.split(".")[0]
         self.is_id = msg.get("PAR", None).get("is_id", None)
         mqtt_broker = msg.get("PAR", None).get("mqtt_broker", "127.0.0.1")
         port = msg.get("PAR", None).get("port", 1883)
@@ -284,8 +279,7 @@ class MqttActor(DeviceBaseActor):
                 and (user == self.user)
             ):
                 logger.debug(
-                    "MQTT actor %s receives permission for reservation on instrument %s",
-                    self.globalName,
+                    "MQTT actor receives permission for reservation on instrument %s",
                     self.instr_id,
                 )
                 if timestamp is None:
@@ -300,8 +294,7 @@ class MqttActor(DeviceBaseActor):
                 is_reserved = True
             else:
                 logger.debug(
-                    "MQTT actor %s receives decline of reservation on instrument %s",
-                    self.globalName,
+                    "MQTT actor receives decline of reservation on instrument %s",
                     self.instr_id,
                 )
                 is_reserved = False
@@ -311,8 +304,7 @@ class MqttActor(DeviceBaseActor):
             self.state["RESERVE"]["Pending"] = False
             return
         logger.warning(
-            "MQTT actor %s received a reply to a non-requested reservation on instrument %s",
-            self.globalName,
+            "MQTT actor received a reply to a non-requested reservation on instrument %s",
             self.instr_id,
         )
 
@@ -339,8 +331,7 @@ class MqttActor(DeviceBaseActor):
                 self.test_cnt = self.test_cnt + 1
                 logger.debug("test_cnt = %s", self.test_cnt)
                 logger.debug(
-                    "MQTT actor %s receives a binary reply %s from instrument %s",
-                    self.globalName,
+                    "MQTT actor receives a binary reply %s from instrument %s",
                     payload[1:],
                     self.instr_id,
                 )
@@ -358,18 +349,16 @@ class MqttActor(DeviceBaseActor):
                 return
             logger.warning(
                 (
-                    "MQTT actor %s receives a binary reply %s with an unexpected "
+                    "MQTT actor receives a binary reply %s with an unexpected "
                     "CMD ID %s from instrument %s"
                 ),
-                self.globalName,
                 payload,
                 re_cmd_id,
                 self.instr_id,
             )
             return
         logger.warning(
-            "MQTT actor %s receives an unknown binary reply %s from instrument %s",
-            self.globalName,
+            "MQTT actor receives an unknown binary reply %s from instrument %s",
             payload,
             self.instr_id,
         )
@@ -380,8 +369,7 @@ class MqttActor(DeviceBaseActor):
             self.is_connected = True
             logger.info("[CONNECT] Connected to MQTT broker")
             logger.debug(
-                "Subscribe MQTT actor %s to the 'reservation' topic",
-                self.globalName,
+                "Subscribe MQTT actor to the 'reservation' topic",
             )
             reserve_topic = self.allowed_sys_topics["RESERVE"]
             return_code, self.mid["SUBSCRIBE"] = self.mqttc.subscribe(reserve_topic, 0)

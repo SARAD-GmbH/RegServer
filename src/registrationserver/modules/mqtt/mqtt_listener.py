@@ -18,6 +18,7 @@ from typing import Any, Dict
 
 import paho.mqtt.client as MQTT  # type: ignore
 from registrationserver.config import mqtt_config
+from registrationserver.helpers import get_device_actor
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.mqtt.mqtt_actor import MqttActor
@@ -161,9 +162,9 @@ class SaradMqttSubscriber:
             instr_id,
             ac_name,
         )
-        this_actor = ActorSystem().createActor(MqttActor, globalName=ac_name)
+        this_actor = ActorSystem().createActor(MqttActor)
         setup_return = ActorSystem().ask(
-            this_actor, {"CMD": "SETUP", "PAR": payload}, 10
+            this_actor, {"CMD": "SETUP", "ID": ac_name, "PAR": payload}, 10
         )
         if setup_return is None:
             logger.critical("Emergency shutdown. Timeout in ask.")
@@ -224,10 +225,10 @@ class SaradMqttSubscriber:
         ):
             logger.debug(RETURN_MESSAGES["INSTRUMENT_UNKNOWN"])
             return
-        name_ = self.connected_instruments[is_id][instr_id]
+        device_id = self.connected_instruments[is_id][instr_id]
         logger.info("[rm_instr] %s", instr_id)
-        this_actor = ActorSystem().createActor(MqttActor, globalName=name_)
-        ActorSystem().ask(this_actor, ActorExitRequest())
+        device_actor = get_device_actor(device_id)
+        ActorSystem().ask(device_actor, ActorExitRequest())
         del self.connected_instruments[is_id][instr_id]
         return
 
@@ -244,10 +245,10 @@ class SaradMqttSubscriber:
         ):
             logger.warning("[update_instr] %s", RETURN_MESSAGES["INSTRUMENT_UNKNOWN"])
             return
-        name_ = self.connected_instruments[is_id][instr_id]
+        device_id = self.connected_instruments[is_id][instr_id]
         logger.info("[update_instr] %s", instr_id)
-        this_actor = ActorSystem().createActor(MqttActor, globalName=name_)
-        ActorSystem().tell(this_actor, {"CMD": "UPDATE", "PAR": payload})
+        device_actor = get_device_actor(device_id)
+        ActorSystem().tell(device_actor, {"CMD": "UPDATE", "PAR": payload})
         return
 
     def _add_host(self, is_id, data) -> None:

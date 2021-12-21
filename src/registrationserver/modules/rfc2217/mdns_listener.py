@@ -23,7 +23,7 @@ from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.rfc2217.rfc2217_actor import Rfc2217Actor
 from registrationserver.shutdown import system_shutdown
 from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import Actor, ActorSystem, PoisonMessage
+from thespian.actors import ActorSystem, PoisonMessage
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
 logger.debug("%s -> %s", __package__, __file__)
@@ -100,6 +100,7 @@ class MdnsListener(ServiceListener):
         Initialize a mdns Listener for a specific device group
         """
         self.lock = threading.Lock()
+        self.cluster = {}  # stores a dict of device actors {device_id: <actor address>}
         with self.lock:
             self.zeroconf = Zeroconf(
                 ip_version=config["IP_VERSION"], interfaces=[self.get_ip(), "127.0.0.1"]
@@ -114,17 +115,13 @@ class MdnsListener(ServiceListener):
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             if info is not None:
                 logger.info("[Add] %s", info.properties)
+                device_actor = ActorSystem().createActor(Rfc2217Actor)
                 # Take the first 3 elements to form a short_name
                 short_name = ".".join(name.split(".", 3)[:-1])
-                # If an actor already exists, this will return
-                # the address of the excisting one, else it will create a new one.
-                this_actor = ActorSystem().createActor(
-                    Rfc2217Actor, globalName=short_name
-                )
                 data = self.convert_properties(name=name, info=info)
-                msg = {"CMD": "SETUP", "PAR": data}
+                msg = {"CMD": "SETUP", "ID": short_name, "PAR": data}
                 logger.debug("Ask to setup the device actor with %s...", msg)
-                setup_return = ActorSystem().ask(this_actor, msg, 10)
+                setup_return = ActorSystem().ask(device_actor, msg, 10)
                 if setup_return is None:
                     logger.critical("Emergency shutdown. Timeout in ask.")
                     system_shutdown()
@@ -139,7 +136,9 @@ class MdnsListener(ServiceListener):
                     RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
                 ):
                     logger.critical("Adding a new service failed. Kill device actor.")
-                    ActorSystem().ask(this_actor, ActorExitRequest())
+                    ActorSystem().ask(device_actor, ActorExitRequest())
+                else:
+                    self.cluster[short_name] = device_actor
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=C0103
@@ -155,10 +154,16 @@ class MdnsListener(ServiceListener):
             logger.info("[Del] Service %s of type %s", name, type_)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             logger.debug("[Del] Info: %s", info)
-            this_actor = ActorSystem().createActor(Rfc2217Actor, globalName=name)
+            try:
+                device_actor = self.cluster[name]
+            except KeyError:
+                logger.critical("The actor to remove does not exist.")
+                system_shutdown()
             logger.debug("Ask to kill the device actor...")
-            kill_return = ActorSystem().ask(this_actor, ActorExitRequest())
-            if not kill_return["ERROR_CODE"] == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
+            kill_return = ActorSystem().ask(device_actor, ActorExitRequest())
+            if kill_return["ERROR_CODE"] == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
+                self.cluster.pop(name)
+            else:
                 logger.critical("Killing the device actor failed.")
 
     def shutdown(self) -> None:

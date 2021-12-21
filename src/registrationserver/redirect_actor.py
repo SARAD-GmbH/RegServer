@@ -128,7 +128,7 @@ class RedirectorActor(Actor):
             )
             logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
 
-    def _setup(self, msg, sender):
+    def _setup(self, _msg, sender):
         logger.debug("Setup redirector actor")
         if self._port is None:
             logger.critical(
@@ -140,8 +140,7 @@ class RedirectorActor(Actor):
                 "ERROR_CODE": RETURN_MESSAGES["UNKNOWN_PORT"]["ERROR_CODE"],
             }
         elif self.my_parent is None:
-            parent_name = msg["PAR"]["PARENT_NAME"]
-            self.my_parent = self.createActor(Actor, globalName=parent_name)
+            self.my_parent = sender
             return_msg = {
                 "RETURN": "SETUP",
                 "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],

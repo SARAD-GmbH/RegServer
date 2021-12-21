@@ -346,7 +346,7 @@ class ClusterActor(Actor):
             sarad_type = "unknown"
         global_name = f"{device_id}.{sarad_type}.local"
         logger.debug("Create actor %s", global_name)
-        self._actors[serial_device] = self.createActor(UsbActor, globalName=global_name)
+        self._actors[serial_device] = self.createActor(UsbActor)
         data = {
             "Identification": {
                 "Name": instrument.type_name,
@@ -358,7 +358,7 @@ class ClusterActor(Actor):
             },
             "Serial": serial_device,
         }
-        msg = {"CMD": "SETUP", "PAR": data}
+        msg = {"CMD": "SETUP", "ID": global_name, "PAR": data}
         logger.debug("Ask to setup device actor %s with msg %s", global_name, msg)
         self.send(self._actors[serial_device], msg)
 
