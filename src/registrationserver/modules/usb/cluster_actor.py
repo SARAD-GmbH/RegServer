@@ -122,7 +122,7 @@ class ClusterActor(Actor):
         return [port for port in self._looplist if port in active_ports]
 
     def _continue_loop(self):
-        logger.debug("[_continue_loop]")
+        logger.debug("[_continue_loop] Check for instruments on RS-232")
         if self._looplist:
             verified_rs232_list = self._verified_ports()
             verified_rs232 = set(verified_rs232_list)
@@ -148,6 +148,8 @@ class ClusterActor(Actor):
                 for instrument in self._cluster.connected_instruments:
                     if instrument.port in new_ports:
                         self._create_actor(instrument)
+        else:
+            logger.debug("List of native RS-232 interfaces empty. Stop the loop.")
         if self._loop_started and self._looplist:
             self.wakeupAfter(config["LOCAL_RETRY_INTERVAL"])
             return
