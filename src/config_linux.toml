@@ -17,7 +17,7 @@ admin_port = 1901
 process_startup_method = "fork"
 
 [mqtt]
-mqtt_client_id = "aranea0001"
+mqtt_client_id = "grs-regserv-0001"
 mqtt_broker = "sarad.de"
 port = 8883
 retry_interval = 5

@@ -481,7 +481,7 @@ class SaradMqttSubscriber:
         self._is_connected = False
 
         if self.ungr_disconn > 0:
-            self._connect()
+            self.connect()
 
     def on_subscribe(self, _client, _userdata, msg_id, _grant_qos):
         """Here should be a docstring."""

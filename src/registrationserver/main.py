@@ -127,7 +127,6 @@ def main():
         start_stop = sys.argv[1]
     if start_stop == "start":
         mdns_listener = startup()
-        mqtt_listener = None
         mqtt_listener = SaradMqttSubscriber()
         logger.debug("Trying to connect")
         mqtt_connected = mqtt_listener.connect()
@@ -146,9 +145,9 @@ def main():
     while is_flag_set():
         before = datetime.now()
         if mqtt_connected:
-            time.sleep(2)
-        else:
             mqtt_loop(mqtt_listener)
+        else:
+            time.sleep(2)
         after = datetime.now()
         if (after - before).total_seconds() > 10:
             logger.debug(
