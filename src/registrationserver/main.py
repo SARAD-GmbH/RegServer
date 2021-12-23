@@ -13,6 +13,7 @@
 import os
 import sys
 import threading
+import time
 from datetime import datetime
 
 from thespian.actors import ActorSystem  # type: ignore
@@ -125,10 +126,13 @@ def main():
     else:
         start_stop = sys.argv[1]
     if start_stop == "start":
-        logger.debug("Starting the MQTT subscriber loop")
-        mqtt_listener = None
         mdns_listener = startup()
+        mqtt_listener = None
         mqtt_listener = SaradMqttSubscriber()
+        logger.debug("Trying to connect")
+        mqtt_connected = mqtt_listener.connect()
+        if not mqtt_connected:
+            logger.warning("Proceed without MQTT")
         set_file_flag(True)
     elif start_stop == "stop":
         logger.debug("Stopping the MQTT subscriber loop")
@@ -138,9 +142,13 @@ def main():
         print("Usage: <program> start|stop")
         return None
 
+    logger.debug("Starting the main loop")
     while is_flag_set():
         before = datetime.now()
-        mqtt_loop(mqtt_listener)
+        if mqtt_connected:
+            time.sleep(2)
+        else:
+            mqtt_loop(mqtt_listener)
         after = datetime.now()
         if (after - before).total_seconds() > 10:
             logger.debug(

@@ -12,6 +12,7 @@ in the MQTT network
 """
 import json
 import os
+import socket
 import ssl
 import time
 from typing import Any, Dict
@@ -63,7 +64,7 @@ class SaradMqttSubscriber:
         self.port = mqtt_config.get("PORT", 1883)
         self.connected_instruments = {}
         self.ungr_disconn = 2
-        self.is_connected = False
+        self._is_connected = False
         self.msg_id = {
             "SUBSCRIBE": None,
             "UNSUBSCRIBE": None,
@@ -86,13 +87,22 @@ class SaradMqttSubscriber:
         self.mqttc.on_unsubscribe = self.on_unsubscribe
         self.mqttc.message_callback_add("+/meta", self.on_is_meta)
         self.mqttc.message_callback_add("+/+/meta", self.on_instr_meta)
-        self._connect()
 
-    def _connect(self):
-        success = False
-        retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
+    @property
+    def is_connected(self) -> bool:
+        """Indicates the connection to the broker
 
-        while not success and self.ungr_disconn > 0:
+        self._is_connected will be set in the on_connect handler."""
+        return self._is_connected
+
+    def connect(self):
+        """Try to connect the MQTT broker
+
+        Give up after 3 attempts with RETRY_INTERVAL.
+        Give up, if TLS files are not available.
+        """
+        retry_interval = mqtt_config["RETRY_INTERVAL"]
+        for retry_counter in range(3, 0, -1):
             try:
                 logger.info(
                     "Attempting to connect to broker %s: %s",
@@ -113,10 +123,31 @@ class SaradMqttSubscriber:
                         cert_reqs=ssl.CERT_REQUIRED,
                     )
                 self.mqttc.connect(self.mqtt_broker, port=self.port)
-                success = True
-            except Exception as exception:  # pylint: disable=broad-except
-                logger.error("Could not connect to Broker, retrying...: %s", exception)
-                time.sleep(retry_interval)
+                logger.debug("We are connected.")
+                return True
+            except FileNotFoundError:
+                logger.critical(
+                    "Cannot find files expected in %s, %s, %s",
+                    mqtt_config["TLS_CA_FILE"],
+                    mqtt_config["TLS_CERT_FILE"],
+                    mqtt_config["TLS_KEY_FILE"],
+                )
+                return False
+            except socket.gaierror:
+                logger.error("We are offline and can handle only local instruments.")
+                logger.info(
+                    "Check your network connection and IP address in config_windows.toml!"
+                )
+                logger.info(
+                    "I will be waiting %d x %d seconds, then I will give up.",
+                    retry_counter,
+                    retry_interval,
+                )
+            except OSError as exception:  # pylint: disable=broad-except
+                logger.error("%s. Check port in config_windows.toml!", exception)
+                return False
+            time.sleep(retry_interval)
+        return False
 
     def mqtt_loop(self):
         """Running one cycle of the MQTT loop"""
@@ -420,14 +451,14 @@ class SaradMqttSubscriber:
         """Will be carried out when the client connected to the MQTT self.mqtt_broker."""
         logger.debug("on_connect")
         if result_code == 0:
-            self.is_connected = True
+            self._is_connected = True
             logger.info("[on_connect] Connected with MQTT broker.")
             self.mqttc.subscribe("+/meta", 0)
             for topic, qos in self._subscriptions.items():
                 logger.debug("Restore subscription to %s", topic)
                 self.mqttc.subscribe(topic, qos)
         else:
-            self.is_connected = False
+            self._is_connected = False
             logger.error(
                 "[on_connect] Connection to MQTT self.mqtt_broker failed. result_code=%s",
                 result_code,
@@ -447,7 +478,7 @@ class SaradMqttSubscriber:
         else:
             self.ungr_disconn = 0
             logger.info("[on_disconnect] Gracefully disconnected from MQTT broker.")
-        self.is_connected = False
+        self._is_connected = False
 
         if self.ungr_disconn > 0:
             self._connect()

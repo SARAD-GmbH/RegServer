@@ -11,9 +11,9 @@ import logging
 import os
 import socket
 import sys
-import uuid
 from enum import Enum
 from typing import List
+from uuid import getnode as get_mac
 
 import toml
 from zeroconf import IPVersion
@@ -38,7 +38,11 @@ class AppType(Enum):
     RS = 3
 
 
-config_failed = False
+def unique_id(ambiguous_id):
+    """Create a unique id out of given id and MAC address of computer"""
+    return f"{ambiguous_id}-{hex(get_mac())}"
+
+
 home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
 app_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
@@ -183,7 +187,7 @@ DEFAULT_TLS_CERT_FILE = f"{app_folder}tls_cert_personal.crt"
 
 if customization.get("mqtt") is None:
     mqtt_config = {
-        "MQTT_CLIENT_ID": DEFAULT_MQTT_CLIENT_ID,
+        "MQTT_CLIENT_ID": unique_id(DEFAULT_MQTT_CLIENT_ID),
         "MQTT_BROKER": DEFAULT_MQTT_BROKER,
         "PORT": DEFAULT_PORT,
         "RETRY_INTERVAL": DEFAULT_RETRY_INTERVAL,
@@ -195,8 +199,8 @@ if customization.get("mqtt") is None:
 else:
     use_tls = customization["mqtt"].get("tls_use_tls", DEFAULT_TLS_USE_TLS)
     mqtt_config = {
-        "MQTT_CLIENT_ID": customization["mqtt"].get(
-            "mqtt_client_id", DEFAULT_MQTT_CLIENT_ID
+        "MQTT_CLIENT_ID": unique_id(
+            customization["mqtt"].get("mqtt_client_id", DEFAULT_MQTT_CLIENT_ID)
         ),
         "MQTT_BROKER": customization["mqtt"].get("mqtt_broker", DEFAULT_MQTT_BROKER),
         "PORT": customization["mqtt"].get("port", DEFAULT_PORT),
@@ -206,49 +210,22 @@ else:
         "TLS_USE_TLS": use_tls,
         "TLS_CA_FILE": customization["mqtt"].get(
             "tls_ca_file",
-            DEFAULT_TLS_CA_FILE if use_tls else None,
+            DEFAULT_TLS_CA_FILE,
         ),
         "TLS_CERT_FILE": customization["mqtt"].get(
             "tls_cert_file",
-            DEFAULT_TLS_CERT_FILE if use_tls else None,
+            DEFAULT_TLS_CERT_FILE,
         ),
         "TLS_KEY_FILE": customization["mqtt"].get(
             "tls_key_file",
-            DEFAULT_TLS_KEY_FILE if use_tls else None,
+            DEFAULT_TLS_KEY_FILE,
         ),
     }
-
-if mqtt_config.get("TLS_USE_TLS"):
-    if (not mqtt_config.get("TLS_CA_FILE", None)) or (
-        not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_CA_FILE", None)))
-    ):
-        print(
-            f"Cannot find ca file (expected at: {mqtt_config.get('TLS_CA_FILE',None)})"
-        )
-        config_failed = True
-
-    if (not mqtt_config.get("TLS_CERT_FILE", None)) or (
-        not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_CERT_FILE", None)))
-    ):
-        print(
-            f"Cannot find personal certificate (expected at: {mqtt_config.get('TLS_CERT_FILE',None)})"
-        )
-        config_failed = True
-    if (not mqtt_config.get("TLS_KEY_FILE", None)) or (
-        not os.path.exists(os.path.expanduser(mqtt_config.get("TLS_KEY_FILE", None)))
-    ):
-        print(
-            f"Cannot find personal key file (expected at: {mqtt_config.get('TLS_KEY_FILE',None)})"
-        )
-        config_failed = True
-
-if config_failed:
-    sys.exit()
 
 try:
     DEFAULT_ISMQTT_IS_ID = socket.gethostname()
 except Exception:  # pylint: disable=broad-except
-    DEFAULT_ISMQTT_IS_ID = "IS_MQTT" + hex(uuid.getnode())
+    DEFAULT_ISMQTT_IS_ID = "IS_MQTT"
 DEFAULT_ISMQTT_DESCRIPTION = "SARAD Instrument Server"
 DEFAULT_ISMQTT_PLACE = "Dresden"
 DEFAULT_ISMQTT_LATITUDE = 0
@@ -256,7 +233,7 @@ DEFAULT_ISMQTT_LONGITUDE = 0
 DEFAULT_ISMQTT_HEIGHT = 0
 if customization.get("ismqtt") is None:
     ismqtt_config = {
-        "IS_ID": DEFAULT_ISMQTT_IS_ID,
+        "IS_ID": unique_id(DEFAULT_ISMQTT_IS_ID),
         "DESCRIPTION": DEFAULT_ISMQTT_DESCRIPTION,
         "PLACE": DEFAULT_ISMQTT_PLACE,
         "LATITUDE": DEFAULT_ISMQTT_LATITUDE,
@@ -265,7 +242,7 @@ if customization.get("ismqtt") is None:
     }
 else:
     ismqtt_config = {
-        "IS_ID": customization["ismqtt"].get("is_id", DEFAULT_ISMQTT_IS_ID),
+        "IS_ID": unique_id(customization["ismqtt"].get("is_id", DEFAULT_ISMQTT_IS_ID)),
         "DESCRIPTION": customization["ismqtt"].get(
             "description", DEFAULT_ISMQTT_DESCRIPTION
         ),

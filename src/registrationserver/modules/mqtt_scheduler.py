@@ -105,6 +105,19 @@ class MqttSchedulerActor(Actor):
                     ca_certs = os.path.expanduser(mqtt_config["TLS_CA_FILE"])
                     certfile = os.path.expanduser(mqtt_config["TLS_CERT_FILE"])
                     keyfile = os.path.expanduser(mqtt_config["TLS_KEY_FILE"])
+                    if not (
+                        os.path.exists(ca_certs)
+                        and os.path.exists(certfile)
+                        and os.path.exists(keyfile)
+                    ):
+                        logger.critical(
+                            "Cannot find files expected in %s, %s, %s",
+                            mqtt_config["TLS_CA_FILE"],
+                            mqtt_config["TLS_CERT_FILE"],
+                            mqtt_config["TLS_KEY_FILE"],
+                        )
+                        system_shutdown()
+                        break
                     logger.info(
                         "Setting up TLS: %s | %s | %s", ca_certs, certfile, keyfile
                     )
