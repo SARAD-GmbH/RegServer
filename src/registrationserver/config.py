@@ -40,7 +40,9 @@ class AppType(Enum):
 
 def unique_id(ambiguous_id):
     """Create a unique id out of given id and MAC address of computer"""
-    return f"{ambiguous_id}-{hex(get_mac())}"
+    # return f"{ambiguous_id}-{hex(get_mac())}"
+    # TODO: Find a solution for unique keys that is compatible with TLS key generation.
+    return ambiguous_id
 
 
 home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
