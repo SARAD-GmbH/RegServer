@@ -40,9 +40,7 @@ class AppType(Enum):
 
 def unique_id(ambiguous_id):
     """Create a unique id out of given id and MAC address of computer"""
-    # return f"{ambiguous_id}-{hex(get_mac())}"
-    # TODO: Find a solution for unique keys that is compatible with TLS key generation.
-    return ambiguous_id
+    return f"{ambiguous_id}-{hex(get_mac())}"
 
 
 home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
@@ -235,7 +233,7 @@ DEFAULT_ISMQTT_LONGITUDE = 0
 DEFAULT_ISMQTT_HEIGHT = 0
 if customization.get("ismqtt") is None:
     ismqtt_config = {
-        "IS_ID": unique_id(DEFAULT_ISMQTT_IS_ID),
+        "IS_ID": DEFAULT_ISMQTT_IS_ID,
         "DESCRIPTION": DEFAULT_ISMQTT_DESCRIPTION,
         "PLACE": DEFAULT_ISMQTT_PLACE,
         "LATITUDE": DEFAULT_ISMQTT_LATITUDE,
@@ -244,7 +242,7 @@ if customization.get("ismqtt") is None:
     }
 else:
     ismqtt_config = {
-        "IS_ID": unique_id(customization["ismqtt"].get("is_id", DEFAULT_ISMQTT_IS_ID)),
+        "IS_ID": customization["ismqtt"].get("is_id", DEFAULT_ISMQTT_IS_ID),
         "DESCRIPTION": customization["ismqtt"].get(
             "description", DEFAULT_ISMQTT_DESCRIPTION
         ),
