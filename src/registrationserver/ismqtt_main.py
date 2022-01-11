@@ -120,6 +120,7 @@ def main():
     except UnboundLocalError:
         pass
     logger.debug("This is the end, my only friend, the end.")
+    raise SystemExit("Exit with error for automatic restart.")
 
 
 if __name__ == "__main__":
