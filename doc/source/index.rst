@@ -17,6 +17,7 @@ Contents
    instrserver_mqtt
    actor_messages
    folder_structure
+   actor_registrar
    classes
    service_setup
 

@@ -1,51 +1,67 @@
-"""Module providing an actor to keep a list of device actors. The list is
-provided as dictionary of form {global_name: actor_address}. The actor is a
-singleton in the actor system and was introduced as a replacement for the
-formerly used device files.
+"""This module implements the BaseActor all other actors inherit from.
 
-All status information about present instruments can be obtained from the
-device actors referenced in the dictionary.
+Actors created in the actor system
+
+- have to know the actor address of the *Registrar*
+- have to subscribe at the *Registrar* on startup
+- can read the *Actor Dictionary* from the *Registrar*
+- have to unsubscribe at the *Registrar* on their ActorExitRequest() handler
+- have to keep a list of the actor addresses of their child actors
+- have to respond to the *Registrar* after receiving a *keep alive* message
 
 :Created:
-    2021-12-15
+    2021-12-22
 
 :Author:
     | Michael Strey <strey@sarad.de>
 
 """
-
 from typing import Dict
 
 from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import Actor, DeadEnvelope, PoisonMessage
+from thespian.actors import Actor, ActorSystem, PoisonMessage
 
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.shutdown import system_shutdown
 
 
-class DeviceDb(Actor):
-    """Actor providing a dictionary of devices"""
+class BaseActor(Actor):
+    """Basic class for all actors created in the actor system of the Registration
+    Server"""
 
     ACCEPTED_COMMANDS = {
-        "READ": "_read",
         "SETUP": "_setup",
-        "SUBSCRIBE": "_subscribe",
-        "UNSUBSCRIBE": "_unsubscribe",
+        "KEEP_ALIVE": "_keep_alive",
     }
 
-    ACCEPTED_RETURNS: Dict[str, str] = {
-        "KEEP_ALIVE": "_return_from_keep_alive",
-    }
+    ACCEPTED_RETURNS: Dict[str, str] = {}
 
     @overrides
     def __init__(self):
-        self._devices = {}
         super().__init__()
+        self.registrar = None
+        self.my_parent = None
+        self.my_id = None
+        self.child_actors = {}  # {actor_id: <actor address>}
 
-    def _setup(self, _msg, _sender):
-        self.handleDeadLetters(startHandling=True)
+    def _setup(self, msg, sender):
+        """Handler for SETUP message to set essential attributs after initialization"""
+        try:
+            self.registrar = ActorSystem().createActor(Actor, globalName="device_db")
+            self.my_parent = sender
+            self.my_id = msg["ID"]
+        except KeyError:
+            logger.critical("Malformed SETUP message")
+            raise
+        self.send(self.registrar, {"CMD": "SUBSCRIBE", "ID": self.my_id, "PARENT": self.my_parent}
+
+    def _keep_alive(self, msg, _sender):
+        """Handler for KEEP_ALIVE message from the Registrar"""
+        for _child_id, child_actor in self.child_actors.items():
+            self.send(child_actor, msg)
+        self.send(self.registrar, {"RETURN": "KEEP_ALIVE", "ID": self.my_id})
 
     @overrides
     def receiveMessage(self, msg, sender):
@@ -100,14 +116,7 @@ class DeviceDb(Actor):
                 system_shutdown()
                 return
             if isinstance(msg, ActorExitRequest):
-                return
-            if isinstance(msg, DeadEnvelope):
-                logger.critical(
-                    "DeadMessage: %s to deadAddress: %s",
-                    msg.deadMessage,
-                    msg.deadAddress,
-                )
-                system_shutdown()
+                self.send(self.registrar, {"CMD": "UNSUBSCRIBE", "ID": self.my_id})
                 return
             logger.critical(
                 "Received %s from %s. This should never happen.", msg, sender
@@ -115,30 +124,3 @@ class DeviceDb(Actor):
             logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
             system_shutdown()
             return
-
-    def _read(self, _msg, sender):
-        self.send(sender, {"RETURN": "READ", "RESULT": self._devices})
-
-    def _subscribe(self, msg, sender):
-        """Handler for SUBSCRIBE messages"""
-        try:
-            actor_id = msg["ID"]
-            parent = msg["PARENT"]
-            self._devices[actor_id] = {
-                "address": sender,
-                "parent": parent,
-                "is_alive": True,
-            }
-        except KeyError:
-            logger.error("Message is not suited to create a dict entry.")
-
-    def _unsubscribe(self, msg, sender):
-        """Handler for UNSUBSCRIBE messages"""
-        try:
-            self._devices.pop(msg["ID"])
-        except KeyError:
-            logger.error("Message is not suited to remove a dict entry.")
-
-    def _return_from_keep_alive(self, msg, sender):
-        """Handler for messages returned from other actors that have received a
-        KEEP_ALIVE message."""
