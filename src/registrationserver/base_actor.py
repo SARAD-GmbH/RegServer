@@ -55,7 +55,10 @@ class BaseActor(Actor):
         except KeyError:
             logger.critical("Malformed SETUP message")
             raise
-        self.send(self.registrar, {"CMD": "SUBSCRIBE", "ID": self.my_id, "PARENT": self.my_parent}
+        self.send(
+            self.registrar,
+            {"CMD": "SUBSCRIBE", "ID": self.my_id, "PARENT": self.my_parent},
+        )
 
     def _keep_alive(self, msg, _sender):
         """Handler for KEEP_ALIVE message from the Registrar"""
@@ -63,8 +66,18 @@ class BaseActor(Actor):
             self.send(child_actor, msg)
         self.send(self.registrar, {"RETURN": "KEEP_ALIVE", "ID": self.my_id})
 
+    def _valid_cmd_function(self, cmd_key, cmd_function):
+        cmd_function = self.ACCEPTED_COMMANDS.get(cmd_key, None)
+        if cmd_function is None:
+            logger.critical("Command for key %s does not exist here.", cmd_key)
+            return False
+        if getattr(self, cmd_function, None) is None:
+            logger.critical("No function implemented for %s", cmd_function)
+            return False
+        return True
+
     @overrides
-    def receiveMessage(self, msg, sender):
+    def receiveMessage(self, msg, sender):  # pylint: disable=invalid-name
         """Handles received Actor messages / verification of the message format"""
         if isinstance(msg, dict):
             logger.debug("Msg: %s, Sender: %s", msg, sender)
@@ -80,47 +93,29 @@ class BaseActor(Actor):
                 return
             if cmd_key is not None:
                 cmd_function = self.ACCEPTED_COMMANDS.get(cmd_key, None)
-                if cmd_function is None:
-                    logger.critical(
-                        "Received %s from %s. This should never happen.",
-                        msg,
-                        sender,
-                    )
-                    logger.critical(
-                        RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"]["ERROR_MESSAGE"]
-                    )
+                if self._valid_cmd_function(cmd_key, cmd_function):
+                    getattr(self, cmd_function)(msg, sender)
+                else:
                     return
-                if getattr(self, cmd_function, None) is None:
-                    logger.critical(
-                        "Received %s from %s. This should never happen.",
-                        msg,
-                        sender,
-                    )
-                    logger.critical(
-                        RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"]["ERROR_MESSAGE"]
-                    )
-                    return
-                getattr(self, cmd_function)(msg, sender)
             elif return_key is not None:
                 return_function = self.ACCEPTED_RETURNS.get(return_key, None)
-                if return_function is None:
-                    logger.debug("Received return %s from %s.", msg, sender)
+                if self._valid_cmd_function(return_key, return_function):
+                    getattr(self, return_function)(msg, sender)
+                else:
                     return
-                if getattr(self, return_function, None) is None:
-                    logger.debug("Received return %s from %s.", msg, sender)
-                    return
-                getattr(self, return_function)(msg, sender)
         else:
             if isinstance(msg, PoisonMessage):
-                logger.critical("PoisonMessage --> System shutdown.")
+                logger.critical("PoisonMessage --> Emergency shutdown.")
                 system_shutdown()
                 return
             if isinstance(msg, ActorExitRequest):
                 self.send(self.registrar, {"CMD": "UNSUBSCRIBE", "ID": self.my_id})
                 return
             logger.critical(
-                "Received %s from %s. This should never happen.", msg, sender
+                (
+                    "Msg is neither a command nor PoisonMessage nor ActorExitRequest",
+                    " -> Emergency shutdown",
+                )
             )
-            logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
             system_shutdown()
             return
