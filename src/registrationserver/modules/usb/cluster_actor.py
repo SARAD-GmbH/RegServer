@@ -138,9 +138,9 @@ class ClusterActor(BaseActor):
             )
             current_active_rs232 = current_active_ports.intersection(verified_rs232)
             new_ports = list(current_active_rs232.difference(active_rs232_ports))
-            if new_ports == []:
+            if not new_ports:
                 gone_ports = list(active_rs232_ports.difference(current_active_rs232))
-                if gone_ports != []:
+                if gone_ports:
                     logger.info("Remove instruments from ports %s", gone_ports)
                     for gone_port in gone_ports:
                         self._remove_actor(gone_port)
@@ -436,7 +436,7 @@ class ClusterActor(BaseActor):
         logger.debug("[_kill] called from %s", sender)
         self._actor_system = sender
         self._kill_flag = True
-        if self._actors != {}:
+        if self._actors:
             for _port, actor in self._actors.items():
                 self.send(actor, ActorExitRequest())
             logger.debug("ActorExitRequests to all device actors sent.")
@@ -451,7 +451,7 @@ class ClusterActor(BaseActor):
         gone_port = get_key(sender, self._actors)
         self._actors.pop(gone_port, None)
         logger.debug("Instrument at port %s removed", gone_port)
-        if (self._actors == {}) and self._kill_flag:
+        if (not self._actors) and self._kill_flag:
             logger.debug("All instrument are unsigned now. Killing myself.")
             self._kill_myself(self._actor_system)
 
