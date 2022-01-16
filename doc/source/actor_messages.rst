@@ -21,6 +21,12 @@ CMD:
     receiving actor to do something. The value of the CMD key contains the
     command type.
 
+ID (only for SETUP/SUBSCRIBE):
+    unique Id of the actor
+
+PARENT (only for SUBSCRIBE):
+    actor object of the parent of the actor that shall be subscribed to the Registrar
+
 PAR (optional):
     contains optional parameters that differ from command to command.
 
@@ -33,6 +39,11 @@ Example::
           "USER": user,
           "APP": app,
       },
+  }
+
+  setup_cmd_dict {
+      "CMD": "SETUP",
+      "ID": "c4jbkl",
   }
 
 Return messages
@@ -66,6 +77,43 @@ Examples::
       "ERROR_CODE": 10,
       "RETURN": "RESERVE",
   }
+
+CMDs handled by all Actors based on BaseActor
+=============================================
+
+SETUP
+-----
+
+Request to initialize the just created actor with an ID and to inform him, who
+was his parent.
+
+Sent from:
+    Actor system or Registrar actor
+
+Parameters:
+    Id of the newly created actor
+
+Expected RETURN:
+    No
+
+Example::
+
+  setup_cmd_dict = {
+      "CMD": "SETUP",
+      "ID": "c4jbkl",
+  }
+
+KEEP_ALIVE
+----------
+
+Request to send a sign of live showing that the actor exists and is able to respond.
+
+Sent from:
+    Registrar actor
+
+Expected RETURN:
+    ID:
+        self.my_id
 
 CMDs handled by the DeviceBaseActor
 ===================================
@@ -233,19 +281,19 @@ Expected RETURN:
 CMDs handled by the Registrar actor
 ===================================
 
-CREATE
-------
+SUBSCRIBE
+---------
 
-Request to create a new entry to the device database.
+Request to create a new entry to the actor list.
 
 Sent from:
-    DeviceBaseActor
+    BaseActor
 
 Parameter:
-    GLOBAL_NAME:
-        globalName of the Device Actor
-    ACTOR_ADDRESS:
-        actor address of the Device Actor
+    ID:
+        unique Id of the newly created actor
+    PARENT:
+        actor address of the parent of the newly created actor
 
 Expected RETURN:
     No
@@ -253,24 +301,22 @@ Expected RETURN:
 Example::
 
   cmd_dict = {
-      "CMD": "CREATE",
-      "PAR": {
-          "GLOBAL_NAME": <global_name>,
-          "ACTOR_ADDRESS": <actor_address>,
-      }
+      "CMD": "SUBSCRIBE",
+      "ID": self.my_id,
+      "PARENT": self.my_parent,
   }
 
-REMOVE
-------
+UNSUBSCRIBE
+-----------
 
-Request to remove a device actor from the list.
+Request to remove an actor from the actor list.
 
 Sent from:
-    DeviceBaseActor
+    BaseActor during ActorExitRequest
 
 Parameter:
-    GLOBAL_NAME:
-        globalName of the Device Actor
+    ID:
+        unique Id of the actor to be unsubscribed
 
 Expected RETURN:
     No
@@ -278,16 +324,37 @@ Expected RETURN:
 Example::
 
   cmd_dict = {
-      "CMD": "REMOVE",
-      "PAR": {
-          "GLOBAL_NAME": <global_name>,
-      }
+      "CMD": "UNSUBSCRIBE",
+      "ID": self.my_id,
+  }
+
+IS_DEVICE
+---------
+
+Request to register an actor as device actor.
+Used directly after SUBSCRIBE.
+
+Sent from:
+    DeviceBaseActor
+
+Parameter:
+    ID:
+        unique Id of the actor to register as device actor
+
+Expected RETURN:
+    No
+
+Example::
+
+  cmd_dict = {
+      "CMD": "IS_DEVICE",
+      "ID": self.my_id,
   }
 
 READ
 ----
 
-Request to return the complete list (dictionary) of device actors.
+Request to return the complete list (dictionary) of actors.
 
 Sent from:
     RestApi, MqttScheduler
