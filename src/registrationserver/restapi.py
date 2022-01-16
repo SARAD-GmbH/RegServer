@@ -75,14 +75,14 @@ class RestApi:
     def get_list():
         """Path for getting the list of active devices"""
         answer = {}
-        device_db_actor = ActorSystem().createActor(Actor, globalName="device_db")
+        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         try:
-            device_db = ActorSystem().ask(device_db_actor, {"CMD": "READ"}, 10)[
+            device_db = ActorSystem().ask(registrar_actor, {"CMD": "READ"}, 10)[
                 "RESULT"
             ]
         except KeyError:
             logger.critical(
-                "Emergency shutdown. Cannot get appropriate response from DeviceDb actor."
+                "Emergency shutdown. Cannot get appropriate response from Registrar actor."
             )
             system_shutdown()
             return {}

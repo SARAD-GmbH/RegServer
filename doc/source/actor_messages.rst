@@ -230,8 +230,8 @@ Expected RETURN:
     No
 
 
-CMDs handled by the DeviceDB actor
-==================================
+CMDs handled by the Registrar actor
+===================================
 
 CREATE
 ------

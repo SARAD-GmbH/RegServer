@@ -20,7 +20,7 @@ Container_Boundary(mod, "Lokal-Modul") {
 Container_Boundary(is, "MQTT-Modul") {
         Component(scheduler, "MQTT Scheduler", "Singleton Actor", "MQTT-Client")
 }
-ComponentDb(device_db, "DeviceDb", "Actor")
+ComponentDb(registrar, "Registrar", "Actor")
 
 Container(inst, $instr, "(virtueller) COM-Port mit SARAD-Protokoll")
 
@@ -29,9 +29,9 @@ Rel(listener, cluster_actor, "2. ADD/REMOVE", "message")
 Rel(inst, cluster_actor, "3. erkennt $instr", "USB/RS-232 Polling")
 Rel(cluster_actor, device_actor1, "4. erzeugt", "createActor")
 Rel(cluster_actor, device_actor1, "5. SETUP", "message")
-Rel(device_actor1, device_db, "6. CREATE",  "message")
+Rel(device_actor1, registrar, "6. CREATE",  "message")
 Rel(device_actor1, scheduler, "7. ADD", "Message")
-Rel(scheduler, device_db, "8. READ", "Message")
+Rel(scheduler, registrar, "8. READ", "Message")
 Rel(scheduler, rs, "9. meldet Gerät A", "MQTT")
 Rel(rs, scheduler, "10. Reservierung", "MQTT")
 Rel(scheduler, device_actor1, "11. RESERVE", "Message")

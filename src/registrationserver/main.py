@@ -19,12 +19,12 @@ from datetime import datetime
 from thespian.actors import ActorSystem  # type: ignore
 
 from registrationserver.config import AppType, actor_config, config
-from registrationserver.device_db import DeviceDb
 from registrationserver.logdef import LOGFILENAME, logcfg
 from registrationserver.logger import logger
 from registrationserver.modules.mqtt.mqtt_listener import SaradMqttSubscriber
 from registrationserver.modules.rfc2217.mdns_listener import MdnsListener
 from registrationserver.modules.usb.cluster_actor import ClusterActor
+from registrationserver.registrar import Registrar
 from registrationserver.restapi import RestApi
 from registrationserver.shutdown import is_flag_set, set_file_flag
 
@@ -93,8 +93,8 @@ def startup():
         capabilities=actor_config["capabilities"],
         logDefs=logcfg,
     )
-    device_db = system.createActor(DeviceDb, globalName="device_db")
-    system.tell(device_db, {"CMD": "SETUP"})
+    registrar_actor = system.createActor(Registrar, globalName="registrar")
+    system.tell(registrar_actor, {"CMD": "SETUP"})
     system.createActor(ClusterActor, globalName="cluster")
     logger.debug("Actor system started.")
 

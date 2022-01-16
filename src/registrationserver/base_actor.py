@@ -49,7 +49,7 @@ class BaseActor(Actor):
     def _setup(self, msg, sender):
         """Handler for SETUP message to set essential attributs after initialization"""
         try:
-            self.registrar = ActorSystem().createActor(Actor, globalName="device_db")
+            self.registrar = ActorSystem().createActor(Actor, globalName="registrar")
             self.my_parent = sender
             self.my_id = msg["ID"]
         except KeyError:

@@ -78,7 +78,7 @@ class DeviceBaseActor(Actor):
         self.user = None
         self.host = None
         self.sender_api = None
-        self.device_db = None
+        self.registrar = None
         self.mqtt_scheduler = None
         logger.info("Device actor created.")
 
@@ -163,11 +163,11 @@ class DeviceBaseActor(Actor):
         self.device_status = msg["PAR"]
         self.device_id = msg["ID"]
         logger.debug("Device status: %s", self.device_status)
-        self.device_db = self.createActor(Actor, globalName="device_db")
+        self.registrar = self.createActor(Actor, globalName="registrar")
         if config["APP_TYPE"] == AppType.ISMQTT:
             self.mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
         self.send(
-            self.device_db,
+            self.registrar,
             {
                 "CMD": "CREATE",
                 "PAR": {
@@ -234,7 +234,7 @@ class DeviceBaseActor(Actor):
         if self.my_redirector is not None:
             self.send(self.my_redirector, {"CMD": "KILL"})
         self.send(
-            self.device_db, {"CMD": "REMOVE", "PAR": {"GLOBAL_NAME": self.device_id}}
+            self.registrar, {"CMD": "REMOVE", "PAR": {"GLOBAL_NAME": self.device_id}}
         )
         return_message = {
             "RETURN": "KILL",

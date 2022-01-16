@@ -25,7 +25,7 @@ from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.shutdown import system_shutdown
 
 
-class DeviceDb(Actor):
+class Registrar(Actor):
     """Actor providing a dictionary of devices"""
 
     ACCEPTED_COMMANDS = {

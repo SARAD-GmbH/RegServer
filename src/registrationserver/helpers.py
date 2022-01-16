@@ -74,19 +74,19 @@ def get_device_actor(device_id: str):
     Returns:
         Actor address of the device actor
     """
-    device_db_actor = ActorSystem().createActor(Actor, globalName="device_db")
+    registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
     try:
         with ActorSystem().private() as db_sys:
-            device_db = db_sys.ask(device_db_actor, {"CMD": "READ"}, 10)["RESULT"]
+            registrar = db_sys.ask(registrar_actor, {"CMD": "READ"}, 10)["RESULT"]
     except KeyError:
         logger.critical(
-            "Emergency shutdown. Cannot get appropriate response from DeviceDb actor."
+            "Emergency shutdown. Cannot get appropriate response from Registrar actor."
         )
         system_shutdown()
     try:
-        return device_db[device_id]
+        return registrar[device_id]
     except KeyError:
-        logger.warning("%s not in %s", device_id, device_db)
+        logger.warning("%s not in %s", device_id, registrar)
         return None
 
 
