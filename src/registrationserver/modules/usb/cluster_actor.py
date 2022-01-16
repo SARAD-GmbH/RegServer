@@ -12,21 +12,21 @@ Covers as well USB ports as native RS-232 ports.
 
 from typing import Any, Dict, List
 
+from overrides import overrides  # type: ignore
+from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
 from registrationserver.helpers import get_key
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.usb.usb_actor import UsbActor
-from registrationserver.shutdown import system_shutdown
 from sarad.cluster import SaradCluster
 from sarad.sari import SaradInst
 from serial import SerialException
 from serial.tools.list_ports import comports
-from thespian.actors import (Actor, ActorExitRequest, ChildActorExited,
-                             PoisonMessage, WakeupMessage)
+from thespian.actors import ActorExitRequest, ChildActorExited, WakeupMessage
 
 
-class ClusterActor(Actor):
+class ClusterActor(BaseActor):
     """Actor to manage all local instruments connected via USB or RS-232"""
 
     ACCEPTED_COMMANDS = {
@@ -44,6 +44,7 @@ class ClusterActor(Actor):
         "KILL": "_kill",
     }
 
+    @overrides
     def __init__(self):
         self._loop_started: bool = False
         self.native_ports = set(config.get("NATIVE_SERIAL_PORTS", []))
@@ -454,63 +455,15 @@ class ClusterActor(Actor):
             logger.debug("All instrument are unsigned now. Killing myself.")
             self._kill_myself(self._actor_system)
 
+    @overrides
     def receiveMessage(self, msg, sender):
         """
         Handles received Actor messages / verification of the message format
         """
-        logger.debug("Msg: %s, Sender: %s", msg, sender)
         if isinstance(msg, WakeupMessage):
             self._continue_loop()
             return
-        if isinstance(msg, ActorExitRequest):
-            return
         if isinstance(msg, ChildActorExited):
-            logger.debug("ChildActorExited received")
             self._return_from_kill(msg, msg.childAddress)
             return
-        if isinstance(msg, PoisonMessage):
-            logger.critical("PoisonMessage --> System shutdown.")
-            system_shutdown()
-            return
-        if not isinstance(msg, dict):
-            logger.critical(
-                "Received %s from %s. This should never happen.", msg, sender
-            )
-            logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
-            system_shutdown()
-            return
-        return_key = msg.get("RETURN", None)
-        cmd_key = msg.get("CMD", None)
-        if ((return_key is None) and (cmd_key is None)) or (
-            (return_key is not None) and (cmd_key is not None)
-        ):
-            logger.critical(
-                "Received %s from %s. This should never happen.", msg, sender
-            )
-            logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_MESSAGE"])
-            system_shutdown()
-            return
-        if cmd_key is not None:
-            cmd_function = self.ACCEPTED_COMMANDS.get(cmd_key, None)
-            if cmd_function is None:
-                logger.critical(
-                    "Received %s from %s. This should never happen.", msg, sender
-                )
-                logger.critical(
-                    RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"]["ERROR_MESSAGE"]
-                )
-                system_shutdown()
-                return
-            if getattr(self, cmd_function, None) is None:
-                logger.critical(
-                    "Received %s from %s. This should never happen.", msg, sender
-                )
-                logger.critical(
-                    RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"]["ERROR_MESSAGE"]
-                )
-                system_shutdown()
-                return
-            getattr(self, cmd_function)(msg, sender)
-            return
-        if return_key is not None:
-            logger.debug("RETURN message without handler")
+        super().receiveMessage(msg, sender)

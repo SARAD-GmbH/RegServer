@@ -12,6 +12,7 @@
 from datetime import datetime, timedelta
 
 from overrides import overrides  # type: ignore
+from registrationserver.base_actor import BaseActor
 from registrationserver.config import AppType, config, ismqtt_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
@@ -25,7 +26,7 @@ from thespian.actors import (Actor, ChildActorExited, PoisonMessage,
 logger.debug("%s -> %s", __package__, __file__)
 
 
-class DeviceBaseActor(Actor):
+class DeviceBaseActor(BaseActor):
     """Base class for protocol specific device actors.
 
     Implements all methods that all device actors have in common.
@@ -87,10 +88,6 @@ class DeviceBaseActor(Actor):
         """
         Handles received Actor messages / verification of the message format
         """
-        logger.debug("Msg: %s, Sender: %s", msg, sender)
-        if isinstance(msg, ActorExitRequest):
-            self._kill(msg, sender)
-            return
         if isinstance(msg, WakeupMessage):
             if msg.payload == "keep_alive":
                 self.wakeupAfter(timedelta(minutes=10), payload="keep_alive")
@@ -101,64 +98,11 @@ class DeviceBaseActor(Actor):
             # It will be killed by the _free handler.
             logger.debug("Redirector actor exited.")
             return
-        if isinstance(msg, PoisonMessage):
-            if msg.poisonMessage.get("CMD") == "SEND":
-                logger.warning("Ignoring PoisonMessage %s", msg.poisonMessage)
-                return
-            logger.critical("PoisonMessage --> System shutdown.")
-            system_shutdown()
-            return
-        if not isinstance(msg, dict):
-            logger.critical(
-                "Received %s from %s. This should never happen.", msg, sender
-            )
-            logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
-            system_shutdown()
-            return
-        return_key = msg.get("RETURN", None)
-        cmd_key = msg.get("CMD", None)
-        if ((return_key is None) and (cmd_key is None)) or (
-            (return_key is not None) and (cmd_key is not None)
-        ):
-            logger.critical(
-                "Received %s from %s. This should never happen.", msg, sender
-            )
-            logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_MESSAGE"])
-            system_shutdown()
-            return
-        if cmd_key is not None:
-            cmd_function = self.ACCEPTED_COMMANDS.get(cmd_key, None)
-            if cmd_function is None:
-                logger.critical(
-                    "Received %s from %s. This should never happen.", msg, sender
-                )
-                logger.critical(
-                    RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"]["ERROR_MESSAGE"]
-                )
-                system_shutdown()
-                return
-            if getattr(self, cmd_function, None) is None:
-                logger.critical(
-                    "Received %s from %s. This should never happen.", msg, sender
-                )
-                logger.critical(
-                    RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"]["ERROR_MESSAGE"]
-                )
-                system_shutdown()
-                return
-            getattr(self, cmd_function)(msg, sender)
-        elif return_key is not None:
-            return_function = self.ACCEPTED_RETURNS.get(return_key, None)
-            if return_function is None:
-                logger.debug("Received the return %s from %s.", msg, sender)
-                return
-            if getattr(self, return_function, None) is None:
-                logger.debug("Received the return %s from %s.", msg, sender)
-                return
-            getattr(self, return_function)(msg, sender)
+        super().receiveMessage(msg, sender)
 
     def _setup(self, msg, sender) -> None:
         logger.debug("[_setup]")
+        super()._setup(msg, sender)
         self.wakeupAfter(timedelta(minutes=10), payload="keep_alive")
         self.device_status = msg["PAR"]
         self.device_id = msg["ID"]

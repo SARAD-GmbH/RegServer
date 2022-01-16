@@ -1,10 +1,8 @@
 """Stub file for type checking with Mypy"""
 from typing import Any, Optional
 
-from thespian.actors import Actor  # type: ignore
 
-
-class RestApi(Actor):
+class RestApi:
     api: Any = ...
     @staticmethod
     def get_list(): ...

@@ -17,9 +17,9 @@ import socket
 import time
 
 from overrides import overrides  # type: ignore
-from thespian.actors import (Actor, ActorExitRequest,  # type: ignore
-                             WakeupMessage)
+from thespian.actors import ActorExitRequest, WakeupMessage  # type: ignore
 
+from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
@@ -27,7 +27,7 @@ from registrationserver.modules.messages import RETURN_MESSAGES
 logger.debug("%s -> %s", __package__, __file__)
 
 
-class RedirectorActor(Actor):
+class RedirectorActor(BaseActor):
     """Create listening server socket for binary pakets from a SARAD© Application"""
 
     ACCEPTED_COMMANDS = {
@@ -75,61 +75,16 @@ class RedirectorActor(Actor):
     @overrides
     def receiveMessage(self, msg, sender):
         """Handles received Actor messages / verification of the message format"""
-        if isinstance(msg, dict):
-            logger.debug("Msg: %s, Sender: %s", msg, sender)
-            return_key = msg.get("RETURN", None)
-            cmd_key = msg.get("CMD", None)
-            if ((return_key is None) and (cmd_key is None)) or (
-                (return_key is not None) and (cmd_key is not None)
-            ):
-                logger.critical(
-                    "Received %s from %s. This should never happen.", msg, sender
-                )
-                logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_MESSAGE"])
-                return
-            if cmd_key is not None:
-                cmd_function = self.ACCEPTED_COMMANDS.get(cmd_key, None)
-                if cmd_function is None:
-                    logger.critical(
-                        "Received %s from %s. This should never happen.", msg, sender
-                    )
-                    logger.critical(
-                        RETURN_MESSAGES["ILLEGAL_UNKNOWN_COMMAND"]["ERROR_MESSAGE"]
-                    )
-                    return
-                if getattr(self, cmd_function, None) is None:
-                    logger.critical(
-                        "Received %s from %s. This should never happen.", msg, sender
-                    )
-                    logger.critical(
-                        RETURN_MESSAGES["ILLEGAL_NOTIMPLEMENTED"]["ERROR_MESSAGE"]
-                    )
-                    return
-                getattr(self, cmd_function)(msg, sender)
-            elif return_key is not None:
-                return_function = self.ACCEPTED_RETURNS.get(return_key, None)
-                if return_function is None:
-                    logger.debug("Received return %s from %s.", msg, sender)
-                    return
-                if getattr(self, return_function, None) is None:
-                    logger.debug("Received return %s from %s.", msg, sender)
-                    return
-                getattr(self, return_function)(msg, sender)
-        else:
-            if isinstance(msg, ActorExitRequest):
-                logger.debug("Goodbye world!")
-                return
-            if isinstance(msg, WakeupMessage):
-                if msg.payload == "Connect":
-                    self._connect_loop(msg, sender)
-                return
-            logger.critical(
-                "Received %s from %s. This should never happen.", msg, sender
-            )
-            logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGTYPE"]["ERROR_MESSAGE"])
+        if isinstance(msg, WakeupMessage):
+            if msg.payload == "Connect":
+                self._connect_loop(msg, sender)
+            return
+        super().receiveMessage(msg, sender)
 
-    def _setup(self, _msg, sender):
+    @overrides
+    def _setup(self, msg, sender):
         logger.debug("Setup redirector actor")
+        super()._setup(msg, sender)
         if self._port is None:
             logger.critical(
                 "Cannot open socket in the configured port range %s",

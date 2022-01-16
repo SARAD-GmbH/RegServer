@@ -1,10 +1,10 @@
 """Stub for type checking with mypy"""
 from typing import Any
 
-from thespian.actors import Actor  # type: ignore
+from registrationserver.base_actor import BaseActor
 
 
-class RedirectorActor(Actor):
+class RedirectorActor(BaseActor):
     ILLEGAL_STATE: Any = ...
     ILLEGAL_WRONGTYPE: Any = ...
     ILLEGAL_WRONGFORMAT: Any = ...

@@ -20,7 +20,7 @@ from typing import Dict
 
 from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import Actor, ActorSystem, PoisonMessage
+from thespian.actors import Actor, ActorSystem, DeadEnvelope, PoisonMessage
 
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
@@ -111,9 +111,17 @@ class BaseActor(Actor):
             if isinstance(msg, ActorExitRequest):
                 self.send(self.registrar, {"CMD": "UNSUBSCRIBE", "ID": self.my_id})
                 return
+            if isinstance(msg, DeadEnvelope):
+                logger.critical(
+                    "DeadMessage: %s to deadAddress: %s. -> Emergency shutdown",
+                    msg.deadMessage,
+                    msg.deadAddress,
+                )
+                system_shutdown()
+                return
             logger.critical(
                 (
-                    "Msg is neither a command nor PoisonMessage nor ActorExitRequest",
+                    "Msg is neither a command nor PoisonMessage, DeadMessage or ActorExitRequest",
                     " -> Emergency shutdown",
                 )
             )

@@ -1,10 +1,10 @@
 """Stub for type checking with mypy."""
 from typing import Any, Dict
 
-from thespian.actors import Actor  # type: ignore
+from registrationserver.base_actor import BaseActor
 
 
-class DeviceBaseActor(Actor):
+class DeviceBaseActor(BaseActor):
     ACCEPTED_COMMANDS: Any = ...
     setup_done: bool = ...
     reservation: dict
