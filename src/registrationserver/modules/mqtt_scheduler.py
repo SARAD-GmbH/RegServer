@@ -188,13 +188,14 @@ class MqttSchedulerActor(BaseActor):
                 payload=json.dumps({"State": 0}),
             )
 
-    def _kill(self, _msg, _sender):
+    def _kill(self, msg, sender):
         self.mqttc.unsubscribe(topic="+")
         self.mqttc.publish(
             retain=True, topic=f"{self.is_id}/meta", payload=json.dumps({"State": 0})
         )
         self._disconnect()
         time.sleep(1)
+        super()._kill(msg, sender)
 
     def _disconnect(self):
         if self.ungr_disconn == 2:

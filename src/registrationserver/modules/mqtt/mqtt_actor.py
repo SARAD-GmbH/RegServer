@@ -174,6 +174,7 @@ class MqttActor(DeviceBaseActor):
         self._unsubscribe([self.allowed_sys_topics["MSG"]])
         super()._return_from_kill(msg, sender)
 
+    @overrides
     def _kill(self, msg, sender):
         logger.debug(self.allowed_sys_topics)
         success = self._unsubscribe(["+"])

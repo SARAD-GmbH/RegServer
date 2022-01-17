@@ -432,6 +432,7 @@ class ClusterActor(BaseActor):
         self.send(return_actor, return_message)
         self.send(self.myAddress, ActorExitRequest())
 
+    @overrides
     def _kill(self, _msg, sender):
         logger.debug("[_kill] called from %s", sender)
         self._actor_system = sender
@@ -465,5 +466,4 @@ class ClusterActor(BaseActor):
             return
         if isinstance(msg, ChildActorExited):
             self._return_from_kill(msg, msg.childAddress)
-            return
         super().receiveMessage(msg, sender)

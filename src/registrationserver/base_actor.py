@@ -4,7 +4,7 @@ Actors created in the actor system
 
 - have to know the actor address of the *Registrar*
 - have to subscribe at the *Registrar* on startup
-- can read the *Actor Dictionary* from the *Registrar*
+- can subscribe to updates of the *Actor Dictionary* from the *Registrar*
 - have to unsubscribe at the *Registrar* on their ActorExitRequest() handler
 - have to keep a list of the actor addresses of their child actors
 - have to respond to the *Registrar* after receiving a *keep alive* message
@@ -20,8 +20,9 @@ from typing import Dict
 
 from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import Actor, ActorSystem, DeadEnvelope, PoisonMessage
+from thespian.actors import Actor, ActorSystem, ChildActorExited, PoisonMessage
 
+from registrationserver.helpers import get_key
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.shutdown import system_shutdown
@@ -34,6 +35,8 @@ class BaseActor(Actor):
     ACCEPTED_COMMANDS = {
         "SETUP": "_setup",
         "KEEP_ALIVE": "_keep_alive",
+        "UPDATE_DICT": "_update_actor_dict",
+        "KILL": "_kill",
     }
 
     ACCEPTED_RETURNS: Dict[str, str] = {}
@@ -45,6 +48,7 @@ class BaseActor(Actor):
         self.my_parent = None
         self.my_id = None
         self.child_actors = {}  # {actor_id: <actor address>}
+        self.actor_dict = {}
 
     def _setup(self, msg, sender):
         """Handler for SETUP message to set essential attributs after initialization"""
@@ -60,11 +64,23 @@ class BaseActor(Actor):
             {"CMD": "SUBSCRIBE", "ID": self.my_id, "PARENT": self.my_parent},
         )
 
-    def _keep_alive(self, msg, _sender):
+    def _kill(self, _msg, _sender):
+        """Handle the KILL command for this actor"""
+        self.send(self.myAddress, ActorExitRequest())
+
+    def _keep_alive(self, _msg, _sender):
         """Handler for KEEP_ALIVE message from the Registrar"""
-        for _child_id, child_actor in self.child_actors.items():
-            self.send(child_actor, msg)
         self.send(self.registrar, {"RETURN": "KEEP_ALIVE", "ID": self.my_id})
+
+    def _update_actor_dict(self, msg, _sender):
+        self.actor_dict = msg["PAR"]["ACTOR_DICT"]
+
+    def _mark_as_device_actor(self):
+        self.send(self.registrar, {"CMD": "IS_DEVICE", "ID": self.my_id})
+
+    def _subcribe_to_actor_dict(self):
+        """Subscribe to receive updates of the Actor Dictionary from Registrar."""
+        self.send(self.registrar, {"CMD": "SUB_TO_DICT", "ID": self.my_id})
 
     def _valid_cmd_function(self, cmd_key, cmd_function):
         cmd_function = self.ACCEPTED_COMMANDS.get(cmd_key, None)
@@ -79,8 +95,19 @@ class BaseActor(Actor):
     @overrides
     def receiveMessage(self, msg, sender):  # pylint: disable=invalid-name
         """Handles received Actor messages / verification of the message format"""
+        logger.debug("Msg: %s, Sender: %s", msg, sender)
+        if isinstance(msg, PoisonMessage):
+            logger.critical("PoisonMessage --> Emergency shutdown.")
+            system_shutdown()
+            return
+        if isinstance(msg, ActorExitRequest):
+            self.send(self.registrar, {"CMD": "UNSUBSCRIBE", "ID": self.my_id})
+            return
+        if isinstance(msg, ChildActorExited):
+            actor_id = get_key(msg.childAddress, self.child_actors)
+            self.child_actors.pop(actor_id, None)
+            return
         if isinstance(msg, dict):
-            logger.debug("Msg: %s, Sender: %s", msg, sender)
             return_key = msg.get("RETURN", None)
             cmd_key = msg.get("CMD", None)
             if ((return_key is None) and (cmd_key is None)) or (
@@ -104,21 +131,6 @@ class BaseActor(Actor):
                 else:
                     return
         else:
-            if isinstance(msg, PoisonMessage):
-                logger.critical("PoisonMessage --> Emergency shutdown.")
-                system_shutdown()
-                return
-            if isinstance(msg, ActorExitRequest):
-                self.send(self.registrar, {"CMD": "UNSUBSCRIBE", "ID": self.my_id})
-                return
-            if isinstance(msg, DeadEnvelope):
-                logger.critical(
-                    "DeadMessage: %s to deadAddress: %s. -> Emergency shutdown",
-                    msg.deadMessage,
-                    msg.deadAddress,
-                )
-                system_shutdown()
-                return
             logger.critical(
                 (
                     "Msg is neither a command nor PoisonMessage, DeadMessage or ActorExitRequest",
@@ -126,4 +138,3 @@ class BaseActor(Actor):
                 )
             )
             system_shutdown()
-            return

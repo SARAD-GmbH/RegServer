@@ -17,9 +17,11 @@ device actors referenced in the dictionary.
 from typing import Dict
 
 from overrides import overrides  # type: ignore
+from thespian.actors import DeadEnvelope  # type: ignore
 
 from registrationserver.base_actor import BaseActor
 from registrationserver.logger import logger
+from registrationserver.shutdown import system_shutdown
 
 
 class Registrar(BaseActor):
@@ -38,13 +40,29 @@ class Registrar(BaseActor):
 
     @overrides
     def __init__(self):
-        self._devices = {}
         super().__init__()
+        self._devices = {}
 
     @overrides
     def _setup(self, msg, sender):
-        super()._setup(msg, sender)
         self.handleDeadLetters(startHandling=True)
+        try:
+            self.my_parent = sender
+            self.my_id = msg["ID"]
+        except KeyError:
+            logger.critical("Malformed SETUP message")
+            raise
+
+    @overrides
+    def receiveMessage(self, msg, sender):  # pylint: disable=invalid-name
+        if isinstance(msg, DeadEnvelope):
+            logger.critical(
+                "DeadMessage: %s to deadAddress: %s. -> Emergency shutdown",
+                msg.deadMessage,
+                msg.deadAddress,
+            )
+            system_shutdown()
+            return
 
     def _read(self, _msg, sender):
         self.send(sender, {"RETURN": "READ", "RESULT": self._devices})

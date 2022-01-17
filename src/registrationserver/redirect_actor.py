@@ -110,7 +110,8 @@ class RedirectorActor(BaseActor):
         logger.debug("Setup finished with %s", return_msg)
         self.send(sender, return_msg)
 
-    def _kill(self, _msg, _sender):
+    @overrides
+    def _kill(self, msg, sender):
         """Handler to exit the redirector actor.
 
         Send a RETURN KILL message to the device actor (my_parent),
@@ -126,8 +127,7 @@ class RedirectorActor(BaseActor):
             return_message,
         )
         self.send(self.my_parent, return_message)
-        logger.debug("Sending ActorExitRequest to myself.")
-        self.send(self.myAddress, ActorExitRequest())
+        super()._kill(msg, sender)
 
     def _connect_loop(self, _msg, _sender):
         """Listen to socket and redirect any message from the socket to the device actor"""
