@@ -52,23 +52,25 @@ class DeviceBaseActor(BaseActor):
         initialized
     """
 
-    ACCEPTED_COMMANDS = {
-        "SEND": "_send",
-        "RESERVE": "_reserve",
-        "FREE": "_free",
-        "SETUP": "_setup",
-        "UPDATE": "_update",
-        "READ": "_read",
-    }
-    ACCEPTED_RETURNS = {
-        "SETUP": "_return_with_socket",
-        "KILL": "_return_from_kill",
-    }
-
     @overrides
     def __init__(self):
         logger.debug("Initialize a new device actor.")
         super().__init__()
+        self.ACCEPTED_COMMANDS.update(
+            {
+                "SEND": "_on_send_cmd",
+                "RESERVE": "_on_reserve_cmd",
+                "FREE": "_on_free_cmd",
+                "UPDATE": "_on_update_cmd",
+                "READ": "_on_read_cmd",
+            }
+        )
+        self.ACCEPTED_RETURNS.update(
+            {
+                "SETUP": "_on_setup_return",
+                "KILL": "_on_kill_return",
+            }
+        )
         self._config: dict = {}
         self.device_status = {}
         self.my_redirector = None
@@ -90,9 +92,10 @@ class DeviceBaseActor(BaseActor):
             return
         super().receiveMessage(msg, sender)
 
-    def _setup(self, msg, sender) -> None:
-        logger.debug("[_setup]")
-        super()._setup(msg, sender)
+    @overrides
+    def _on_setup_cmd(self, msg, sender) -> None:
+        logger.debug("[_on_setup_cmd]")
+        super()._on_setup_cmd(msg, sender)
         self.wakeupAfter(timedelta(minutes=10), payload="keep_alive")
         self.device_status = msg["PAR"]
         self.my_id = msg["ID"]
@@ -123,8 +126,8 @@ class DeviceBaseActor(BaseActor):
             )
             self.send(self.mqtt_scheduler, add_message)
 
-    def _update(self, msg, _sender) -> None:
-        logger.debug("[_update]")
+    def _on_update_cmd(self, msg, _sender) -> None:
+        logger.debug("[_on_update_cmd]")
         self.device_status = msg["PAR"]
         logger.debug("Device status: %s", self.device_status)
         if self.mqtt_scheduler is not None:
@@ -143,7 +146,7 @@ class DeviceBaseActor(BaseActor):
             self.send(self.mqtt_scheduler, add_message)
 
     @overrides
-    def _kill(self, msg, sender):
+    def _on_kill_cmd(self, msg, sender):
         logger.info("%s for actor %s", msg, self.my_id)
         # Send 'REMOVE' message to MQTT Scheduler
         if config["APP_TYPE"] == AppType.ISMQTT:
@@ -166,9 +169,9 @@ class DeviceBaseActor(BaseActor):
         }
         self.send(sender, return_message)
         logger.debug("Cleanup done before finally killing me.")
-        super()._kill(msg, sender)
+        super()._on_kill_cmd(msg, sender)
 
-    def _reserve(self, msg, sender) -> None:
+    def _on_reserve_cmd(self, msg, sender) -> None:
         """Handler for RESERVE message from REST API."""
         logger.info("Device actor received a RESERVE command with message: %s", msg)
         self.sender_api = sender
@@ -254,7 +257,7 @@ class DeviceBaseActor(BaseActor):
         )
         return False
 
-    def _return_with_socket(self, msg, sender):
+    def _on_setup_return(self, msg, sender):
         logger.debug("returned with %s", msg)
         try:
             assert msg["ERROR_CODE"] in (
@@ -290,7 +293,7 @@ class DeviceBaseActor(BaseActor):
         self.send(self.sender_api, return_message)
         return
 
-    def _free(self, msg, sender):
+    def _on_free_cmd(self, msg, sender):
         """Handler for FREE message from REST API."""
         logger.info("Device actor received a FREE command. %s", msg)
         self.sender_api = sender
@@ -324,8 +327,8 @@ class DeviceBaseActor(BaseActor):
             self.send(self.my_redirector, kill_cmd)
             return
 
-    def _return_from_kill(self, msg, sender):
-        """Completes the _free function with the reply from the redirector actor after
+    def _on_kill_return(self, msg, sender):
+        """Completes the _on_free_cmd function with the reply from the redirector actor after
         it received the KILL command."""
         if not msg["ERROR_CODE"]:
             reservation = {
@@ -343,7 +346,7 @@ class DeviceBaseActor(BaseActor):
         system_shutdown()
         return
 
-    def _read(self, msg, sender):
+    def _on_read_cmd(self, msg, sender):
         """Handler for READ command.
 
         Sends back a message containing the device_status."""

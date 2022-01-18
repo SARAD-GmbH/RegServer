@@ -29,23 +29,24 @@ from thespian.actors import ActorExitRequest, ChildActorExited, WakeupMessage
 class ClusterActor(BaseActor):
     """Actor to manage all local instruments connected via USB or RS-232"""
 
-    ACCEPTED_COMMANDS = {
-        "ADD": "_add",
-        "FREE": "_free",
-        "REMOVE": "_remove",
-        "SEND": "_send",
-        "LIST": "_list",
-        "LIST-USB": "_list_usb",
-        "LIST-NATIVE": "_list_natives",
-        "LOOP": "_loop",
-        "LOOP-REMOVE": "_loop_remove",
-        "DO_LOOP": "_do_loop",
-        "LIST-PORTS": "_list_ports",
-        "KILL": "_kill",
-    }
-
     @overrides
     def __init__(self):
+        self.ACCEPTED_COMMANDS.update(
+            {
+                "ADD": "_on_add_cmd",
+                "FREE": "_on_free_cmd",
+                "REMOVE": "_on_remove_cmd",
+                "SEND": "_on_send_cmd",
+                "LIST": "_on_list_cmd",
+                "LIST-USB": "_on_list_usb_cmd",
+                "LIST-NATIVE": "_on_list_natives_cmd",
+                "LOOP": "_on_loop_cmd",
+                "LOOP-REMOVE": "_on_loop_remove_cmd",
+                "DO_LOOP": "_on_do_loop_cmd",
+                "LIST-PORTS": "_on_list_ports_cmd",
+            }
+        )
+        self.ACCEPTED_RETURNS.update({"KILL": "_on_kill_return"})
         self._loop_started: bool = False
         self.native_ports = set(config.get("NATIVE_SERIAL_PORTS", []))
         self.ignore_ports = set(config.get("IGNORED_SERIAL_PORTS", []))
@@ -61,7 +62,7 @@ class ClusterActor(BaseActor):
         super().__init__()
         logger.debug("ClusterActor initialized")
 
-    def _loop(self, msg, sender) -> None:
+    def _on_loop_cmd(self, msg, sender) -> None:
         target = msg["PAR"]["PORT"]
         logger.info("Adding to loop: %s", target)
         ports_ok: List[str] = []
@@ -72,7 +73,7 @@ class ClusterActor(BaseActor):
         if isinstance(target, str):
             if self._add_to_loop(target):
                 ports_ok.append(target)
-        if not self._loop_started and self._loop:
+        if not self._loop_started and self._on_loop_cmd:
             self.send(self.myAddress, {"CMD": "DO_LOOP"})
         self.send(
             sender,
@@ -83,7 +84,7 @@ class ClusterActor(BaseActor):
             },
         )
 
-    def _loop_remove(self, msg, sender) -> None:
+    def _on_loop_remove_cmd(self, msg, sender) -> None:
         target = msg["PAR"]["PORT"]
         logger.info("Removing from loop: %s", target)
         ports_ok: List[str] = []
@@ -105,8 +106,8 @@ class ClusterActor(BaseActor):
             },
         )
 
-    def _do_loop(self, _msg, _sender) -> None:
-        logger.debug("[_do_loop]")
+    def _on_do_loop_cmd(self, _msg, _sender) -> None:
+        logger.debug("[_on_do_loop_cmd]")
         logger.info("Started polling: %s", self._looplist)
         self._cluster.update_connected_instruments()
         for instrument in self._cluster.connected_instruments:
@@ -172,8 +173,8 @@ class ClusterActor(BaseActor):
             return True
         return False
 
-    def _send(self, msg, sender) -> None:
-        logger.debug("[_send]")
+    def _on_send_cmd(self, msg, sender) -> None:
+        logger.debug("[_on_send_cmd]")
         data = msg["PAR"]["DATA"]
         target = msg["PAR"]["Instrument"]
         logger.debug("Actor %s received: %s for: %s", self.globalName, data, target)
@@ -222,8 +223,8 @@ class ClusterActor(BaseActor):
             )
             self._remove_actor(get_key(sender, self._actors))
 
-    def _free(self, msg, _sender) -> None:
-        logger.debug("[_free]")
+    def _on_free_cmd(self, msg, _sender) -> None:
+        logger.debug("[_on_free_cmd]")
         target = msg["PAR"]["Instrument"]
         instrument: SaradInst
         if target in self._cluster:
@@ -233,8 +234,8 @@ class ClusterActor(BaseActor):
                 .release_instrument()
             )
 
-    def _list_ports(self, _msg, sender) -> None:
-        logger.debug("[_list_ports]")
+    def _on_list_ports_cmd(self, _msg, sender) -> None:
+        logger.debug("[_on_list_ports_cmd]")
         result: List[Dict[str, Any]] = []
         ports = [
             {"PORT": port.device, "PID": port.pid, "VID": port.vid}
@@ -248,8 +249,8 @@ class ClusterActor(BaseActor):
         }
         self.send(sender, return_message)
 
-    def _list_usb(self, _msg, sender) -> None:
-        logger.debug("[_list_usb]")
+    def _on_list_usb_cmd(self, _msg, sender) -> None:
+        logger.debug("[_on_list_usb_cmd]")
         result: List[Dict[str, Any]] = []
         ports = [port.device for port in comports() if port.vid and port.pid]
         result = [
@@ -274,8 +275,8 @@ class ClusterActor(BaseActor):
         logger.debug(return_message)
         self.send(sender, return_message)
 
-    def _list_natives(self, _msg, sender) -> None:
-        logger.debug("[_list_natives]")
+    def _on_list_natives_cmd(self, _msg, sender) -> None:
+        logger.debug("[_on_list_natives_cmd]")
         result: List[Dict[str, Any]] = []
         ports = [port.device for port in comports() if not port.pid]
         result = [
@@ -299,8 +300,8 @@ class ClusterActor(BaseActor):
         }
         self.send(sender, return_message)
 
-    def _list(self, msg, sender) -> None:
-        logger.debug("[_list]")
+    def _on_list_cmd(self, msg, sender) -> None:
+        logger.debug("[_on_list_cmd]")
         result: List[Dict[str, Any]] = []
         target = msg["PAR"].get("PORTS", None)
         if not target:
@@ -376,10 +377,10 @@ class ClusterActor(BaseActor):
                 "Tried to remove %s, that never was added properly.", gone_port
             )
 
-    def _add(self, msg, _sender):
+    def _on_add_cmd(self, msg, _sender):
         """Create device actors for instruments connected to
         the serial ports given in the argument list."""
-        logger.debug("[_add]")
+        logger.debug("[_on_add_cmd]")
         target = msg["PAR"].get("PORTS", None)
         if target is None:
             old_ports = set(self._actors.keys())
@@ -405,10 +406,10 @@ class ClusterActor(BaseActor):
                 self._create_actor(instrument)
         return
 
-    def _remove(self, msg, _sender):
+    def _on_remove_cmd(self, msg, _sender):
         """Kill device actors for instruments that have been unplugged from
         the serial ports given in the argument list."""
-        logger.debug("[_remove]")
+        logger.debug("[_on_remove_cmd]")
         target = msg["PAR"].get("PORTS", None)
         if target is None:
             old_ports = set(self._actors.keys())
@@ -433,8 +434,8 @@ class ClusterActor(BaseActor):
         self.send(self.myAddress, ActorExitRequest())
 
     @overrides
-    def _kill(self, _msg, sender):
-        logger.debug("[_kill] called from %s", sender)
+    def _on_kill_cmd(self, msg, sender):
+        logger.debug("[_on_kill_cmd] called from %s", sender)
         self._actor_system = sender
         self._kill_flag = True
         if self._actors:
@@ -445,7 +446,7 @@ class ClusterActor(BaseActor):
             logger.debug("No instrument connected. Killing myself.")
             self._kill_myself(sender)
 
-    def _return_from_kill(self, _msg, sender):
+    def _on_kill_return(self, _msg, sender):
         """Handle RETURN from KILL messages from the device actors.
         Finally kill myself when the last child confirmed its ActorExitRequest
         and the kill flag was set."""
@@ -465,5 +466,5 @@ class ClusterActor(BaseActor):
             self._continue_loop()
             return
         if isinstance(msg, ChildActorExited):
-            self._return_from_kill(msg, msg.childAddress)
+            self._on_kill_return(msg, msg.childAddress)
         super().receiveMessage(msg, sender)

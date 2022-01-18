@@ -38,6 +38,7 @@ class Rfc2217Actor(DeviceBaseActor):
 
     def _connect(self):
         """internal Function to connect to instrument server 2 over rfc2217"""
+        # TODO: Replace df_content with information from DeviceBaseActor
         if self.df_content:
             address = self.df_content.get("Remote", {}).get("Address", None)
             port = self.df_content.get("Remote", {}).get("Port", None)
@@ -58,7 +59,7 @@ class Rfc2217Actor(DeviceBaseActor):
             return True
         return False
 
-    def _send(self, msg, _sender) -> None:
+    def _on_send_cmd(self, msg, _sender) -> None:
         if self._connect():
             data = msg["PAR"]["DATA"]
             logger.info("Actor %s received: %s", self.globalName, data)
@@ -98,21 +99,21 @@ class Rfc2217Actor(DeviceBaseActor):
         return
 
     @overrides
-    def _free(self, msg, sender):
+    def _on_free_cmd(self, msg, sender):
         logger.debug("Start to cleanup RFC2217")
         if self.__port is not None:
             if self.__port.isOpen():
                 self.__port.close()
             self.__port = None
-        super()._free(msg, sender)
+        super()._on_free_cmd(msg, sender)
 
     @overrides
-    def _kill(self, msg, sender):
+    def _on_kill_cmd(self, msg, sender):
         if self.__port is not None:
             if self.__port.isOpen():
                 self.__port.close()
             self.__port = None
-        super()._kill(msg, sender)
+        super()._on_kill_cmd(msg, sender)
 
     @overrides
     def _reserve_at_is(self):

@@ -33,10 +33,10 @@ class BaseActor(Actor):
     Server"""
 
     ACCEPTED_COMMANDS = {
-        "SETUP": "_setup",
-        "KEEP_ALIVE": "_keep_alive",
-        "UPDATE_DICT": "_update_actor_dict",
-        "KILL": "_kill",
+        "SETUP": "_on_setup_cmd",
+        "KEEP_ALIVE": "_on_keep_alive_cmd",
+        "UPDATE_DICT": "_on_update_dict_cmd",
+        "KILL": "_on_kill_cmd",
     }
 
     ACCEPTED_RETURNS: Dict[str, str] = {}
@@ -50,7 +50,7 @@ class BaseActor(Actor):
         self.child_actors = {}  # {actor_id: <actor address>}
         self.actor_dict = {}
 
-    def _setup(self, msg, sender):
+    def _on_setup_cmd(self, msg, sender):
         """Handler for SETUP message to set essential attributs after initialization"""
         try:
             self.registrar = ActorSystem().createActor(Actor, globalName="registrar")
@@ -64,15 +64,16 @@ class BaseActor(Actor):
             {"CMD": "SUBSCRIBE", "ID": self.my_id, "PARENT": self.my_parent},
         )
 
-    def _kill(self, _msg, _sender):
+    def _on_kill_cmd(self, msg, sender):  # pylint: disable = unused-argument
         """Handle the KILL command for this actor"""
         self.send(self.myAddress, ActorExitRequest())
 
-    def _keep_alive(self, _msg, _sender):
+    def _on_keep_alive_cmd(self, msg, sender):  # pylint: disable = unused-argument
         """Handler for KEEP_ALIVE message from the Registrar"""
         self.send(self.registrar, {"RETURN": "KEEP_ALIVE", "ID": self.my_id})
 
-    def _update_actor_dict(self, msg, _sender):
+    def _on_update_dict_cmd(self, msg, sender):  # pylint: disable = unused-argument
+        """Handler for UPDATE_DICT message from any actor"""
         self.actor_dict = msg["PAR"]["ACTOR_DICT"]
 
     def _mark_as_device_actor(self):

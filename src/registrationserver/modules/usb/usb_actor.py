@@ -24,25 +24,24 @@ logger.debug("%s -> %s", __package__, __file__)
 class UsbActor(DeviceBaseActor):
     """Actor for dealing with direct serial connections via USB or RS-232"""
 
-    ACCEPTED_RETURNS = {
-        "SETUP": "_return_with_socket",
-        "KILL": "_return_from_kill",
-        "SEND": "_return_from_send",
-    }
-
     @overrides
     def __init__(self):
         logger.debug("Initialize a new USB actor.")
+        self.ACCEPTED_RETURNS.update(
+            {
+                "SEND": "_on_send_return",
+            }
+        )
         super().__init__()
         self.instrument = None
         self._cluster = None
         logger.info("USB actor created.")
 
     @overrides
-    def _setup(self, msg, sender) -> None:
-        super()._setup(msg, sender)
+    def _on_setup_cmd(self, msg, sender) -> None:
+        super()._on_setup_cmd(msg, sender)
         self._cluster = self.createActor(Actor, globalName="cluster")
-        self.instrument = self.device_id.split(".")[0]
+        self.instrument = self.my_id.split(".")[0]
         try:
             data = msg["PAR"]
             serial_port = data["Serial"]
@@ -54,7 +53,7 @@ class UsbActor(DeviceBaseActor):
             )
             system_shutdown()
 
-    def _send(self, msg, _sender) -> None:
+    def _on_send_cmd(self, msg, _sender) -> None:
         cmd = msg["PAR"]["DATA"]
         logger.debug("Actor received: %s", cmd)
         self.send(
@@ -62,7 +61,7 @@ class UsbActor(DeviceBaseActor):
             {"CMD": "SEND", "PAR": {"DATA": cmd, "Instrument": self.instrument}},
         )
 
-    def _return_from_send(self, msg, _sender):
+    def _on_send_return(self, msg, _sender):
         reply = msg["RESULT"]["DATA"]
         logger.debug("and got reply from instrument: %s", reply)
         return_message = {
@@ -87,8 +86,8 @@ class UsbActor(DeviceBaseActor):
         self._forward_reservation(True)
 
     @overrides
-    def _return_from_kill(self, msg, sender):
-        super()._return_from_kill(msg, sender)
+    def _on_kill_return(self, msg, sender):
+        super()._on_kill_return(msg, sender)
         free_cmd = {"CMD": "FREE", "PAR": {"Instrument": self.instrument}}
         logger.debug("Send %s to %s", free_cmd, self._cluster)
         self.send(self._cluster, free_cmd)

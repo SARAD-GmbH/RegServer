@@ -27,24 +27,25 @@ from registrationserver.shutdown import system_shutdown
 class Registrar(BaseActor):
     """Actor providing a dictionary of devices"""
 
-    ACCEPTED_COMMANDS = {
-        "READ": "_read",
-        "SETUP": "_setup",
-        "SUBSCRIBE": "_subscribe",
-        "UNSUBSCRIBE": "_unsubscribe",
-    }
-
-    ACCEPTED_RETURNS: Dict[str, str] = {
-        "KEEP_ALIVE": "_return_from_keep_alive",
-    }
-
     @overrides
     def __init__(self):
+        self.ACCEPTED_COMMANDS.update(
+            {
+                "READ": "_on_read_cmd",
+                "SUBSCRIBE": "_on_subscribe_cmd",
+                "UNSUBSCRIBE": "_on_unsubscribe_cmd",
+            }
+        )
+        self.ACCEPTED_RETURNS.update(
+            {
+                "KEEP_ALIVE": "_on_keep_alive_return",
+            }
+        )
         super().__init__()
         self._devices = {}
 
     @overrides
-    def _setup(self, msg, sender):
+    def _on_setup_cmd(self, msg, sender):
         self.handleDeadLetters(startHandling=True)
         try:
             self.my_parent = sender
@@ -64,10 +65,11 @@ class Registrar(BaseActor):
             system_shutdown()
             return
 
-    def _read(self, _msg, sender):
+    def _on_read_cmd(self, _msg, sender):
+        """Handler for READ message"""
         self.send(sender, {"RETURN": "READ", "RESULT": self._devices})
 
-    def _subscribe(self, msg, sender):
+    def _on_subscribe_cmd(self, msg, sender):
         """Handler for SUBSCRIBE messages"""
         try:
             actor_id = msg["ID"]
@@ -80,13 +82,13 @@ class Registrar(BaseActor):
         except KeyError:
             logger.error("Message is not suited to create a dict entry.")
 
-    def _unsubscribe(self, msg, _sender):
+    def _on_unsubscribe_cmd(self, msg, _sender):
         """Handler for UNSUBSCRIBE messages"""
         try:
             self._devices.pop(msg["ID"])
         except KeyError:
             logger.error("Message is not suited to remove a dict entry.")
 
-    def _return_from_keep_alive(self, msg, sender):
+    def _on_keep_alive_return(self, msg, sender):
         """Handler for messages returned from other actors that have received a
         KEEP_ALIVE message."""

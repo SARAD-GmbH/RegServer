@@ -30,13 +30,6 @@ logger.debug("%s -> %s", __package__, __file__)
 class MqttSchedulerActor(BaseActor):
     """Actor interacting with a new device"""
 
-    ACCEPTED_COMMANDS = {
-        "ADD": "_add",
-        "REMOVE": "_remove",
-    }
-    ACCEPTED_RETURNS = {
-        "SEND": "_send_to_rs",
-    }
     MAX_RESERVE_TIME = 300
 
     @overrides
@@ -47,6 +40,17 @@ class MqttSchedulerActor(BaseActor):
         * Start MQTT loop
         """
         super().__init__()
+        self.ACCEPTED_COMMANDS.update(
+            {
+                "ADD": "_on_add_cmd",
+                "REMOVE": "_on_remove_cmd",
+            }
+        )
+        self.ACCEPTED_RETURNS.update(
+            {
+                "SEND": "_on_send_return",
+            }
+        )
         self.lock = threading.Lock()
         self.cluster = {}  # {instr_id: actor_address}
         self.instr_meta = {}  # {instr_id: {<meta>}}
@@ -132,7 +136,7 @@ class MqttSchedulerActor(BaseActor):
                 logger.error("Could not connect to Broker, retrying...: %s", exception)
                 time.sleep(retry_interval)
 
-    def _add(self, msg, sender):
+    def _on_add_cmd(self, msg, sender):
         """Handler for actor messages with command 'ADD'
 
         Adds a new instrument to the list of available instruments."""
@@ -161,7 +165,7 @@ class MqttSchedulerActor(BaseActor):
             )
             self.instr_meta[instr_id] = identification
 
-    def _remove(self, msg, _sender):
+    def _on_remove_cmd(self, msg, _sender):
         """Handler for actor messages with command 'REMOVE'
 
         Removes an instrument from the list of available instruments."""
@@ -188,14 +192,15 @@ class MqttSchedulerActor(BaseActor):
                 payload=json.dumps({"State": 0}),
             )
 
-    def _kill(self, msg, sender):
+    @overrides
+    def _on_kill_cmd(self, msg, sender):
         self.mqttc.unsubscribe(topic="+")
         self.mqttc.publish(
             retain=True, topic=f"{self.is_id}/meta", payload=json.dumps({"State": 0})
         )
         self._disconnect()
         time.sleep(1)
-        super()._kill(msg, sender)
+        super()._on_kill_cmd(msg, sender)
 
     def _disconnect(self):
         if self.ungr_disconn == 2:
@@ -294,7 +299,7 @@ class MqttSchedulerActor(BaseActor):
         """
         logger.error("%s(%s): %s", message.topic, len(message.topic), message.payload)
 
-    def _send_to_rs(self, msg, sender):
+    def _on_send_return(self, msg, sender):
         """Handler for actor messages returning from 'SEND" command
 
         Forward the payload received from device_actor via MQTT."""

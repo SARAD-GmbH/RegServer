@@ -32,7 +32,7 @@ class MqttActor(DeviceBaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self.ACCEPTED_COMMANDS["PREPARE"] = "_prepare"
+        self.ACCEPTED_COMMANDS["PREPARE"] = "_on_prepare_cmd"
         self.subscriber = None
         self.is_id = None
         self.instr_id = None
@@ -155,7 +155,7 @@ class MqttActor(DeviceBaseActor):
             logger.debug("[Reserve at IS]: Waiting for reply to reservation request")
 
     @overrides
-    def _return_from_kill(self, msg, sender) -> None:
+    def _on_kill_return(self, msg, sender) -> None:
         """Handle the return message confirming that the redirector actor was killed.
 
         Args:
@@ -172,19 +172,19 @@ class MqttActor(DeviceBaseActor):
         _re = self._publish(_msg)
         logger.info("Unsubscribe MQTT actor from 'msg' topic")
         self._unsubscribe([self.allowed_sys_topics["MSG"]])
-        super()._return_from_kill(msg, sender)
+        super()._on_kill_return(msg, sender)
 
     @overrides
-    def _kill(self, msg, sender):
+    def _on_kill_cmd(self, msg, sender):
         logger.debug(self.allowed_sys_topics)
         success = self._unsubscribe(["+"])
         if success:
             logger.debug("Unsubscribed.")
         self._disconnect()
         time.sleep(1)
-        super()._kill(msg, sender)
+        super()._on_kill_cmd(msg, sender)
 
-    def _prepare(self, msg, sender):
+    def _on_prepare_cmd(self, msg, sender):
         self.subscriber = sender
         mqtt_cid = self.device_id + ".client"
         self.instr_id = self.device_id.split(".")[0]

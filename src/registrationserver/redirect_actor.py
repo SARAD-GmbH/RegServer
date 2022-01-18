@@ -17,7 +17,7 @@ import socket
 import time
 
 from overrides import overrides  # type: ignore
-from thespian.actors import ActorExitRequest, WakeupMessage  # type: ignore
+from thespian.actors import WakeupMessage  # type: ignore
 
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
@@ -30,17 +30,18 @@ logger.debug("%s -> %s", __package__, __file__)
 class RedirectorActor(BaseActor):
     """Create listening server socket for binary pakets from a SARAD© Application"""
 
-    ACCEPTED_COMMANDS = {
-        "SETUP": "_setup",
-        "CONNECT": "_connect_loop",
-        "KILL": "_kill",
-    }
-    ACCEPTED_RETURNS = {
-        "SEND": "_send_to_app",
-    }
-
     @overrides
     def __init__(self):
+        self.ACCEPTED_COMMANDS.update(
+            {
+                "CONNECT": "_on_connect_cmd",
+            }
+        )
+        self.ACCEPTED_RETURNS.update(
+            {
+                "SEND": "_on_send_return",
+            }
+        )
         super().__init__()
         self.my_parent = None
         self._client_socket = None
@@ -77,14 +78,14 @@ class RedirectorActor(BaseActor):
         """Handles received Actor messages / verification of the message format"""
         if isinstance(msg, WakeupMessage):
             if msg.payload == "Connect":
-                self._connect_loop(msg, sender)
+                self._on_connect_cmd(msg, sender)
             return
         super().receiveMessage(msg, sender)
 
     @overrides
-    def _setup(self, msg, sender):
+    def _on_setup_cmd(self, msg, sender):
         logger.debug("Setup redirector actor")
-        super()._setup(msg, sender)
+        super()._on_setup_cmd(msg, sender)
         if self._port is None:
             logger.critical(
                 "Cannot open socket in the configured port range %s",
@@ -111,7 +112,7 @@ class RedirectorActor(BaseActor):
         self.send(sender, return_msg)
 
     @overrides
-    def _kill(self, msg, sender):
+    def _on_kill_cmd(self, msg, sender):
         """Handler to exit the redirector actor.
 
         Send a RETURN KILL message to the device actor (my_parent),
@@ -127,9 +128,9 @@ class RedirectorActor(BaseActor):
             return_message,
         )
         self.send(self.my_parent, return_message)
-        super()._kill(msg, sender)
+        super()._on_kill_cmd(msg, sender)
 
-    def _connect_loop(self, _msg, _sender):
+    def _on_connect_cmd(self, _msg, _sender):
         """Listen to socket and redirect any message from the socket to the device actor"""
         # logger.debug("Waiting for connect at %s port %s", self._host, self._port)
         # read_list = list of server sockets from which we expect to read
@@ -157,10 +158,10 @@ class RedirectorActor(BaseActor):
                 time.sleep(5)
         if data is None:
             logger.critical("Application software seems to be dead.")
-            self._kill({}, self.my_parent)
+            self._on_kill_cmd({}, self.my_parent)
         elif data == b"":
             logger.debug("The application closed the socket.")
-            self._kill({}, self.my_parent)
+            self._on_kill_cmd({}, self.my_parent)
         else:
             logger.debug(
                 "Redirect %s from app, socket %s to device actor %s",
@@ -170,7 +171,7 @@ class RedirectorActor(BaseActor):
             )
             self.send(self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}})
 
-    def _send_to_app(self, msg, _sender):
+    def _on_send_return(self, msg, _sender):
         """Redirect any received reply to the socket."""
         data = msg["RESULT"]["DATA"]
         for _i in range(0, 5):
@@ -184,4 +185,4 @@ class RedirectorActor(BaseActor):
                 logger.error("Connection reset by SARAD application software.")
                 time.sleep(5)
         logger.critical("Application software seems to be dead.")
-        self._kill({}, self.my_parent)
+        self._on_kill_cmd({}, self.my_parent)
