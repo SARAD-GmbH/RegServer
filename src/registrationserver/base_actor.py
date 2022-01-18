@@ -89,7 +89,7 @@ class BaseActor(Actor):
         self.send(self.registrar, {"CMD": "SUB_TO_DICT", "ID": self.my_id})
 
     def _valid_cmd_function(self, cmd_key, cmd_function):
-        cmd_function = self.ACCEPTED_COMMANDS.get(cmd_key, None)
+        """Helper function for receiveMessage()"""
         if cmd_function is None:
             logger.critical("Command for key %s does not exist here.", cmd_key)
             return False
