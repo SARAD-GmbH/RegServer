@@ -20,11 +20,10 @@ from typing import Dict
 
 from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import Actor, ActorSystem, ChildActorExited, PoisonMessage
+from thespian.actors import Actor, ChildActorExited, PoisonMessage
 
 from registrationserver.helpers import get_key
 from registrationserver.logger import logger
-from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.shutdown import system_shutdown
 
 
@@ -88,22 +87,12 @@ class BaseActor(Actor):
         """Subscribe to receive updates of the Actor Dictionary from Registrar."""
         self.send(self.registrar, {"CMD": "SUB_TO_DICT", "ID": self.my_id})
 
-    def _valid_cmd_function(self, cmd_key, cmd_function):
-        """Helper function for receiveMessage()"""
-        if cmd_function is None:
-            logger.critical("Command for key %s does not exist here.", cmd_key)
-            return False
-        if getattr(self, cmd_function, None) is None:
-            logger.critical("No function implemented for %s", cmd_function)
-            return False
-        return True
-
     @overrides
     def receiveMessage(self, msg, sender):  # pylint: disable=invalid-name
         """Handles received Actor messages / verification of the message format"""
         logger.debug("Msg: %s, Sender: %s", msg, sender)
         if isinstance(msg, PoisonMessage):
-            logger.critical("PoisonMessage --> Emergency shutdown.")
+            logger.critical("PoisonMessage -> Emergency shutdown.")
             system_shutdown()
             return
         if isinstance(msg, ActorExitRequest):
@@ -116,33 +105,26 @@ class BaseActor(Actor):
                 self.send(self.myAddress, ActorExitRequest())
             return
         if isinstance(msg, dict):
-            return_key = msg.get("RETURN", None)
-            cmd_key = msg.get("CMD", None)
-            if ((return_key is None) and (cmd_key is None)) or (
-                (return_key is not None) and (cmd_key is not None)
-            ):
-                logger.critical(
-                    "Received %s from %s. This should never happen.", msg, sender
-                )
-                logger.critical(RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_MESSAGE"])
+            try:
+                cmd_function = self.ACCEPTED_COMMANDS[msg["CMD"]]
+            except KeyError:
+                try:
+                    cmd_function = self.ACCEPTED_RETURNS[msg["RETURN"]]
+                except KeyError:
+                    logger.critical("Illegal message.")
+                    system_shutdown()
+                    return
+            try:
+                getattr(self, cmd_function)(msg, sender)
+            except AttributeError:
+                logger.critical("No function implemented for %s", cmd_function)
+                system_shutdown()
                 return
-            if cmd_key is not None:
-                cmd_function = self.ACCEPTED_COMMANDS.get(cmd_key, None)
-                if self._valid_cmd_function(cmd_key, cmd_function):
-                    getattr(self, cmd_function)(msg, sender)
-                else:
-                    return
-            elif return_key is not None:
-                return_function = self.ACCEPTED_RETURNS.get(return_key, None)
-                if self._valid_cmd_function(return_key, return_function):
-                    getattr(self, return_function)(msg, sender)
-                else:
-                    return
         else:
             logger.critical(
                 (
-                    "Msg is neither a command nor PoisonMessage, DeadMessage or ActorExitRequest",
-                    " -> Emergency shutdown",
+                    "Msg is neither a command nor PoisonMessage, ChildActorExit, ",
+                    "or ActorExitRequest -> Emergency shutdown",
                 )
             )
             system_shutdown()
