@@ -49,6 +49,7 @@ class BaseActor(Actor):
         self.my_id = None
         self.child_actors = {}  # {actor_id: <actor address>}
         self.actor_dict = {}
+        self.on_kill = False
 
     def _on_setup_cmd(self, msg, sender):
         """Handler for SETUP message to set essential attributs after initialization"""
@@ -66,10 +67,14 @@ class BaseActor(Actor):
 
     def _on_kill_cmd(self, msg, sender):  # pylint: disable = unused-argument
         """Handle the KILL command for this actor"""
-        self.send(self.myAddress, ActorExitRequest())
+        for _child_id, child_actor in self.child_actors.items():
+            self.send(child_actor, msg)
+        self.on_kill = True
 
     def _on_keep_alive_cmd(self, msg, sender):  # pylint: disable = unused-argument
         """Handler for KEEP_ALIVE message from the Registrar"""
+        for _child_id, child_actor in self.child_actors.items():
+            self.send(child_actor, msg)
         self.send(self.registrar, {"RETURN": "KEEP_ALIVE", "ID": self.my_id})
 
     def _on_update_dict_cmd(self, msg, sender):  # pylint: disable = unused-argument
@@ -107,6 +112,8 @@ class BaseActor(Actor):
         if isinstance(msg, ChildActorExited):
             actor_id = get_key(msg.childAddress, self.child_actors)
             self.child_actors.pop(actor_id, None)
+            if not self.child_actors and self.on_kill:
+                self.send(self.myAddress, ActorExitRequest())
             return
         if isinstance(msg, dict):
             return_key = msg.get("RETURN", None)
