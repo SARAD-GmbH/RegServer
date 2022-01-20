@@ -21,12 +21,6 @@ CMD:
     receiving actor to do something. The value of the CMD key contains the
     command type.
 
-ID (only for SETUP/SUBSCRIBE):
-    unique Id of the actor
-
-PARENT (only for SUBSCRIBE):
-    actor object of the parent of the actor that shall be subscribed to the Registrar
-
 PAR (optional):
     contains optional parameters that differ from command to command.
 
@@ -41,11 +35,6 @@ Example::
       },
   }
 
-  setup_cmd_dict {
-      "CMD": "SETUP",
-      "ID": "c4jbkl",
-  }
-
 Return messages
 ---------------
 
@@ -53,7 +42,7 @@ Return messages consist of the following keys:
 
 RETURN:
     The RETURN key indicates that this message is a return value belonging to a
-    p bbreviously received command. The value contains the command type that caused
+    previously received command. The value contains the command type that caused
     the return message.
 
 ERROR_CODE:
@@ -74,12 +63,16 @@ Examples::
   }
 
   return_dict = {
-      "ERROR_CODE": 10,
       "RETURN": "RESERVE",
+      "ERROR_CODE": 10,
   }
 
-CMDs handled by all Actors based on BaseActor
-=============================================
+BaseActor
+=========
+
+-----------------
+Accepted Commands
+-----------------
 
 SETUP
 -----
@@ -100,7 +93,9 @@ Example::
 
   setup_cmd_dict = {
       "CMD": "SETUP",
-      "ID": "c4jbkl",
+      "PAR": {
+          "ID": "c4jbkl",
+      }
   }
 
 KEEP_ALIVE
@@ -114,6 +109,38 @@ Sent from:
 Expected RETURN:
     ID:
         self.my_id
+
+UPDATE_DICT
+-----------
+
+Request to update the *Actor Dictionary* the actor subscribed to at the *Registrar*.
+
+KILL
+----
+
+Request to kill all children of the actor and finally the actor itself.
+
+--------------------
+Send to other actors
+--------------------
+
+SUBSCRIBE
+---------
+
+Sent to the *Registrar* in the `_on_setup_cmd` handler.
+
+UNSUBSCRIBE
+-----------
+
+KEEP_ALIVE
+----------
+
+Forwarded to all child actors.
+
+KILL
+----
+
+Forwarded to all child actors.
 
 CMDs handled by the DeviceBaseActor
 ===================================
