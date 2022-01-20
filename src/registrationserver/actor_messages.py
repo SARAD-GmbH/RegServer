@@ -42,7 +42,7 @@ class SubscribeMsg:
                         Can be used to identify the device if the actor is a device actor.
         parent (ActorAddress): Address of the parent actor.
         is_device_actor (bool): True if the actor is a Device Actor.
-        get_updates(bool): True if the actor shall receive updates
+        get_updates (bool): True if the actor shall receive updates
                             of the Actor Dictionary from the Registrar actor.
     """
 
@@ -67,21 +67,10 @@ class UnsubscribeMsg:
 
 @dataclass
 class KeepAliveMsg:
-    """Message sent to an actor from from its parent actor or from the Registrar
-    actor in order to check whether the actor is still existing"""
+    """Message sent to an actor from its parent actor in order to check
+    whether the actor is still existing.
 
-
-@dataclass
-class AliveMsg:
-    """Message sent from an actor to the Registrar actor in order to confirm that
-    this actor is still responsive.
-
-    Args:
-        actor_id (str): Unique Id of the actor.
-                        Can be used to identify the device if the actor is a device actor.
-    """
-
-    actor_id: str
+    The actor shall reply with sending a SubscribeMsg to the Registrar."""
 
 
 @dataclass
