@@ -1,0 +1,211 @@
+"""This module implements all data classes used as actor messages to transport
+commands and data within the actor system
+
+:Created:
+    2022-01-19
+
+:Author:
+    | Michael Strey <strey@sarad.de>
+
+"""
+from dataclasses import dataclass
+from enum import Enum
+from typing import ByteString
+
+from thespian.actors import ActorAddress
+
+
+@dataclass
+class SetupMsg:
+    """Message used to send setup information after actor __init__.
+    The device_status parameter is only used for the setup of Device Actors.
+
+    Args:
+        actor_id (str): Unique Id of the actor.
+                        Can be used to identify the device if the actor is a device actor.
+        parent_id (str): Actor Id of the parent actor.
+        device_status (dict): (only for device actors) Dictionary with status information
+                              of the instrument. Shall be {}, if not used.
+    """
+
+    actor_id: str
+    parent_id: str
+    device_status: dict
+
+
+@dataclass
+class SubscribeMsg:
+    """Message sent from an actor to the Registrar actor to confirm the successful setup.
+
+    Args:
+        actor_id (str): Unique Id of the actor.
+                        Can be used to identify the device if the actor is a device actor.
+        parent (ActorAddress): Address of the parent actor.
+        is_device_actor (bool): True if the actor is a Device Actor.
+        get_updates(bool): True if the actor shall receive updates
+                            of the Actor Dictionary from the Registrar actor.
+    """
+
+    actor_id: str
+    parent: ActorAddress
+    is_device_actor: bool = False
+    get_updates: bool = False
+
+
+@dataclass
+class UnsubscribeMsg:
+    """Message sent in the ActorExitRequest handler from an actor to the Registrar
+    actor to confirm the exit of this actor.
+
+    Args:
+        actor_id (str): Unique Id of the actor.
+                        Can be used to identify the device if the actor is a device actor.
+    """
+
+    actor_id: str
+
+
+@dataclass
+class KeepAliveMsg:
+    """Message sent to an actor from from its parent actor or from the Registrar
+    actor in order to check whether the actor is still existing"""
+
+
+@dataclass
+class AliveMsg:
+    """Message sent from an actor to the Registrar actor in order to confirm that
+    this actor is still responsive.
+
+    Args:
+        actor_id (str): Unique Id of the actor.
+                        Can be used to identify the device if the actor is a device actor.
+    """
+
+    actor_id: str
+
+
+@dataclass
+class SubscribeToActorDictMsg:
+    """Message to subscribe an actor to the Actor Dictionary maintained in the
+    Registrar actor."""
+
+    actor_id: str
+
+
+@dataclass
+class UpdateActorDictMsg:
+    """Message containing the updated Actor Dictionary from Registrar Actor.
+
+    Args:
+        actor_dict (dict): Actor Dictionary.
+    """
+
+    actor_dict: dict
+
+
+@dataclass
+class KillMsg:
+    """Message sent to an actor to trigger the exit of this actor. The actor has to
+    forward this message to all of its children an finally sends an UnsubscribeMsg
+    to the Registrar actor."""
+
+
+@dataclass
+class TxBinaryMsg:
+    """Message sent to an actor to forward data from the app to the SARAD instrument.
+
+    Args:
+        data (ByteString): Binary data to be forwarded.
+        host (str): Host sending the data, to check reservation at the Instrument Server.
+    """
+
+    data: ByteString
+    host: str
+
+
+@dataclass
+class RxBinaryMsg:
+    """Message sent to an actor to forward data from the SARAD instrument to the app.
+
+    Args:
+        data (ByteString): Binary data to be forwarded.
+    """
+
+    data: ByteString
+
+
+@dataclass
+class ReserveDeviceMsg:
+    """Request to reserve an instrument. Sent from API.
+
+    Args:
+        host (str): Host requesting the reservation.
+        user (str): Name of the user requesting the reservation.
+        app (str): Application requesting the reservation
+    """
+
+    host: str
+    user: str
+    app: str
+
+
+class ReservationStatus(Enum):
+    """Indicates the reservation status of the instrument."""
+
+    FREE = 0
+    OCCUPIED = 1
+
+
+@dataclass
+class ReservationStatusMsg:
+    """Message to inform about the result of the ReserveDeviceMsg.
+
+    Args:
+        reservation_status: either FREE or OCCUPIED
+    """
+
+    reservation_status: ReservationStatus
+
+
+@dataclass
+class FreeDeviceMsg:
+    """Request to free an instrument from the reservation. Sent from API to Device Actor."""
+
+
+@dataclass
+class SubscribeToDeviceStatusMsg:
+    """Message to subscribe the sender to updates of the device status information
+    collected in the Device Actor."""
+
+
+@dataclass
+class UpdateDeviceStatusMsg:
+    """Message with updated device status information for an instrument.
+
+    Args:
+        instr_id (str): Instrument id
+        device_status (dict): Dictionary with status information of the instrument.
+    """
+
+    instr_id: str
+    device_status: dict
+
+
+@dataclass
+class SocketMsg:
+    """Message sent from the Redirector Actor to the Device Actor after
+    establishing a server socket to connect the app.
+
+    Args:
+        ip (str): IP address of the listening server socket.
+        port (int): Port number of the listening server socket.
+    """
+
+    ip_address: str
+    port: int
+
+
+@dataclass
+class ReceiveMsg:
+    """Request to start another loop of the _receive_loop function
+    in the Redirector Actor."""
