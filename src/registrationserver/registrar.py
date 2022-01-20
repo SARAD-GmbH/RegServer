@@ -90,3 +90,9 @@ class Registrar(BaseActor):
                     self.actor_dict[actor_id]["address"],
                     UpdateActorDictMsg(self.actor_dict),
                 )
+
+    @overrides
+    def receiveMsg_ActorExitRequest(self, _msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for ActorExitRequest"""
+        self.send(self.parent.parent_address, True)

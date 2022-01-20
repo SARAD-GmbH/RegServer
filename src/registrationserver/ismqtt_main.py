@@ -15,7 +15,7 @@ import time
 from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import Actor, ActorSystem, PoisonMessage
 
-from registrationserver.actor_messages import AppType, SetupMsg
+from registrationserver.actor_messages import AppType, KillMsg, SetupMsg
 from registrationserver.config import actor_config, config
 from registrationserver.logdef import LOGFILENAME, logcfg
 from registrationserver.logger import logger
@@ -38,16 +38,15 @@ def cleanup():
     together with the main program.
 
     Returns:
-        None"""
-    logger.debug("Terminate the ClusterActor")
-    cluster_actor = ActorSystem().createActor(Actor, globalName="cluster")
-    response = ActorSystem().ask(cluster_actor, {"CMD": "KILL"})
+        None
+    """
+    logger.debug("Terminate the actor system")
+    registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+    response = ActorSystem().ask(registrar_actor, KillMsg())
     if isinstance(response, PoisonMessage):
         logger.critical("Critical error in cluster_actor. I will try to proceed.")
         logger.critical(response.details)
-        ActorSystem().tell(cluster_actor, ActorExitRequest())
-    logger.debug("Cluster_actor killed: %s", response)
-    logger.info("Cleaning up before closing.")
+        ActorSystem().tell(registrar_actor, ActorExitRequest())
     ActorSystem().shutdown()
     logger.info("Actor system shut down finished.")
 

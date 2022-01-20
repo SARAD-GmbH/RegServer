@@ -16,9 +16,10 @@ import threading
 import time
 from datetime import datetime
 
-from thespian.actors import ActorSystem  # type: ignore
+from thespian.actors import (ActorExitRequest, ActorSystem,  # type: ignore
+                             PoisonMessage)
 
-from registrationserver.actor_messages import AppType, SetupMsg
+from registrationserver.actor_messages import AppType, KillMsg, SetupMsg
 from registrationserver.config import actor_config, config
 from registrationserver.logdef import LOGFILENAME, logcfg
 from registrationserver.logger import logger
@@ -56,13 +57,21 @@ def cleanup(mqtt_listener, mdns_listener):
         mdns_listener: An instance of MdnsListener
 
     Returns:
-        None"""
+        None
+    """
     logger.info("Cleaning up before closing.")
     if mqtt_listener is not None:
         if mqtt_listener.is_connected:
             mqtt_listener.stop()
     if mdns_listener is not None:
         mdns_listener.shutdown()
+    logger.debug("Terminate the actor system")
+    registrar_actor = ActorSystem().createActor(Registrar, globalName="registrar")
+    response = ActorSystem().ask(registrar_actor, KillMsg())
+    if isinstance(response, PoisonMessage):
+        logger.critical("Critical error in cluster_actor. I will try to proceed.")
+        logger.critical(response.details)
+        ActorSystem().tell(registrar_actor, ActorExitRequest())
     ActorSystem().shutdown()
     logger.info("Actor system shut down finished.")
 
