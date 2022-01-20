@@ -11,7 +11,8 @@
 """
 
 from overrides import overrides  # type: ignore
-from registrationserver.config import AppType, config
+from registrationserver.actor_messages import AppType
+from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.modules.messages import RETURN_MESSAGES

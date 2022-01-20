@@ -12,8 +12,9 @@
 from datetime import datetime, timedelta
 
 from overrides import overrides  # type: ignore
+from registrationserver.actor_messages import AppType
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import AppType, config, ismqtt_config
+from registrationserver.config import config, ismqtt_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES

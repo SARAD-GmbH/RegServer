@@ -15,11 +15,10 @@ import time
 from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import Actor, ActorSystem, PoisonMessage
 
-from registrationserver.config import AppType, actor_config, config
+from registrationserver.actor_messages import AppType, SetupMsg
+from registrationserver.config import actor_config, config
 from registrationserver.logdef import LOGFILENAME, logcfg
 from registrationserver.logger import logger
-from registrationserver.modules.mqtt_scheduler import MqttSchedulerActor
-from registrationserver.modules.usb.cluster_actor import ClusterActor
 from registrationserver.registrar import Registrar
 from registrationserver.shutdown import is_flag_set, set_file_flag
 
@@ -81,9 +80,10 @@ def startup():
         logDefs=logcfg,
     )
     registrar_actor = system.createActor(Registrar, globalName="registrar")
-    system.tell(registrar_actor, {"CMD": "SETUP"})
-    system.createActor(ClusterActor, globalName="cluster")
-    system.createActor(MqttSchedulerActor, globalName="mqtt_scheduler")
+    system.tell(
+        registrar_actor,
+        SetupMsg("registrar", "actor_system", AppType.ISMQTT),
+    )
     logger.debug("Actor system started.")
     usb_listener = UsbListener()
     usb_listener_thread = threading.Thread(

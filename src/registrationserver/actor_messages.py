@@ -12,18 +12,27 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import ByteString
 
-from thespian.actors import ActorAddress
+from thespian.actors import ActorAddress  # type: ignore
 
 
 class AppType(Enum):
     """Indicates the type of the application that shall be implemented
     with the Actor System.
 
-    RS: Registration Server
-    ISMQTT: Instrument Server MQTT"""
+    The program can be started either as Instrument Server (ISMQTT or IS2) or
+    as Registration Server (RS).
+    There are three main files:
 
-    RS = 0
+    * main.py for the Registration Server,
+    * ismqtt_main.py for Instrument Server MQTT,
+    * is2_main.py for Instrument Server 2,
+
+    where `config["APP_TYPE]` will be set with the appropriate AppType.
+    """
+
     ISMQTT = 1
+    IS2 = 2
+    RS = 3
 
 
 @dataclass
@@ -35,13 +44,10 @@ class SetupMsg:
         actor_id (str): Unique Id of the actor.
                         Can be used to identify the device if the actor is a device actor.
         parent_id (str): Actor Id if the parent is an actor, actor_system else.
-        device_status (dict): (only for device actors) Dictionary with status information
-                              of the instrument. Shall be {}, if not used.
     """
 
     actor_id: str
     parent_id: str
-    device_status: dict
     app_type: AppType
 
 

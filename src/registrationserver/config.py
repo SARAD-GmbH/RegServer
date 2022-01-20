@@ -11,31 +11,13 @@ import logging
 import os
 import socket
 import sys
-from enum import Enum
 from typing import List
 from uuid import getnode as get_mac
 
 import toml
 from zeroconf import IPVersion
 
-
-class AppType(Enum):
-    """Flag identifying the type of application that is currently running.
-
-    The program can be started either as Instrument Server (ISMQTT or IS2) or
-    as Registration Server (RS).
-    There are three main files:
-
-    * main.py for the Registration Server,
-    * ismqtt_main.py for Instrument Server MQTT,
-    * is2_main.py for Instrument Server 2,
-
-    where `config["APP_TYPE]` will be set with the appropriate AppType.
-    """
-
-    ISMQTT = 1
-    IS2 = 2
-    RS = 3
+from registrationserver.actor_messages import AppType
 
 
 def unique_id(ambiguous_id):
