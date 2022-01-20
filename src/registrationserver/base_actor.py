@@ -20,14 +20,14 @@ from typing import Dict
 
 from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import Actor, ChildActorExited, PoisonMessage
+from thespian.actors import Actor, ActorTypeDispatcher
 
 from registrationserver.helpers import get_key
 from registrationserver.logger import logger
 from registrationserver.shutdown import system_shutdown
 
 
-class BaseActor(Actor):
+class BaseActor(ActorTypeDispatcher):
     """Basic class for all actors created in the actor system of the Registration
     Server"""
 
@@ -87,44 +87,46 @@ class BaseActor(Actor):
         """Subscribe to receive updates of the Actor Dictionary from Registrar."""
         self.send(self.registrar, {"CMD": "SUB_TO_DICT", "ID": self.my_id})
 
-    @overrides
-    def receiveMessage(self, msg, sender):  # pylint: disable=invalid-name
+    def receiveMsg_PoisonMessage(self, _msg, _sender):
+        # pylint: disable=invalid-name, no-self-use
+        """Handler for PoisonMessage"""
+        logger.critical("PoisonMessage -> Emergency shutdown.")
+        system_shutdown()
+
+    def receiveMsg_ChildActorExited(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for ChildActorExited"""
+        actor_id = get_key(msg.childAddress, self.child_actors)
+        self.child_actors.pop(actor_id, None)
+        if not self.child_actors and self.on_kill:
+            self.send(self.myAddress, ActorExitRequest())
+
+    def receiveMsg_ActorExitRequest(self, _msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for ActorExitRequest"""
+        self.send(self.registrar, {"CMD": "UNSUBSCRIBE", "ID": self.my_id})
+
+    def receiveMsg_dict(self, msg, sender):
+        # pylint: disable=invalid-name
         """Handles received Actor messages / verification of the message format"""
         logger.debug("Msg: %s, Sender: %s", msg, sender)
-        if isinstance(msg, PoisonMessage):
-            logger.critical("PoisonMessage -> Emergency shutdown.")
-            system_shutdown()
-            return
-        if isinstance(msg, ActorExitRequest):
-            self.send(self.registrar, {"CMD": "UNSUBSCRIBE", "ID": self.my_id})
-            return
-        if isinstance(msg, ChildActorExited):
-            actor_id = get_key(msg.childAddress, self.child_actors)
-            self.child_actors.pop(actor_id, None)
-            if not self.child_actors and self.on_kill:
-                self.send(self.myAddress, ActorExitRequest())
-            return
-        if isinstance(msg, dict):
+        try:
+            cmd_function = self.ACCEPTED_COMMANDS[msg["CMD"]]
+        except KeyError:
             try:
-                cmd_function = self.ACCEPTED_COMMANDS[msg["CMD"]]
+                cmd_function = self.ACCEPTED_RETURNS[msg["RETURN"]]
             except KeyError:
-                try:
-                    cmd_function = self.ACCEPTED_RETURNS[msg["RETURN"]]
-                except KeyError:
-                    logger.critical("Illegal message.")
-                    system_shutdown()
-                    return
-            try:
-                getattr(self, cmd_function)(msg, sender)
-            except AttributeError:
-                logger.critical("No function implemented for %s", cmd_function)
+                logger.critical("Illegal message.")
                 system_shutdown()
                 return
-        else:
-            logger.critical(
-                (
-                    "Msg is neither a command nor PoisonMessage, ChildActorExit, ",
-                    "or ActorExitRequest -> Emergency shutdown",
-                )
-            )
+        try:
+            getattr(self, cmd_function)(msg, sender)
+        except AttributeError:
+            logger.critical("No function implemented for %s", cmd_function)
             system_shutdown()
+
+    def receiveUnrecognizedMessage(self, msg, _sender):
+        # pylint: disable=invalid-name, no-self-use
+        """Handler for messages that do not fit the spec."""
+        logger.critical("Did not recognize the message type: %s", type(msg))
+        system_shutdown()

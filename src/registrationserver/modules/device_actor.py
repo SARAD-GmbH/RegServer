@@ -81,16 +81,11 @@ class DeviceBaseActor(BaseActor):
         self.mqtt_scheduler = None
         logger.info("Device actor created.")
 
-    @overrides
-    def receiveMessage(self, msg, sender):
-        """
-        Handles received Actor messages / verification of the message format
-        """
-        if isinstance(msg, WakeupMessage):
-            if msg.payload == "keep_alive":
-                self.wakeupAfter(timedelta(minutes=10), payload="keep_alive")
-            return
-        super().receiveMessage(msg, sender)
+    def receiveMsg_WakeupMessage(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for WakeupMessage"""
+        if msg.payload == "keep_alive":
+            self.wakeupAfter(timedelta(minutes=10), payload="keep_alive")
 
     @overrides
     def _on_setup_cmd(self, msg, sender) -> None:
@@ -127,6 +122,7 @@ class DeviceBaseActor(BaseActor):
             self.send(self.mqtt_scheduler, add_message)
 
     def _on_update_cmd(self, msg, _sender) -> None:
+        # TODO: Can be replaced with a new SetupMsg
         logger.debug("[_on_update_cmd]")
         self.device_status = msg["PAR"]
         logger.debug("Device status: %s", self.device_status)

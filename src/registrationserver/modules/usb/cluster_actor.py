@@ -457,14 +457,7 @@ class ClusterActor(BaseActor):
             logger.debug("All instrument are unsigned now. Killing myself.")
             self._kill_myself(self._actor_system)
 
-    @overrides
-    def receiveMessage(self, msg, sender):
-        """
-        Handles received Actor messages / verification of the message format
-        """
-        if isinstance(msg, WakeupMessage):
-            self._continue_loop()
-            return
-        if isinstance(msg, ChildActorExited):
-            self._on_kill_return(msg, msg.childAddress)
-        super().receiveMessage(msg, sender)
+    def receiveMsg_WakeupMessage(self, _msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for WakeupMessage"""
+        self._continue_loop()

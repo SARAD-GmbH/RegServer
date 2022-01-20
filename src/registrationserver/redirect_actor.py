@@ -73,14 +73,11 @@ class RedirectorActor(BaseActor):
         if self._port is not None:
             logger.info("Socket listening on %s:%d", self._host, self._port)
 
-    @overrides
-    def receiveMessage(self, msg, sender):
-        """Handles received Actor messages / verification of the message format"""
-        if isinstance(msg, WakeupMessage):
-            if msg.payload == "Connect":
-                self._on_connect_cmd(msg, sender)
-            return
-        super().receiveMessage(msg, sender)
+    def receiveMsg_WakeupMessage(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for WakeupMessage"""
+        if msg.payload == "Connect":
+            self._on_connect_cmd(msg, sender)
 
     @overrides
     def _on_setup_cmd(self, msg, sender):

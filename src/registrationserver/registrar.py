@@ -14,10 +14,7 @@ device actors referenced in the dictionary.
 
 """
 
-from typing import Dict
-
 from overrides import overrides  # type: ignore
-from thespian.actors import DeadEnvelope  # type: ignore
 
 from registrationserver.base_actor import BaseActor
 from registrationserver.logger import logger
@@ -54,16 +51,15 @@ class Registrar(BaseActor):
             logger.critical("Malformed SETUP message")
             raise
 
-    @overrides
-    def receiveMessage(self, msg, sender):  # pylint: disable=invalid-name
-        if isinstance(msg, DeadEnvelope):
-            logger.critical(
-                "DeadMessage: %s to deadAddress: %s. -> Emergency shutdown",
-                msg.deadMessage,
-                msg.deadAddress,
-            )
-            system_shutdown()
-            return
+    def receiveMsg_DeadEnvelope(self, msg, _sender):
+        # pylint: disable=invalid-name, no-self-use
+        """Handler for all DeadEnvelope messages in the actor system"""
+        logger.critical(
+            "DeadMessage: %s to deadAddress: %s. -> Emergency shutdown",
+            msg.deadMessage,
+            msg.deadAddress,
+        )
+        system_shutdown()
 
     def _on_read_cmd(self, _msg, sender):
         """Handler for READ message"""
