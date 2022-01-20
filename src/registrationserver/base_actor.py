@@ -128,3 +128,6 @@ class BaseActor(ActorTypeDispatcher):
     def _subcribe_to_device_status_msg(self):
         """Subscribe to receive updates of the Actor Dictionary from Registrar."""
         self.send(self.registrar, SubscribeToDeviceStatusMsg(actor_id=self.my_id))
+
+    def _create_actor(self, actor_type, actor_id):
+        self.child_actors[actor_id] = self.createActor(actor_type, globalName=actor_id)

@@ -74,6 +74,7 @@ Functions of the Registrar Actor
 - on `UnsubscribeMsg`: remove actors from the Actor Dictionary
 - mark actors that have subscribed to get updates of the Actor Dictionary
 - on every change of the Actor Dictionary, send this dict to all marked subscribers
+- send `KeepAliveMsg` to all all child actors on a regular basis
 - create the Cluster Actor
 
 Additionally for Instrument Server MQTT:

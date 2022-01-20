@@ -14,10 +14,16 @@ device actors referenced in the dictionary.
 
 """
 
+from datetime import timedelta
+
 from overrides import overrides  # type: ignore
 
+from registrationserver.actor_messages import (AppType, KeepAliveMsg,
+                                               UpdateActorDictMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.logger import logger
+from registrationserver.modules.mqtt_scheduler import MqttSchedulerActor
+from registrationserver.modules.usb.cluster_actor import ClusterActor
 from registrationserver.shutdown import system_shutdown
 
 
@@ -25,35 +31,32 @@ class Registrar(BaseActor):
     """Actor providing a dictionary of devices"""
 
     @overrides
-    def __init__(self):
-        self.ACCEPTED_COMMANDS.update(
-            {
-                "READ": "_on_read_cmd",
-                "SUBSCRIBE": "_on_subscribe_cmd",
-                "UNSUBSCRIBE": "_on_unsubscribe_cmd",
-            }
-        )
-        self.ACCEPTED_RETURNS.update(
-            {
-                "KEEP_ALIVE": "_on_keep_alive_return",
-            }
-        )
-        super().__init__()
-        self._devices = {}
-
-    @overrides
-    def _on_setup_cmd(self, msg, sender):
+    def receiveMsg_SetupMsg(self, msg, sender):
         self.handleDeadLetters(startHandling=True)
-        try:
-            self.my_parent = sender
-            self.my_id = msg["ID"]
-        except KeyError:
-            logger.critical("Malformed SETUP message")
-            raise
+        super().receiveMsg_SetupMsg(msg, sender)
+        self._create_actor(ClusterActor, "cluster")
+        if self.app_type == AppType.ISMQTT:
+            self._create_actor(MqttSchedulerActor, "mqtt_scheduler")
+        self.wakeupAfter(timedelta(minutes=10), payload="keep alive")
+
+    def receiveMsg_WakeUpMessage(self, msg, _sender):
+        # pylint: disable=invalid-name, no-self-use
+        """Handler for WakeUpMessage to send the KeepAliveMsg to all children."""
+        if msg.payload == "keep alive":
+            for actor_id in self.actor_dict:
+                if not self.actor_dict[actor_id]["is_alive"]:
+                    logger.critical(
+                        "Actor %s did not respond to KeepAliveMsg.", actor_id
+                    )
+                    logger.critical("-> Emergency shutdown")
+                    system_shutdown()
+                self.actor_dict[actor_id]["is_alive"] = False
+            self.send(self.myAddress, KeepAliveMsg())
+        self.wakeupAfter(timedelta(minutes=10), payload="keep alive")
 
     def receiveMsg_DeadEnvelope(self, msg, _sender):
         # pylint: disable=invalid-name, no-self-use
-        """Handler for all DeadEnvelope messages in the actor system"""
+        """Handler for all DeadEnvelope messages in the actor system."""
         logger.critical(
             "DeadMessage: %s to deadAddress: %s. -> Emergency shutdown",
             msg.deadMessage,
@@ -61,30 +64,29 @@ class Registrar(BaseActor):
         )
         system_shutdown()
 
-    def _on_read_cmd(self, _msg, sender):
-        """Handler for READ message"""
-        self.send(sender, {"RETURN": "READ", "RESULT": self._devices})
+    def receiveMsg_SubscribeMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for SubscribeMsg from any actor."""
+        self.actor_dict[msg.actor_id] = {
+            "address": sender,
+            "parent": msg.parent,
+            "is_device_actor": msg.is_device_actor,
+            "get_updates": msg.get_updates,
+            "is_alive": True,
+        }
+        self._send_updates()
 
-    def _on_subscribe_cmd(self, msg, sender):
-        """Handler for SUBSCRIBE messages"""
-        try:
-            actor_id = msg["ID"]
-            parent = msg["PARENT"]
-            self._devices[actor_id] = {
-                "address": sender,
-                "parent": parent,
-                "is_alive": True,
-            }
-        except KeyError:
-            logger.error("Message is not suited to create a dict entry.")
+    def receiveMsg_UnsubscribeMsg(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for UnsubscribeMsg from any actor."""
+        self.actor_dict.pop(msg.actor_id)
+        self._send_updates()
 
-    def _on_unsubscribe_cmd(self, msg, _sender):
-        """Handler for UNSUBSCRIBE messages"""
-        try:
-            self._devices.pop(msg["ID"])
-        except KeyError:
-            logger.error("Message is not suited to remove a dict entry.")
-
-    def _on_keep_alive_return(self, msg, sender):
-        """Handler for messages returned from other actors that have received a
-        KEEP_ALIVE message."""
+    def _send_updates(self):
+        """Send the updated Actor Dictionary to all subscribers."""
+        for actor_id in self.actor_dict:
+            if self.actor_dict[actor_id]["get_updates"]:
+                self.send(
+                    self.actor_dict[actor_id]["address"],
+                    UpdateActorDictMsg(self.actor_dict),
+                )
