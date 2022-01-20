@@ -16,76 +16,85 @@ Actors created in the actor system
     | Michael Strey <strey@sarad.de>
 
 """
-from typing import Dict
+from dataclasses import dataclass
 
 from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import Actor, ActorTypeDispatcher
+from thespian.actors import Actor, ActorAddress, ActorTypeDispatcher
 
+from registrationserver.actor_messages import (AppType, SubscribeMsg,
+                                               SubscribeToActorDictMsg,
+                                               SubscribeToDeviceStatusMsg,
+                                               UnsubscribeMsg)
 from registrationserver.helpers import get_key
 from registrationserver.logger import logger
 from registrationserver.shutdown import system_shutdown
+
+
+@dataclass
+class Parent:
+    """Description of the parent actor."""
+
+    parent_id: str
+    parent_address: ActorAddress
 
 
 class BaseActor(ActorTypeDispatcher):
     """Basic class for all actors created in the actor system of the Registration
     Server"""
 
-    ACCEPTED_COMMANDS = {
-        "SETUP": "_on_setup_cmd",
-        "KEEP_ALIVE": "_on_keep_alive_cmd",
-        "UPDATE_DICT": "_on_update_dict_cmd",
-        "KILL": "_on_kill_cmd",
-    }
-
-    ACCEPTED_RETURNS: Dict[str, str] = {}
-
     @overrides
     def __init__(self):
         super().__init__()
         self.registrar = None
-        self.my_parent = None
+        self.parent = None
         self.my_id = None
         self.child_actors = {}  # {actor_id: <actor address>}
         self.actor_dict = {}
         self.on_kill = False
+        self.app_type = AppType.RS
 
-    def _on_setup_cmd(self, msg, sender):
-        """Handler for SETUP message to set essential attributs after initialization"""
-        try:
-            self.registrar = self.createActor(Actor, globalName="registrar")
-            self.my_parent = sender
-            self.my_id = msg["ID"]
-        except KeyError:
-            logger.critical("Malformed SETUP message")
-            raise
+    def receiveMsg_SetupMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for SetupMsg to set essential attributs after initialization"""
+        self.parent = Parent(parent_id=msg.parent_id, parent_address=sender)
+        self.my_id = msg.actor_id
+        self.registrar = self.createActor(Actor, globalName="registrar")
+        self.app_type = msg.app_type
+        self._subscribe()
+
+    def _subscribe(self):
+        """Subscribe at Registrar actor."""
         self.send(
             self.registrar,
-            {"CMD": "SUBSCRIBE", "ID": self.my_id, "PARENT": self.my_parent},
+            SubscribeMsg(
+                actor_id=self.my_id,
+                parent=self.parent.parent_address,
+                is_device_actor=False,
+                get_updates=False,
+            ),
         )
 
-    def _on_kill_cmd(self, msg, sender):  # pylint: disable = unused-argument
-        """Handle the KILL command for this actor"""
+    def _forward_to_children(self, msg):
         for _child_id, child_actor in self.child_actors.items():
             self.send(child_actor, msg)
+
+    def receiveMsg_KillMsg(self, msg, sender):
+        # pylint: disable=invalid-name, unused-argument
+        """Handle the KillMsg for this actor"""
+        self._forward_to_children(msg)
         self.on_kill = True
 
-    def _on_keep_alive_cmd(self, msg, sender):  # pylint: disable = unused-argument
-        """Handler for KEEP_ALIVE message from the Registrar"""
-        for _child_id, child_actor in self.child_actors.items():
-            self.send(child_actor, msg)
-        self.send(self.registrar, {"RETURN": "KEEP_ALIVE", "ID": self.my_id})
+    def receiveMsg_KeepAliveMsg(self, msg, sender):
+        # pylint: disable=invalid-name, unused-argument
+        """Handler for KeepAliveMsg from the Registrar"""
+        self._forward_to_children(msg)
+        self._subscribe()
 
-    def _on_update_dict_cmd(self, msg, sender):  # pylint: disable = unused-argument
-        """Handler for UPDATE_DICT message from any actor"""
-        self.actor_dict = msg["PAR"]["ACTOR_DICT"]
-
-    def _mark_as_device_actor(self):
-        self.send(self.registrar, {"CMD": "IS_DEVICE", "ID": self.my_id})
-
-    def _subcribe_to_actor_dict(self):
-        """Subscribe to receive updates of the Actor Dictionary from Registrar."""
-        self.send(self.registrar, {"CMD": "SUB_TO_DICT", "ID": self.my_id})
+    def receiveMsg_UpdateActorDictMsg(self, msg, sender):
+        # pylint: disable=invalid-name, unused-argument
+        """Handler for UpdateActorDictMsg from Registrar"""
+        self.actor_dict = msg.actor_dict
 
     def receiveMsg_PoisonMessage(self, _msg, _sender):
         # pylint: disable=invalid-name, no-self-use
@@ -104,29 +113,18 @@ class BaseActor(ActorTypeDispatcher):
     def receiveMsg_ActorExitRequest(self, _msg, _sender):
         # pylint: disable=invalid-name
         """Handler for ActorExitRequest"""
-        self.send(self.registrar, {"CMD": "UNSUBSCRIBE", "ID": self.my_id})
-
-    def receiveMsg_dict(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handles received Actor messages / verification of the message format"""
-        logger.debug("Msg: %s, Sender: %s", msg, sender)
-        try:
-            cmd_function = self.ACCEPTED_COMMANDS[msg["CMD"]]
-        except KeyError:
-            try:
-                cmd_function = self.ACCEPTED_RETURNS[msg["RETURN"]]
-            except KeyError:
-                logger.critical("Illegal message.")
-                system_shutdown()
-                return
-        try:
-            getattr(self, cmd_function)(msg, sender)
-        except AttributeError:
-            logger.critical("No function implemented for %s", cmd_function)
-            system_shutdown()
+        self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
 
     def receiveUnrecognizedMessage(self, msg, _sender):
         # pylint: disable=invalid-name, no-self-use
         """Handler for messages that do not fit the spec."""
         logger.critical("Did not recognize the message type: %s", type(msg))
         system_shutdown()
+
+    def _subcribe_to_actor_dict_msg(self):
+        """Subscribe to receive updates of the Actor Dictionary from Registrar."""
+        self.send(self.registrar, SubscribeToActorDictMsg(actor_id=self.my_id))
+
+    def _subcribe_to_device_status_msg(self):
+        """Subscribe to receive updates of the Actor Dictionary from Registrar."""
+        self.send(self.registrar, SubscribeToDeviceStatusMsg(actor_id=self.my_id))

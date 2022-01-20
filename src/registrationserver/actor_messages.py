@@ -15,6 +15,17 @@ from typing import ByteString
 from thespian.actors import ActorAddress
 
 
+class AppType(Enum):
+    """Indicates the type of the application that shall be implemented
+    with the Actor System.
+
+    RS: Registration Server
+    ISMQTT: Instrument Server MQTT"""
+
+    RS = 0
+    ISMQTT = 1
+
+
 @dataclass
 class SetupMsg:
     """Message used to send setup information after actor __init__.
@@ -23,13 +34,25 @@ class SetupMsg:
     Args:
         actor_id (str): Unique Id of the actor.
                         Can be used to identify the device if the actor is a device actor.
-        parent_id (str): Actor Id of the parent actor.
+        parent_id (str): Actor Id if the parent is an actor, actor_system else.
         device_status (dict): (only for device actors) Dictionary with status information
                               of the instrument. Shall be {}, if not used.
     """
 
     actor_id: str
     parent_id: str
+    device_status: dict
+    app_type: AppType
+
+
+@dataclass
+class SetDeviceStatusMsg:
+    """Message used to send setup information about the device status to a Device Actor.
+
+    Args:
+        device_status (dict): Dictionary with status information of the instrument.
+    """
+
     device_status: dict
 
 
@@ -76,7 +99,11 @@ class KeepAliveMsg:
 @dataclass
 class SubscribeToActorDictMsg:
     """Message to subscribe an actor to the Actor Dictionary maintained in the
-    Registrar actor."""
+    Registrar actor.
+
+    Args:
+        actor_id (str): Unique Id of the actor that shall receive the updates.
+    """
 
     actor_id: str
 
@@ -164,7 +191,13 @@ class FreeDeviceMsg:
 @dataclass
 class SubscribeToDeviceStatusMsg:
     """Message to subscribe the sender to updates of the device status information
-    collected in the Device Actor."""
+    collected in the Device Actor.
+
+    Args:
+        actor_id (str): Unique Id of the actor that shall receive the updates.
+    """
+
+    actor_id: str
 
 
 @dataclass
