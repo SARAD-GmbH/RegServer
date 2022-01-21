@@ -13,6 +13,7 @@ import win32api  # pylint: disable=import-error
 import win32con  # pylint: disable=import-error
 import win32gui  # pylint: disable=import-error
 from overrides import overrides  # type: ignore
+from registrationserver.actor_messages import InstrAddedMsg, InstrRemovedMsg
 from registrationserver.logger import logger
 from registrationserver.modules.usb.base_listener import BaseListener
 
@@ -101,10 +102,10 @@ class UsbListener(BaseListener):
             logger.debug("Received message: %s = %s", event, description)
             if event in ("DBT_DEVICEARRIVAL", "DBT_DEVICEREMOVECOMPLETE"):
                 if event in "DBT_DEVICEARRIVAL":
-                    self._system.tell(self._cluster, {"CMD": "ADD", "PAR": {}})
+                    self._system.tell(self._cluster, InstrAddedMsg())
                     return
                 if event in "DBT_DEVICEREMOVECOMPLETE":
-                    self._system.tell(self._cluster, {"CMD": "REMOVE", "PAR": {}})
+                    self._system.tell(self._cluster, InstrRemovedMsg())
             return
 
 

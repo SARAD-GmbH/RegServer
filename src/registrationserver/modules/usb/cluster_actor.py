@@ -72,6 +72,7 @@ class ClusterActor(BaseActor):
         self._do_loop()
 
     def _on_loop_cmd(self, msg, sender) -> None:
+        # pylint: disable=invalid-name
         target = msg["PAR"]["PORT"]
         logger.info("Adding to loop: %s", target)
         ports_ok: List[str] = []
@@ -94,6 +95,7 @@ class ClusterActor(BaseActor):
         )
 
     def _on_loop_remove_cmd(self, msg, sender) -> None:
+        # pylint: disable=invalid-name
         target = msg["PAR"]["PORT"]
         logger.info("Removing from loop: %s", target)
         ports_ok: List[str] = []
@@ -184,6 +186,7 @@ class ClusterActor(BaseActor):
         return False
 
     def _on_send_cmd(self, msg, sender) -> None:
+        # pylint: disable=invalid-name
         logger.debug("[_on_send_cmd]")
         data = msg["PAR"]["DATA"]
         target = msg["PAR"]["Instrument"]
@@ -234,6 +237,7 @@ class ClusterActor(BaseActor):
             self._remove_actor(self._get_actor_id(sender, self.child_actors))
 
     def _on_free_cmd(self, msg, _sender) -> None:
+        # pylint: disable=invalid-name
         logger.debug("[_on_free_cmd]")
         target = msg["PAR"]["Instrument"]
         instrument: SaradInst = None
@@ -245,6 +249,7 @@ class ClusterActor(BaseActor):
             )
 
     def _on_list_ports_cmd(self, _msg, sender) -> None:
+        # pylint: disable=invalid-name
         logger.debug("[_on_list_ports_cmd]")
         result: List[Dict[str, Any]] = []
         ports = [
@@ -260,6 +265,7 @@ class ClusterActor(BaseActor):
         self.send(sender, return_message)
 
     def _on_list_usb_cmd(self, _msg, sender) -> None:
+        # pylint: disable=invalid-name
         logger.debug("[_on_list_usb_cmd]")
         result: List[Dict[str, Any]] = []
         ports = [port.device for port in comports() if port.vid and port.pid]
@@ -286,6 +292,7 @@ class ClusterActor(BaseActor):
         self.send(sender, return_message)
 
     def _on_list_natives_cmd(self, _msg, sender) -> None:
+        # pylint: disable=invalid-name
         logger.debug("[_on_list_natives_cmd]")
         result: List[Dict[str, Any]] = []
         ports = [port.device for port in comports() if not port.pid]
@@ -311,6 +318,7 @@ class ClusterActor(BaseActor):
         self.send(sender, return_message)
 
     def _on_list_cmd(self, msg, sender) -> None:
+        # pylint: disable=invalid-name
         logger.debug("[_on_list_cmd]")
         result: List[Dict[str, Any]] = []
         target = msg["PAR"].get("PORTS", None)
@@ -393,54 +401,37 @@ class ClusterActor(BaseActor):
                 "Tried to remove %s, that never was added properly.", gone_port
             )
 
-    def _on_add_cmd(self, msg, _sender):
+    def receiveMsg_InstrAddedMsg(self, _msg, _sender):
+        # pylint: disable=invalid-name
         """Create device actors for instruments connected to
         the serial ports given in the argument list."""
         logger.debug("[_on_add_cmd]")
-        target = msg["PAR"].get("PORTS", None)
-        if target is None:
-            port_actors = self._switch_to_port_key(self.child_actors)
-            old_ports = set(port_actors.keys())
-            new_instruments = self._cluster.update_connected_instruments(
-                ports_to_skip=list(old_ports)
-            )
-            new_ports = set()
-            for instrument in new_instruments:
-                new_ports.add(instrument.port)
-            target = list(new_ports)
-            for port in target:
-                for instrument in self._cluster.connected_instruments:
-                    if instrument.port == port:
-                        self._create_and_setup_actor(instrument)
-        else:
-            assert isinstance(target, list)
-            if target == []:
-                return
-            instruments = self._cluster.update_connected_instruments(
-                ports_to_test=target
-            )
-            for instrument in instruments:
-                self._create_and_setup_actor(instrument)
-        return
+        port_actors = self._switch_to_port_key(self.child_actors)
+        old_ports = set(port_actors.keys())
+        new_instruments = self._cluster.update_connected_instruments(
+            ports_to_skip=list(old_ports)
+        )
+        new_ports = set()
+        for instrument in new_instruments:
+            new_ports.add(instrument.port)
+        target = list(new_ports)
+        for port in target:
+            for instrument in self._cluster.connected_instruments:
+                if instrument.port == port:
+                    self._create_and_setup_actor(instrument)
 
-    def _on_remove_cmd(self, msg, _sender):
+    def receiveMsg_InstrRemovedMsg(self, msg, _sender):
+        # pylint: disable=invalid-name
         """Kill device actors for instruments that have been unplugged from
         the serial ports given in the argument list."""
         logger.debug("[_on_remove_cmd]")
-        target = msg["PAR"].get("PORTS", None)
-        if target is None:
-            port_actors = self._switch_to_port_key(self.child_actors)
-            old_ports = set(port_actors.keys())
-            current_ports = set(port.device for port in comports())
-            gone_ports = old_ports.difference(current_ports)
-            logger.debug("Call _remove_actor for %s", gone_ports)
-            for port in gone_ports:
-                self._remove_actor(port)
-        else:
-            assert isinstance(target, list)
-            self._cluster.update_connected_instruments(ports_to_test=target)
-            for port in target:
-                self._remove_actor(port)
+        port_actors = self._switch_to_port_key(self.child_actors)
+        old_ports = set(port_actors.keys())
+        current_ports = set(port.device for port in comports())
+        gone_ports = old_ports.difference(current_ports)
+        logger.debug("Call _remove_actor for %s", gone_ports)
+        for port in gone_ports:
+            self._remove_actor(port)
 
     def receiveMsg_WakeupMessage(self, _msg, _sender):
         # pylint: disable=invalid-name

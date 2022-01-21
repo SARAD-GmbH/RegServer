@@ -13,6 +13,7 @@ import hashlib
 
 import pyudev  # type: ignore
 from overrides import overrides  # type: ignore
+from registrationserver.actor_messages import InstrAddedMsg, InstrRemovedMsg
 from registrationserver.logger import logger
 from registrationserver.modules.usb.base_listener import BaseListener
 
@@ -59,12 +60,12 @@ class UsbListener(BaseListener):
         if action == "add":
             self._system.tell(
                 self._cluster,
-                {"CMD": "ADD", "PAR": {}},
+                InstrAddedMsg(),
             )
         elif action == "remove":
             self._system.tell(
                 self._cluster,
-                {"CMD": "REMOVE", "PAR": {}},
+                InstrRemovedMsg(),
             )
         else:
             logger.error("USB device event with action %s", action)

@@ -237,3 +237,25 @@ class SocketMsg:
 class ReceiveMsg:
     """Request to start another loop of the _receive_loop function
     in the Redirector Actor."""
+
+
+@dataclass
+class InstrAddedMsg:
+    """Request to add a new instrument."""
+
+
+@dataclass
+class InstrRemovedMsg:
+    """Request to remove a instrument."""
+
+
+"""
+                "FREE": "_on_free_cmd",
+                "SEND": "_on_send_cmd",
+                "LIST": "_on_list_cmd",
+                "LIST-USB": "_on_list_usb_cmd",
+                "LIST-NATIVE": "_on_list_natives_cmd",
+                "LOOP": "_on_loop_cmd",
+                "LOOP-REMOVE": "_on_loop_remove_cmd",
+                "LIST-PORTS": "_on_list_ports_cmd",
+"""
