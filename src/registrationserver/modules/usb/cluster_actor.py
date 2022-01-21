@@ -62,9 +62,14 @@ class ClusterActor(BaseActor):
             native_ports=list(self.native_ports), ignore_ports=list(self.ignore_ports)
         )
         self._actor_system = None
-        self._kill_flag = False
         super().__init__()
         logger.debug("ClusterActor initialized")
+
+    @overrides
+    def receiveMsg_SetupMsg(self, msg, sender):
+        super().receiveMsg_SetupMsg(msg, sender)
+        logger.debug("Start polling RS-232 ports.")
+        self._do_loop()
 
     def _on_loop_cmd(self, msg, sender) -> None:
         target = msg["PAR"]["PORT"]
@@ -78,7 +83,7 @@ class ClusterActor(BaseActor):
             if self._add_to_loop(target):
                 ports_ok.append(target)
         if not self._loop_started and self._on_loop_cmd:
-            self.send(self.myAddress, {"CMD": "DO_LOOP"})
+            self._do_loop()
         self.send(
             sender,
             {
@@ -110,8 +115,8 @@ class ClusterActor(BaseActor):
             },
         )
 
-    def _on_do_loop_cmd(self, _msg, _sender) -> None:
-        logger.debug("[_on_do_loop_cmd]")
+    def _do_loop(self) -> None:
+        logger.debug("[_do_loop]")
         logger.info("Started polling: %s", self._looplist)
         self._cluster.update_connected_instruments()
         for instrument in self._cluster.connected_instruments:
