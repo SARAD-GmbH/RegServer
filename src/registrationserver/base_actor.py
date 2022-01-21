@@ -26,7 +26,6 @@ from registrationserver.actor_messages import (AppType, SubscribeMsg,
                                                SubscribeToActorDictMsg,
                                                SubscribeToDeviceStatusMsg,
                                                UnsubscribeMsg)
-from registrationserver.helpers import get_key
 from registrationserver.logger import logger
 from registrationserver.shutdown import system_shutdown
 
@@ -43,13 +42,30 @@ class BaseActor(ActorTypeDispatcher):
     """Basic class for all actors created in the actor system of the Registration
     Server"""
 
+    @staticmethod
+    def _get_actor_id(actor_address, child_actors):
+        """Function to return the actor_id from the child_actors dictionary
+        for a given actor_address.
+
+        Args:
+            actor_address: the value
+            child_actors (dict): dictionary to scan for val
+
+        Returns:
+            str: the first actor_id matching the given actor_address
+        """
+        for actor_id, value in child_actors.items():
+            if actor_address == value["actor_address"]:
+                return actor_id
+        return None
+
     @overrides
     def __init__(self):
         super().__init__()
         self.registrar = None
         self.parent = None
         self.my_id = None
-        self.child_actors = {}  # {actor_id: <actor address>}
+        self.child_actors = {}  # {actor_id: {"actor_address": <actor address>}}
         self.actor_dict = {}
         self.on_kill = False
         self.app_type = AppType.RS
@@ -77,7 +93,7 @@ class BaseActor(ActorTypeDispatcher):
 
     def _forward_to_children(self, msg):
         for _child_id, child_actor in self.child_actors.items():
-            self.send(child_actor, msg)
+            self.send(child_actor["actor_address"], msg)
 
     def receiveMsg_KillMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
@@ -105,7 +121,7 @@ class BaseActor(ActorTypeDispatcher):
     def receiveMsg_ChildActorExited(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for ChildActorExited"""
-        actor_id = get_key(msg.childAddress, self.child_actors)
+        actor_id = self._get_actor_id(msg.childAddress, self.child_actors)
         self.child_actors.pop(actor_id, None)
         if not self.child_actors and self.on_kill:
             self.send(self.myAddress, ActorExitRequest())
@@ -131,5 +147,5 @@ class BaseActor(ActorTypeDispatcher):
 
     def _create_actor(self, actor_type, actor_id):
         new_actor_address = self.createActor(actor_type, globalName=actor_id)
-        self.child_actors[actor_id] = new_actor_address
+        self.child_actors[actor_id]["actor_address"] = new_actor_address
         return new_actor_address

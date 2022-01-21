@@ -16,7 +16,6 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import SetDeviceStatusMsg, SetupMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
-from registrationserver.helpers import get_key
 from registrationserver.logger import logger
 from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.usb.usb_actor import UsbActor
@@ -29,6 +28,27 @@ from thespian.actors import ActorExitRequest
 
 class ClusterActor(BaseActor):
     """Actor to manage all local instruments connected via USB or RS-232"""
+
+    @staticmethod
+    def _switch_to_port_key(child_actors):
+        """child_actors is of form
+        {actor_id: {"actor_address": <address>, "port": <port>}}
+        This function converts this dictionary into
+        {port: actor_address}
+
+        Args:
+            child_actors (dict): child actors dictionary
+
+        Returns:
+            dict: dictionary of form {port: actor_address}
+        """
+        result = {}
+        try:
+            for _actor_id, value in child_actors.items():
+                result[value["port"]] = value["actor_address"]
+        except KeyError:
+            return {}
+        return result
 
     @overrides
     def __init__(self):
@@ -112,7 +132,8 @@ class ClusterActor(BaseActor):
         if self._looplist:
             verified_rs232_list = self._verified_ports()
             verified_rs232 = set(verified_rs232_list)
-            active_ports = set(self.child_actors.keys())
+            port_actors = self._switch_to_port_key(self.child_actors)
+            active_ports = set(port_actors.keys())
             active_rs232_ports = verified_rs232.intersection(active_ports)
             logger.debug("Looping over %s of %s", verified_rs232_list, self._looplist)
             self._cluster.update_connected_instruments(
@@ -205,7 +226,7 @@ class ClusterActor(BaseActor):
             logger.warning(
                 "Invalid binary message from instrument. Removing %s", sender
             )
-            self._remove_actor(get_key(sender, self.child_actors))
+            self._remove_actor(self._get_actor_id(sender, self.child_actors))
 
     def _on_free_cmd(self, msg, _sender) -> None:
         logger.debug("[_on_free_cmd]")
@@ -319,8 +340,8 @@ class ClusterActor(BaseActor):
 
     def _create_and_setup_actor(self, instrument):
         logger.debug("[_create_and_setup_actor]")
-        actor_id = instrument.port
         family = instrument.family["family_id"]
+        device_id = instrument.device_id
         if family == 5:
             sarad_type = "sarad-dacm"
         elif family in [1, 2]:
@@ -331,8 +352,10 @@ class ClusterActor(BaseActor):
                 family,
             )
             sarad_type = "unknown"
+        actor_id = f"{device_id}.{sarad_type}.local"
         logger.debug("Create actor %s", actor_id)
         device_actor = self._create_actor(UsbActor, actor_id)
+        self.child_actors[actor_id]["port"] = instrument.port
         self.send(
             device_actor,
             SetupMsg(actor_id=actor_id, parent_id=self.my_id, app_type=self.app_type),
@@ -346,17 +369,20 @@ class ClusterActor(BaseActor):
                 "Host": "127.0.0.1",
                 "Protocol": sarad_type,
             },
-            "Serial": actor_id,
+            "Serial": instrument.port,
         }
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
         self.send(device_actor, SetDeviceStatusMsg(device_status))
 
     def _remove_actor(self, gone_port):
         logger.debug("[_remove_actor]")
-        if gone_port in self.child_actors:
+        port_actors = self._switch_to_port_key(self.child_actors)
+        gone_address = port_actors[gone_port]
+        gone_id = self._get_actor_id(gone_address, self.child_actors)
+        if gone_port in port_actors:
             logger.debug("Send ActorExitRequest to device actor.")
-            self.send(self.child_actors[gone_port], ActorExitRequest())
-            self.child_actors.pop(gone_port, None)
+            self.send(gone_address, ActorExitRequest())
+            self.child_actors.pop(gone_id, None)
         else:
             logger.error(
                 "Tried to remove %s, that never was added properly.", gone_port
@@ -368,7 +394,8 @@ class ClusterActor(BaseActor):
         logger.debug("[_on_add_cmd]")
         target = msg["PAR"].get("PORTS", None)
         if target is None:
-            old_ports = set(self.child_actors.keys())
+            port_actors = self._switch_to_port_key(self.child_actors)
+            old_ports = set(port_actors.keys())
             new_instruments = self._cluster.update_connected_instruments(
                 ports_to_skip=list(old_ports)
             )
@@ -397,7 +424,8 @@ class ClusterActor(BaseActor):
         logger.debug("[_on_remove_cmd]")
         target = msg["PAR"].get("PORTS", None)
         if target is None:
-            old_ports = set(self.child_actors.keys())
+            port_actors = self._switch_to_port_key(self.child_actors)
+            old_ports = set(port_actors.keys())
             current_ports = set(port.device for port in comports())
             gone_ports = old_ports.difference(current_ports)
             logger.debug("Call _remove_actor for %s", gone_ports)
