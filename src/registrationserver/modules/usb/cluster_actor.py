@@ -23,7 +23,7 @@ from sarad.cluster import SaradCluster
 from sarad.sari import SaradInst
 from serial import SerialException
 from serial.tools.list_ports import comports
-from thespian.actors import ActorExitRequest, ChildActorExited, WakeupMessage
+from thespian.actors import ActorExitRequest
 
 
 class ClusterActor(BaseActor):
@@ -111,7 +111,7 @@ class ClusterActor(BaseActor):
         logger.info("Started polling: %s", self._looplist)
         self._cluster.update_connected_instruments()
         for instrument in self._cluster.connected_instruments:
-            self._create_actor(instrument)
+            self._create_and_setup_actor(instrument)
         if not self._loop_started:
             self._loop_started = True
             self.wakeupAfter(config["LOCAL_RETRY_INTERVAL"])
@@ -149,7 +149,7 @@ class ClusterActor(BaseActor):
                 logger.info("Add instruments connected to ports %s", new_ports)
                 for instrument in self._cluster.connected_instruments:
                     if instrument.port in new_ports:
-                        self._create_actor(instrument)
+                        self._create_and_setup_actor(instrument)
         else:
             logger.debug("List of native RS-232 interfaces empty. Stop the loop.")
         if self._loop_started and self._looplist:
@@ -178,7 +178,7 @@ class ClusterActor(BaseActor):
         data = msg["PAR"]["DATA"]
         target = msg["PAR"]["Instrument"]
         logger.debug("Actor %s received: %s for: %s", self.globalName, data, target)
-        instrument: SaradInst
+        instrument: SaradInst = None
         if target in self._cluster:
             try:
                 reply = (
@@ -226,7 +226,7 @@ class ClusterActor(BaseActor):
     def _on_free_cmd(self, msg, _sender) -> None:
         logger.debug("[_on_free_cmd]")
         target = msg["PAR"]["Instrument"]
-        instrument: SaradInst
+        instrument: SaradInst = None
         if target in self._cluster:
             (
                 [instrument for instrument in self._cluster if instrument == target]
@@ -333,8 +333,8 @@ class ClusterActor(BaseActor):
         }
         self.send(sender, return_message)
 
-    def _create_actor(self, instrument):
-        logger.debug("[_create_actor]")
+    def _create_and_setup_actor(self, instrument):
+        logger.debug("[_create_and_setup_actor]")
         serial_device = instrument.port
         family = instrument.family["family_id"]
         device_id = instrument.device_id
@@ -348,9 +348,9 @@ class ClusterActor(BaseActor):
                 family,
             )
             sarad_type = "unknown"
-        global_name = f"{device_id}.{sarad_type}.local"
-        logger.debug("Create actor %s", global_name)
-        self._actors[serial_device] = self.createActor(UsbActor)
+        actor_id = f"{device_id}.{sarad_type}.local"
+        logger.debug("Create actor %s", actor_id)
+        self._create_actor(UsbActor, actor_id)
         data = {
             "Identification": {
                 "Name": instrument.type_name,
@@ -362,8 +362,8 @@ class ClusterActor(BaseActor):
             },
             "Serial": serial_device,
         }
-        msg = {"CMD": "SETUP", "ID": global_name, "PAR": data}
-        logger.debug("Ask to setup device actor %s with msg %s", global_name, msg)
+        msg = {"CMD": "SETUP", "ID": actor_id, "PAR": data}
+        logger.debug("Ask to setup device actor %s with msg %s", actor_id, msg)
         self.send(self._actors[serial_device], msg)
 
     def _remove_actor(self, gone_port):
@@ -394,7 +394,7 @@ class ClusterActor(BaseActor):
             for port in target:
                 for instrument in self._cluster.connected_instruments:
                     if instrument.port == port:
-                        self._create_actor(instrument)
+                        self._create_and_setup_actor(instrument)
         else:
             assert isinstance(target, list)
             if target == []:
@@ -403,7 +403,7 @@ class ClusterActor(BaseActor):
                 ports_to_test=target
             )
             for instrument in instruments:
-                self._create_actor(instrument)
+                self._create_and_setup_actor(instrument)
         return
 
     def _on_remove_cmd(self, msg, _sender):
