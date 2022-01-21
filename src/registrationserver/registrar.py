@@ -91,6 +91,11 @@ class Registrar(BaseActor):
                     UpdateActorDictMsg(self.actor_dict),
                 )
 
+    def receiveMsg_GetActorDictMsg(self, _msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for requests to get the Actor Dictionary once."""
+        self.send(sender, UpdateActorDictMsg(self.actor_dict))
+
     @overrides
     def receiveMsg_ActorExitRequest(self, _msg, _sender):
         # pylint: disable=invalid-name

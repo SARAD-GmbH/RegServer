@@ -10,7 +10,7 @@ commands and data within the actor system
 """
 from dataclasses import dataclass
 from enum import Enum
-from typing import ByteString
+from typing import ByteString, List, Union
 
 from sarad.sari import SaradInst
 from thespian.actors import ActorAddress  # type: ignore
@@ -124,6 +124,11 @@ class UpdateActorDictMsg:
     """
 
     actor_dict: dict
+
+
+@dataclass
+class GetActorDictMsg:
+    """Request to get the Actor Dictionary from Registrar Actor once."""
 
 
 @dataclass
@@ -258,12 +263,32 @@ class FreeInstrMsg:
     instrument: SaradInst
 
 
+@dataclass
+class AddPortToLoopMsg:
+    """Request to set a serial interface or a list of serial interfaces
+    to the list of interfaces for polling."""
+
+    ports: Union[str, List[str]]
+
+
+@dataclass
+class RemovePortFromLoopMsg:
+    """Request to remove a serial interface or a list of serial interfaces
+    from the list of interfaces for polling."""
+
+    ports: Union[str, List[str]]
+
+
+@dataclass
+class ReturnLoopPortsMsg:
+    """Returns the list of serial interfaces included in polling."""
+
+    ports: List[str]
+
+
 """
-                "SEND": "_on_send_cmd",
                 "LIST": "_on_list_cmd",
                 "LIST-USB": "_on_list_usb_cmd",
                 "LIST-NATIVE": "_on_list_natives_cmd",
-                "LOOP": "_on_loop_cmd",
-                "LOOP-REMOVE": "_on_loop_remove_cmd",
                 "LIST-PORTS": "_on_list_ports_cmd",
 """

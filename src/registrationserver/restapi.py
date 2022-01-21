@@ -20,6 +20,9 @@ from flask import Flask, Response, json, request
 from thespian.actors import Actor, ActorSystem, PoisonMessage
 from thespian.system.messages.status import Thespian_StatusReq, formatStatus
 
+from registrationserver.actor_messages import (AddPortToLoopMsg,
+                                               GetActorDictMsg,
+                                               RemovePortFromLoopMsg)
 from registrationserver.config import mqtt_config
 from registrationserver.helpers import get_device_actor, get_device_status
 from registrationserver.logger import logger  # type: ignore
@@ -77,17 +80,18 @@ class RestApi:
         answer = {}
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         try:
-            device_db = ActorSystem().ask(registrar_actor, {"CMD": "READ"}, 10)[
-                "RESULT"
-            ]
+            actor_dict = (
+                ActorSystem().ask(registrar_actor, GetActorDictMsg(), 10).actor_dict
+            )
         except KeyError:
             logger.critical(
                 "Emergency shutdown. Cannot get appropriate response from Registrar actor."
             )
             system_shutdown()
             return {}
-        for device_id in device_db:
-            answer[device_id] = get_device_status(device_id)
+        for device_id in actor_dict:
+            if actor_dict[device_id]["is_device_actor"]:
+                answer[device_id] = get_device_status(device_id)
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )

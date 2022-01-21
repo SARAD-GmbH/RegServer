@@ -13,8 +13,8 @@ Covers as well USB ports as native RS-232 ports.
 from typing import Any, Dict, List
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (RxBinaryMsg, SetDeviceStatusMsg,
-                                               SetupMsg)
+from registrationserver.actor_messages import (ReturnLoopPortsMsg, RxBinaryMsg,
+                                               SetDeviceStatusMsg, SetupMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
 from registrationserver.logger import logger
@@ -72,51 +72,42 @@ class ClusterActor(BaseActor):
         logger.debug("Start polling RS-232 ports.")
         self._do_loop()
 
-    def _on_loop_cmd(self, msg, sender) -> None:
+    def receiveMsg_AddPortToLoopMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        target = msg["PAR"]["PORT"]
-        logger.info("Adding to loop: %s", target)
+        """Handler for AddPortToLoopMsg from REST API.
+        Adds a port or list of ports to the list of serial interfaces that shall be polled.
+        Sends the complete list back to the REST API."""
+        logger.info("Adding %s to loop", msg.port)
         ports_ok: List[str] = []
-        if isinstance(target, list):
-            for port in target:
+        if isinstance(msg.ports, list):
+            for port in msg.ports:
                 if self._add_to_loop(port):
                     ports_ok.append(port)
-        if isinstance(target, str):
-            if self._add_to_loop(target):
-                ports_ok.append(target)
-        if not self._loop_started and self._on_loop_cmd:
+        if isinstance(msg.ports, str):
+            if self._add_to_loop(msg.ports):
+                ports_ok.append(msg.ports)
+        if not self._loop_started:
             self._do_loop()
-        self.send(
-            sender,
-            {
-                "RETURN": "LOOP",
-                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                "RESULT": {"DATA": ports_ok},
-            },
-        )
+        self.send(sender, ReturnLoopPortsMsg(ports_ok))
 
-    def _on_loop_remove_cmd(self, msg, sender) -> None:
+    def receiveMsg_RemovePortFromLoopMsg(self, msg, sender) -> None:
         # pylint: disable=invalid-name
-        target = msg["PAR"]["PORT"]
-        logger.info("Removing from loop: %s", target)
+        """Handler for RemovePortFromLoopMsg from REST API.
+        Removes a port or a list of ports from the list of serial interfaces
+        that shall be polled.
+        Sends the complete list back to the REST API."""
+        logger.info("Removing %s from loop", msg.ports)
         ports_ok: List[str] = []
-        if isinstance(target, list):
-            for port in target:
+        if isinstance(msg.ports, list):
+            for port in msg.ports:
                 if self._remove_from_loop(port):
                     ports_ok.append(port)
-        if isinstance(target, str):
-            if self._remove_from_loop(target):
-                ports_ok.append(target)
+        if isinstance(msg.ports, str):
+            if self._remove_from_loop(msg.ports):
+                ports_ok.append(msg.ports)
         if not self._looplist:
             self._loop_started = False
-        self.send(
-            sender,
-            {
-                "RETURN": "LOOP-REMOVE",
-                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                "RESULT": {"DATA": ports_ok},
-            },
-        )
+        self.send(sender, ReturnLoopPortsMsg(ports_ok))
 
     def _do_loop(self) -> None:
         logger.debug("[_do_loop]")
@@ -179,6 +170,8 @@ class ClusterActor(BaseActor):
         return False
 
     def _add_to_loop(self, port: str) -> bool:
+        """Adds a port to the list of serial interfaces that shall be polled
+        in the _continue_loop() function."""
         logger.debug("[_add_to_loop]")
         if port in [i.device for i in comports()]:
             if self._looplist.count(port) == 0:
@@ -417,7 +410,7 @@ class ClusterActor(BaseActor):
                 if instrument.port == port:
                     self._create_and_setup_actor(instrument)
 
-    def receiveMsg_InstrRemovedMsg(self, msg, _sender):
+    def receiveMsg_InstrRemovedMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
         """Kill device actors for instruments that have been unplugged from
         the serial ports given in the argument list."""
