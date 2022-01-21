@@ -11,7 +11,7 @@
 """
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import AppType
+from registrationserver.actor_messages import AppType, FreeInstrMsg
 from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
@@ -89,9 +89,7 @@ class UsbActor(DeviceBaseActor):
     @overrides
     def _on_kill_return(self, msg, sender):
         super()._on_kill_return(msg, sender)
-        free_cmd = {"CMD": "FREE", "PAR": {"Instrument": self.instrument}}
-        logger.debug("Send %s to %s", free_cmd, self._cluster)
-        self.send(self._cluster, free_cmd)
+        self.send(self._cluster, FreeInstrMsg(self.instrument))
 
 
 if __name__ == "__main__":

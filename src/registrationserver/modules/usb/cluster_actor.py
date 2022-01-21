@@ -236,14 +236,19 @@ class ClusterActor(BaseActor):
             )
             self._remove_actor(self._get_actor_id(sender, self.child_actors))
 
-    def _on_free_cmd(self, msg, _sender) -> None:
+    def receiveMsg_FreeInstrMsg(self, msg, _sender) -> None:
         # pylint: disable=invalid-name
-        logger.debug("[_on_free_cmd]")
-        target = msg["PAR"]["Instrument"]
+        """Handler for FreeInstrMsg indicating that the instrument was released by the App.
+        Used here to release the serial interface with the release_instrument() function."""
+        logger.debug("[on FreeInstrMsg]")
         instrument: SaradInst = None
-        if target in self._cluster:
+        if msg.instrument in self._cluster:
             (
-                [instrument for instrument in self._cluster if instrument == target]
+                [
+                    instrument
+                    for instrument in self._cluster
+                    if instrument == msg.instrument
+                ]
                 .pop()
                 .release_instrument()
             )

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import ByteString
 
+from sarad.sari import SaradInst
 from thespian.actors import ActorAddress  # type: ignore
 
 
@@ -249,8 +250,14 @@ class InstrRemovedMsg:
     """Request to remove a instrument."""
 
 
+@dataclass
+class FreeInstrMsg:
+    """Request to free an instrument from reservation."""
+
+    instrument: SaradInst
+
+
 """
-                "FREE": "_on_free_cmd",
                 "SEND": "_on_send_cmd",
                 "LIST": "_on_list_cmd",
                 "LIST-USB": "_on_list_usb_cmd",
