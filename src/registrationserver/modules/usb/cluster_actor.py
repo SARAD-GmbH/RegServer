@@ -13,7 +13,8 @@ Covers as well USB ports as native RS-232 ports.
 from typing import Any, Dict, List
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import SetDeviceStatusMsg, SetupMsg
+from registrationserver.actor_messages import (RxBinaryMsg, SetDeviceStatusMsg,
+                                               SetupMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
 from registrationserver.logger import logger
@@ -185,11 +186,12 @@ class ClusterActor(BaseActor):
             return True
         return False
 
-    def _on_send_cmd(self, msg, sender) -> None:
+    def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        logger.debug("[_on_send_cmd]")
-        data = msg["PAR"]["DATA"]
-        target = msg["PAR"]["Instrument"]
+        """Handler for binary message from App to Instrument."""
+        logger.debug("[on TxBinaryMsg]")
+        data = msg.data
+        target = msg.instrument
         logger.debug("Actor %s received: %s for: %s", self.globalName, data, target)
         instrument: SaradInst = None
         if target in self._cluster:
@@ -204,12 +206,7 @@ class ClusterActor(BaseActor):
                 reply = {"is_valid": False, "is_last_frame": True}
         logger.debug("and got reply from instrument: %s", reply)
         if reply["is_valid"]:
-            return_message = {
-                "RETURN": "SEND",
-                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                "RESULT": {"DATA": reply["raw"]},
-            }
-            self.send(sender, return_message)
+            self.send(sender, RxBinaryMsg(reply["raw"]))
             while not reply["is_last_frame"]:
                 try:
                     reply = (
@@ -221,12 +218,7 @@ class ClusterActor(BaseActor):
                         .pop()
                         .get_next_payload(5)
                     )
-                    return_message = {
-                        "RETURN": "SEND",
-                        "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                        "RESULT": {"DATA": reply["raw"]},
-                    }
-                    self.send(sender, return_message)
+                    self.send(sender, RxBinaryMsg(reply["raw"]))
                 except (SerialException, OSError):
                     logger.error("Connection to %s lost", target)
                     reply = {"is_valid": False, "is_last_frame": True}

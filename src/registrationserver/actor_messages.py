@@ -144,6 +144,7 @@ class TxBinaryMsg:
 
     data: ByteString
     host: str
+    instrument: SaradInst
 
 
 @dataclass

@@ -11,11 +11,10 @@
 """
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import AppType, FreeInstrMsg
-from registrationserver.config import config
+from registrationserver.actor_messages import (AppType, FreeInstrMsg,
+                                               TxBinaryMsg)
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
-from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.shutdown import system_shutdown
 from thespian.actors import Actor
 
@@ -28,18 +27,14 @@ class UsbActor(DeviceBaseActor):
     @overrides
     def __init__(self):
         logger.debug("Initialize a new USB actor.")
-        self.ACCEPTED_RETURNS.update(
-            {
-                "SEND": "_on_send_return",
-            }
-        )
         super().__init__()
         self.instrument = None
         self._cluster = None
         logger.info("USB actor created.")
 
     @overrides
-    def _on_setup_cmd(self, msg, sender) -> None:
+    def receiveMsg_SetupMsg(self, msg, sender):
+        # pylint: disable=invalid-name
         super()._on_setup_cmd(msg, sender)
         self._cluster = self.createActor(Actor, globalName="cluster")
         self.instrument = self.my_id.split(".")[0]
@@ -54,29 +49,23 @@ class UsbActor(DeviceBaseActor):
             )
             system_shutdown()
 
-    def _on_send_cmd(self, msg, _sender) -> None:
-        cmd = msg["PAR"]["DATA"]
-        logger.debug("Actor received: %s", cmd)
-        self.send(
-            self._cluster,
-            {"CMD": "SEND", "PAR": {"DATA": cmd, "Instrument": self.instrument}},
-        )
+    def receiveMsg_TxBinaryMsg(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Forward binary message from App to cluster actor."""
+        logger.debug("Actor received: %s", msg.data)
+        self.send(self._cluster, TxBinaryMsg(msg.data, msg.host, self.instrument))
 
-    def _on_send_return(self, msg, _sender):
-        reply = msg["RESULT"]["DATA"]
-        logger.debug("and got reply from instrument: %s", reply)
-        return_message = {
-            "RETURN": "SEND",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            "RESULT": {"DATA": reply},
-        }
-        if config["APP_TYPE"] == AppType.ISMQTT:
-            self.send(self.mqtt_scheduler, return_message)
-        elif config["APP_TYPE"] == AppType.RS:
-            self.send(self.my_redirector, return_message)
+    def receiveMsg_RxBinaryMsg(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Forward binary message from cluster actor to App."""
+        logger.debug("and got reply from instrument: %s", msg.data)
+        if self.app_type == AppType.ISMQTT:
+            self.send(self.mqtt_scheduler, msg)
+        elif self.app_type == AppType.RS:
+            self.send(self.my_redirector, msg)
         else:
             # TODO: Actually there is no else yet.
-            self.send(self.my_redirector, return_message)
+            self.send(self.my_redirector, msg)
 
     @overrides
     def _reserve_at_is(self):
@@ -87,9 +76,9 @@ class UsbActor(DeviceBaseActor):
         self._forward_reservation(True)
 
     @overrides
-    def _on_kill_return(self, msg, sender):
-        super()._on_kill_return(msg, sender)
+    def receiveMsg_ChildActorExited(self, msg, sender):
         self.send(self._cluster, FreeInstrMsg(self.instrument))
+        super().receiveMsg_ChildActorExited(msg, sender)
 
 
 if __name__ == "__main__":
