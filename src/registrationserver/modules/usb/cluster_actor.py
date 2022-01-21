@@ -13,6 +13,7 @@ Covers as well USB ports as native RS-232 ports.
 from typing import Any, Dict, List
 
 from overrides import overrides  # type: ignore
+from registrationserver.actor_messages import SetDeviceStatusMsg, SetupMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
 from registrationserver.helpers import get_key
@@ -31,22 +32,6 @@ class ClusterActor(BaseActor):
 
     @overrides
     def __init__(self):
-        self.ACCEPTED_COMMANDS.update(
-            {
-                "ADD": "_on_add_cmd",
-                "FREE": "_on_free_cmd",
-                "REMOVE": "_on_remove_cmd",
-                "SEND": "_on_send_cmd",
-                "LIST": "_on_list_cmd",
-                "LIST-USB": "_on_list_usb_cmd",
-                "LIST-NATIVE": "_on_list_natives_cmd",
-                "LOOP": "_on_loop_cmd",
-                "LOOP-REMOVE": "_on_loop_remove_cmd",
-                "DO_LOOP": "_on_do_loop_cmd",
-                "LIST-PORTS": "_on_list_ports_cmd",
-            }
-        )
-        self.ACCEPTED_RETURNS.update({"KILL": "_on_kill_return"})
         self._loop_started: bool = False
         self.native_ports = set(config.get("NATIVE_SERIAL_PORTS", []))
         self.ignore_ports = set(config.get("IGNORED_SERIAL_PORTS", []))
@@ -56,7 +41,6 @@ class ClusterActor(BaseActor):
         self._cluster: SaradCluster = SaradCluster(
             native_ports=list(self.native_ports), ignore_ports=list(self.ignore_ports)
         )
-        self._actors = {}
         self._actor_system = None
         self._kill_flag = False
         super().__init__()
@@ -128,7 +112,7 @@ class ClusterActor(BaseActor):
         if self._looplist:
             verified_rs232_list = self._verified_ports()
             verified_rs232 = set(verified_rs232_list)
-            active_ports = set(self._actors.keys())
+            active_ports = set(self.child_actors.keys())
             active_rs232_ports = verified_rs232.intersection(active_ports)
             logger.debug("Looping over %s of %s", verified_rs232_list, self._looplist)
             self._cluster.update_connected_instruments(
@@ -221,7 +205,7 @@ class ClusterActor(BaseActor):
             logger.warning(
                 "Invalid binary message from instrument. Removing %s", sender
             )
-            self._remove_actor(get_key(sender, self._actors))
+            self._remove_actor(get_key(sender, self.child_actors))
 
     def _on_free_cmd(self, msg, _sender) -> None:
         logger.debug("[_on_free_cmd]")
@@ -335,9 +319,8 @@ class ClusterActor(BaseActor):
 
     def _create_and_setup_actor(self, instrument):
         logger.debug("[_create_and_setup_actor]")
-        serial_device = instrument.port
+        actor_id = instrument.port
         family = instrument.family["family_id"]
-        device_id = instrument.device_id
         if family == 5:
             sarad_type = "sarad-dacm"
         elif family in [1, 2]:
@@ -348,10 +331,13 @@ class ClusterActor(BaseActor):
                 family,
             )
             sarad_type = "unknown"
-        actor_id = f"{device_id}.{sarad_type}.local"
         logger.debug("Create actor %s", actor_id)
-        self._create_actor(UsbActor, actor_id)
-        data = {
+        device_actor = self._create_actor(UsbActor, actor_id)
+        self.send(
+            device_actor,
+            SetupMsg(actor_id=actor_id, parent_id=self.my_id, app_type=self.app_type),
+        )
+        device_status = {
             "Identification": {
                 "Name": instrument.type_name,
                 "Family": family,
@@ -360,18 +346,17 @@ class ClusterActor(BaseActor):
                 "Host": "127.0.0.1",
                 "Protocol": sarad_type,
             },
-            "Serial": serial_device,
+            "Serial": actor_id,
         }
-        msg = {"CMD": "SETUP", "ID": actor_id, "PAR": data}
-        logger.debug("Ask to setup device actor %s with msg %s", actor_id, msg)
-        self.send(self._actors[serial_device], msg)
+        logger.debug("Setup device actor %s with %s", actor_id, device_status)
+        self.send(device_actor, SetDeviceStatusMsg(device_status))
 
     def _remove_actor(self, gone_port):
         logger.debug("[_remove_actor]")
-        if gone_port in self._actors:
+        if gone_port in self.child_actors:
             logger.debug("Send ActorExitRequest to device actor.")
-            self.send(self._actors[gone_port], ActorExitRequest())
-            self._actors.pop(gone_port, None)
+            self.send(self.child_actors[gone_port], ActorExitRequest())
+            self.child_actors.pop(gone_port, None)
         else:
             logger.error(
                 "Tried to remove %s, that never was added properly.", gone_port
@@ -383,7 +368,7 @@ class ClusterActor(BaseActor):
         logger.debug("[_on_add_cmd]")
         target = msg["PAR"].get("PORTS", None)
         if target is None:
-            old_ports = set(self._actors.keys())
+            old_ports = set(self.child_actors.keys())
             new_instruments = self._cluster.update_connected_instruments(
                 ports_to_skip=list(old_ports)
             )
@@ -412,7 +397,7 @@ class ClusterActor(BaseActor):
         logger.debug("[_on_remove_cmd]")
         target = msg["PAR"].get("PORTS", None)
         if target is None:
-            old_ports = set(self._actors.keys())
+            old_ports = set(self.child_actors.keys())
             current_ports = set(port.device for port in comports())
             gone_ports = old_ports.difference(current_ports)
             logger.debug("Call _remove_actor for %s", gone_ports)
@@ -423,39 +408,6 @@ class ClusterActor(BaseActor):
             self._cluster.update_connected_instruments(ports_to_test=target)
             for port in target:
                 self._remove_actor(port)
-
-    def _kill_myself(self, return_actor):
-        logger.debug("Instrument list empty. Killing myself.")
-        return_message = {
-            "RETURN": "KILL",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-        }
-        self.send(return_actor, return_message)
-        self.send(self.myAddress, ActorExitRequest())
-
-    @overrides
-    def _on_kill_cmd(self, msg, sender):
-        logger.debug("[_on_kill_cmd] called from %s", sender)
-        self._actor_system = sender
-        self._kill_flag = True
-        if self._actors:
-            for _port, actor in self._actors.items():
-                self.send(actor, ActorExitRequest())
-            logger.debug("ActorExitRequests to all device actors sent.")
-        else:
-            logger.debug("No instrument connected. Killing myself.")
-            self._kill_myself(sender)
-
-    def _on_kill_return(self, _msg, sender):
-        """Handle RETURN from KILL messages from the device actors.
-        Finally kill myself when the last child confirmed its ActorExitRequest
-        and the kill flag was set."""
-        gone_port = get_key(sender, self._actors)
-        self._actors.pop(gone_port, None)
-        logger.debug("Instrument at port %s removed", gone_port)
-        if (not self._actors) and self._kill_flag:
-            logger.debug("All instrument are unsigned now. Killing myself.")
-            self._kill_myself(self._actor_system)
 
     def receiveMsg_WakeupMessage(self, _msg, _sender):
         # pylint: disable=invalid-name

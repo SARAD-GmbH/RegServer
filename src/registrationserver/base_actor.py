@@ -130,4 +130,6 @@ class BaseActor(ActorTypeDispatcher):
         self.send(self.registrar, SubscribeToDeviceStatusMsg(actor_id=self.my_id))
 
     def _create_actor(self, actor_type, actor_id):
-        self.child_actors[actor_id] = self.createActor(actor_type, globalName=actor_id)
+        new_actor_address = self.createActor(actor_type, globalName=actor_id)
+        self.child_actors[actor_id] = new_actor_address
+        return new_actor_address
