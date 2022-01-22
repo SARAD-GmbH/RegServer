@@ -10,15 +10,17 @@ Covers as well USB ports as native RS-232 ports.
 
 """
 
-from typing import Any, Dict, List
+from typing import List
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (ReturnLoopPortsMsg, RxBinaryMsg,
+from registrationserver.actor_messages import (ReturnLocalPortsMsg,
+                                               ReturnLoopPortsMsg,
+                                               ReturnNativePortsMsg,
+                                               ReturnUsbPortsMsg, RxBinaryMsg,
                                                SetDeviceStatusMsg, SetupMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
 from registrationserver.logger import logger
-from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.usb.usb_actor import UsbActor
 from sarad.cluster import SaradCluster
 from sarad.sari import SaradInst
@@ -238,108 +240,29 @@ class ClusterActor(BaseActor):
                 .release_instrument()
             )
 
-    def _on_list_ports_cmd(self, _msg, sender) -> None:
+    def receiveMsg_GetLocalPortsMsg(self, _msg, sender):
         # pylint: disable=invalid-name
-        logger.debug("[_on_list_ports_cmd]")
-        result: List[Dict[str, Any]] = []
+        """Handler for GetLocalPortsMsg request from REST API"""
+        logger.debug("[on GetLocalPortsMsg]")
         ports = [
             {"PORT": port.device, "PID": port.pid, "VID": port.vid}
             for port in comports()
         ]
-        logger.debug("and got list: %s", result)
-        return_message = {
-            "RETURN": "LIST-PORTS",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            "RESULT": {"DATA": ports},
-        }
-        self.send(sender, return_message)
+        self.send(sender, ReturnLocalPortsMsg(ports))
 
-    def _on_list_usb_cmd(self, _msg, sender) -> None:
+    def receiveMsg_GetUsbPortsMsg(self, _msg, sender):
         # pylint: disable=invalid-name
-        logger.debug("[_on_list_usb_cmd]")
-        result: List[Dict[str, Any]] = []
+        """Handler for GetUsbPortsMsg request from REST API"""
+        logger.debug("[on GetUsbPortsMsg]")
         ports = [port.device for port in comports() if port.vid and port.pid]
-        result = [
-            {
-                "Device ID": instrument.device_id,
-                "Serial Device": instrument.port,
-                "Family": instrument.family["family_id"],
-                "Name": instrument.type_name,
-                "Type": instrument.type_id,
-                "Serial number": instrument.serial_number,
-            }
-            for instrument in self._cluster.update_connected_instruments(
-                ports_to_test=ports
-            )
-        ]
-        logger.debug("and got list: %s", result)
-        return_message = {
-            "RETURN": "LIST-USB",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            "RESULT": {"DATA": result},
-        }
-        logger.debug(return_message)
-        self.send(sender, return_message)
+        self.send(sender, ReturnUsbPortsMsg(ports))
 
-    def _on_list_natives_cmd(self, _msg, sender) -> None:
+    def receiveMsg_GetNativePortsMsg(self, _msg, sender):
         # pylint: disable=invalid-name
-        logger.debug("[_on_list_natives_cmd]")
-        result: List[Dict[str, Any]] = []
+        """Handler for GetNativePortsMsg request from REST API"""
+        logger.debug("[on GetNativePortsMsg]")
         ports = [port.device for port in comports() if not port.pid]
-        result = [
-            {
-                "Device ID": instrument.device_id,
-                "Serial Device": instrument.port,
-                "Family": instrument.family["family_id"],
-                "Name": instrument.type_name,
-                "Type": instrument.type_id,
-                "Serial number": instrument.serial_number,
-            }
-            for instrument in self._cluster.update_connected_instruments(
-                ports_to_test=ports
-            )
-        ]
-        logger.debug("and got list: %s", result)
-        return_message = {
-            "RETURN": "LIST-NATIVE",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            "RESULT": {"DATA": result},
-        }
-        self.send(sender, return_message)
-
-    def _on_list_cmd(self, msg, sender) -> None:
-        # pylint: disable=invalid-name
-        logger.debug("[_on_list_cmd]")
-        result: List[Dict[str, Any]] = []
-        target = msg["PAR"].get("PORTS", None)
-        if not target:
-            instruments = self._cluster.update_connected_instruments()
-        if isinstance(target, str):
-            instruments = self._cluster.update_connected_instruments(
-                ports_to_test=[target]
-            )
-        if isinstance(target, list):
-            instruments = self._cluster.update_connected_instruments(
-                ports_to_test=target
-            )
-        result = [
-            {
-                "Device ID": instrument.device_id,
-                "Serial Device": instrument.port,
-                "Family": instrument.family["family_id"],
-                "Name": instrument.type_name,
-                "Type": instrument.type_id,
-                "Serial number": instrument.serial_number,
-            }
-            for instrument in instruments
-        ]
-        logger.debug("and got list: %s", result)
-        return_message = {
-            "RETURN": "LIST",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            "RESULT": {"DATA": result},
-        }
-        self.send(sender, return_message)
+        self.send(sender, ReturnNativePortsMsg(ports))
 
     def _create_and_setup_actor(self, instrument):
         logger.debug("[_create_and_setup_actor]")

@@ -10,7 +10,7 @@ commands and data within the actor system
 """
 from dataclasses import dataclass
 from enum import Enum, auto, unique
-from typing import ByteString, List, Union
+from typing import ByteString, Dict, List, Union
 
 from sarad.sari import SaradInst
 from thespian.actors import ActorAddress  # type: ignore
@@ -320,7 +320,7 @@ class GetLocalPortsMsg:
 class ReturnLocalPortsMsg:
     """Returns the list of local serial interfaces."""
 
-    ports: List[str]
+    ports: List[Dict[str, str]]
 
 
 @dataclass
@@ -345,11 +345,3 @@ class ReturnNativePortsMsg:
     """Returns the list of local RS-232 interfaces."""
 
     ports: List[str]
-
-
-"""
-                "LIST": "_on_list_cmd",
-                "LIST-USB": "_on_list_usb_cmd", GetUsbPortsMsg
-                "LIST-NATIVE": "_on_list_natives_cmd", GetNativePortsMsg
-                "LIST-PORTS": "_on_list_ports_cmd", GetLocalPortsMsg
-"""
