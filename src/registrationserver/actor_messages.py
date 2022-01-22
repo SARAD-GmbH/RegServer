@@ -9,11 +9,43 @@ commands and data within the actor system
 
 """
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto, unique
 from typing import ByteString, List, Union
 
 from sarad.sari import SaradInst
 from thespian.actors import ActorAddress  # type: ignore
+
+
+@unique
+class Status(Enum):
+    """Status messages that may be used as part of actor messages.
+    They are especially used in messages to the actor system."""
+
+    OK = 0
+    OCCUPIED = 6
+    OK_SKIPPED = 10
+    NOT_FOUND = 11
+    ATTRIBUTE_ERROR = 13
+    OK_UPDATED = 20
+    SUBSCRIBE = 34
+    UNSUBSCRIBE = 35
+    UNKNOWN_PORT = 40
+    CRITICAL = 99
+
+    def __str__(self):
+        longform = {
+            0: "OK",
+            6: "Device occupied",
+            10: "OK, skipped",
+            11: "Device not found.",
+            13: "No or incomplete attributes",
+            20: "OK, updated",
+            34: "Error when subscribing to an MQTT topic",
+            35: "Error when unsubscribing from an MQTT topic",
+            40: "Port does not exist.",
+            99: "Critical error. Stop and shutdown system.",
+        }
+        return longform[self.value]
 
 
 class AppType(Enum):
@@ -31,9 +63,9 @@ class AppType(Enum):
     where `config["APP_TYPE]` will be set with the appropriate AppType.
     """
 
-    ISMQTT = 1
-    IS2 = 2
-    RS = 3
+    ISMQTT = auto()
+    IS2 = auto()
+    RS = auto()
 
 
 @dataclass
@@ -178,22 +210,15 @@ class ReserveDeviceMsg:
     app: str
 
 
-class ReservationStatus(Enum):
-    """Indicates the reservation status of the instrument."""
-
-    FREE = 0
-    OCCUPIED = 1
-
-
 @dataclass
 class ReservationStatusMsg:
     """Message to inform about the result of the ReserveDeviceMsg.
 
     Args:
-        reservation_status: either FREE or OCCUPIED
+        status: either OK, OK_SKIPPED or OCCUPIED
     """
 
-    reservation_status: ReservationStatus
+    status: Status
 
 
 @dataclass
@@ -286,9 +311,45 @@ class ReturnLoopPortsMsg:
     ports: List[str]
 
 
+@dataclass
+class GetLocalPortsMsg:
+    """Request to send a list of all local serial interfaces."""
+
+
+@dataclass
+class ReturnLocalPortsMsg:
+    """Returns the list of local serial interfaces."""
+
+    ports: List[str]
+
+
+@dataclass
+class GetUsbPortsMsg:
+    """Request to send a list of all local serial USB interfaces."""
+
+
+@dataclass
+class ReturnUsbPortsMsg:
+    """Returns the list of serial USB interfaces."""
+
+    ports: List[str]
+
+
+@dataclass
+class GetNativePortsMsg:
+    """Request to send a list of all local RS-232 interfaces."""
+
+
+@dataclass
+class ReturnNativePortsMsg:
+    """Returns the list of local RS-232 interfaces."""
+
+    ports: List[str]
+
+
 """
                 "LIST": "_on_list_cmd",
-                "LIST-USB": "_on_list_usb_cmd",
-                "LIST-NATIVE": "_on_list_natives_cmd",
-                "LIST-PORTS": "_on_list_ports_cmd",
+                "LIST-USB": "_on_list_usb_cmd", GetUsbPortsMsg
+                "LIST-NATIVE": "_on_list_natives_cmd", GetNativePortsMsg
+                "LIST-PORTS": "_on_list_ports_cmd", GetLocalPortsMsg
 """

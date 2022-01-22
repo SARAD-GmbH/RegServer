@@ -17,16 +17,24 @@ import sys
 import time
 
 from flask import Flask, Response, json, request
-from thespian.actors import Actor, ActorSystem, PoisonMessage
+from thespian.actors import Actor, ActorSystem
 from thespian.system.messages.status import Thespian_StatusReq, formatStatus
 
 from registrationserver.actor_messages import (AddPortToLoopMsg,
                                                GetActorDictMsg,
-                                               RemovePortFromLoopMsg)
+                                               GetLocalPortsMsg,
+                                               GetNativePortsMsg,
+                                               GetUsbPortsMsg,
+                                               RemovePortFromLoopMsg,
+                                               ReservationStatusMsg,
+                                               ReserveDeviceMsg,
+                                               ReturnLocalPortsMsg,
+                                               ReturnLoopPortsMsg,
+                                               ReturnNativePortsMsg,
+                                               ReturnUsbPortsMsg, Status)
 from registrationserver.config import mqtt_config
 from registrationserver.helpers import get_device_actor, get_device_status
 from registrationserver.logger import logger  # type: ignore
-from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.shutdown import system_shutdown
 
 logger.debug("%s -> %s", __package__, __file__)
@@ -120,9 +128,10 @@ class RestApi:
             user = attribute_who.split(" - ")[1]
         except (IndexError, AttributeError):
             logger.error("Reserve request without proper who attribute.")
+            status = Status.ATTRIBUTE_ERROR
             answer = {
-                "Error code": "13",
-                "Error": "No or incomplete attributes.",
+                "Error code": status.value,
+                "Error": str(status),
                 did: {},
             }
             return Response(
@@ -143,50 +152,34 @@ class RestApi:
             not "_rfc2217" in did and not "mqtt" in did and not "local" in did
         ) or device_state == {}:
             logger.error("Requested service not supported by actor system.")
-            answer = {"Error code": "11", "Error": "Device not found", did: {}}
+            status = Status.NOT_FOUND
+            answer = {"Error code": status.value, "Error": str(status), did: {}}
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
         # send RESERVE message to device actor
         device_actor = get_device_actor(did)
-        msg = {
-            "CMD": "RESERVE",
-            "PAR": {"HOST": request_host, "USER": user, "APP": app},
-        }
-        logger.debug("Ask device actor %s", msg)
         with ActorSystem().private() as reserve_sys:
-            reserve_return = reserve_sys.ask(device_actor, msg, 10)
-        if reserve_return is None:
-            logger.critical("Emergency shutdown. Timeout in ask.")
-            system_shutdown()
-        if isinstance(reserve_return, PoisonMessage):
+            reserve_return = reserve_sys.ask(
+                device_actor, ReserveDeviceMsg(request_host, user, app), 10
+            )
+        if not isinstance(reserve_return, ReservationStatusMsg):
             logger.critical("Critical error in device actor. Stop and shutdown system.")
+            status = Status.CRITICAL
+            answer = {"Error code": status.value, "Error": str(status), did: {}}
             system_shutdown()
-            answer = {"Error code": 99, "Error": "Unexpected error", did: {}}
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
         logger.debug("returned with %s", reserve_return)
-        return_error = reserve_return["ERROR_CODE"]
-        if return_error in (
-            RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-        ):
-            answer = {"Error code": return_error, "Error": "OK"}
+        status = reserve_return.status
+        if status in (Status.OK, Status.OK_SKIPPED, Status.OCCUPIED):
+            answer = {"Error code": status.value, "Error": str(status)}
             answer[did] = get_device_status(did)
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
-        if return_error is RETURN_MESSAGES["OCCUPIED"]["ERROR_CODE"]:
-            answer = {
-                "Error code": return_error,
-                "Error": "Already reserved by other party",
-            }
-            answer[did] = get_device_status(did)
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
-        answer = {"Error code": 99, "Error": "Unexpected error", did: {}}
+        else:
+            status = Status.Critical
+            answer = {"Error code": status.value, "Error": str(status), did: {}}
+            system_shutdown()
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -197,60 +190,27 @@ class RestApi:
         """Path for freeing a single active device"""
         device_state = get_device_status(did)
         if device_state == {}:
-            answer = {"Error code": 11, "Error": "Device not found", did: {}}
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
-        if device_state.get("Reservation", None) is None:
-            answer = {
-                "Error code": 10,
-                "Error": "No reservation found",
-                did: device_state,
-            }
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
-        if device_state["Reservation"].get("Active") is False:
-            answer = {
-                "Error code": 10,
-                "Error": "No reservation found",
-                did: device_state,
-            }
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
-
-        device_actor = get_device_actor(did)
-        logger.debug("Ask device actor to FREE...")
-        free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"}, 10)
-        if free_return is None:
-            logger.critical("Emergency shutdown. Timeout in ask.")
-            system_shutdown()
-        if isinstance(free_return, PoisonMessage):
-            logger.critical("Critical error in device actor. Stop and shutdown system.")
-            system_shutdown()
-            answer = {"Error code": 99, "Error": "Unexpected error", did: {}}
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
-        logger.debug("returned with %s", free_return)
-        return_error = free_return["ERROR_CODE"]
-        if return_error == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
-            answer = {"Error code": 0, "Error": "OK", did: {}}
+            status = Status.NOT_FOUND
+        elif (device_state.get("Reservation", None) is None) or (
+            device_state["Reservation"].get("Active") is False
+        ):
+            status = Status.OK_SKIPPED
+        else:
+            device_actor = get_device_actor(did)
+            logger.debug("Ask device actor to FREE...")
+            free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"}, 10)
+            if not isinstance(free_return, ReservationStatusMsg):
+                logger.critical(
+                    "Critical error in device actor. Stop and shutdown system."
+                )
+                status = Status.CRITICAL
+                system_shutdown()
+            else:
+                logger.debug("returned with %s", free_return)
+                status = free_return.status
+        answer = {"Error code": status.value, "Error": str(status), did: {}}
+        if status in (Status.OK, Status.OCCUPIED):
             answer[did] = get_device_status(did)
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
-        if return_error is RETURN_MESSAGES["OCCUPIED"]["ERROR_CODE"]:
-            answer = {
-                "Error code": return_error,
-                "Error": "Already reserved by other party",
-            }
-            answer[did] = get_device_status(did)
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
-        answer = {"Error code": 99, "Error": "Unexpected error", did: {}}
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -261,102 +221,90 @@ class RestApi:
     def getlocalports():
         """Lists Local Ports, Used for Testing atm"""
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
-        reply = ActorSystem().ask(cluster, {"CMD": "LIST-PORTS"}, 10)
-        if reply is None:
-            logger.critical("Emergency shutdown. Timeout in ask.")
-            system_shutdown()
-        if isinstance(reply, PoisonMessage):
+        reply = ActorSystem().ask(cluster, GetLocalPortsMsg, 10)
+        if not isinstance(reply, ReturnLocalPortsMsg):
             logger.critical(
                 "Critical error in cluster actor. Stop and shutdown system."
             )
+            status = Status.CRITICAL
+            answer = {"Error code": status.value, "Error": str(status)}
             system_shutdown()
-            answer = {"Error code": 99, "Error": "Unexpected error"}
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
-        return reply
+        return reply.ports
 
     @staticmethod
     @api.route("/ports/<port>/loop", methods=["GET"])
     def getloopport(port):
         """Loops Local Ports, Used for Testing"""
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
-        reply = ActorSystem().ask(cluster, {"CMD": "LOOP", "PAR": {"PORT": port}}, 10)
-        if reply is None:
-            logger.critical("Emergency shutdown. Timeout in ask.")
-            system_shutdown()
-        if isinstance(reply, PoisonMessage):
+        reply = ActorSystem().ask(cluster, AddPortToLoopMsg(port), 10)
+        if not isinstance(reply, ReturnLoopPortsMsg):
             logger.critical(
                 "Critical error in cluster actor. Stop and shutdown system."
             )
+            status = Status.Critical
+            answer = {"Error code": status.value, "Error": str(status)}
             system_shutdown()
-            answer = {"Error code": 99, "Error": "Unexpected error"}
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
-        return reply
+        return reply.ports
 
     @staticmethod
     @api.route("/ports/<port>/stop", methods=["GET"])
     def getstopport(port):
         """Loops Local Ports, Used for Testing"""
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
-        reply = ActorSystem().ask(
-            cluster, {"CMD": "LOOP-REMOVE", "PAR": {"PORT": port}}, 10
-        )
-        if reply is None:
-            logger.critical("Emergency shutdown. Timeout in ask.")
-            system_shutdown()
-        if isinstance(reply, PoisonMessage):
+        reply = ActorSystem().ask(cluster, RemovePortFromLoopMsg(port), 10)
+        if not isinstance(reply, ReturnLoopPortsMsg):
             logger.critical(
                 "Critical error in cluster actor. Stop and shutdown system."
             )
+            status = Status.Critical
+            answer = {"Error code": status.value, "Error": str(status)}
             system_shutdown()
-            answer = {"Error code": 99, "Error": "Unexpected error"}
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
-        return reply
+        return reply.ports
 
     @staticmethod
     @api.route("/ports/list-usb", methods=["GET"])
     def getusbports():
         """Loops Local Ports, Used for Testing"""
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
-        reply = ActorSystem().ask(cluster, {"CMD": "LIST-USB"}, 10)
-        if reply is None:
-            logger.critical("Emergency shutdown. Timeout in ask.")
-            system_shutdown()
-        if isinstance(reply, PoisonMessage):
+        reply = ActorSystem().ask(cluster, GetUsbPortsMsg(), 10)
+        if not isinstance(reply, ReturnUsbPortsMsg):
             logger.critical(
                 "Critical error in cluster actor. Stop and shutdown system."
             )
+            status = Status.Critical
+            answer = {"Error code": status.value, "Error": str(status)}
             system_shutdown()
-            answer = {"Error code": 99, "Error": "Unexpected error"}
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
-        return reply
+        return reply.ports
 
     @staticmethod
     @api.route("/ports/list-native", methods=["GET"])
     def getnativeports():
         """Loops Local Ports, Used for Testing"""
         cluster = ActorSystem().createActor(Actor, globalName="cluster")
-        reply = ActorSystem().ask(cluster, {"CMD": "LIST-NATIVE"}, 10)
-        if reply is None:
-            logger.critical("Emergency shutdown. Timeout in ask.")
-            system_shutdown()
-        if isinstance(reply, PoisonMessage):
+        reply = ActorSystem().ask(cluster, GetNativePortsMsg(), 10)
+        if not isinstance(reply, ReturnNativePortsMsg):
             logger.critical(
                 "Critical error in cluster actor. Stop and shutdown system."
             )
+            status = Status.Critical
+            answer = {"Error code": status.value, "Error": str(status)}
             system_shutdown()
-            answer = {"Error code": 99, "Error": "Unexpected error"}
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
-        return reply
+        return reply.ports
 
     @staticmethod
     @api.route("/status", methods=["GET"])
@@ -371,6 +319,7 @@ class RestApi:
             system_shutdown()
 
         class Temp:
+            # pylint: disable=too-few-public-methods
             """Needed for formatStatus"""
 
             write = logger.debug

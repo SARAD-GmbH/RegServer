@@ -9,7 +9,7 @@ Author:
 import json
 import time
 from decimal import Decimal
-from enum import Enum
+from enum import Enum, auto
 from typing import NamedTuple
 
 from registrationserver.logger import logger
@@ -52,8 +52,8 @@ class ControlType(Enum):
     """Types of control messages"""
 
     UNKNOWN = 0
-    FREE = 1
-    RESERVE = 2
+    FREE = auto()
+    RESERVE = auto()
 
 
 class Control(NamedTuple):
