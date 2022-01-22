@@ -17,12 +17,11 @@ import socket
 import time
 
 from overrides import overrides  # type: ignore
-from thespian.actors import WakeupMessage  # type: ignore
 
+from registrationserver.actor_messages import SocketMsg, Status, TxBinaryMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
 from registrationserver.logger import logger
-from registrationserver.modules.messages import RETURN_MESSAGES
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -32,16 +31,6 @@ class RedirectorActor(BaseActor):
 
     @overrides
     def __init__(self):
-        self.ACCEPTED_COMMANDS.update(
-            {
-                "CONNECT": "_on_connect_cmd",
-            }
-        )
-        self.ACCEPTED_RETURNS.update(
-            {
-                "SEND": "_on_send_return",
-            }
-        )
         super().__init__()
         self.my_parent = None
         self._client_socket = None
@@ -77,57 +66,39 @@ class RedirectorActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
         if msg.payload == "Connect":
-            self._on_connect_cmd(msg, sender)
+            self.receiveMsg_ConnectMsg(msg, sender)
 
     @overrides
-    def _on_setup_cmd(self, msg, sender):
+    def receiveMsg_SetupMsg(self, msg, sender):
         logger.debug("Setup redirector actor")
-        super()._on_setup_cmd(msg, sender)
+        super().receiveMsg_SetupMsg(msg, sender)
         if self._port is None:
             logger.critical(
                 "Cannot open socket in the configured port range %s",
                 config["PORT_RANGE"],
             )
-            return_msg = {
-                "RETURN": "SETUP",
-                "ERROR_CODE": RETURN_MESSAGES["UNKNOWN_PORT"]["ERROR_CODE"],
-            }
+            return_msg = SocketMsg(ip_address="", port=0, status=Status.UNKNOWN_PORT)
         elif self.my_parent is None:
             self.my_parent = sender
-            return_msg = {
-                "RETURN": "SETUP",
-                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                "RESULT": {"IP": self._host, "PORT": self._port},
-            }
+            return_msg = SocketMsg(
+                ip_address=self._host, port=self._port, status=Status.OK
+            )
         else:
             logger.debug("my_parent: %s", self.my_parent)
-            return_msg = {
-                "RETURN": "SETUP",
-                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-            }
+            return_msg = SocketMsg(
+                ip_address=self._host, port=self._port, status=Status.OK_SKIPPED
+            )
         logger.debug("Setup finished with %s", return_msg)
         self.send(sender, return_msg)
 
     @overrides
-    def _on_kill_cmd(self, msg, sender):
-        """Handler to exit the redirector actor.
-
-        Send a RETURN KILL message to the device actor (my_parent),
-        then exit this redirector actor."""
+    def receiveMsg_KillMsg(self, msg, sender):
+        """Handler to exit the redirector actor."""
         self.read_list[0].close()
-        return_message = {
-            "RETURN": "KILL",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-        }
-        logger.debug(
-            "Confirm redirector actor exit to %s with %s",
-            self.my_parent,
-            return_message,
-        )
-        self.send(self.my_parent, return_message)
-        super()._on_kill_cmd(msg, sender)
+        super().receiveMsg_KillMsg(msg, sender)
 
-    def _on_connect_cmd(self, _msg, _sender):
+    def receiveMsg_ConnectMsg(self, _msg, _sender):
+        # pylint: disable=invalid-name
         """Listen to socket and redirect any message from the socket to the device actor"""
         # logger.debug("Waiting for connect at %s port %s", self._host, self._port)
         # read_list = list of server sockets from which we expect to read
@@ -155,10 +126,10 @@ class RedirectorActor(BaseActor):
                 time.sleep(5)
         if data is None:
             logger.critical("Application software seems to be dead.")
-            self._on_kill_cmd({}, self.my_parent)
+            self.receiveMsg_KillMsg(None, self.my_parent)
         elif data == b"":
             logger.debug("The application closed the socket.")
-            self._on_kill_cmd({}, self.my_parent)
+            self.receiveMsg_KillMsg(None, self.my_parent)
         else:
             logger.debug(
                 "Redirect %s from app, socket %s to device actor %s",
@@ -166,20 +137,22 @@ class RedirectorActor(BaseActor):
                 self._socket_info,
                 self.my_parent,
             )
-            self.send(self.my_parent, {"CMD": "SEND", "PAR": {"DATA": data}})
+            self.send(self.my_parent, TxBinaryMsg(data, host=None, instrument=None))
 
-    def _on_send_return(self, msg, _sender):
+    def receiveMsg_RxBinaryData(self, msg, _sender):
+        # pylint: disable=invalid-name
         """Redirect any received reply to the socket."""
-        data = msg["RESULT"]["DATA"]
         for _i in range(0, 5):
             try:
-                self.conn.sendall(data)
+                self.conn.sendall(msg.data)
                 logger.debug(
-                    "Redirect %s from instrument to socket %s", data, self._socket_info
+                    "Redirect %s from instrument to socket %s",
+                    msg.data,
+                    self._socket_info,
                 )
                 return
             except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")
                 time.sleep(5)
         logger.critical("Application software seems to be dead.")
-        self._on_kill_cmd({}, self.my_parent)
+        self.receiveMsg_KillMsg(None, self.my_parent)

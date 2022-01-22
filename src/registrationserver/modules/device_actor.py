@@ -12,12 +12,11 @@
 from datetime import datetime, timedelta
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import AppType
+from registrationserver.actor_messages import AppType, ConnectMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config, ismqtt_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
-from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.redirect_actor import RedirectorActor
 from registrationserver.shutdown import system_shutdown
 from thespian.actors import Actor, WakeupMessage
@@ -282,7 +281,7 @@ class DeviceBaseActor(BaseActor):
         }
         self.device_status["Reservation"] = reservation
         logger.debug("Reservation state updated: %s", self.device_status)
-        self.send(self.my_redirector, {"CMD": "CONNECT"})
+        self.send(self.my_redirector, ConnectMsg())
         return_message = {
             "RETURN": "RESERVE",
             "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],

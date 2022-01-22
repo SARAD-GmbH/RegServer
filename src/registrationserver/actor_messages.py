@@ -180,8 +180,8 @@ class TxBinaryMsg:
     """
 
     data: ByteString
-    host: str
-    instrument: SaradInst
+    host: Union(str, None)
+    instrument: Union(SaradInst, None)
 
 
 @dataclass
@@ -263,6 +263,7 @@ class SocketMsg:
 
     ip_address: str
     port: int
+    status: Status
 
 
 @dataclass
@@ -345,3 +346,15 @@ class ReturnNativePortsMsg:
     """Returns the list of local RS-232 interfaces."""
 
     ports: List[str]
+
+
+@dataclass
+class ConnectMsg:
+    """Request to start the listening server socket connecting to the app and
+    to redirect all incoming binary data to the device actor."""
+
+
+"""
+                "CONNECT": "_on_connect_cmd",
+                "SEND": "_on_send_return",
+"""
