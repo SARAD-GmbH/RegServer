@@ -17,6 +17,7 @@ from datetime import datetime
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
+from registrationserver.actor_messages import TxBinaryMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import ismqtt_config, mqtt_config
 from registrationserver.helpers import get_key
@@ -281,11 +282,7 @@ class MqttSchedulerActor(BaseActor):
             device_actor = self.cluster.get(instr_id)
             if device_actor is not None:
                 logger.debug("Forward command %s to device actor %s", cmd, device_actor)
-                cmd_msg = {
-                    "CMD": "SEND",
-                    "PAR": {"DATA": cmd, "HOST": "localhost"},
-                }
-                self.send(device_actor, cmd_msg)
+                self.send(device_actor, TxBinaryMsg(cmd, "localhost", instrument=None))
 
     def on_message(self, _client, _userdata, message):
         # pylint: disable=no-self-use

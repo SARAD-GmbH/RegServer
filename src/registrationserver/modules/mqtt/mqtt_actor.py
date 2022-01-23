@@ -20,7 +20,6 @@ from overrides import overrides  # type: ignore
 from registrationserver.config import mqtt_config
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
-from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.shutdown import system_shutdown
 
 logger.debug("%s -> %s", __package__, __file__)
@@ -32,7 +31,6 @@ class MqttActor(DeviceBaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self.ACCEPTED_COMMANDS["PREPARE"] = "_on_prepare_cmd"
         self.subscriber = None
         self.is_id = None
         self.instr_id = None
@@ -80,11 +78,10 @@ class MqttActor(DeviceBaseActor):
         }  # store the current message ID to check
         self._subscriptions = {}
 
-    def _send(self, msg, sender) -> None:
-        if msg is None:
-            logger.error("[SEND] no contents to send")
-            return
-        data = msg.get("PAR", None).get("DATA", None)
+    def ReceiveMsg_TxBinaryMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for TxBinaryMsg from Redirector Actor."""
+        data = msg.data
         if (data is None) or (not isinstance(data, bytes)):
             logger.error(
                 "[SEND] no data to send or the data are not bytes",
@@ -92,9 +89,6 @@ class MqttActor(DeviceBaseActor):
             return
         logger.debug("To send: %s", data)
         logger.debug("CMD ID is: %s", self.cmd_id)
-        qos = msg.get("PAR", None).get("qos", None)
-        if qos is None:
-            qos = 0
         self.state["SEND"]["Pending"] = True
         self.test_cnt = self.test_cnt + 1
         logger.debug("test_cnt = %s", self.test_cnt)
@@ -104,7 +98,7 @@ class MqttActor(DeviceBaseActor):
         _msg = {
             "topic": self.allowed_sys_topics["CMD"],
             "payload": bytes([self.cmd_id]) + data,
-            "qos": qos,
+            "qos": 0,
         }
         _re = self._publish(_msg)
         if self.cmd_id == 255:
@@ -155,7 +149,7 @@ class MqttActor(DeviceBaseActor):
             logger.debug("[Reserve at IS]: Waiting for reply to reservation request")
 
     @overrides
-    def _on_kill_return(self, msg, sender) -> None:
+    def receiveMsg_ChildActorExited(self, msg, sender):
         """Handle the return message confirming that the redirector actor was killed.
 
         Args:
@@ -172,36 +166,28 @@ class MqttActor(DeviceBaseActor):
         _re = self._publish(_msg)
         logger.info("Unsubscribe MQTT actor from 'msg' topic")
         self._unsubscribe([self.allowed_sys_topics["MSG"]])
-        super()._on_kill_return(msg, sender)
+        super().receiveMsg_ChildActorExited(msg, sender)
 
     @overrides
-    def _on_kill_cmd(self, msg, sender):
+    def receiveMsg_KillMsg(self, msg, sender):
         logger.debug(self.allowed_sys_topics)
         success = self._unsubscribe(["+"])
         if success:
             logger.debug("Unsubscribed.")
         self._disconnect()
         time.sleep(1)
-        super()._on_kill_cmd(msg, sender)
+        super().receiveMsg_KillMsg(msg, sender)
 
-    def _on_prepare_cmd(self, msg, sender):
+    def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for PrepareMqttActorMsg from MQTT Listener"""
         self.subscriber = sender
-        mqtt_cid = self.device_id + ".client"
-        self.instr_id = self.device_id.split(".")[0]
-        self.is_id = msg.get("PAR", None).get("is_id", None)
-        mqtt_broker = msg.get("PAR", None).get("mqtt_broker", "127.0.0.1")
-        port = msg.get("PAR", None).get("port", 1883)
+        mqtt_cid = self.my_id + ".client"
+        self.instr_id = self.my_id.split(".")[0]
+        self.is_id = msg.is_id
+        mqtt_broker = msg.mqtt_broker
+        port = msg.port
         logger.info("Using MQTT broker %s with port %d", mqtt_broker, port)
-        if self.is_id is None:
-            logger.error("No Instrument Server ID received!")
-            self.send(
-                sender,
-                {
-                    "RETURN": "PREPARE",
-                    "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_WRONGFORMAT"]["ERROR_CODE"],
-                },
-            )
-            return
         self.mqttc = MQTT.Client(mqtt_cid)
         self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
@@ -300,7 +286,7 @@ class MqttActor(DeviceBaseActor):
                     timestamp = (
                         datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z"
                     )
-                if not self._subscribe([(self.allowed_sys_topics["MSG"], 0)]):
+                if not self._subscribe_topic([(self.allowed_sys_topics["MSG"], 0)]):
                     logger.error(
                         "Subscription to %s went wrong", self.allowed_sys_topics["MSG"]
                     )
@@ -402,16 +388,9 @@ class MqttActor(DeviceBaseActor):
             )
         else:
             self.is_connected = False
-            logger.error(
+            logger.critical(
                 "[CONNECT] Connection to MQTT broker failed with %s",
                 result_code,
-            )
-            self.send(
-                self.subscriber,
-                {
-                    "RETURN": "SETUP",
-                    "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_STATE"]["ERROR_CODE"],
-                },
             )
 
     def on_disconnect(self, _client, _userdata, result_code):
@@ -495,7 +474,7 @@ class MqttActor(DeviceBaseActor):
             return False
         return True
 
-    def _subscribe(self, sub_info: list) -> bool:
+    def _subscribe_topic(self, sub_info: list) -> bool:
         """Subscribe to all topics listed in sub_info
 
         Args:

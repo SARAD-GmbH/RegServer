@@ -18,14 +18,14 @@ import time
 from typing import Any, Dict
 
 import paho.mqtt.client as MQTT  # type: ignore
+from registrationserver.actor_messages import (AppType, PrepareMqttActorMsg,
+                                               SetDeviceStatusMsg, SetupMsg)
 from registrationserver.config import mqtt_config
 from registrationserver.helpers import get_device_actor
 from registrationserver.logger import logger
-from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.mqtt.mqtt_actor import MqttActor
 from registrationserver.shutdown import system_shutdown
-from thespian.actors import (ActorExitRequest, ActorSystem,  # type: ignore
-                             PoisonMessage)
+from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -162,7 +162,7 @@ class SaradMqttSubscriber:
                 " are none or the meta message is none."
             )
             return
-        if is_id not in self.connected_instruments.keys():
+        if is_id not in self.connected_instruments:
             logger.debug(
                 "[add_instr] Unknown instrument %s from unknown IS %s",
                 instr_id,
@@ -186,62 +186,21 @@ class SaradMqttSubscriber:
                 family,
             )
             return
-        ac_name = instr_id + "." + sarad_type + ".mqtt"
-        self.connected_instruments[is_id][instr_id] = ac_name
+        actor_id = instr_id + "." + sarad_type + ".mqtt"
+        self.connected_instruments[is_id][instr_id] = actor_id
         logger.info(
             "[add_instr] Instrument ID %s, actorname %s",
             instr_id,
-            ac_name,
+            actor_id,
         )
         this_actor = ActorSystem().createActor(MqttActor)
-        setup_return = ActorSystem().ask(
-            this_actor, {"CMD": "SETUP", "ID": ac_name, "PAR": payload}, 10
+        ActorSystem().tell(
+            this_actor, SetupMsg(actor_id, "actor_system", AppType.ISMQTT)
         )
-        if setup_return is None:
-            logger.critical("Emergency shutdown. Timeout in ask.")
-            system_shutdown()
-        if isinstance(setup_return, PoisonMessage):
-            logger.critical("Critical error in mqtt_actor. Stop and shutdown system.")
-            system_shutdown()
-            return
-        logger.debug("SETUP returns: %s", setup_return)
-        if not setup_return["ERROR_CODE"] in (
-            RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
-        ):
-            logger.debug("[add_instr] %s", setup_return)
-            ActorSystem().ask(this_actor, ActorExitRequest())
-            del self.connected_instruments[is_id][instr_id]
-            return
-        prep_msg = {
-            "CMD": "PREPARE",
-            "PAR": {
-                "is_id": is_id,
-                "mqtt_broker": self.mqtt_broker,
-                "port": self.port,
-            },
-        }
-        prep_return = ActorSystem().ask(this_actor, prep_msg, 10)
-        if prep_return is None:
-            logger.critical("Emergency shutdown. Timeout in ask.")
-            system_shutdown()
-        if isinstance(prep_return, PoisonMessage):
-            logger.critical("Critical error in mqtt_actor. Stop and shutdown system.")
-            system_shutdown()
-            return
-        logger.debug(prep_return)
-        if not prep_return["ERROR_CODE"] in (
-            RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-            RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
-        ):
-            logger.debug("[add_instr] %s", prep_return)
-            logger.critical("[add_instr] MQTT actor failed to prepare itself. Kill it.")
-            ActorSystem().ask(this_actor, ActorExitRequest())
-            del self.connected_instruments[is_id][instr_id]
-            return
-        return
+        ActorSystem().tell(this_actor, SetDeviceStatusMsg(device_status=payload))
+        ActorSystem().tell(
+            this_actor, PrepareMqttActorMsg(is_id, self.mqtt_broker, self.port)
+        )
 
     def _rm_instr(self, is_id, instr_id) -> None:
         logger.debug("[rm_instr] %s, %s", is_id, instr_id)
@@ -254,12 +213,12 @@ class SaradMqttSubscriber:
             is_id not in self.connected_instruments
             or instr_id not in self.connected_instruments[is_id]
         ):
-            logger.debug(RETURN_MESSAGES["INSTRUMENT_UNKNOWN"])
+            logger.debug("Instrument unknown")
             return
         device_id = self.connected_instruments[is_id][instr_id]
         logger.info("[rm_instr] %s", instr_id)
         device_actor = get_device_actor(device_id)
-        ActorSystem().ask(device_actor, ActorExitRequest())
+        ActorSystem().tell(device_actor, ActorExitRequest())
         del self.connected_instruments[is_id][instr_id]
         return
 
@@ -274,12 +233,12 @@ class SaradMqttSubscriber:
             is_id not in self.connected_instruments
             or instr_id not in self.connected_instruments[is_id]
         ):
-            logger.warning("[update_instr] %s", RETURN_MESSAGES["INSTRUMENT_UNKNOWN"])
+            logger.warning("[update_instr] Instrument unknown")
             return
         device_id = self.connected_instruments[is_id][instr_id]
         logger.info("[update_instr] %s", instr_id)
         device_actor = get_device_actor(device_id)
-        ActorSystem().tell(device_actor, {"CMD": "UPDATE", "PAR": payload})
+        ActorSystem().tell(device_actor, SetDeviceStatusMsg(device_status=payload))
         return
 
     def _add_host(self, is_id, data) -> None:
