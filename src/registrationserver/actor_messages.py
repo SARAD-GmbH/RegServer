@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import Enum, auto, unique
 from typing import ByteString, Dict, List, Union
 
-from sarad.sari import SaradInst
+from sarad.sari import SaradInst  # type: ignore
 from thespian.actors import ActorAddress  # type: ignore
 
 
@@ -92,7 +92,7 @@ class SetDeviceStatusMsg:
         device_status (dict): Dictionary with status information of the instrument.
     """
 
-    device_status: dict
+    device_status: Dict[str, str]
 
 
 @dataclass
@@ -155,7 +155,7 @@ class UpdateActorDictMsg:
         actor_dict (dict): Actor Dictionary.
     """
 
-    actor_dict: dict
+    actor_dict: Dict[str, str]
 
 
 @dataclass
@@ -180,8 +180,8 @@ class TxBinaryMsg:
     """
 
     data: ByteString
-    host: Union(str, None)
-    instrument: Union(SaradInst, None)
+    host: Union[str, None]
+    instrument: Union[SaradInst, None]
 
 
 @dataclass
@@ -253,7 +253,7 @@ class UpdateDeviceStatusMsg:
     """
 
     instr_id: str
-    device_status: dict
+    device_status: Dict[str, str]
 
 
 @dataclass
@@ -365,15 +365,3 @@ class RemoveDeviceMsg:
     Sent from Device Actor to the MQTT Scheduler."""
 
     instr_id: str
-
-
-"""
-                "SEND": "_on_send_cmd",
-                "RESERVE": "_on_reserve_cmd",
-                "FREE": "_on_free_cmd",
-                "UPDATE": "_on_update_cmd",
-                "READ": "_on_read_cmd",
-
-                "SETUP": "_on_setup_return",
-                "KILL": "_on_kill_return",
-"""

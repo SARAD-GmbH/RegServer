@@ -16,7 +16,7 @@ from registrationserver.actor_messages import (AppType, FreeInstrMsg,
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.shutdown import system_shutdown
-from thespian.actors import Actor
+from thespian.actors import Actor  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -35,7 +35,7 @@ class UsbActor(DeviceBaseActor):
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        super()._on_setup_cmd(msg, sender)
+        super().receiveMsg_SetupMsg(msg, sender)
         self._cluster = self.createActor(Actor, globalName="cluster")
         self.instrument = self.my_id.split(".")[0]
         try:
@@ -64,7 +64,7 @@ class UsbActor(DeviceBaseActor):
         elif self.app_type == AppType.RS:
             self.send(self.my_redirector, msg)
         else:
-            # TODO: Actually there is no else yet.
+            # reserved for future use
             self.send(self.my_redirector, msg)
 
     @overrides

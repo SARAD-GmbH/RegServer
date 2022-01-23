@@ -40,17 +40,6 @@ class MqttSchedulerActor(BaseActor):
         * Start MQTT loop
         """
         super().__init__()
-        self.ACCEPTED_COMMANDS.update(
-            {
-                "ADD": "_on_add_cmd",
-                "REMOVE": "_on_remove_cmd",
-            }
-        )
-        self.ACCEPTED_RETURNS.update(
-            {
-                "SEND": "_on_send_return",
-            }
-        )
         self.lock = threading.Lock()
         self.cluster = {}  # {instr_id: actor_address}
         self.instr_meta = {}  # {instr_id: {<meta>}}
@@ -104,7 +93,11 @@ class MqttSchedulerActor(BaseActor):
                     mqtt_broker,
                     port,
                 )
-                if mqtt_config["TLS_USE_TLS"] and self.mqttc._ssl_context is None:
+                if (
+                    mqtt_config["TLS_USE_TLS"]
+                    and self.mqttc._ssl_context
+                    is None  # pylint: disable=protected-access
+                ):
                     ca_certs = os.path.expanduser(mqtt_config["TLS_CA_FILE"])
                     certfile = os.path.expanduser(mqtt_config["TLS_CERT_FILE"])
                     keyfile = os.path.expanduser(mqtt_config["TLS_KEY_FILE"])
@@ -136,13 +129,14 @@ class MqttSchedulerActor(BaseActor):
                 logger.error("Could not connect to Broker, retrying...: %s", exception)
                 time.sleep(retry_interval)
 
-    def _on_add_cmd(self, msg, sender):
-        """Handler for actor messages with command 'ADD'
+    def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for UpdateDeviceStatusMsg from Device Actor.
 
         Adds a new instrument to the list of available instruments."""
         with self.lock:
-            instr_id = msg["PAR"]["INSTR_ID"]
-            device_status = msg["PAR"]["DEVICE_STATUS"]
+            instr_id = msg.instr_id
+            device_status = msg.device_status
             self.cluster[instr_id] = sender
             logger.debug(
                 "[ADD] %s added to cluster. Complete list is now %s",
@@ -165,17 +159,18 @@ class MqttSchedulerActor(BaseActor):
             )
             self.instr_meta[instr_id] = identification
 
-    def _on_remove_cmd(self, msg, _sender):
-        """Handler for actor messages with command 'REMOVE'
+    def receiveMsg_RemoveDeviceMsg(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for RemoveDeviceMsg from Device Actor.
 
         Removes an instrument from the list of available instruments."""
         with self.lock:
-            instr_id = msg["PAR"]["INSTR_ID"]
+            instr_id = msg.instr_id
             self.cluster.pop(instr_id, None)
             self.instr_meta.pop(instr_id, None)
             self.reservations.pop(instr_id, None)
             logger.debug(
-                "[REMOVE] %s removed from cluster. Complete list is now %s",
+                "[RemoveDeviceMsg] %s removed from cluster. Complete list is now %s",
                 instr_id,
                 self.cluster,
             )
@@ -193,14 +188,14 @@ class MqttSchedulerActor(BaseActor):
             )
 
     @overrides
-    def _on_kill_cmd(self, msg, sender):
+    def receiveMsg_KillMsg(self, msg, sender):
         self.mqttc.unsubscribe(topic="+")
         self.mqttc.publish(
             retain=True, topic=f"{self.is_id}/meta", payload=json.dumps({"State": 0})
         )
         self._disconnect()
         time.sleep(1)
-        super()._on_kill_cmd(msg, sender)
+        super().receiveMsg_KillMsg(msg, sender)
 
     def _disconnect(self):
         if self.ungr_disconn == 2:
@@ -293,24 +288,26 @@ class MqttSchedulerActor(BaseActor):
                 self.send(device_actor, cmd_msg)
 
     def on_message(self, _client, _userdata, message):
+        # pylint: disable=no-self-use
         """
         Event handler for after a MQTT message was received on a subscribed topic.
         This will catch only remaining topics that are not control or cmd messages.
         """
         logger.error("%s(%s): %s", message.topic, len(message.topic), message.payload)
 
-    def _on_send_return(self, msg, sender):
+    def receive_RxBinaryMsg(self, msg, sender):
+        # pylint: disable=invalid-name
         """Handler for actor messages returning from 'SEND" command
 
         Forward the payload received from device_actor via MQTT."""
         instr_id = get_key(sender, self.cluster)
-        reply = bytes([self.cmd_ids[instr_id]]) + msg["RESULT"]["DATA"]
+        reply = bytes([self.cmd_ids[instr_id]]) + msg.data
         self.mqttc.publish(f"{self.is_id}/{instr_id}/msg", reply)
 
     def process_reserve(self, instr_id, control):
-        """Sub event handler that will be called from the on_message event handler, when a MQTT
-        control message with a 'reserve' request was received for a specific instrument
-        ID."""
+        """Sub event handler that will be called from the on_message event handler,
+        when a MQTT control message with a 'reserve' request was received
+        for a specific instrument ID."""
         logger.debug(
             "[RESERVE] client=%s, instrument=%s, control=%s",
             self.mqttc,
@@ -347,9 +344,9 @@ class MqttSchedulerActor(BaseActor):
             self.mqttc.publish(topic=topic, payload=reservation_json, retain=True)
 
     def process_free(self, instr_id):
-        """Sub event handler that will be called from the on_message event handler, when a MQTT
-        control message with a 'free' request was received for a specific instrument
-        ID."""
+        """Sub event handler that will be called from the on_message event handler,
+        when a MQTT control message with a 'free' request was received
+        for a specific instrument ID."""
         if self.reservations.get(instr_id) is None:
             logger.debug(
                 "[FREE] Instrument is not in the list of reserved instruments."
