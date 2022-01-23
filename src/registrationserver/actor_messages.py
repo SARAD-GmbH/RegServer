@@ -197,7 +197,7 @@ class RxBinaryMsg:
 
 @dataclass
 class ReserveDeviceMsg:
-    """Request to reserve an instrument. Sent from API.
+    """Request to reserve an instrument. Sent from API to Device Actor.
 
     Args:
         host (str): Host requesting the reservation.
@@ -236,6 +236,11 @@ class SubscribeToDeviceStatusMsg:
     """
 
     actor_id: str
+
+
+@dataclass
+class GetDeviceStatusMsg:
+    """Request to get the device status from Device Actor once."""
 
 
 @dataclass
@@ -279,7 +284,7 @@ class InstrAddedMsg:
 
 @dataclass
 class InstrRemovedMsg:
-    """Request to remove a instrument."""
+    """Request to remove an instrument."""
 
 
 @dataclass
@@ -354,7 +359,21 @@ class ConnectMsg:
     to redirect all incoming binary data to the device actor."""
 
 
+@dataclass
+class RemoveDeviceMsg:
+    """Message to remove an instrument from the device list.
+    Sent from Device Actor to the MQTT Scheduler."""
+
+    instr_id: str
+
+
 """
-                "CONNECT": "_on_connect_cmd",
-                "SEND": "_on_send_return",
+                "SEND": "_on_send_cmd",
+                "RESERVE": "_on_reserve_cmd",
+                "FREE": "_on_free_cmd",
+                "UPDATE": "_on_update_cmd",
+                "READ": "_on_read_cmd",
+
+                "SETUP": "_on_setup_return",
+                "KILL": "_on_kill_return",
 """

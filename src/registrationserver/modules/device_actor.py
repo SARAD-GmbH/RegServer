@@ -9,17 +9,20 @@
 
 .. uml :: uml-device_actor.puml
 """
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import AppType, ConnectMsg
+from registrationserver.actor_messages import (AppType, ConnectMsg, KillMsg,
+                                               RemoveDeviceMsg,
+                                               ReservationStatusMsg, SetupMsg,
+                                               Status, SubscribeMsg,
+                                               UpdateDeviceStatusMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import config, ismqtt_config
+from registrationserver.config import ismqtt_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.redirect_actor import RedirectorActor
-from registrationserver.shutdown import system_shutdown
-from thespian.actors import Actor, WakeupMessage
+from thespian.actors import Actor
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -56,22 +59,6 @@ class DeviceBaseActor(BaseActor):
     def __init__(self):
         logger.debug("Initialize a new device actor.")
         super().__init__()
-        self.ACCEPTED_COMMANDS.update(
-            {
-                "SEND": "_on_send_cmd",
-                "RESERVE": "_on_reserve_cmd",
-                "FREE": "_on_free_cmd",
-                "UPDATE": "_on_update_cmd",
-                "READ": "_on_read_cmd",
-            }
-        )
-        self.ACCEPTED_RETURNS.update(
-            {
-                "SETUP": "_on_setup_return",
-                "KILL": "_on_kill_return",
-            }
-        )
-        self._config: dict = {}
         self.device_status = {}
         self.my_redirector = None
         self.app = None
@@ -81,124 +68,60 @@ class DeviceBaseActor(BaseActor):
         self.mqtt_scheduler = None
         logger.info("Device actor created.")
 
-    def receiveMsg_WakeupMessage(self, msg, _sender):
-        # pylint: disable=invalid-name
-        """Handler for WakeupMessage"""
-        if msg.payload == "keep_alive":
-            self.wakeupAfter(timedelta(minutes=10), payload="keep_alive")
+    @overrides
+    def receiveMsg_SetupMsg(self, msg, sender):
+        super().receiveMsg_SetupMsg(msg, sender)
+        if self.app_type == AppType.ISMQTT:
+            self.mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
 
     @overrides
-    def _on_setup_cmd(self, msg, sender) -> None:
-        logger.debug("[_on_setup_cmd]")
-        super()._on_setup_cmd(msg, sender)
-        self.wakeupAfter(timedelta(minutes=10), payload="keep_alive")
-        self.device_status = msg["PAR"]
-        self.my_id = msg["ID"]
+    def _subscribe(self):
+        """Subscribe at Registrar actor."""
+        self.send(
+            self.registrar,
+            SubscribeMsg(
+                actor_id=self.my_id,
+                parent=self.parent.parent_address,
+                is_device_actor=True,
+                get_updates=False,
+            ),
+        )
+
+    def receiveMsg_SetDeviceStatusMsg(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for SetDeviceStatusMsg"""
+        self.device_status = msg.device_status
         logger.debug("Device status: %s", self.device_status)
-        self.registrar = self.createActor(Actor, globalName="registrar")
-        if config["APP_TYPE"] == AppType.ISMQTT:
-            self.mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
-        self._mark_as_device_actor()
-        return_message = {
-            "RETURN": "SETUP",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            "SELF": self.my_id,
-        }
-        self.send(sender, return_message)
         if self.mqtt_scheduler is not None:
             self.device_status["Identification"]["Host"] = ismqtt_config["IS_ID"]
-            add_message = {
-                "CMD": "ADD",
-                "PAR": {
-                    "INSTR_ID": short_id(self.my_id),
-                    "DEVICE_STATUS": self.device_status,
-                },
-            }
-            logger.debug(
-                "Sending 'ADD' with %s to MQTT scheduler %s",
-                add_message,
+            self.send(
                 self.mqtt_scheduler,
+                UpdateDeviceStatusMsg(short_id(self.my_id), self.device_status),
             )
-            self.send(self.mqtt_scheduler, add_message)
-
-    def _on_update_cmd(self, msg, _sender) -> None:
-        # TODO: Can be replaced with a new SetupMsg
-        logger.debug("[_on_update_cmd]")
-        self.device_status = msg["PAR"]
-        logger.debug("Device status: %s", self.device_status)
-        if self.mqtt_scheduler is not None:
-            add_message = {
-                "CMD": "ADD",
-                "PAR": {
-                    "INSTR_ID": short_id(self.my_id),
-                    "DEVICE_STATUS": self.device_status,
-                },
-            }
-            logger.debug(
-                "Sending 'ADD' with %s to MQTT scheduler %s",
-                add_message,
-                self.mqtt_scheduler,
-            )
-            self.send(self.mqtt_scheduler, add_message)
 
     @overrides
-    def _on_kill_cmd(self, msg, sender):
+    def receiveMsg_KillMsg(self, msg, sender):
         logger.info("%s for actor %s", msg, self.my_id)
         # Send 'REMOVE' message to MQTT Scheduler
-        if config["APP_TYPE"] == AppType.ISMQTT:
-            remove_message = {
-                "CMD": "REMOVE",
-                "PAR": {"INSTR_ID": short_id(self.my_id)},
-            }
-            logger.debug(
-                "Sending 'REMOVE' with %s to MQTT scheduler %s",
-                remove_message,
-                self.mqtt_scheduler,
-            )
-            self.send(self.mqtt_scheduler, remove_message)
-        if self.my_redirector is not None:
-            self.send(self.my_redirector, {"CMD": "KILL"})
-        self.send(self.registrar, {"CMD": "REMOVE", "PAR": {"GLOBAL_NAME": self.my_id}})
-        return_message = {
-            "RETURN": "KILL",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-        }
-        self.send(sender, return_message)
-        logger.debug("Cleanup done before finally killing me.")
-        super()._on_kill_cmd(msg, sender)
+        if self.app_type == AppType.ISMQTT:
+            self.send(self.mqtt_scheduler, RemoveDeviceMsg(short_id(self.my_id)))
+        super().receiveMsg_KillMsg(msg, sender)
 
-    def _on_reserve_cmd(self, msg, sender) -> None:
-        """Handler for RESERVE message from REST API."""
-        logger.info("Device actor received a RESERVE command with message: %s", msg)
+    def receiveMsg_ReserveDeviceMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for ReserveDeviceMsg from REST API."""
+        logger.info("Device actor received a ReserveDeviceMsg with message: %s", msg)
         self.sender_api = sender
-        try:
-            self.app = msg["PAR"]["APP"]
-        except LookupError:
-            logger.error("ERROR: there is no APP name!")
-            return
-        try:
-            self.host = msg["PAR"]["HOST"]
-        except LookupError:
-            logger.error("ERROR: there is no HOST name!")
-            return
-        try:
-            self.user = msg["PAR"]["USER"]
-        except LookupError:
-            logger.error("ERROR: there is no USER name!")
-            return
-        if config["APP_TYPE"] == AppType.RS:
+        self.app = msg.app
+        self.host = msg.host
+        self.user = msg.user
+        if self.app_type == AppType.RS:
             try:
                 if self.device_status["Reservation"]["Active"]:
                     if self.device_status["Reservation"]["Host"] == self.host:
-                        return_message = {
-                            "RETURN": "RESERVE",
-                            "ERROR_CODE": RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
-                        }
+                        return_message = ReservationStatusMsg(Status.OK_UPDATED)
                     else:
-                        return_message = {
-                            "RETURN": "RESERVE",
-                            "ERROR_CODE": RETURN_MESSAGES["OCCUPIED"]["ERROR_CODE"],
-                        }
+                        return_message = ReservationStatusMsg(Status.OCCUPIED)
                     self.send(self.sender_api, return_message)
                     return
             except KeyError:
@@ -226,72 +149,55 @@ class DeviceBaseActor(BaseActor):
         if success:
             if self._create_redirector():
                 return
-            return_message = {
-                "RETURN": "RESERVE",
-                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            }
-            self.send(self.sender_api, return_message)
-            return
-        return_message = {
-            "RETURN": "RESERVE",
-            "ERROR_CODE": RETURN_MESSAGES["OCCUPIED"]["ERROR_CODE"],
-        }
-        self.send(self.sender_api, return_message)
-        return
+            self.send(self.sender_api, ReservationStatusMsg(Status.OK))
+        else:
+            self.send(self.sender_api, ReservationStatusMsg(Status.OCCUPIED))
 
     def _create_redirector(self) -> bool:
-        """Create redirector actor"""
+        """Create redirector actor if it does not exist already"""
         if self.my_redirector is None:
             logger.debug("Trying to create a redirector actor")
             self.my_redirector = self.createActor(RedirectorActor)
-            msg = {"CMD": "SETUP", "PAR": {"PARENT_NAME": self.my_id}}
-            logger.debug("Send SETUP command to redirector with msg %s", msg)
-            self.send(self.my_redirector, msg)
+            my_redirector_id = short_id(self.my_id)
+            self.send(
+                self.my_redirector,
+                SetupMsg(my_redirector_id, self.my_id, self.app_type),
+            )
+            self.child_actors[my_redirector_id] = self.my_redirector
             return True
         logger.debug(
             "[create_redirector] Redirector %s already exists.", self.my_redirector
         )
         return False
 
-    def _on_setup_return(self, msg, sender):
-        logger.debug("returned with %s", msg)
+    def receiveMsg_SocketMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for SocketMsg from Redirector Actor."""
+        logger.debug("Redirector returned with %s", msg)
         try:
-            assert msg["ERROR_CODE"] in (
-                RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-            )
+            assert msg.status in (Status.OK, Status.OK_SKIPPED)
         except AssertionError:
-            return_message = {
-                "RETURN": "RESERVE",
-                "ERROR_CODE": RETURN_MESSAGES["UNKNOWN_PORT"]["ERROR_CODE"],
-            }
-            self.send(self.sender_api, return_message)
+            self.send(self.sender_api, ReservationStatusMsg(Status.UNKNOWN_PORT))
             return
         # Write Reservation section into device status
-        ip_address = msg["RESULT"]["IP"]
-        port = msg["RESULT"]["PORT"]
         reservation = {
             "Active": True,
             "App": self.app,
             "Host": self.host,
             "User": self.user,
-            "IP": ip_address,
-            "Port": port,
+            "IP": msg.ip_address,
+            "Port": msg.port,
             "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         }
         self.device_status["Reservation"] = reservation
         logger.debug("Reservation state updated: %s", self.device_status)
         self.send(self.my_redirector, ConnectMsg())
-        return_message = {
-            "RETURN": "RESERVE",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-        }
-        self.send(self.sender_api, return_message)
-        return
+        self.send(self.sender_api, ReservationStatusMsg(Status.OK))
 
-    def _on_free_cmd(self, msg, sender):
-        """Handler for FREE message from REST API."""
-        logger.info("Device actor received a FREE command. %s", msg)
+    def receiveMsg_FreeDeviceMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for FreeDeviceMsg from REST API."""
+        logger.info("Device actor received a FreeDeviceMsg from API. %s", msg)
         self.sender_api = sender
         try:
             if self.device_status["Reservation"]["Active"]:
@@ -301,54 +207,39 @@ class DeviceBaseActor(BaseActor):
                 self.device_status["Reservation"]["Timestamp"] = (
                     datetime.utcnow().isoformat(timespec="seconds") + "Z"
                 )
-                return_message = {
-                    "RETURN": "FREE",
-                    "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                }
+                return_message = ReservationStatusMsg(Status.OK)
             else:
-                return_message = {
-                    "RETURN": "FREE",
-                    "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-                }
+                return_message = ReservationStatusMsg(Status.OK_SKIPPED)
         except KeyError:
             logger.debug("Instr. was not reserved before.")
-            return_message = {
-                "RETURN": "FREE",
-                "ERROR_CODE": RETURN_MESSAGES["OK_SKIPPED"]["ERROR_CODE"],
-            }
+            return_message = ReservationStatusMsg(Status.OK_SKIPPED)
         self.send(self.sender_api, return_message)
         if self.my_redirector is not None:
-            logger.debug("Send KILL to redirector %s", self.my_redirector)
-            kill_cmd = {"CMD": "KILL"}
-            self.send(self.my_redirector, kill_cmd)
-            return
+            logger.debug("Kill redirector %s", self.my_redirector)
+            self.send(self.my_redirector, KillMsg())
 
-    def _on_kill_return(self, msg, sender):
-        """Completes the _on_free_cmd function with the reply from the redirector actor after
-        it received the KILL command."""
-        if not msg["ERROR_CODE"]:
-            reservation = {
-                "Active": False,
-                "App": self.device_status["Reservation"]["App"],
-                "Host": self.device_status["Reservation"]["Host"],
-                "User": self.device_status["Reservation"]["User"],
-                "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
-            }
-            logger.info("[Free] %s", reservation)
-            self.device_status["Reservation"] = reservation
-            self.my_redirector = None
-            return
-        logger.critical("Killing the redirector actor failed with %s", msg)
-        system_shutdown()
-        return
+    @overrides
+    def receiveMsg_ChildActorExited(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Change the device status to Free after receiving the confirmation
+        that the redirector exited."""
+        reservation = {
+            "Active": False,
+            "App": self.device_status["Reservation"]["App"],
+            "Host": self.device_status["Reservation"]["Host"],
+            "User": self.device_status["Reservation"]["User"],
+            "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        }
+        logger.info("[Free] %s", reservation)
+        self.device_status["Reservation"] = reservation
+        self.my_redirector = None
 
-    def _on_read_cmd(self, msg, sender):
-        """Handler for READ command.
+    def receiveMsg_GetDeviceStatus(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for GetDeviceStatus asking to send updated information
+        about the device status to the sender.
 
         Sends back a message containing the device_status."""
-        result = {
-            "RETURN": "READ",
-            "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-            "RESULT": self.device_status,
-        }
-        self.send(sender, result)
+        self.send(
+            sender, UpdateDeviceStatusMsg(short_id(self.my_id), self.device_status)
+        )

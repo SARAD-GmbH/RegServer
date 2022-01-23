@@ -9,8 +9,12 @@ Authors
 import fnmatch
 import os
 
-from thespian.actors import Actor, ActorSystem
+from thespian.actors import Actor, ActorSystem  # type: ignore
 
+from registrationserver.actor_messages import (GetActorDictMsg,
+                                               GetDeviceStatusMsg,
+                                               UpdateActorDictMsg,
+                                               UpdateDeviceStatusMsg)
 from registrationserver.logger import logger
 from registrationserver.shutdown import system_shutdown
 
@@ -75,18 +79,19 @@ def get_device_actor(device_id: str):
         Actor address of the device actor
     """
     registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+    with ActorSystem().private() as db_sys:
+        result = db_sys.ask(registrar_actor, GetActorDictMsg(), 10)
+        if not isinstance(result, UpdateActorDictMsg):
+            logger.critical(
+                "Emergency shutdown. Ask to Registrar took more than 10 sec."
+            )
+            system_shutdown()
+            return None
+        actor_dict = result.actor_dict
     try:
-        with ActorSystem().private() as db_sys:
-            registrar = db_sys.ask(registrar_actor, {"CMD": "READ"}, 10)["RESULT"]
+        return actor_dict[device_id]
     except KeyError:
-        logger.critical(
-            "Emergency shutdown. Cannot get appropriate response from Registrar actor."
-        )
-        system_shutdown()
-    try:
-        return registrar[device_id]
-    except KeyError:
-        logger.warning("%s not in %s", device_id, registrar)
+        logger.warning("%s not in %s", device_id, actor_dict)
         return None
 
 
@@ -106,11 +111,11 @@ def get_device_status(device_id: str) -> dict:
     if device_actor is None:
         return {}
     with ActorSystem().private() as device_sys:
-        result = device_sys.ask(device_actor, {"CMD": "READ"}, 10)["RESULT"]
-        if result is None:
+        result = device_sys.ask(device_actor, GetDeviceStatusMsg(), 10)
+        if not isinstance(result, UpdateDeviceStatusMsg):
             logger.critical(
                 "Emergency shutdown. Ask to device_actor took more than 10 sec."
             )
             system_shutdown()
             return {}
-    return result
+    return result.device_status

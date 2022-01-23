@@ -20,7 +20,7 @@ from flask import Flask, Response, json, request
 from thespian.actors import Actor, ActorSystem
 from thespian.system.messages.status import Thespian_StatusReq, formatStatus
 
-from registrationserver.actor_messages import (AddPortToLoopMsg,
+from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
                                                GetActorDictMsg,
                                                GetLocalPortsMsg,
                                                GetNativePortsMsg,
@@ -105,21 +105,21 @@ class RestApi:
         )
 
     @staticmethod
-    @api.route("/list/<did>", methods=["GET"])
-    @api.route("/list/<did>/", methods=["GET"])
-    def get_device(did):
+    @api.route("/list/<device_id>", methods=["GET"])
+    @api.route("/list/<device_id>/", methods=["GET"])
+    def get_device(device_id):
         """Path for getting information for a single active device"""
-        if not MATCHID.fullmatch(did):
+        if not MATCHID.fullmatch(device_id):
             return json.dumps({"Error": "Wronly formated ID"})
         answer = {}
-        answer[did] = get_device_status(did)
+        answer[device_id] = get_device_status(device_id)
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
     @staticmethod
-    @api.route(f"/list/<did>/{RESERVE_KEYWORD}", methods=["GET"])
-    def reserve_device(did):
+    @api.route(f"/list/<device_id>/{RESERVE_KEYWORD}", methods=["GET"])
+    def reserve_device(device_id):
         """Path for reserving a single active device"""
         # Collect information about who sent the request.
         try:
@@ -132,7 +132,7 @@ class RestApi:
             answer = {
                 "Error code": status.value,
                 "Error": str(status),
-                did: {},
+                device_id: {},
             }
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
@@ -143,22 +143,27 @@ class RestApi:
         except socket.herror:
             request_host = request.environ["REMOTE_ADDR"]
         logger.info(
-            "Request reservation of %s for %s@%s", did, attribute_who, request_host
+            "Request reservation of %s for %s@%s",
+            device_id,
+            attribute_who,
+            request_host,
         )
-        if not MATCHID.fullmatch(did):
+        if not MATCHID.fullmatch(device_id):
             return json.dumps({"Error": "Wronly formated ID"})
-        device_state = get_device_status(did)
+        device_state = get_device_status(device_id)
         if (
-            not "_rfc2217" in did and not "mqtt" in did and not "local" in did
+            not "_rfc2217" in device_id
+            and not "mqtt" in device_id
+            and not "local" in device_id
         ) or device_state == {}:
             logger.error("Requested service not supported by actor system.")
             status = Status.NOT_FOUND
-            answer = {"Error code": status.value, "Error": str(status), did: {}}
+            answer = {"Error code": status.value, "Error": str(status), device_id: {}}
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
         # send RESERVE message to device actor
-        device_actor = get_device_actor(did)
+        device_actor = get_device_actor(device_id)
         with ActorSystem().private() as reserve_sys:
             reserve_return = reserve_sys.ask(
                 device_actor, ReserveDeviceMsg(request_host, user, app), 10
@@ -166,7 +171,7 @@ class RestApi:
         if not isinstance(reserve_return, ReservationStatusMsg):
             logger.critical("Critical error in device actor. Stop and shutdown system.")
             status = Status.CRITICAL
-            answer = {"Error code": status.value, "Error": str(status), did: {}}
+            answer = {"Error code": status.value, "Error": str(status), device_id: {}}
             system_shutdown()
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
@@ -175,20 +180,20 @@ class RestApi:
         status = reserve_return.status
         if status in (Status.OK, Status.OK_SKIPPED, Status.OCCUPIED):
             answer = {"Error code": status.value, "Error": str(status)}
-            answer[did] = get_device_status(did)
+            answer[device_id] = get_device_status(device_id)
         else:
-            status = Status.Critical
-            answer = {"Error code": status.value, "Error": str(status), did: {}}
+            status = Status.CRITICAL
+            answer = {"Error code": status.value, "Error": str(status), device_id: {}}
             system_shutdown()
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
     @staticmethod
-    @api.route(f"/list/<did>/{FREE_KEYWORD}", methods=["GET"])
-    def free_device(did):
+    @api.route(f"/list/<device_id>/{FREE_KEYWORD}", methods=["GET"])
+    def free_device(device_id):
         """Path for freeing a single active device"""
-        device_state = get_device_status(did)
+        device_state = get_device_status(device_id)
         if device_state == {}:
             status = Status.NOT_FOUND
         elif (device_state.get("Reservation", None) is None) or (
@@ -196,9 +201,9 @@ class RestApi:
         ):
             status = Status.OK_SKIPPED
         else:
-            device_actor = get_device_actor(did)
+            device_actor = get_device_actor(device_id)
             logger.debug("Ask device actor to FREE...")
-            free_return = ActorSystem().ask(device_actor, {"CMD": "FREE"}, 10)
+            free_return = ActorSystem().ask(device_actor, FreeDeviceMsg(), 10)
             if not isinstance(free_return, ReservationStatusMsg):
                 logger.critical(
                     "Critical error in device actor. Stop and shutdown system."
@@ -208,9 +213,9 @@ class RestApi:
             else:
                 logger.debug("returned with %s", free_return)
                 status = free_return.status
-        answer = {"Error code": status.value, "Error": str(status), did: {}}
+        answer = {"Error code": status.value, "Error": str(status), device_id: {}}
         if status in (Status.OK, Status.OCCUPIED):
-            answer[did] = get_device_status(did)
+            answer[device_id] = get_device_status(device_id)
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )

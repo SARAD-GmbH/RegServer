@@ -318,7 +318,7 @@ class ClusterActor(BaseActor):
         # pylint: disable=invalid-name
         """Create device actors for instruments connected to
         the serial ports given in the argument list."""
-        logger.debug("[_on_add_cmd]")
+        logger.debug("[on InstrAddedMsg]")
         port_actors = self._switch_to_port_key(self.child_actors)
         old_ports = set(port_actors.keys())
         new_instruments = self._cluster.update_connected_instruments(
@@ -337,7 +337,7 @@ class ClusterActor(BaseActor):
         # pylint: disable=invalid-name
         """Kill device actors for instruments that have been unplugged from
         the serial ports given in the argument list."""
-        logger.debug("[_on_remove_cmd]")
+        logger.debug("[on InstrRemoveMsg]")
         port_actors = self._switch_to_port_key(self.child_actors)
         old_ports = set(port_actors.keys())
         current_ports = set(port.device for port in comports())
