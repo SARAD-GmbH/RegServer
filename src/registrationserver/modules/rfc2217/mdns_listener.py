@@ -17,13 +17,13 @@ import socket
 import threading
 
 import hashids  # type: ignore
+from registrationserver.actor_messages import (AppType, SetDeviceStatusMsg,
+                                               SetupMsg)
 from registrationserver.config import config
 from registrationserver.logger import logger
-from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.modules.rfc2217.rfc2217_actor import Rfc2217Actor
 from registrationserver.shutdown import system_shutdown
-from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import ActorSystem, PoisonMessage
+from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
 logger.debug("%s -> %s", __package__, __file__)
@@ -119,26 +119,12 @@ class MdnsListener(ServiceListener):
                 # Take the first 3 elements to form a short_name
                 short_name = ".".join(name.split(".", 3)[:-1])
                 data = self.convert_properties(name=name, info=info)
-                msg = {"CMD": "SETUP", "ID": short_name, "PAR": data}
-                logger.debug("Ask to setup the device actor with %s...", msg)
-                setup_return = ActorSystem().ask(device_actor, msg, 10)
-                if setup_return is None:
-                    logger.critical("Emergency shutdown. Timeout in ask.")
-                    system_shutdown()
-                if isinstance(setup_return, PoisonMessage):
-                    logger.critical(
-                        "Critical error in rfc2217_actor. Stop and shutdown system."
-                    )
-                    system_shutdown()
-                    return
-                if not setup_return["ERROR_CODE"] in (
-                    RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                    RETURN_MESSAGES["OK_UPDATED"]["ERROR_CODE"],
-                ):
-                    logger.critical("Adding a new service failed. Kill device actor.")
-                    ActorSystem().ask(device_actor, ActorExitRequest())
-                else:
-                    self.cluster[short_name] = device_actor
+                logger.debug("Ask to setup the device actor with %s", data)
+                ActorSystem().tell(
+                    device_actor, SetupMsg(short_name, "actor_system", AppType.RS)
+                )
+                ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))
+                self.cluster[short_name] = device_actor
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=C0103
@@ -159,12 +145,9 @@ class MdnsListener(ServiceListener):
             except KeyError:
                 logger.critical("The actor to remove does not exist.")
                 system_shutdown()
-            logger.debug("Ask to kill the device actor...")
-            kill_return = ActorSystem().ask(device_actor, ActorExitRequest())
-            if kill_return["ERROR_CODE"] == RETURN_MESSAGES["OK"]["ERROR_CODE"]:
-                self.cluster.pop(name)
-            else:
-                logger.critical("Killing the device actor failed.")
+            logger.debug("Kill the device actor...")
+            ActorSystem().tell(device_actor, ActorExitRequest())
+            self.cluster.pop(name)
 
     def shutdown(self) -> None:
         """Cleanup"""

@@ -9,13 +9,12 @@
 
 .. uml :: uml-rfc2217_actor.puml
 """
-import time
 
 import serial.rfc2217  # type: ignore
 from overrides import overrides  # type: ignore
+from registrationserver.actor_messages import RxBinaryMsg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
-from registrationserver.modules.messages import RETURN_MESSAGES
 from registrationserver.shutdown import system_shutdown
 from thespian.actors import ActorSystem  # type: ignore
 
@@ -38,12 +37,11 @@ class Rfc2217Actor(DeviceBaseActor):
 
     def _connect(self):
         """internal Function to connect to instrument server 2 over rfc2217"""
-        # TODO: Replace df_content with information from DeviceBaseActor
-        if self.df_content:
-            address = self.df_content.get("Remote", {}).get("Address", None)
-            port = self.df_content.get("Remote", {}).get("Port", None)
+        if self.device_status:
+            address = self.device_status.get("Remote", {}).get("Address", None)
+            port = self.device_status.get("Remote", {}).get("Port", None)
             if not address or not port:
-                return RETURN_MESSAGES.get("ILLEGAL_STATE")
+                return False
             port_ident = fr"rfc2217://{address}:{port}"
         if port_ident and not (self.__port and self.__port.is_open):
             try:
@@ -59,14 +57,14 @@ class Rfc2217Actor(DeviceBaseActor):
             return True
         return False
 
-    def _on_send_cmd(self, msg, _sender) -> None:
+    def receiveMsg_TxBinaryMsg(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for TxBinaryMsg from App to Instrument."""
         if self._connect():
-            data = msg["PAR"]["DATA"]
-            logger.info("Actor %s received: %s", self.globalName, data)
-            self.__port.write(data)
+            logger.info("Actor %s received: %s", self.globalName, msg.data)
+            self.__port.write(msg.data)
             logger.debug("and wrote it to serial.rfc2217.Serial")
             _return = b""
-            perf_time_0 = time.perf_counter()
             while True:
                 _return_part = (
                     self.__port.read_all() if self.__port.inWaiting() else b""
@@ -76,44 +74,27 @@ class Rfc2217Actor(DeviceBaseActor):
                         _return = _return + _return_part
                         break
                 _return = _return + _return_part
-                perf_time_1 = time.perf_counter()
-                if perf_time_1 - perf_time_0 > CMD_CYCLE_TIMEOUT:
-                    logger.debug("Timeout receiving a reply. Retrying...")
-                    # TODO This is an ugly workaround for a problem that's
-                    # most probably between the Instrument Server and the instrument.
-                    # This should be handled in the Instrument Server instead.
-                    self.send(self.myAddress, msg)
-                    break
-            return_message = {
-                "RETURN": "SEND",
-                "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                "RESULT": {"DATA": _return},
-            }
-            self.send(self.my_redirector, return_message)
-            return
-        return_message = {
-            "RETURN": "SEND",
-            "ERROR_CODE": RETURN_MESSAGES["ILLEGAL_STATE"]["ERROR_CODE"],
-        }
+            return_message = RxBinaryMsg(_return)
+        else:
+            return_message = RxBinaryMsg(b"")
         self.send(self.my_redirector, return_message)
-        return
 
     @overrides
-    def _on_free_cmd(self, msg, sender):
-        logger.debug("Start to cleanup RFC2217")
+    def receiveMsg_FreeDeviceMsg(self, msg, sender):
+        logger.debug("[FreeDeviceMsg]")
         if self.__port is not None:
             if self.__port.isOpen():
                 self.__port.close()
             self.__port = None
-        super()._on_free_cmd(msg, sender)
+        super().receiveMsg_FreeDeviceMsg(msg, sender)
 
     @overrides
-    def _on_kill_cmd(self, msg, sender):
+    def receiveMsg_KillMsg(self, msg, sender):
         if self.__port is not None:
             if self.__port.isOpen():
                 self.__port.close()
             self.__port = None
-        super()._on_kill_cmd(msg, sender)
+        super().receiveMsg_KillMsg(msg, sender)
 
     @overrides
     def _reserve_at_is(self):
