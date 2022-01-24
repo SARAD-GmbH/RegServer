@@ -4,17 +4,15 @@ participant "SARAD Instrument" as instr
 participant "Win/Unix Listener" as listener
 participant "Cluster Actor" as cluster
 participant "Device Actor\nusb_actor" as device_actor
-participant "Device File" as file
 
 instr -> listener: detect USB device
-listener -> cluster: tell CMD: ADD
+listener -> cluster: tell InstrAddedMsg
 activate cluster
 cluster -> instr: identify instrument
 cluster -> device_actor: create
 activate device_actor
-cluster -> device_actor: CMD: SETUP
-device_actor -> file: create
-device_actor -> cluster: RETURN: SETUP
+cluster -> device_actor: SetupMsg
+cluster -> device_actor: SetDeviceStatusMsg
 deactivate device_actor
 deactivate cluster
 @enduml

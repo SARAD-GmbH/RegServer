@@ -2,7 +2,6 @@
 box "Registration Server 2"
 	      entity "REST API" as api
 	      entity "device actor" as deviceactor
-        database "device files" as files
         entity "redirector actor" as redirector
         entity "listener/subscriber" as listener
 end box
@@ -11,29 +10,27 @@ entity "Instrument Server" as is
 group setup
         is -> listener: mDNS multicast message
         listener -> deviceactor: create actor
-        listener -> deviceactor: SETUP message
-        deviceactor -> files: create file,\nwrite Identification section
+        listener -> deviceactor: SetupMsg
+        listener -> deviceactor: SetDeviceStatusMsg
 end
 group reservation
-	      api -> deviceactor: RESERVE message
+	      api -> deviceactor: ReserveDeviceMsg
         deviceactor -> is: Reserve request
         is -> deviceactor: Reserve response
         deviceactor -> redirector: create actor
-        deviceactor -> redirector: SETUP message
-        deviceactor -> files: write Reservation section
+        deviceactor -> redirector: SetupMsg
 end
 group data transfer
 	      app -> redirector: send binary paket\n to listening server socket
-        redirector -> deviceactor: SEND message
+        redirector -> deviceactor: TxBinaryMsg
         deviceactor -> is: send binary paket
         is -> deviceactor: receive binary response from instrument
-        deviceactor -> redirector: forward response as RETURN message
+        deviceactor -> redirector: RxBinaryMsg
 end
 group free
-	      api -> deviceactor: FREE message
+	      api -> deviceactor: FreeDeviceMsg
         deviceactor -> is: Free request
         is -> deviceactor: Free response
-        deviceactor -> redirector: KILL message
-        deviceactor -> files: overwrite Reservation section
+        deviceactor -> redirector: KillMsg
 end
 @enduml

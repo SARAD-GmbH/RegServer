@@ -11,9 +11,9 @@ app -> redirector: close socket
 destroy app
 activate redirector
 note over redirector: close listening socket
-redirector -> device_actor: RETURN: KILL
+redirector -> device_actor: ChildActorExited
 destroy redirector
 device_actor -> file: write
-device_actor -> cluster: CMD: FREE
+device_actor -> cluster: FreeInstrMsg
 deactivate device_actor
 @enduml

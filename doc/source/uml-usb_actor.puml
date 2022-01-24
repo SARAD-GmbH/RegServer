@@ -2,7 +2,6 @@
 box "Registration Server 2"
 	      entity "REST API" as api
 	      entity "device actor" as deviceactor
-        database "device files" as files
         entity "redirector actor" as redirector
         entity "Win USB listener" as listener
 end box
@@ -12,25 +11,23 @@ entity "SARAD app" as app
 group setup
         is -> listener: detect
         listener -> deviceactor: create actor
-        listener -> deviceactor: SETUP message
-        deviceactor -> files: create file,\nwrite Identification section
+        listener -> deviceactor: SetupMsg
+        listener -> deviceactor: SetDeviceStatusMsg
 end
 group reservation
-	      api -> deviceactor: RESERVE message
+	      api -> deviceactor: ReserveDeviceMsg
         deviceactor -> redirector: create actor
-        deviceactor -> redirector: SETUP message
-        deviceactor -> files: write Reservation section
+        deviceactor -> redirector: SetupMsg
 end
 group data transfer
 	      app -> redirector: send binary paket\n to listening server socket
-        redirector -> deviceactor: SEND message
+        redirector -> deviceactor: TxBinaryMsg
         deviceactor -> is: send binary paket\n to listening server socket
         is -> deviceactor: send binary response from instrument
-        deviceactor -> redirector: forward response as RETURN message
+        deviceactor -> redirector: RxBinaryMsg
 end
 group free
-	      api -> deviceactor: FREE message
-        deviceactor -> redirector: KILL message
-        deviceactor -> files: overwrite Reservation section
+	      api -> deviceactor: FreeDeviceMsg
+        deviceactor -> redirector: KillMsg
 end
 @enduml

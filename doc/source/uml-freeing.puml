@@ -5,22 +5,23 @@ participant "REST API" as api
 participant "Device Actor\nusb_actor" as device_actor
 participant "Redirector Actor" as redirector
 participant "Cluster Actor" as cluster
-participant "Device File" as file
+participant "Registrar Actor" as registrar
 
 app -> api: GET free
 activate api
-api -> file: get_state_from_file()
-api -> device_actor: ask FREE
+api -> registrar: get_device_status(), GetDeviceStatusMsg, UpdateDeviceStatusMsg
+api <- registrar: UpdateDeviceStatusMsg
+api -> device_actor: FreeDeviceMsg
 activate device_actor
-device_actor -> api: RETURN: FREE
+device_actor -> api: ReservationStatusMsg
 api -> app: return outcome
 deactivate api
-device_actor -> redirector: CMD: KILL
+device_actor -> redirector: KillMsg
 activate redirector
 note over redirector: close listening socket
-redirector -> device_actor: RETURN: KILL
+redirector -> device_actor: ChildActorExited
 destroy redirector
 device_actor -> file: write
-device_actor -> cluster: CMD: FREE
+device_actor -> cluster: FreeInstrMsg
 deactivate device_actor
 @enduml

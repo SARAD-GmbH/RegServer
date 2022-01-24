@@ -2,24 +2,21 @@
 box "Registration Server 2"
 	      entity "device actor" as deviceactor
         entity "redirector actor" as redirector
-        database "device files" as files
 end box
 entity "SARAD app" as app
 
-group reservation
+group detection
         deviceactor -> redirector: create actor
-        deviceactor -> redirector: SETUP message
-        deviceactor <- redirector: RETURN message
-        deviceactor -> files: write Reservation section
+        deviceactor -> redirector: SetupMsg
+        deviceactor -> redirector: SetDeviceStatusMsg
 end
 group data transfer
 	      app -> redirector: send binary paket\n to listening server socket
-        redirector -> deviceactor: SEND message
-        deviceactor -> redirector: forward response as RETURN message
+        redirector -> deviceactor: TxBinaryMsg
+        deviceactor -> redirector: RxBinaryMsg
 end
 group free
-        deviceactor -> redirector: KILL message
-        deviceactor <- redirector: RETURN message
-        deviceactor -> files: overwrite Reservation section
+        deviceactor -> redirector: KillMsg
+        deviceactor <- redirector: ChildActorExited
 end
 @enduml

@@ -8,10 +8,9 @@ end box
 user -> is : attach instrument to local network
 is -> listener : sends mDNS over multicast
 listener -> deviceactor : create device actor
-listener -> deviceactor : SETUP message
-listener <- deviceactor : RETURN message
+listener -> deviceactor : SetupMsg
+listener -> deviceactor : SetDeviceStatusMsg
 is -> user : unattach from network
 is -> listener : sends disconnect over mDNS
-listener -> deviceactor : KILL message
-listener <- deviceactor : RETURN message
+listener -> deviceactor : KillMsg
 @enduml

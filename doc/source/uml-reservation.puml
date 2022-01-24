@@ -4,7 +4,6 @@ participant "SARAD App" as app
 participant "REST API" as api
 participant "Device Actor\nusb_actor" as device_actor
 participant "Redirector Actor" as redirector
-participant "Device File" as file
 
 app -> api: GET list
 activate api
@@ -14,17 +13,15 @@ deactivate api
 app -> api: GET reserve
 activate api
         api -> file: get_state_from_file()
-        api -> device_actor: ask RESERVE
+        api -> device_actor: ReserveDeviceMsg
         activate device_actor
                 device_actor -> redirector: create
                 activate redirector
-                device_actor -> redirector: CMD: SETUP
+                device_actor -> redirector: SetupMsg
                 note over redirector: listening socket to App
-                redirector -> device_actor: RETURN: SETUP
+                redirector -> device_actor: SocketMsg
                 deactivate redirector
-                device_actor -> device_actor: _return_with_socket()
-                device_actor -> file: write
-                device_actor -> api: RETURN: RESERVE
+                device_actor -> api: ReservationStatusMsg
         deactivate device_actor
         api -> app: return outcome
 deactivate api

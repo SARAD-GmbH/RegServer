@@ -33,26 +33,26 @@ class DeviceBaseActor(BaseActor):
     Implements all methods that all device actors have in common.
     Handles the following actor messages:
 
-    * SETUP: is used to initialize the actor right after its creation. This is
-      needed because some parts of the initialization cannot be done in
+    * SetupMsg: is used to initialize the actor right after its creation.
+      This is needed because some parts of the initialization cannot be done in
       __init__() (because for instance self.globalName is not available yet in
       __init__()), other initialization steps require data from the
       MdnsListener/MqttSubscriber creating the device actor. The same method is
       used for updates of the device state comming from the
       MdnsListener/MqttSubscriber.
 
-    * RESERVE: is being called when the end-user-application wants to
+    * ReserveDeviceMsg: is being called when the end-user-application wants to
         reserve the directly or indirectly connected device for exclusive
         communication, should return if a reservation is currently possible
 
-    * SEND: is being called when the end-user-application wants to send
+    * TxBinaryMsg: is being called when the end-user-application wants to send
         data, should return the direct or indirect response from the device,
         None in case the device is not reachable (so the end application can
         set the timeout itself)
 
-    * FREE: is being called when the end-user-application is done requesting or
-        sending data, should return True as soon the freeing process has been
-        initialized
+    * FreeDeviceMsg: is being called when the end-user-application is done
+        requesting or sending data, should return True as soon the freeing
+        process has been initialized.
     """
 
     @overrides

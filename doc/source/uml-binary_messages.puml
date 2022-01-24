@@ -9,14 +9,14 @@ participant "Instrument" as instr
 activate redirector
 note over redirector: listening server socket
 app -> redirector: send binary cmd
-redirector -> device_actor: CMD: SEND
+redirector -> device_actor: TxBinaryMsg
 activate device_actor
-device_actor -> cluster: CMD: SEND
+device_actor -> cluster: TxBinaryMsg
 activate cluster
 cluster -> instr: get_message_payload()
-cluster -> device_actor: RETURN: SEND
+cluster -> device_actor: RxBinaryMsg
 deactivate cluster
-device_actor -> redirector: RETURN: SEND
+device_actor -> redirector: RxBinaryMsg
 deactivate device_actor
 redirector -> app: send binary msg
 deactivate redirector
