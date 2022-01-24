@@ -17,6 +17,7 @@ import time
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
+from registrationserver.actor_messages import RxBinaryMsg
 from registrationserver.config import mqtt_config
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
@@ -153,7 +154,7 @@ class MqttActor(DeviceBaseActor):
         """Handle the return message confirming that the redirector actor was killed.
 
         Args:
-            msg: a dictionary with at least {"RETURN": "KILL"} as content
+            msg: ChildActorExited message
             sender: usually the redirector actor
         """
         logger.debug("Redirector actor exited")
@@ -336,15 +337,9 @@ class MqttActor(DeviceBaseActor):
                     self.instr_id,
                 )
                 self.state["SEND"]["Reply"] = payload[1:]
-                # self.state["SEND"]["Reply_Status"] = True
-                _re = {
-                    "RETURN": "SEND",
-                    "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                    "RESULT": {"DATA": self.state["SEND"]["Reply"]},
-                }
                 self.send(
                     self.my_redirector,
-                    _re,
+                    RxBinaryMsg(self.state["SEND"]["Reply"]),
                 )
                 return
             logger.warning(
@@ -379,13 +374,6 @@ class MqttActor(DeviceBaseActor):
             for topic, qos in self._subscriptions.items():
                 logger.debug("Restore subscription to %s", topic)
                 self.mqttc.subscribe(topic, qos)
-            self.send(
-                self.subscriber,
-                {
-                    "RETURN": "PREPARE",
-                    "ERROR_CODE": RETURN_MESSAGES["OK"]["ERROR_CODE"],
-                },
-            )
         else:
             self.is_connected = False
             logger.critical(

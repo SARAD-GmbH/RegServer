@@ -105,22 +105,3 @@ class Rfc2217Actor(DeviceBaseActor):
         In this dummy we suppose, that the instrument is always available for us.
         """
         self._forward_reservation(True)
-
-
-def _test():
-    act = ActorSystem().createActor(
-        Rfc2217Actor, globalName="0ghMF8Y.sarad-1688._rfc2217._tcp.local."
-    )
-    ActorSystem().ask(act, {"CMD": "SETUP"})
-    print(
-        ActorSystem().ask(
-            act, {"CMD": "SEND", "PAR": {"DATA": b"\x42\x80\x7f\x01\x01\x00\x45"}}
-        )
-    )
-    # print(sys.ask(act, {"CMD": "FREE", "DATA": b"\x42\x80\x7f\x0c\x00\x0c\x45"}))
-    input("Press Enter to End\n")
-    logger.info("!")
-
-
-if __name__ == "__main__":
-    _test()
