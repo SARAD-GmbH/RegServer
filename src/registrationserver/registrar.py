@@ -32,16 +32,17 @@ class Registrar(BaseActor):
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
-        self.handleDeadLetters(startHandling=True)
         super().receiveMsg_SetupMsg(msg, sender)
+        self.handleDeadLetters(startHandling=True)
         self._create_actor(ClusterActor, "cluster")
         if self.app_type == AppType.ISMQTT:
             self._create_actor(MqttSchedulerActor, "mqtt_scheduler")
         self.wakeupAfter(timedelta(minutes=10), payload="keep alive")
 
-    def receiveMsg_WakeUpMessage(self, msg, _sender):
+    def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name, no-self-use
-        """Handler for WakeUpMessage to send the KeepAliveMsg to all children."""
+        """Handler for WakeupMessage to send the KeepAliveMsg to all children."""
+        logger.debug("%s received WakeupMessage", self.my_id)
         if msg.payload == "keep alive":
             for actor_id in self.actor_dict:
                 if not self.actor_dict[actor_id]["is_alive"]:
@@ -57,6 +58,7 @@ class Registrar(BaseActor):
     def receiveMsg_DeadEnvelope(self, msg, _sender):
         # pylint: disable=invalid-name, no-self-use
         """Handler for all DeadEnvelope messages in the actor system."""
+        logger.debug("%s received DeadEnvelope", self.my_id)
         logger.critical(
             "DeadMessage: %s to deadAddress: %s. -> Emergency shutdown",
             msg.deadMessage,
@@ -67,6 +69,7 @@ class Registrar(BaseActor):
     def receiveMsg_SubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SubscribeMsg from any actor."""
+        logger.debug("%s received SubscribeMsg", self.my_id)
         self.actor_dict[msg.actor_id] = {
             "address": sender,
             "parent": msg.parent,
@@ -74,11 +77,13 @@ class Registrar(BaseActor):
             "get_updates": msg.get_updates,
             "is_alive": True,
         }
+        logger.debug("Updated actor list: %s", self.actor_dict)
         self._send_updates()
 
     def receiveMsg_UnsubscribeMsg(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for UnsubscribeMsg from any actor."""
+        logger.debug("%s received UnsubscribeMsg", self.my_id)
         self.actor_dict.pop(msg.actor_id)
         self._send_updates()
 
@@ -94,6 +99,7 @@ class Registrar(BaseActor):
     def receiveMsg_GetActorDictMsg(self, _msg, sender):
         # pylint: disable=invalid-name
         """Handler for requests to get the Actor Dictionary once."""
+        logger.debug("%s received GetActorDictMsg", self.my_id)
         self.send(sender, UpdateActorDictMsg(self.actor_dict))
 
     @overrides

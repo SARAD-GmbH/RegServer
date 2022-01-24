@@ -42,9 +42,9 @@ def cleanup():
     """
     logger.debug("Terminate the actor system")
     registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-    response = ActorSystem().ask(registrar_actor, KillMsg())
+    response = ActorSystem().ask(registrar_actor, KillMsg(), 10)
     if isinstance(response, PoisonMessage):
-        logger.critical("Critical error in cluster_actor. I will try to proceed.")
+        logger.critical("Critical error in Registrar actor. I will try to proceed.")
         logger.critical(response.details)
         ActorSystem().tell(registrar_actor, ActorExitRequest())
     ActorSystem().shutdown()

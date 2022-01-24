@@ -87,10 +87,8 @@ class UsbListener(BaseListener):
             None,
         )
 
-    @overrides
     def run(self):
         """Start listening for new devices"""
-        super().run()
         logger.info("[Start] Windows USB Listener")
         hwnd = self._create_listener()
         logger.debug("Created listener window with hwnd=%s", hwnd)

@@ -12,7 +12,6 @@
 import hashlib
 
 import pyudev  # type: ignore
-from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import InstrAddedMsg, InstrRemovedMsg
 from registrationserver.logger import logger
 from registrationserver.modules.usb.base_listener import BaseListener
@@ -33,7 +32,6 @@ class UsbListener(BaseListener):
         identifier_string = id_model + id_vendor + enc_vendor
         return hashlib.sha224(identifier_string.encode("utf-8")).hexdigest()
 
-    @overrides
     def run(self):
         """Start listening and keep listening until SIGTERM or SIGINT"""
         context = pyudev.Context()
@@ -41,7 +39,6 @@ class UsbListener(BaseListener):
         monitor.filter_by("tty")
         usb_stick_observer = pyudev.MonitorObserver(monitor, self.usb_device_event)
         usb_stick_observer.start()
-        super().run()
 
     def is_valid_device(self, device):
         """Check whether there is a physical device connected to the logical interface."""

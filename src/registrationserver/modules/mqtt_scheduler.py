@@ -78,6 +78,10 @@ class MqttSchedulerActor(BaseActor):
             topic=f"{self.is_id}/meta",
             payload=ismqtt_messages.get_is_meta(self.is_meta),
         )
+
+    @overrides
+    def receiveMsg_SetupMsg(self, msg, sender):
+        super().receiveMsg_SetupMsg(msg, sender)
         mqtt_broker = mqtt_config["MQTT_BROKER"]
         port = mqtt_config["PORT"]
         self._connect(mqtt_broker, port)

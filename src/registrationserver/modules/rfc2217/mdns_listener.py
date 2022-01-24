@@ -121,7 +121,7 @@ class MdnsListener(ServiceListener):
                 data = self.convert_properties(name=name, info=info)
                 logger.debug("Ask to setup the device actor with %s", data)
                 ActorSystem().tell(
-                    device_actor, SetupMsg(short_name, "actor_system", AppType.RS)
+                    device_actor, SetupMsg(short_name, "actor_system", self.app_type)
                 )
                 ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))
                 self.cluster[short_name] = device_actor

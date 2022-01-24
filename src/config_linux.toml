@@ -12,7 +12,7 @@ host = "::1"  # Localhost IPv6
 # host = "192.168.178.20"  # Michael@Home
 
 [actor]
-system_base = "multiprocUDPBase"
+system_base = "multiprocTCPBase"
 admin_port = 1901
 process_startup_method = "fork"
 

@@ -22,7 +22,7 @@ from registrationserver.config import ismqtt_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.redirect_actor import RedirectorActor
-from thespian.actors import Actor
+from thespian.actors import Actor  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -156,14 +156,9 @@ class DeviceBaseActor(BaseActor):
     def _create_redirector(self) -> bool:
         """Create redirector actor if it does not exist already"""
         if self.my_redirector is None:
-            logger.debug("Trying to create a redirector actor")
-            self.my_redirector = self.createActor(RedirectorActor)
-            my_redirector_id = short_id(self.my_id)
-            self.send(
-                self.my_redirector,
-                SetupMsg(my_redirector_id, self.my_id, self.app_type),
+            self.my_redirector = self._create_actor(
+                RedirectorActor, short_id(self.my_id)
             )
-            self.child_actors[my_redirector_id] = self.my_redirector
             return True
         logger.debug(
             "[create_redirector] Redirector %s already exists.", self.my_redirector
