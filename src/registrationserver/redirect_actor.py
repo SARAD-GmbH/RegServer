@@ -139,7 +139,7 @@ class RedirectorActor(BaseActor):
             )
             self.send(self.my_parent, TxBinaryMsg(data, host=None, instrument=None))
 
-    def receiveMsg_RxBinaryData(self, msg, _sender):
+    def receiveMsg_RxBinaryMsg(self, msg, _sender):
         # pylint: disable=invalid-name
         """Redirect any received reply to the socket."""
         for _i in range(0, 5):
