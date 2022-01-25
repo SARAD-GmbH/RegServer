@@ -17,11 +17,12 @@ import socket
 import threading
 
 import hashids  # type: ignore
-from registrationserver.actor_messages import (AppType, SetDeviceStatusMsg,
-                                               SetupMsg)
+from registrationserver.actor_messages import (CreateActorMsg,
+                                               SetDeviceStatusMsg)
 from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.rfc2217.rfc2217_actor import Rfc2217Actor
+from registrationserver.registrar import Registrar
 from registrationserver.shutdown import system_shutdown
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
@@ -65,7 +66,8 @@ class MdnsListener(ServiceListener):
             _addr_ip = ipaddress.IPv4Address(info.addresses[0]).exploded
             _addr = socket.gethostbyaddr(_addr_ip)[0]
         except Exception:  # pylint: disable=broad-except
-            logger.exception("Fatal error")
+            logger.critical("Fatal error")
+            system_shutdown()
         out = {
             "Identification": {
                 "Name": properties[b"MODEL_ENC"].decode("utf-8"),
@@ -108,6 +110,7 @@ class MdnsListener(ServiceListener):
             _ = ServiceBrowser(self.zeroconf, service_type, self)
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        # pylint: disable=invalid-name
         """Hook, being called when a new service
         representing a device is being detected"""
         with self.lock:
@@ -115,25 +118,27 @@ class MdnsListener(ServiceListener):
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             if info is not None:
                 logger.info("[Add] %s", info.properties)
-                device_actor = ActorSystem().createActor(Rfc2217Actor)
                 # Take the first 3 elements to form a short_name
-                short_name = ".".join(name.split(".", 3)[:-1])
-                data = self.convert_properties(name=name, info=info)
-                logger.debug("Ask to setup the device actor with %s", data)
-                ActorSystem().tell(
-                    device_actor, SetupMsg(short_name, "actor_system", self.app_type)
+                actor_id = ".".join(name.split(".", 3)[:-1])
+                registrar = ActorSystem().createActor(Registrar, globalName="registrar")
+                reply = ActorSystem().ask(
+                    registrar, CreateActorMsg(Rfc2217Actor, actor_id)
                 )
+                device_actor = reply.actor_address
+                data = self.convert_properties(name=name, info=info)
+                logger.debug("Setup the device actor with %s", data)
                 ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))
-                self.cluster[short_name] = device_actor
+                self.cluster[actor_id] = device_actor
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
-        # pylint: disable=C0103
+        # pylint: disable=invalid-name
         """Hook, being called when a service
         representing a device is being updated"""
         logger.info("[Update] Service %s of type %s", name, type_)
         self.add_service(zc, type_, name)
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+        # pylint: disable=invalid-name
         """Hook, being called when a regular shutdown of a service
         representing a device is being detected"""
         with self.lock:

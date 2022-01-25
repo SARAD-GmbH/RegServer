@@ -14,8 +14,8 @@ from datetime import datetime
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (AppType, ConnectMsg, KillMsg,
                                                RemoveDeviceMsg,
-                                               ReservationStatusMsg, SetupMsg,
-                                               Status, SubscribeMsg,
+                                               ReservationStatusMsg, Status,
+                                               SubscribeMsg,
                                                UpdateDeviceStatusMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import ismqtt_config
@@ -72,6 +72,8 @@ class DeviceBaseActor(BaseActor):
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         if self.app_type == AppType.ISMQTT:
+            # We trust in the existence of mqtt_scheduler, that was created by
+            # the Registrar before the creation of any device actor.
             self.mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
 
     @overrides

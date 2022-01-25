@@ -13,7 +13,7 @@ import threading
 import time
 
 from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import Actor, ActorSystem, PoisonMessage
+from thespian.actors import ActorSystem, PoisonMessage
 
 from registrationserver.actor_messages import AppType, KillMsg, SetupMsg
 from registrationserver.config import actor_config, config
@@ -41,7 +41,7 @@ def cleanup():
         None
     """
     logger.debug("Terminate the actor system")
-    registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+    registrar_actor = ActorSystem().createActor(Registrar, globalName="registrar")
     response = ActorSystem().ask(registrar_actor, KillMsg(), 10)
     if isinstance(response, PoisonMessage):
         logger.critical("Critical error in Registrar actor. I will try to proceed.")

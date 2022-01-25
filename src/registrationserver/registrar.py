@@ -18,7 +18,8 @@ from datetime import timedelta
 
 from overrides import overrides  # type: ignore
 
-from registrationserver.actor_messages import (AppType, KeepAliveMsg,
+from registrationserver.actor_messages import (ActorCreatedMsg, AppType,
+                                               KeepAliveMsg,
                                                UpdateActorDictMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.logger import logger
@@ -107,3 +108,13 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for ActorExitRequest"""
         self.send(self.parent.parent_address, True)
+
+    def receiveMsg_CreateActorMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for CreateActorMsg. Create a new actor."""
+        actor_id = msg.actor_id
+        if actor_id not in self.actor_dict:
+            actor_address = self._create_actor(msg.actor_type, actor_id)
+        else:
+            actor_address = self.actor_dict[actor_id]["actor_address"]
+        self.send(sender, ActorCreatedMsg(actor_address))

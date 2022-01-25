@@ -10,7 +10,7 @@ commands and data within the actor system
 """
 from dataclasses import dataclass
 from enum import Enum, auto, unique
-from typing import ByteString, Dict, List, Union
+from typing import Any, ByteString, Dict, List, Union
 
 from sarad.sari import SaradInst  # type: ignore
 from thespian.actors import ActorAddress  # type: ignore
@@ -374,3 +374,21 @@ class PrepareMqttActorMsg:
     is_id: str
     mqtt_broker: str
     port: int
+
+
+@dataclass
+class CreateActorMsg:
+    """Request to the Registrar to create a new actor.
+    This is usually sent to the Registrar from the surrounding program
+    and will be answered by an ActorCreatedMsg."""
+
+    actor_type: Any
+    actor_id: str
+
+
+@dataclass
+class ActorCreatedMsg:
+    """Message sent by the Registrar to inform the recipient about
+    a newly created actor."""
+
+    actor_address: ActorAddress

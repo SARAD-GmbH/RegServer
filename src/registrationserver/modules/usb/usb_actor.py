@@ -34,13 +34,15 @@ class UsbActor(DeviceBaseActor):
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
-        # pylint: disable=invalid-name
         super().receiveMsg_SetupMsg(msg, sender)
         self._cluster = self.createActor(Actor, globalName="cluster")
         self.instrument = self.my_id.split(".")[0]
+
+    @overrides
+    def receiveMsg_SetDeviceStatusMsg(self, msg, _sender):
+        super().receiveMsg_SetDeviceStatusMsg(msg, _sender)
         try:
-            data = msg["PAR"]
-            serial_port = data["Serial"]
+            serial_port = self.device_status["Serial"]
             logger.debug(serial_port)
         except Exception as this_exception:  # pylint: disable=broad-except
             logger.critical(

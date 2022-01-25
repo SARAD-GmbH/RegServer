@@ -8,7 +8,8 @@
     | Michael Strey <strey@sarad.de>
 
 """
-from thespian.actors import Actor, ActorSystem  # type: ignore
+from registrationserver.modules.usb.cluster_actor import ClusterActor
+from thespian.actors import ActorSystem  # type: ignore
 
 
 class BaseListener:
@@ -18,4 +19,4 @@ class BaseListener:
 
     def __init__(self):
         self._system = ActorSystem()
-        self._cluster = self._system.createActor(Actor, globalName="cluster")
+        self._cluster = self._system.createActor(ClusterActor, globalName="cluster")

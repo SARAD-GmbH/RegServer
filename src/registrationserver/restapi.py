@@ -17,8 +17,9 @@ import sys
 import time
 
 from flask import Flask, Response, json, request
-from thespian.actors import Actor, ActorSystem
-from thespian.system.messages.status import Thespian_StatusReq, formatStatus
+from thespian.actors import ActorSystem  # type: ignore
+from thespian.system.messages.status import (  # type: ignore
+    Thespian_StatusReq, formatStatus)
 
 from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
                                                GetActorDictMsg,
@@ -35,6 +36,8 @@ from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
 from registrationserver.config import mqtt_config
 from registrationserver.helpers import get_device_actor, get_device_status
 from registrationserver.logger import logger  # type: ignore
+from registrationserver.modules.usb.cluster_actor import ClusterActor
+from registrationserver.registrar import Registrar
 from registrationserver.shutdown import system_shutdown
 
 logger.debug("%s -> %s", __package__, __file__)
@@ -86,7 +89,7 @@ class RestApi:
     def get_list():
         """Path for getting the list of active devices"""
         answer = {}
-        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        registrar_actor = ActorSystem().createActor(Registrar, globalName="registrar")
         try:
             actor_dict = (
                 ActorSystem().ask(registrar_actor, GetActorDictMsg(), 10).actor_dict
@@ -225,7 +228,7 @@ class RestApi:
     @api.route("/ports/", methods=["GET"])
     def getlocalports():
         """Lists Local Ports, Used for Testing atm"""
-        cluster = ActorSystem().createActor(Actor, globalName="cluster")
+        cluster = ActorSystem().createActor(ClusterActor, globalName="cluster")
         reply = ActorSystem().ask(cluster, GetLocalPortsMsg, 10)
         if not isinstance(reply, ReturnLocalPortsMsg):
             logger.critical(
@@ -243,13 +246,13 @@ class RestApi:
     @api.route("/ports/<port>/loop", methods=["GET"])
     def getloopport(port):
         """Loops Local Ports, Used for Testing"""
-        cluster = ActorSystem().createActor(Actor, globalName="cluster")
+        cluster = ActorSystem().createActor(ClusterActor, globalName="cluster")
         reply = ActorSystem().ask(cluster, AddPortToLoopMsg(port), 10)
         if not isinstance(reply, ReturnLoopPortsMsg):
             logger.critical(
                 "Critical error in cluster actor. Stop and shutdown system."
             )
-            status = Status.Critical
+            status = Status.CRITICAL
             answer = {"Error code": status.value, "Error": str(status)}
             system_shutdown()
             return Response(
@@ -261,13 +264,13 @@ class RestApi:
     @api.route("/ports/<port>/stop", methods=["GET"])
     def getstopport(port):
         """Loops Local Ports, Used for Testing"""
-        cluster = ActorSystem().createActor(Actor, globalName="cluster")
+        cluster = ActorSystem().createActor(ClusterActor, globalName="cluster")
         reply = ActorSystem().ask(cluster, RemovePortFromLoopMsg(port), 10)
         if not isinstance(reply, ReturnLoopPortsMsg):
             logger.critical(
                 "Critical error in cluster actor. Stop and shutdown system."
             )
-            status = Status.Critical
+            status = Status.CRITICAL
             answer = {"Error code": status.value, "Error": str(status)}
             system_shutdown()
             return Response(
@@ -279,13 +282,13 @@ class RestApi:
     @api.route("/ports/list-usb", methods=["GET"])
     def getusbports():
         """Loops Local Ports, Used for Testing"""
-        cluster = ActorSystem().createActor(Actor, globalName="cluster")
+        cluster = ActorSystem().createActor(ClusterActor, globalName="cluster")
         reply = ActorSystem().ask(cluster, GetUsbPortsMsg(), 10)
         if not isinstance(reply, ReturnUsbPortsMsg):
             logger.critical(
                 "Critical error in cluster actor. Stop and shutdown system."
             )
-            status = Status.Critical
+            status = Status.CRITICAL
             answer = {"Error code": status.value, "Error": str(status)}
             system_shutdown()
             return Response(
@@ -297,13 +300,13 @@ class RestApi:
     @api.route("/ports/list-native", methods=["GET"])
     def getnativeports():
         """Loops Local Ports, Used for Testing"""
-        cluster = ActorSystem().createActor(Actor, globalName="cluster")
+        cluster = ActorSystem().createActor(ClusterActor, globalName="cluster")
         reply = ActorSystem().ask(cluster, GetNativePortsMsg(), 10)
         if not isinstance(reply, ReturnNativePortsMsg):
             logger.critical(
                 "Critical error in cluster actor. Stop and shutdown system."
             )
-            status = Status.Critical
+            status = Status.CRITICAL
             answer = {"Error code": status.value, "Error": str(status)}
             system_shutdown()
             return Response(
@@ -315,7 +318,7 @@ class RestApi:
     @api.route("/status", methods=["GET"])
     def getstatus():
         """Ask actor system to output actor status to debug log"""
-        cluster = ActorSystem().createActor(Actor, globalName="cluster")
+        cluster = ActorSystem().createActor(ClusterActor, globalName="cluster")
         reply = ActorSystem().ask(
             actorAddr=cluster, msg=Thespian_StatusReq(), timeout=10
         )

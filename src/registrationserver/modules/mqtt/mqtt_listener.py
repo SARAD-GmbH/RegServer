@@ -18,12 +18,14 @@ import time
 from typing import Any, Dict
 
 import paho.mqtt.client as MQTT  # type: ignore
-from registrationserver.actor_messages import (AppType, PrepareMqttActorMsg,
-                                               SetDeviceStatusMsg, SetupMsg)
+from registrationserver.actor_messages import (CreateActorMsg,
+                                               PrepareMqttActorMsg,
+                                               SetDeviceStatusMsg)
 from registrationserver.config import mqtt_config
 from registrationserver.helpers import get_device_actor
 from registrationserver.logger import logger
 from registrationserver.modules.mqtt.mqtt_actor import MqttActor
+from registrationserver.registrar import Registrar
 from registrationserver.shutdown import system_shutdown
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 
@@ -193,13 +195,12 @@ class SaradMqttSubscriber:
             instr_id,
             actor_id,
         )
-        this_actor = ActorSystem().createActor(MqttActor)
+        registrar = ActorSystem().createActor(Registrar, globalName="registrar")
+        reply = ActorSystem().ask(registrar, CreateActorMsg(MqttActor, actor_id))
+        device_actor = reply.actor_address
+        ActorSystem().tell(device_actor, SetDeviceStatusMsg(device_status=payload))
         ActorSystem().tell(
-            this_actor, SetupMsg(actor_id, "actor_system", AppType.ISMQTT)
-        )
-        ActorSystem().tell(this_actor, SetDeviceStatusMsg(device_status=payload))
-        ActorSystem().tell(
-            this_actor, PrepareMqttActorMsg(is_id, self.mqtt_broker, self.port)
+            device_actor, PrepareMqttActorMsg(is_id, self.mqtt_broker, self.port)
         )
 
     def _rm_instr(self, is_id, instr_id) -> None:
