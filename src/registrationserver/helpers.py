@@ -89,7 +89,7 @@ def get_device_actor(device_id: str):
             return None
         actor_dict = result.actor_dict
     try:
-        return actor_dict[device_id]
+        return actor_dict[device_id]["address"]
     except KeyError:
         logger.warning("%s not in %s", device_id, actor_dict)
         return None

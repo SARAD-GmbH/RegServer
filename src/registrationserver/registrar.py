@@ -116,5 +116,5 @@ class Registrar(BaseActor):
         if actor_id not in self.actor_dict:
             actor_address = self._create_actor(msg.actor_type, actor_id)
         else:
-            actor_address = self.actor_dict[actor_id]["actor_address"]
+            actor_address = self.actor_dict[actor_id]["address"]
         self.send(sender, ActorCreatedMsg(actor_address))
