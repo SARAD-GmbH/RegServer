@@ -22,11 +22,11 @@ from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.usb.usb_actor import UsbActor
-from sarad.cluster import SaradCluster
-from sarad.sari import SaradInst
-from serial import SerialException
-from serial.tools.list_ports import comports
-from thespian.actors import ActorExitRequest
+from sarad.cluster import SaradCluster  # type: ignore
+from sarad.sari import SaradInst  # type: ignore
+from serial import SerialException  # type: ignore
+from serial.tools.list_ports import comports  # type: ignore
+from thespian.actors import ActorExitRequest  # type: ignore
 
 
 class ClusterActor(BaseActor):
