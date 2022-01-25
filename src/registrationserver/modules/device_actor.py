@@ -231,9 +231,9 @@ class DeviceBaseActor(BaseActor):
         self.device_status["Reservation"] = reservation
         self.my_redirector = None
 
-    def receiveMsg_GetDeviceStatus(self, msg, sender):
+    def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Handler for GetDeviceStatus asking to send updated information
+        """Handler for GetDeviceStatusMsg asking to send updated information
         about the device status to the sender.
 
         Sends back a message containing the device_status."""

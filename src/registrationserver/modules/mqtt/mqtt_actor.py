@@ -79,7 +79,7 @@ class MqttActor(DeviceBaseActor):
         }  # store the current message ID to check
         self._subscriptions = {}
 
-    def ReceiveMsg_TxBinaryMsg(self, msg, sender):
+    def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for TxBinaryMsg from Redirector Actor."""
         data = msg.data
