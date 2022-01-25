@@ -292,7 +292,7 @@ class MqttSchedulerActor(BaseActor):
         """
         logger.error("%s(%s): %s", message.topic, len(message.topic), message.payload)
 
-    def receive_RxBinaryMsg(self, msg, sender):
+    def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for actor messages returning from 'SEND" command
 
