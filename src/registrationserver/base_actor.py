@@ -152,17 +152,17 @@ class BaseActor(ActorTypeDispatcher):
         )
         system_shutdown()
 
-    def _subcribe_to_actor_dict_msg(self):
+    def _subscribe_to_actor_dict_msg(self):
         """Subscribe to receive updates of the Actor Dictionary from Registrar."""
         self.send(self.registrar, SubscribeToActorDictMsg(actor_id=self.my_id))
 
-    def _subcribe_to_device_status_msg(self):
-        """Subscribe to receive updates of the Actor Dictionary from Registrar."""
-        self.send(self.registrar, SubscribeToDeviceStatusMsg(actor_id=self.my_id))
+    def _subscribe_to_device_status_msg(self, device_actor_address):
+        """Subscribe to receive updates of the device status from device actor."""
+        self.send(device_actor_address, SubscribeToDeviceStatusMsg(actor_id=self.my_id))
 
     def _create_actor(self, actor_type, actor_id):
         logger.debug("Create %s with parent %s", actor_id, self.my_id)
-        new_actor_address = self.createActor(actor_type, globalName=actor_id)
+        new_actor_address = self.createActor(actor_type)
         self.send(new_actor_address, SetupMsg(actor_id, self.my_id, self.app_type))
         self.child_actors[actor_id] = {"actor_address": new_actor_address}
         return new_actor_address

@@ -38,29 +38,16 @@ class UsbActor(DeviceBaseActor):
         self._cluster = self.createActor(Actor, globalName="cluster")
         self.instrument = self.my_id.split(".")[0]
 
-    @overrides
-    def receiveMsg_SetDeviceStatusMsg(self, msg, _sender):
-        super().receiveMsg_SetDeviceStatusMsg(msg, _sender)
-        try:
-            serial_port = self.device_status["Serial"]
-            logger.debug(serial_port)
-        except Exception as this_exception:  # pylint: disable=broad-except
-            logger.critical(
-                "Error during setup of USB device actor %s -- system shutdown",
-                this_exception,
-            )
-            system_shutdown()
-
-    def receiveMsg_TxBinaryMsg(self, msg, _sender):
+    def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Forward binary message from App to cluster actor."""
-        logger.debug("Actor received: %s", msg.data)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.send(self._cluster, TxBinaryMsg(msg.data, msg.host, self.instrument))
 
-    def receiveMsg_RxBinaryMsg(self, msg, _sender):
+    def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Forward binary message from cluster actor to App."""
-        logger.debug("and got reply from instrument: %s", msg.data)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if self.app_type == AppType.ISMQTT:
             self.send(self.mqtt_scheduler, msg)
         elif self.app_type == AppType.RS:

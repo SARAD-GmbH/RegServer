@@ -21,8 +21,10 @@ from thespian.actors import ActorSystem  # type: ignore
 from thespian.system.messages.status import (  # type: ignore
     Thespian_StatusReq, formatStatus)
 
-from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
-                                               GetActorDictMsg,
+from registrationserver.actor_messages import (AddPortToLoopMsg, AppType,
+                                               FreeDeviceMsg, GetActorDictMsg,
+                                               GetDeviceActorMsg,
+                                               GetDeviceStatusesMsg,
                                                GetLocalPortsMsg,
                                                GetNativePortsMsg,
                                                GetUsbPortsMsg,
@@ -32,9 +34,12 @@ from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
                                                ReturnLocalPortsMsg,
                                                ReturnLoopPortsMsg,
                                                ReturnNativePortsMsg,
-                                               ReturnUsbPortsMsg, Status)
-from registrationserver.config import mqtt_config
-from registrationserver.helpers import get_device_actor, get_device_status
+                                               ReturnUsbPortsMsg, SetupMsg,
+                                               Status)
+from registrationserver.config import actor_config, config, mqtt_config
+from registrationserver.helpers import (get_device_actor, get_device_status,
+                                        get_device_statuses)
+from registrationserver.logdef import logcfg
 from registrationserver.logger import logger  # type: ignore
 from registrationserver.modules.usb.cluster_actor import ClusterActor
 from registrationserver.registrar import Registrar
@@ -45,6 +50,23 @@ logger.debug("%s -> %s", __package__, __file__)
 MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 RESERVE_KEYWORD = "reserve"
 FREE_KEYWORD = "free"
+
+# =======================
+# Initialization of the actor system,
+# can be changed to a distributed system here.
+# =======================
+config["APP_TYPE"] = AppType.RS
+system = ActorSystem(
+    systemBase=actor_config["systemBase"],
+    capabilities=actor_config["capabilities"],
+    logDefs=logcfg,
+)
+registrar_actor = system.createActor(Registrar, globalName="registrar")
+system.tell(
+    registrar_actor,
+    SetupMsg("registrar", "actor_system", AppType.RS),
+)
+logger.debug("Actor system started.")
 
 
 class RestApi:
@@ -88,23 +110,10 @@ class RestApi:
     @api.route("/list/", methods=["GET"])
     def get_list():
         """Path for getting the list of active devices"""
-        answer = {}
-        registrar_actor = ActorSystem().createActor(Registrar, globalName="registrar")
-        try:
-            actor_dict = (
-                ActorSystem().ask(registrar_actor, GetActorDictMsg(), 10).actor_dict
-            )
-        except KeyError:
-            logger.critical(
-                "Emergency shutdown. Cannot get appropriate response from Registrar actor."
-            )
-            system_shutdown()
-            return {}
-        for device_id in actor_dict:
-            if actor_dict[device_id]["is_device_actor"]:
-                answer[device_id] = get_device_status(device_id)
         return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
+            response=json.dumps(get_device_statuses()),
+            status=200,
+            mimetype="application/json",
         )
 
     @staticmethod

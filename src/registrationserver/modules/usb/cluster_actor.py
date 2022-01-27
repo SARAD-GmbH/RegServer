@@ -13,7 +13,7 @@ Covers as well USB ports as native RS-232 ports.
 from typing import List
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (ReturnLocalPortsMsg,
+from registrationserver.actor_messages import (KillMsg, ReturnLocalPortsMsg,
                                                ReturnLoopPortsMsg,
                                                ReturnNativePortsMsg,
                                                ReturnUsbPortsMsg, RxBinaryMsg,
@@ -26,7 +26,6 @@ from sarad.cluster import SaradCluster  # type: ignore
 from sarad.sari import SaradInst  # type: ignore
 from serial import SerialException  # type: ignore
 from serial.tools.list_ports import comports  # type: ignore
-from thespian.actors import ActorExitRequest  # type: ignore
 
 
 class ClusterActor(BaseActor):
@@ -306,8 +305,8 @@ class ClusterActor(BaseActor):
         gone_address = port_actors[gone_port]
         gone_id = self._get_actor_id(gone_address, self.child_actors)
         if gone_port in port_actors:
-            logger.debug("Send ActorExitRequest to device actor.")
-            self.send(gone_address, ActorExitRequest())
+            logger.debug("Send KillMsg to device actor.")
+            self.send(gone_address, KillMsg())
             self.child_actors.pop(gone_id, None)
         else:
             logger.error(

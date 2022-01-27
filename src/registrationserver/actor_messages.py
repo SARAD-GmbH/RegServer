@@ -248,11 +248,11 @@ class UpdateDeviceStatusMsg:
     """Message with updated device status information for an instrument.
 
     Args:
-        instr_id (str): Instrument id
+        device_id (str): Device Id in long form
         device_status (dict): Dictionary with status information of the instrument.
     """
 
-    instr_id: str
+    device_id: str
     device_status: Dict[str, str]
 
 
@@ -390,5 +390,21 @@ class CreateActorMsg:
 class ActorCreatedMsg:
     """Message sent by the Registrar to inform the recipient about
     a newly created actor."""
+
+    actor_address: ActorAddress
+
+
+@dataclass
+class GetDeviceActorMsg:
+    """Request to the Registrar to send back the address of the Device Actor
+    with the given device_id."""
+
+    device_id: str
+
+
+@dataclass
+class ReturnDeviceActorMsg:
+    """Message from the Registrar returning the Device Actor address
+    requested with GetDeviceActorMsg."""
 
     actor_address: ActorAddress

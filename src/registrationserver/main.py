@@ -19,8 +19,8 @@ from datetime import datetime
 from thespian.actors import (ActorExitRequest, ActorSystem,  # type: ignore
                              PoisonMessage)
 
-from registrationserver.actor_messages import AppType, KillMsg, SetupMsg
-from registrationserver.config import actor_config, config
+from registrationserver.actor_messages import KillMsg
+from registrationserver.config import config
 from registrationserver.logdef import LOGFILENAME, logcfg
 from registrationserver.logger import logger
 from registrationserver.modules.mqtt.mqtt_listener import SaradMqttSubscriber
@@ -92,23 +92,6 @@ def startup():
     except Exception:  # pylint: disable=broad-except
         logger.error("Initialization of log file failed.")
     logger.info("Logging system initialized.")
-    config["APP_TYPE"] = AppType.RS
-    # =======================
-    # Initialization of the actor system,
-    # can be changed to a distributed system here.
-    # =======================
-    system = ActorSystem(
-        systemBase=actor_config["systemBase"],
-        capabilities=actor_config["capabilities"],
-        logDefs=logcfg,
-    )
-    registrar_actor = system.createActor(Registrar, globalName="registrar")
-    system.tell(
-        registrar_actor,
-        SetupMsg("registrar", "actor_system", AppType.RS),
-    )
-    logger.debug("Actor system started.")
-
     restapi = RestApi()
     apithread = threading.Thread(
         target=restapi.run,

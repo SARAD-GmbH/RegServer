@@ -60,6 +60,7 @@ class DeviceBaseActor(BaseActor):
         logger.debug("Initialize a new device actor.")
         super().__init__()
         self.device_status = {}
+        self.subscribers = {}
         self.my_redirector = None
         self.app = None
         self.user = None
@@ -70,11 +71,13 @@ class DeviceBaseActor(BaseActor):
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         super().receiveMsg_SetupMsg(msg, sender)
         if self.app_type == AppType.ISMQTT:
             # We trust in the existence of mqtt_scheduler, that was created by
             # the Registrar before the creation of any device actor.
             self.mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
+            self.subscribers["mqtt_scheduler"] = self.mqtt_scheduler
 
     @overrides
     def _subscribe(self):
@@ -89,21 +92,19 @@ class DeviceBaseActor(BaseActor):
             ),
         )
 
-    def receiveMsg_SetDeviceStatusMsg(self, msg, _sender):
+    def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SetDeviceStatusMsg"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.device_status = msg.device_status
         logger.debug("Device status: %s", self.device_status)
         if self.mqtt_scheduler is not None:
             self.device_status["Identification"]["Host"] = ismqtt_config["IS_ID"]
-            self.send(
-                self.mqtt_scheduler,
-                UpdateDeviceStatusMsg(short_id(self.my_id), self.device_status),
-            )
+        self._publish_status_change()
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
-        logger.info("%s for actor %s", msg, self.my_id)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         # Send 'REMOVE' message to MQTT Scheduler
         if self.app_type == AppType.ISMQTT:
             self.send(self.mqtt_scheduler, RemoveDeviceMsg(short_id(self.my_id)))
@@ -112,7 +113,7 @@ class DeviceBaseActor(BaseActor):
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for ReserveDeviceMsg from REST API."""
-        logger.info("Device actor received a ReserveDeviceMsg with message: %s", msg)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.sender_api = sender
         self.app = msg.app
         self.host = msg.host
@@ -129,7 +130,7 @@ class DeviceBaseActor(BaseActor):
             except KeyError:
                 logger.debug("First reservation since restart of RegServer")
             self._reserve_at_is()
-        return
+        self._publish_status_change()
 
     def _reserve_at_is(self):
         # pylint: disable=unused-argument, no-self-use
@@ -170,7 +171,7 @@ class DeviceBaseActor(BaseActor):
     def receiveMsg_SocketMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SocketMsg from Redirector Actor."""
-        logger.debug("Redirector returned with %s", msg)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         try:
             assert msg.status in (Status.OK, Status.OK_SKIPPED)
         except AssertionError:
@@ -190,11 +191,12 @@ class DeviceBaseActor(BaseActor):
         logger.debug("Reservation state updated: %s", self.device_status)
         self.send(self.my_redirector, ConnectMsg())
         self.send(self.sender_api, ReservationStatusMsg(Status.OK))
+        self._publish_status_change()
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for FreeDeviceMsg from REST API."""
-        logger.info("Device actor received a FreeDeviceMsg from API. %s", msg)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.sender_api = sender
         try:
             if self.device_status["Reservation"]["Active"]:
@@ -214,12 +216,14 @@ class DeviceBaseActor(BaseActor):
         if self.my_redirector is not None:
             logger.debug("Kill redirector %s", self.my_redirector)
             self.send(self.my_redirector, KillMsg())
+        self._publish_status_change()
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
         # pylint: disable=invalid-name
         """Change the device status to Free after receiving the confirmation
         that the redirector exited."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         reservation = {
             "Active": False,
             "App": self.device_status["Reservation"]["App"],
@@ -230,6 +234,7 @@ class DeviceBaseActor(BaseActor):
         logger.info("[Free] %s", reservation)
         self.device_status["Reservation"] = reservation
         self.my_redirector = None
+        self._publish_status_change()
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -237,6 +242,21 @@ class DeviceBaseActor(BaseActor):
         about the device status to the sender.
 
         Sends back a message containing the device_status."""
-        self.send(
-            sender, UpdateDeviceStatusMsg(short_id(self.my_id), self.device_status)
-        )
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.send(sender, UpdateDeviceStatusMsg(self.my_id, self.device_status))
+
+    def receiveMsg_SubscribeToDeviceStatusMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler to register a requesting actor to a list of actors
+        that are subscribed to receive updates of device status on every change."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.subscribers[msg.actor_id] = sender
+        logger.debug("Subscribers for DeviceStatusMsg: %s", self.subscribers)
+
+    def _publish_status_change(self):
+        """Publish a changed device status to all subscribers."""
+        for actor_address in self.subscribers.values():
+            self.send(
+                actor_address,
+                UpdateDeviceStatusMsg(self.my_id, self.device_status),
+            )

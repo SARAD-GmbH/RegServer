@@ -119,3 +119,27 @@ def get_device_status(device_id: str) -> dict:
             system_shutdown()
             return {}
     return result.device_status
+
+
+def get_device_statuses():
+    """Return a list of all device ids together with the device status"""
+    registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+    with ActorSystem().private() as db_sys:
+        result = db_sys.ask(registrar_actor, GetActorDictMsg(), 10)
+        if not isinstance(result, UpdateActorDictMsg):
+            logger.critical(
+                "Emergency shutdown. Ask to Registrar took more than 10 sec."
+            )
+            system_shutdown()
+            return None
+        actor_dict = result.actor_dict
+    device_actor_dict = {
+        id: dict["address"]
+        for id, dict in actor_dict.items()
+        if dict["is_device_actor"]
+    }
+    device_statuses = {}
+    for _id, device_actor in device_actor_dict.items():
+        reply = ActorSystem().ask(device_actor, GetDeviceStatusMsg())
+        device_statuses[reply.device_id] = reply.device_status
+    return device_statuses

@@ -20,6 +20,7 @@ from overrides import overrides  # type: ignore
 
 from registrationserver.actor_messages import (ActorCreatedMsg, AppType,
                                                KeepAliveMsg,
+                                               ReturnDeviceActorMsg,
                                                UpdateActorDictMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.logger import logger
@@ -84,7 +85,9 @@ class Registrar(BaseActor):
     def receiveMsg_UnsubscribeMsg(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for UnsubscribeMsg from any actor."""
-        logger.debug("%s received UnsubscribeMsg", self.my_id)
+        logger.debug(
+            "%s received UnsubscribeMsg. %s disbanded.", self.my_id, msg.actor_id
+        )
         self.actor_dict.pop(msg.actor_id)
         self._send_updates()
 
@@ -118,3 +121,15 @@ class Registrar(BaseActor):
         else:
             actor_address = self.actor_dict[actor_id]["address"]
         self.send(sender, ActorCreatedMsg(actor_address))
+
+    def receiveMsg_GetDeviceActorMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handle request to deliver the actor address of a given device id."""
+        device_actor_dict = {
+            id: dict["address"]
+            for id, dict in self.actor_dict.items()
+            if dict["is_device_actor"]
+        }
+        for actor_id, actor_address in device_actor_dict.items():
+            if actor_id == msg.device_id:
+                self.send(sender, ReturnDeviceActorMsg(actor_address))
