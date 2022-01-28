@@ -68,7 +68,7 @@ def startup():
     except Exception:  # pylint: disable=broad-except
         logger.error("Initialization of log file failed.")
     logger.info("Logging system initialized.")
-    config["APP_TYPE"] = AppType.ISMQTT
+    app_type = AppType.ISMQTT
     # =======================
     # Initialization of the actor system,
     # can be changed to a distributed system here.
@@ -81,10 +81,10 @@ def startup():
     registrar_actor = system.createActor(Registrar, globalName="registrar")
     system.tell(
         registrar_actor,
-        SetupMsg("registrar", "actor_system", AppType.ISMQTT),
+        SetupMsg("registrar", "actor_system", app_type),
     )
     logger.debug("Actor system started.")
-    usb_listener = UsbListener()
+    usb_listener = UsbListener(registrar_actor, app_type)
     usb_listener_thread = threading.Thread(
         target=usb_listener.run,
         daemon=True,

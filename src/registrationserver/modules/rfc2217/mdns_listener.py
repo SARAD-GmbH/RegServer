@@ -20,9 +20,9 @@ import hashids  # type: ignore
 from registrationserver.actor_messages import (CreateActorMsg,
                                                SetDeviceStatusMsg)
 from registrationserver.config import config
+from registrationserver.helpers import get_actor
 from registrationserver.logger import logger
 from registrationserver.modules.rfc2217.rfc2217_actor import Rfc2217Actor
-from registrationserver.registrar import Registrar
 from registrationserver.shutdown import system_shutdown
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
@@ -97,12 +97,12 @@ class MdnsListener(ServiceListener):
         logger.debug("My IP address is %s", ip_address)
         return ip_address
 
-    def __init__(self, service_type):
+    def __init__(self, registrar_actor, service_type):
         """
         Initialize a mdns Listener for a specific device group
         """
+        self.registrar = registrar_actor
         self.lock = threading.Lock()
-        self.cluster = {}  # stores a dict of device actors {device_id: <actor address>}
         with self.lock:
             self.zeroconf = Zeroconf(
                 ip_version=config["IP_VERSION"], interfaces=[self.get_ip(), "127.0.0.1"]
@@ -120,15 +120,13 @@ class MdnsListener(ServiceListener):
                 logger.info("[Add] %s", info.properties)
                 # Take the first 3 elements to form a short_name
                 actor_id = ".".join(name.split(".", 3)[:-1])
-                registrar = ActorSystem().createActor(Registrar, globalName="registrar")
                 reply = ActorSystem().ask(
-                    registrar, CreateActorMsg(Rfc2217Actor, actor_id)
+                    self.registrar, CreateActorMsg(Rfc2217Actor, actor_id)
                 )
                 device_actor = reply.actor_address
                 data = self.convert_properties(name=name, info=info)
                 logger.debug("Setup the device actor with %s", data)
                 ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))
-                self.cluster[actor_id] = device_actor
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
@@ -146,13 +144,12 @@ class MdnsListener(ServiceListener):
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             logger.debug("[Del] Info: %s", info)
             try:
-                device_actor = self.cluster[name]
+                device_actor = get_actor(self.registrar, name)
             except KeyError:
                 logger.critical("The actor to remove does not exist.")
                 system_shutdown()
             logger.debug("Kill the device actor...")
             ActorSystem().tell(device_actor, ActorExitRequest())
-            self.cluster.pop(name)
 
     def shutdown(self) -> None:
         """Cleanup"""

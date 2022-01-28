@@ -20,7 +20,7 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import TxBinaryMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import ismqtt_config, mqtt_config
-from registrationserver.helpers import get_key
+from registrationserver.helpers import get_instr_id_actor_dict, get_key
 from registrationserver.logger import logger
 from registrationserver.modules import ismqtt_messages
 from registrationserver.shutdown import system_shutdown
@@ -42,8 +42,6 @@ class MqttSchedulerActor(BaseActor):
         """
         super().__init__()
         self.lock = threading.Lock()
-        self.cluster = {}  # {instr_id: actor_address}
-        self.instr_meta = {}  # {instr_id: {<meta>}}
         self.reservations = {}  # {instr_id: <reservation object>}
         # cmd_id to check the correct order of messages
         self.cmd_ids = {}  # {instr_id: <command id>}
@@ -135,15 +133,10 @@ class MqttSchedulerActor(BaseActor):
         """Handler for UpdateDeviceStatusMsg from Device Actor.
 
         Adds a new instrument to the list of available instruments."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         with self.lock:
             instr_id = msg.instr_id
             device_status = msg.device_status
-            self.cluster[instr_id] = sender
-            logger.debug(
-                "[ADD] %s added to cluster. Complete list is now %s",
-                instr_id,
-                self.cluster,
-            )
             new_subscriptions = [
                 (f"{self.is_id}/{instr_id}/control", 0),
                 (f"{self.is_id}/{instr_id}/cmd", 0),
@@ -158,23 +151,16 @@ class MqttSchedulerActor(BaseActor):
                 payload=json.dumps(message),
                 retain=True,
             )
-            self.instr_meta[instr_id] = identification
 
-    def receiveMsg_RemoveDeviceMsg(self, msg, _sender):
+    def receiveMsg_RemoveDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for RemoveDeviceMsg from Device Actor.
 
         Removes an instrument from the list of available instruments."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         with self.lock:
             instr_id = msg.instr_id
-            self.cluster.pop(instr_id, None)
-            self.instr_meta.pop(instr_id, None)
             self.reservations.pop(instr_id, None)
-            logger.debug(
-                "[RemoveDeviceMsg] %s removed from cluster. Complete list is now %s",
-                instr_id,
-                self.cluster,
-            )
             gone_subscriptions = [
                 f"{self.is_id}/{instr_id}/control",
                 f"{self.is_id}/{instr_id}/cmd",
@@ -252,7 +238,7 @@ class MqttSchedulerActor(BaseActor):
         with self.lock:
             logger.debug("[on_control] %s: %s", message.topic, message.payload)
             instrument_id = message.topic[: -len("control") - 1][len(self.is_id) + 1 :]
-            if instrument_id in self.cluster:
+            if instrument_id in get_instr_id_actor_dict(self.registrar):
                 old_control = self.reservations.get(instrument_id)
                 control = ismqtt_messages.get_instr_control(message, old_control)
                 logger.debug("Control object: %s", control)
@@ -279,7 +265,7 @@ class MqttSchedulerActor(BaseActor):
             instr_id = message.topic[: -len("cmd") - 1][len(self.is_id) + 1 :]
             self.cmd_ids[instr_id] = message.payload[0]
             cmd = message.payload[1:]
-            device_actor = self.cluster.get(instr_id)
+            device_actor = get_instr_id_actor_dict(self.registrar).get(instr_id)
             if device_actor is not None:
                 logger.debug("Forward command %s to device actor %s", cmd, device_actor)
                 self.send(device_actor, TxBinaryMsg(cmd, "localhost", instrument=None))
@@ -297,7 +283,7 @@ class MqttSchedulerActor(BaseActor):
         """Handler for actor messages returning from 'SEND" command
 
         Forward the payload received from device_actor via MQTT."""
-        instr_id = get_key(sender, self.cluster)
+        instr_id = get_key(sender, get_instr_id_actor_dict(self.registrar))
         reply = bytes([self.cmd_ids[instr_id]]) + msg.data
         self.mqttc.publish(f"{self.is_id}/{instr_id}/msg", reply)
 

@@ -100,7 +100,7 @@ class RedirectorActor(BaseActor):
     def receiveMsg_ConnectMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
         """Listen to socket and redirect any message from the socket to the device actor"""
-        # logger.debug("Waiting for connect at %s port %s", self._host, self._port)
+        # logger.debug("%s for %s from %s", msg, self.my_id, sender)
         # read_list = list of server sockets from which we expect to read
         server_socket = self.read_list[0]
         timeout = 0.1
@@ -139,17 +139,13 @@ class RedirectorActor(BaseActor):
             )
             self.send(self.my_parent, TxBinaryMsg(data, host=None, instrument=None))
 
-    def receiveMsg_RxBinaryMsg(self, msg, _sender):
+    def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Redirect any received reply to the socket."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for _i in range(0, 5):
             try:
                 self.conn.sendall(msg.data)
-                logger.debug(
-                    "Redirect %s from instrument to socket %s",
-                    msg.data,
-                    self._socket_info,
-                )
                 return
             except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")

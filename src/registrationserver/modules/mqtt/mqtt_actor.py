@@ -338,7 +338,7 @@ class MqttActor(DeviceBaseActor):
                 )
                 self.state["SEND"]["Reply"] = payload[1:]
                 self.send(
-                    self.my_redirector,
+                    self.redirector_actor(),
                     RxBinaryMsg(self.state["SEND"]["Reply"]),
                 )
                 return

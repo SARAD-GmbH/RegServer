@@ -15,6 +15,7 @@ import pyudev  # type: ignore
 from registrationserver.actor_messages import InstrAddedMsg, InstrRemovedMsg
 from registrationserver.logger import logger
 from registrationserver.modules.usb.base_listener import BaseListener
+from thespian.actors import ActorSystem  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -55,19 +56,14 @@ class UsbListener(BaseListener):
         port = device.get("DEVNAME")
         logger.debug("%s device %s", action, port)
         if action == "add":
-            self._system.tell(
-                self._cluster,
+            ActorSystem().tell(
+                self.cluster_actor,
                 InstrAddedMsg(),
             )
         elif action == "remove":
-            self._system.tell(
-                self._cluster,
+            ActorSystem().tell(
+                self.cluster_actor,
                 InstrRemovedMsg(),
             )
         else:
             logger.error("USB device event with action %s", action)
-
-
-if __name__ == "__main__":
-    logger.debug("Start Test")
-    _ = UsbListener()

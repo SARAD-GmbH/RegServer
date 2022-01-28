@@ -74,7 +74,7 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name
         """Handler for SetupMsg to set essential attributs after initialization"""
         self.my_id = msg.actor_id
-        logger.debug("%s received SetupMsg from %s", self.my_id, msg.parent_id)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.parent = Parent(parent_id=msg.parent_id, parent_address=sender)
         self.registrar = self.createActor(Actor, globalName="registrar")
         self.app_type = msg.app_type
@@ -100,7 +100,7 @@ class BaseActor(ActorTypeDispatcher):
     def receiveMsg_KillMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
         """Handle the KillMsg for this actor"""
-        logger.debug("%s received KillMsg", self.my_id)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.on_kill = True
         if self.child_actors:
             self._forward_to_children(msg)
@@ -110,7 +110,7 @@ class BaseActor(ActorTypeDispatcher):
     def receiveMsg_KeepAliveMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
         """Handler for KeepAliveMsg from the Registrar"""
-        logger.debug("%s received KeepAliveMsg", self.my_id)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if self.child_actors:
             self._forward_to_children(msg)
         self._subscribe()
@@ -118,38 +118,35 @@ class BaseActor(ActorTypeDispatcher):
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
         """Handler for UpdateActorDictMsg from Registrar"""
-        logger.debug("%s received UpdateActorDictMsg", self.my_id)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.actor_dict = msg.actor_dict
 
-    def receiveMsg_PoisonMessage(self, _msg, _sender):
+    def receiveMsg_PoisonMessage(self, msg, sender):
         # pylint: disable=invalid-name, no-self-use
         """Handler for PoisonMessage"""
-        logger.critical("%s received PoisonMessage -> Emergency shutdown.", self.my_id)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.critical("-> Emergency shutdown.")
         system_shutdown()
 
     def receiveMsg_ChildActorExited(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
         """Handler for ChildActorExited"""
-        logger.debug(
-            "%s received ChildActorExited from %s", self.my_id, msg.childAddress
-        )
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         actor_id = self._get_actor_id(msg.childAddress, self.child_actors)
         self.child_actors.pop(actor_id, None)
         if not self.child_actors and self.on_kill:
             self.send(self.myAddress, ActorExitRequest())
 
-    def receiveMsg_ActorExitRequest(self, _msg, _sender):
+    def receiveMsg_ActorExitRequest(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for ActorExitRequest"""
-        logger.debug("%s received ActorExitRequest", self.my_id)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
 
-    def receiveUnrecognizedMessage(self, msg, _sender):
+    def receiveUnrecognizedMessage(self, msg, sender):
         # pylint: disable=invalid-name, no-self-use
         """Handler for messages that do not fit the spec."""
-        logger.critical(
-            "%s received unrecognizable message type: %s", self.my_id, type(msg)
-        )
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         system_shutdown()
 
     def _subscribe_to_actor_dict_msg(self):

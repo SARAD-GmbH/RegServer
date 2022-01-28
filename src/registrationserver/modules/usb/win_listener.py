@@ -12,10 +12,10 @@
 import win32api  # pylint: disable=import-error
 import win32con  # pylint: disable=import-error
 import win32gui  # pylint: disable=import-error
-from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import InstrAddedMsg, InstrRemovedMsg
 from registrationserver.logger import logger
 from registrationserver.modules.usb.base_listener import BaseListener
+from thespian.actors import ActorSystem  # type: ignore
 
 
 class UsbListener(BaseListener):
@@ -100,13 +100,8 @@ class UsbListener(BaseListener):
             logger.debug("Received message: %s = %s", event, description)
             if event in ("DBT_DEVICEARRIVAL", "DBT_DEVICEREMOVECOMPLETE"):
                 if event in "DBT_DEVICEARRIVAL":
-                    self._system.tell(self._cluster, InstrAddedMsg())
+                    ActorSystem().tell(self.cluster_actor, InstrAddedMsg())
                     return
                 if event in "DBT_DEVICEREMOVECOMPLETE":
-                    self._system.tell(self._cluster, InstrRemovedMsg())
+                    ActorSystem().tell(self.cluster_actor, InstrRemovedMsg())
             return
-
-
-if __name__ == "__main__":
-    logger.info("Start Test")
-    _ = UsbListener()

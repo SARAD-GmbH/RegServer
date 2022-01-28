@@ -19,7 +19,7 @@ from registrationserver.actor_messages import (AppType, ConnectMsg, KillMsg,
                                                UpdateDeviceStatusMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import ismqtt_config
-from registrationserver.helpers import short_id
+from registrationserver.helpers import get_actor, short_id
 from registrationserver.logger import logger
 from registrationserver.redirect_actor import RedirectorActor
 from thespian.actors import Actor  # type: ignore
@@ -35,8 +35,7 @@ class DeviceBaseActor(BaseActor):
 
     * SetupMsg: is used to initialize the actor right after its creation.
       This is needed because some parts of the initialization cannot be done in
-      __init__() (because for instance self.globalName is not available yet in
-      __init__()), other initialization steps require data from the
+      __init__(). Other initialization steps require data from the
       MdnsListener/MqttSubscriber creating the device actor. The same method is
       used for updates of the device state comming from the
       MdnsListener/MqttSubscriber.
@@ -57,26 +56,22 @@ class DeviceBaseActor(BaseActor):
 
     @overrides
     def __init__(self):
-        logger.debug("Initialize a new device actor.")
         super().__init__()
         self.device_status = {}
         self.subscribers = {}
-        self.my_redirector = None
         self.app = None
         self.user = None
         self.host = None
         self.sender_api = None
         self.mqtt_scheduler = None
-        logger.info("Device actor created.")
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         super().receiveMsg_SetupMsg(msg, sender)
         if self.app_type == AppType.ISMQTT:
             # We trust in the existence of mqtt_scheduler, that was created by
             # the Registrar before the creation of any device actor.
-            self.mqtt_scheduler = self.createActor(Actor, globalName="mqtt_scheduler")
+            self.mqtt_scheduler = get_actor(self.registrar, "mqtt_scheduler")
             self.subscribers["mqtt_scheduler"] = self.mqtt_scheduler
 
     @overrides
@@ -104,8 +99,6 @@ class DeviceBaseActor(BaseActor):
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        # Send 'REMOVE' message to MQTT Scheduler
         if self.app_type == AppType.ISMQTT:
             self.send(self.mqtt_scheduler, RemoveDeviceMsg(short_id(self.my_id)))
         super().receiveMsg_KillMsg(msg, sender)
@@ -158,15 +151,14 @@ class DeviceBaseActor(BaseActor):
 
     def _create_redirector(self) -> bool:
         """Create redirector actor if it does not exist already"""
-        if self.my_redirector is None:
-            self.my_redirector = self._create_actor(
-                RedirectorActor, short_id(self.my_id)
-            )
+        if not self.child_actors:
+            self._create_actor(RedirectorActor, short_id(self.my_id))
             return True
-        logger.debug(
-            "[create_redirector] Redirector %s already exists.", self.my_redirector
-        )
         return False
+
+    def redirector_actor(self):
+        """The device actor has only one child that is called Redirector Actor."""
+        return self.child_actors[short_id(self.my_id)]["actor_address"]
 
     def receiveMsg_SocketMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -189,7 +181,7 @@ class DeviceBaseActor(BaseActor):
         }
         self.device_status["Reservation"] = reservation
         logger.debug("Reservation state updated: %s", self.device_status)
-        self.send(self.my_redirector, ConnectMsg())
+        self.send(self.redirector_actor(), ConnectMsg())
         self.send(self.sender_api, ReservationStatusMsg(Status.OK))
         self._publish_status_change()
 
@@ -213,9 +205,8 @@ class DeviceBaseActor(BaseActor):
             logger.debug("Instr. was not reserved before.")
             return_message = ReservationStatusMsg(Status.OK_SKIPPED)
         self.send(self.sender_api, return_message)
-        if self.my_redirector is not None:
-            logger.debug("Kill redirector %s", self.my_redirector)
-            self.send(self.my_redirector, KillMsg())
+        if self.child_actors:
+            self.send(self.redirector_actor(), KillMsg())
         self._publish_status_change()
 
     @overrides
@@ -223,7 +214,6 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Change the device status to Free after receiving the confirmation
         that the redirector exited."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         reservation = {
             "Active": False,
             "App": self.device_status["Reservation"]["App"],
@@ -233,8 +223,8 @@ class DeviceBaseActor(BaseActor):
         }
         logger.info("[Free] %s", reservation)
         self.device_status["Reservation"] = reservation
-        self.my_redirector = None
         self._publish_status_change()
+        super().receiveMsg_ChildActorExited(msg, sender)
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name

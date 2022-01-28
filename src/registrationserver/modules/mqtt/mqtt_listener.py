@@ -22,10 +22,9 @@ from registrationserver.actor_messages import (CreateActorMsg,
                                                PrepareMqttActorMsg,
                                                SetDeviceStatusMsg)
 from registrationserver.config import mqtt_config
-from registrationserver.helpers import get_device_actor
+from registrationserver.helpers import get_actor
 from registrationserver.logger import logger
 from registrationserver.modules.mqtt.mqtt_actor import MqttActor
-from registrationserver.registrar import Registrar
 from registrationserver.shutdown import system_shutdown
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 
@@ -61,7 +60,8 @@ class SaradMqttSubscriber:
         }
     """
 
-    def __init__(self):
+    def __init__(self, registrar_actor):
+        self.registrar_actor = registrar_actor
         self.mqtt_broker = mqtt_config.get("MQTT_BROKER", "127.0.0.1")
         self.port = mqtt_config.get("PORT", 1883)
         self.connected_instruments = {}
@@ -195,8 +195,9 @@ class SaradMqttSubscriber:
             instr_id,
             actor_id,
         )
-        registrar = ActorSystem().createActor(Registrar, globalName="registrar")
-        reply = ActorSystem().ask(registrar, CreateActorMsg(MqttActor, actor_id))
+        reply = ActorSystem().ask(
+            self.registrar_actor, CreateActorMsg(MqttActor, actor_id)
+        )
         device_actor = reply.actor_address
         ActorSystem().tell(device_actor, SetDeviceStatusMsg(device_status=payload))
         ActorSystem().tell(
@@ -218,7 +219,7 @@ class SaradMqttSubscriber:
             return
         device_id = self.connected_instruments[is_id][instr_id]
         logger.info("[rm_instr] %s", instr_id)
-        device_actor = get_device_actor(device_id)
+        device_actor = get_actor(self.registrar_actor, device_id)
         ActorSystem().tell(device_actor, ActorExitRequest())
         del self.connected_instruments[is_id][instr_id]
         return
@@ -238,7 +239,7 @@ class SaradMqttSubscriber:
             return
         device_id = self.connected_instruments[is_id][instr_id]
         logger.info("[update_instr] %s", instr_id)
-        device_actor = get_device_actor(device_id)
+        device_actor = get_actor(self.registrar_actor, device_id)
         ActorSystem().tell(device_actor, SetDeviceStatusMsg(device_status=payload))
         return
 

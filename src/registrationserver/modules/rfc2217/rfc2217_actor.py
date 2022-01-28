@@ -16,7 +16,6 @@ from registrationserver.actor_messages import RxBinaryMsg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.shutdown import system_shutdown
-from thespian.actors import ActorSystem  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -30,7 +29,6 @@ class Rfc2217Actor(DeviceBaseActor):
 
     @overrides
     def __init__(self):
-        logger.debug("Initialize a new RFC2217 actor.")
         super().__init__()
         self.__port: serial.rfc2217.Serial = None
         logger.debug("RFC2217 actor created.")
@@ -57,13 +55,12 @@ class Rfc2217Actor(DeviceBaseActor):
             return True
         return False
 
-    def receiveMsg_TxBinaryMsg(self, msg, _sender):
+    def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for TxBinaryMsg from App to Instrument."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if self._connect():
-            logger.info("Actor %s received: %s", self.globalName, msg.data)
             self.__port.write(msg.data)
-            logger.debug("and wrote it to serial.rfc2217.Serial")
             _return = b""
             while True:
                 _return_part = (
@@ -77,11 +74,10 @@ class Rfc2217Actor(DeviceBaseActor):
             return_message = RxBinaryMsg(_return)
         else:
             return_message = RxBinaryMsg(b"")
-        self.send(self.my_redirector, return_message)
+        self.send(self.redirector_actor(), return_message)
 
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
-        logger.debug("[FreeDeviceMsg]")
         if self.__port is not None:
             if self.__port.isOpen():
                 self.__port.close()

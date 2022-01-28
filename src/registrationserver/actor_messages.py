@@ -155,7 +155,7 @@ class UpdateActorDictMsg:
         actor_dict (dict): Actor Dictionary.
     """
 
-    actor_dict: Dict[str, str]
+    actor_dict: Dict[str, Any]
 
 
 @dataclass

@@ -9,7 +9,7 @@ Authors
 import fnmatch
 import os
 
-from thespian.actors import Actor, ActorSystem  # type: ignore
+from thespian.actors import ActorSystem  # type: ignore
 
 from registrationserver.actor_messages import (GetActorDictMsg,
                                                GetDeviceStatusMsg,
@@ -19,20 +19,20 @@ from registrationserver.logger import logger
 from registrationserver.shutdown import system_shutdown
 
 
-def short_id(global_name: str) -> str:
-    """Get the short_id of a connected instrument from its global_name.
-    The short_id is a hash created from instrument family, type and serial number.
-    The global_name consists of short_id, protocol type and service type
+def short_id(device_id: str) -> str:
+    """Get the short instr_id of a connected instrument from its device_id.
+    The instr_id is a hash created from instrument family, type and serial number.
+    The device_id consists of instr_id, protocol type and service type
     devided by dots.
 
     Args:
-        global_name (str): long id of the instrument that is used
-        as globalName of device actor
+        device_id (str): long ID of the instrument that is used
+                         as actor_id of device actor
 
     Returns:
-        str: the short id, that is the first element of the global_name
+        str: the instr_id, that is the first element of the device_id
     """
-    return global_name.split(".")[0]
+    return device_id.split(".")[0]
 
 
 def find(pattern, path):
@@ -69,16 +69,16 @@ def get_key(val, my_dict):
     return None
 
 
-def get_device_actor(device_id: str):
-    """Find the actor address of a device actor with a given device_id.
+def get_actor(registrar_actor, actor_id: str):
+    """Find the actor address of an actor with a given actor_id.
 
     Args:
-        device_id: The device id identifies the device actor
+        registrar_actor: The actor address of the Registrar
+        actor_id: The actor id identifies the actor
 
     Returns:
-        Actor address of the device actor
+        Actor address
     """
-    registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
     with ActorSystem().private() as db_sys:
         result = db_sys.ask(registrar_actor, GetActorDictMsg(), 10)
         if not isinstance(result, UpdateActorDictMsg):
@@ -89,13 +89,13 @@ def get_device_actor(device_id: str):
             return None
         actor_dict = result.actor_dict
     try:
-        return actor_dict[device_id]["address"]
+        return actor_dict[actor_id]["address"]
     except KeyError:
-        logger.warning("%s not in %s", device_id, actor_dict)
+        logger.warning("%s not in %s", actor_id, actor_dict)
         return None
 
 
-def get_device_status(device_id: str) -> dict:
+def get_device_status(registrar_actor, device_id: str) -> dict:
     """Read the device status from the device actor.
 
     Args:
@@ -107,7 +107,7 @@ def get_device_status(device_id: str) -> dict:
         for the *Identification* of the instrument and it's *Reservation* state
 
     """
-    device_actor = get_device_actor(device_id)
+    device_actor = get_actor(registrar_actor, device_id)
     if device_actor is None:
         return {}
     with ActorSystem().private() as device_sys:
@@ -121,9 +121,8 @@ def get_device_status(device_id: str) -> dict:
     return result.device_status
 
 
-def get_device_statuses():
+def get_device_statuses(registrar_actor):
     """Return a list of all device ids together with the device status"""
-    registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
     with ActorSystem().private() as db_sys:
         result = db_sys.ask(registrar_actor, GetActorDictMsg(), 10)
         if not isinstance(result, UpdateActorDictMsg):
@@ -143,3 +142,20 @@ def get_device_statuses():
         reply = ActorSystem().ask(device_actor, GetDeviceStatusMsg())
         device_statuses[reply.device_id] = reply.device_status
     return device_statuses
+
+
+def get_instr_id_actor_dict(registrar_actor):
+    """Return a dictionary of device actor addresses with instr_id as key."""
+    with ActorSystem().private() as db_sys:
+        result = db_sys.ask(registrar_actor, GetActorDictMsg(), 10)
+        if not isinstance(result, UpdateActorDictMsg):
+            logger.critical(
+                "Emergency shutdown. Ask to Registrar took more than 10 sec."
+            )
+            system_shutdown()
+            return None
+    return {
+        short_id(id): dict["address"]
+        for id, dict in result.actor_dict.items()
+        if dict["is_device_actor"]
+    }

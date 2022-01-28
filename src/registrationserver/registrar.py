@@ -1,7 +1,6 @@
 """Module providing an actor to keep a list of device actors. The list is
-provided as dictionary of form {global_name: actor_address}. The actor is a
-singleton in the actor system and was introduced as a replacement for the
-formerly used device files.
+provided as dictionary of form {actor_id: actor_address}. The actor is a
+singleton in the actor system.
 
 All status information about present instruments can be obtained from the
 device actors referenced in the dictionary.
@@ -41,10 +40,10 @@ class Registrar(BaseActor):
             self._create_actor(MqttSchedulerActor, "mqtt_scheduler")
         self.wakeupAfter(timedelta(minutes=10), payload="keep alive")
 
-    def receiveMsg_WakeupMessage(self, msg, _sender):
+    def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name, no-self-use
         """Handler for WakeupMessage to send the KeepAliveMsg to all children."""
-        logger.debug("%s received WakeupMessage", self.my_id)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if msg.payload == "keep alive":
             for actor_id in self.actor_dict:
                 if not self.actor_dict[actor_id]["is_alive"]:
@@ -57,21 +56,17 @@ class Registrar(BaseActor):
             self.send(self.myAddress, KeepAliveMsg())
         self.wakeupAfter(timedelta(minutes=10), payload="keep alive")
 
-    def receiveMsg_DeadEnvelope(self, msg, _sender):
+    def receiveMsg_DeadEnvelope(self, msg, sender):
         # pylint: disable=invalid-name, no-self-use
         """Handler for all DeadEnvelope messages in the actor system."""
-        logger.debug("%s received DeadEnvelope", self.my_id)
-        logger.critical(
-            "DeadMessage: %s to deadAddress: %s. -> Emergency shutdown",
-            msg.deadMessage,
-            msg.deadAddress,
-        )
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.critical("-> Emergency shutdown")
         system_shutdown()
 
     def receiveMsg_SubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SubscribeMsg from any actor."""
-        logger.debug("%s received SubscribeMsg", self.my_id)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.actor_dict[msg.actor_id] = {
             "address": sender,
             "parent": msg.parent,
@@ -82,12 +77,10 @@ class Registrar(BaseActor):
         logger.debug("Updated actor list: %s", self.actor_dict)
         self._send_updates()
 
-    def receiveMsg_UnsubscribeMsg(self, msg, _sender):
+    def receiveMsg_UnsubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for UnsubscribeMsg from any actor."""
-        logger.debug(
-            "%s received UnsubscribeMsg. %s disbanded.", self.my_id, msg.actor_id
-        )
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.actor_dict.pop(msg.actor_id)
         self._send_updates()
 
@@ -100,14 +93,14 @@ class Registrar(BaseActor):
                     UpdateActorDictMsg(self.actor_dict),
                 )
 
-    def receiveMsg_GetActorDictMsg(self, _msg, sender):
+    def receiveMsg_GetActorDictMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for requests to get the Actor Dictionary once."""
-        logger.debug("%s received GetActorDictMsg", self.my_id)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.send(sender, UpdateActorDictMsg(self.actor_dict))
 
     @overrides
-    def receiveMsg_ActorExitRequest(self, _msg, _sender):
+    def receiveMsg_ActorExitRequest(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for ActorExitRequest"""
         self.send(self.parent.parent_address, True)
@@ -115,6 +108,7 @@ class Registrar(BaseActor):
     def receiveMsg_CreateActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for CreateActorMsg. Create a new actor."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         actor_id = msg.actor_id
         if actor_id not in self.actor_dict:
             actor_address = self._create_actor(msg.actor_type, actor_id)
@@ -125,6 +119,7 @@ class Registrar(BaseActor):
     def receiveMsg_GetDeviceActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handle request to deliver the actor address of a given device id."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         device_actor_dict = {
             id: dict["address"]
             for id, dict in self.actor_dict.items()

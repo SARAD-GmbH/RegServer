@@ -63,7 +63,6 @@ class ClusterActor(BaseActor):
         self._cluster: SaradCluster = SaradCluster(
             native_ports=list(self.native_ports), ignore_ports=list(self.ignore_ports)
         )
-        self._actor_system = None
         super().__init__()
         logger.debug("ClusterActor initialized")
 
@@ -78,7 +77,7 @@ class ClusterActor(BaseActor):
         """Handler for AddPortToLoopMsg from REST API.
         Adds a port or list of ports to the list of serial interfaces that shall be polled.
         Sends the complete list back to the REST API."""
-        logger.info("Adding %s to loop", msg.port)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         ports_ok: List[str] = []
         if isinstance(msg.ports, list):
             for port in msg.ports:
@@ -97,7 +96,7 @@ class ClusterActor(BaseActor):
         Removes a port or a list of ports from the list of serial interfaces
         that shall be polled.
         Sends the complete list back to the REST API."""
-        logger.info("Removing %s from loop", msg.ports)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         ports_ok: List[str] = []
         if isinstance(msg.ports, list):
             for port in msg.ports:
@@ -183,10 +182,9 @@ class ClusterActor(BaseActor):
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for binary message from App to Instrument."""
-        logger.debug("[on TxBinaryMsg]")
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         data = msg.data
         target = msg.instrument
-        logger.debug("Actor %s received: %s for: %s", self.globalName, data, target)
         instrument: SaradInst = None
         if target in self._cluster:
             try:
@@ -198,7 +196,7 @@ class ClusterActor(BaseActor):
             except (SerialException, OSError):
                 logger.error("Connection to %s lost", target)
                 reply = {"is_valid": False, "is_last_frame": True}
-        logger.debug("and got reply from instrument: %s", reply)
+        logger.debug("Instrument replied %s", reply)
         if reply["is_valid"]:
             self.send(sender, RxBinaryMsg(reply["raw"]))
             while not reply["is_last_frame"]:
@@ -222,11 +220,11 @@ class ClusterActor(BaseActor):
             )
             self._remove_actor(self._get_actor_id(sender, self.child_actors))
 
-    def receiveMsg_FreeInstrMsg(self, msg, _sender) -> None:
+    def receiveMsg_FreeInstrMsg(self, msg, sender) -> None:
         # pylint: disable=invalid-name
         """Handler for FreeInstrMsg indicating that the instrument was released by the App.
         Used here to release the serial interface with the release_instrument() function."""
-        logger.debug("[on FreeInstrMsg]")
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         instrument: SaradInst = None
         if msg.instrument in self._cluster:
             (
@@ -239,27 +237,27 @@ class ClusterActor(BaseActor):
                 .release_instrument()
             )
 
-    def receiveMsg_GetLocalPortsMsg(self, _msg, sender):
+    def receiveMsg_GetLocalPortsMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for GetLocalPortsMsg request from REST API"""
-        logger.debug("[on GetLocalPortsMsg]")
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         ports = [
             {"PORT": port.device, "PID": port.pid, "VID": port.vid}
             for port in comports()
         ]
         self.send(sender, ReturnLocalPortsMsg(ports))
 
-    def receiveMsg_GetUsbPortsMsg(self, _msg, sender):
+    def receiveMsg_GetUsbPortsMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for GetUsbPortsMsg request from REST API"""
-        logger.debug("[on GetUsbPortsMsg]")
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         ports = [port.device for port in comports() if port.vid and port.pid]
         self.send(sender, ReturnUsbPortsMsg(ports))
 
-    def receiveMsg_GetNativePortsMsg(self, _msg, sender):
+    def receiveMsg_GetNativePortsMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for GetNativePortsMsg request from REST API"""
-        logger.debug("[on GetNativePortsMsg]")
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         ports = [port.device for port in comports() if not port.pid]
         self.send(sender, ReturnNativePortsMsg(ports))
 
@@ -313,11 +311,11 @@ class ClusterActor(BaseActor):
                 "Tried to remove %s, that never was added properly.", gone_port
             )
 
-    def receiveMsg_InstrAddedMsg(self, _msg, _sender):
+    def receiveMsg_InstrAddedMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Create device actors for instruments connected to
         the serial ports given in the argument list."""
-        logger.debug("[on InstrAddedMsg]")
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         port_actors = self._switch_to_port_key(self.child_actors)
         old_ports = set(port_actors.keys())
         new_instruments = self._cluster.update_connected_instruments(
@@ -332,11 +330,11 @@ class ClusterActor(BaseActor):
                 if instrument.port == port:
                     self._create_and_setup_actor(instrument)
 
-    def receiveMsg_InstrRemovedMsg(self, _msg, _sender):
+    def receiveMsg_InstrRemovedMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Kill device actors for instruments that have been unplugged from
         the serial ports given in the argument list."""
-        logger.debug("[on InstrRemoveMsg]")
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         port_actors = self._switch_to_port_key(self.child_actors)
         old_ports = set(port_actors.keys())
         current_ports = set(port.device for port in comports())

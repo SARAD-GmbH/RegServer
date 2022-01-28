@@ -8,8 +8,10 @@
     | Michael Strey <strey@sarad.de>
 
 """
-from registrationserver.modules.usb.cluster_actor import ClusterActor
-from thespian.actors import ActorSystem  # type: ignore
+import time
+
+from registrationserver.actor_messages import AppType
+from registrationserver.helpers import get_actor
 
 
 class BaseListener:
@@ -17,6 +19,14 @@ class BaseListener:
     """Process listening for new connected SARAD instruments
     -- base for OS specific implementations."""
 
-    def __init__(self):
-        self._system = ActorSystem()
-        self._cluster = self._system.createActor(ClusterActor, globalName="cluster")
+    def __init__(self, registrar_actor, app_type):
+        """Wait for the Registrar Actor to create the Cluster Actor."""
+        if app_type is AppType.ISMQTT:
+            mqtt_scheduler = None
+            while mqtt_scheduler is None:
+                mqtt_scheduler = get_actor(registrar_actor, "mqtt_scheduler")
+                time.sleep(1)
+        self.cluster_actor = None
+        while self.cluster_actor is None:
+            self.cluster_actor = get_actor(registrar_actor, "cluster")
+            time.sleep(1)
