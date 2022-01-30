@@ -360,14 +360,6 @@ class ConnectMsg:
 
 
 @dataclass
-class RemoveDeviceMsg:
-    """Message to remove an instrument from the device list.
-    Sent from Device Actor to the MQTT Scheduler."""
-
-    instr_id: str
-
-
-@dataclass
 class PrepareMqttActorMsg:
     """Message with information to setup the MQTT client of the MQTT Actor."""
 

@@ -13,7 +13,6 @@ from datetime import datetime
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (AppType, ConnectMsg, KillMsg,
-                                               RemoveDeviceMsg,
                                                ReservationStatusMsg, Status,
                                                SubscribeMsg,
                                                UpdateDeviceStatusMsg)
@@ -63,16 +62,6 @@ class DeviceBaseActor(BaseActor):
         self.user = None
         self.host = None
         self.sender_api = None
-        self.mqtt_scheduler = None
-
-    @overrides
-    def receiveMsg_SetupMsg(self, msg, sender):
-        super().receiveMsg_SetupMsg(msg, sender)
-        if self.app_type == AppType.ISMQTT:
-            # We trust in the existence of mqtt_scheduler, that was created by
-            # the Registrar before the creation of any device actor.
-            self.mqtt_scheduler = get_actor(self.registrar, "mqtt_scheduler")
-            self.subscribers["mqtt_scheduler"] = self.mqtt_scheduler
 
     @overrides
     def _subscribe(self):
@@ -93,15 +82,9 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.device_status = msg.device_status
         logger.debug("Device status: %s", self.device_status)
-        if self.mqtt_scheduler is not None:
+        if self.app_type is AppType.ISMQTT:
             self.device_status["Identification"]["Host"] = ismqtt_config["IS_ID"]
         self._publish_status_change()
-
-    @overrides
-    def receiveMsg_KillMsg(self, msg, sender):
-        if self.app_type == AppType.ISMQTT:
-            self.send(self.mqtt_scheduler, RemoveDeviceMsg(short_id(self.my_id)))
-        super().receiveMsg_KillMsg(msg, sender)
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -242,6 +225,7 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.subscribers[msg.actor_id] = sender
         logger.debug("Subscribers for DeviceStatusMsg: %s", self.subscribers)
+        self._publish_status_change()
 
     def _publish_status_change(self):
         """Publish a changed device status to all subscribers."""

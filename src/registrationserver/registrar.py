@@ -67,6 +67,7 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.debug("Actor list: %s", self.actor_dict)
         self.actor_dict[msg.actor_id] = {
             "address": sender,
             "parent": msg.parent,
@@ -88,6 +89,7 @@ class Registrar(BaseActor):
         """Send the updated Actor Dictionary to all subscribers."""
         for actor_id in self.actor_dict:
             if self.actor_dict[actor_id]["get_updates"]:
+                logger.debug("Send updated actor_dict to %s", actor_id)
                 self.send(
                     self.actor_dict[actor_id]["address"],
                     UpdateActorDictMsg(self.actor_dict),
@@ -128,3 +130,15 @@ class Registrar(BaseActor):
         for actor_id, actor_address in device_actor_dict.items():
             if actor_id == msg.device_id:
                 self.send(sender, ReturnDeviceActorMsg(actor_address))
+
+    def receiveMsg_SubscribeToActorDictMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Set the 'get_updates' flag for the requesting sender
+        to send updated actor dictionaries to it."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if msg.actor_id in self.actor_dict:
+            logger.debug("Set 'get_updates' for %s", msg.actor_id)
+            self.actor_dict[msg.actor_id]["get_updates"] = True
+            self._send_updates()
+        else:
+            logger.warning("%s not in %s", msg.actor_id, self.actor_dict)

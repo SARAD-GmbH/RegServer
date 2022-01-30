@@ -159,3 +159,15 @@ def get_instr_id_actor_dict(registrar_actor):
         for id, dict in result.actor_dict.items()
         if dict["is_device_actor"]
     }
+
+
+def diff_of_dicts(dict1, dict2):
+    """Get difference of two dictionaries."""
+    set1 = set(dict1.keys())
+    set2 = set(dict2.keys())
+    diff = set1 - set2
+    diff_dict = {}
+    for key in diff:
+        if key in dict1:
+            diff_dict[key] = dict1[key]
+    return diff_dict
