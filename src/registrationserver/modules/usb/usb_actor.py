@@ -27,6 +27,7 @@ class UsbActor(DeviceBaseActor):
         logger.debug("Initialize a new USB actor.")
         super().__init__()
         self.instrument = None
+        self.mqtt_scheduler = None
         logger.info("USB actor created.")
 
     @overrides
@@ -38,6 +39,8 @@ class UsbActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Forward binary message from App to cluster actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if self.app_type == AppType.ISMQTT:
+            self.mqtt_scheduler = sender
         cluster_actor = self.parent.parent_address
         self.send(cluster_actor, TxBinaryMsg(msg.data, msg.host, self.instrument))
 
