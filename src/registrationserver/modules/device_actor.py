@@ -18,10 +18,9 @@ from registrationserver.actor_messages import (AppType, ConnectMsg, KillMsg,
                                                UpdateDeviceStatusMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import ismqtt_config
-from registrationserver.helpers import get_actor, short_id
+from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.redirect_actor import RedirectorActor
-from thespian.actors import Actor  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -225,7 +224,8 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.subscribers[msg.actor_id] = sender
         logger.debug("Subscribers for DeviceStatusMsg: %s", self.subscribers)
-        self._publish_status_change()
+        if self.device_status:
+            self._publish_status_change()
 
     def _publish_status_change(self):
         """Publish a changed device status to all subscribers."""
