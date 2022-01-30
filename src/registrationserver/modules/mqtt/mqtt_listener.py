@@ -349,6 +349,7 @@ class SaradMqttSubscriber:
 
     def on_instr_meta(self, _client, _userdata, message):
         """Handler for all messages of topic +/+/meta."""
+        logger.debug("[on_instr_meta] %s, %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
         is_id = topic_parts[0]
         instr_id = topic_parts[1]

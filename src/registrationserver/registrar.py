@@ -67,7 +67,6 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        logger.debug("Actor list: %s", self.actor_dict)
         self.actor_dict[msg.actor_id] = {
             "address": sender,
             "parent": msg.parent,
@@ -75,7 +74,6 @@ class Registrar(BaseActor):
             "get_updates": msg.get_updates,
             "is_alive": True,
         }
-        logger.debug("Updated actor list: %s", self.actor_dict)
         self._send_updates()
 
     def receiveMsg_UnsubscribeMsg(self, msg, sender):
