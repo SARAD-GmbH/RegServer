@@ -85,9 +85,9 @@ class MqttSchedulerActor(BaseActor):
         mqtt_broker = mqtt_config["MQTT_BROKER"]
         port = mqtt_config["PORT"]
         self._connect(mqtt_broker, port)
+        self.mqttc.subscribe(f"{self.is_id}/+/meta", 0)
         self.mqttc.loop_start()
         self._subscribe_to_actor_dict_msg()
-        self.mqttc.subscribe(self.is_id + "/+/meta", 0)
 
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
         # pylint: disable=invalid-name
