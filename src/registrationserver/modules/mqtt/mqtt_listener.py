@@ -220,7 +220,8 @@ class SaradMqttSubscriber:
         device_id = self.connected_instruments[is_id][instr_id]
         logger.info("[rm_instr] %s", instr_id)
         device_actor = get_actor(self.registrar_actor, device_id)
-        ActorSystem().tell(device_actor, ActorExitRequest())
+        if device_actor is not None:
+            ActorSystem().tell(device_actor, ActorExitRequest())
         del self.connected_instruments[is_id][instr_id]
         return
 
