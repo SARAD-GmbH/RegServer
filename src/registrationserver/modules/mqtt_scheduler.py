@@ -62,6 +62,7 @@ class MqttSchedulerActor(BaseActor):
         self.mqttc.on_disconnect = self.on_disconnect
         self.mqttc.message_callback_add("+/+/control", self.on_control)
         self.mqttc.message_callback_add("+/+/cmd", self.on_cmd)
+        self.mqttc.message_callback_add(f"{self.is_id}/+/meta", self.on_instr_meta)
         self.mqttc.on_message = self.on_message
         self.is_meta = ismqtt_messages.InstrumentServerMeta(
             state=0,
@@ -86,6 +87,7 @@ class MqttSchedulerActor(BaseActor):
         self._connect(mqtt_broker, port)
         self.mqttc.loop_start()
         self._subscribe_to_actor_dict_msg()
+        self.mqttc.subscribe(self.is_id + "/+/meta", 0)
 
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -366,3 +368,14 @@ class MqttSchedulerActor(BaseActor):
             payload=json.dumps(reservation),
             retain=True,
         )
+
+    def on_instr_meta(self, _client, _userdata, message):
+        """Handler for all messages of topic self.is_id/+/meta.
+        This function and subscription was introduced to handle the very special case
+        when a crashed Instr. Server leaves an active meta topic on the MQTT broker with
+        its retain flag."""
+        logger.debug("[on_instr_meta] %s, %s", message.topic, message.payload)
+        topic_parts = message.topic.split("/")
+        instr_id = topic_parts[1]
+        if instr_id not in self.instr_id_actor_dict:
+            self._remove_instrument(instr_id)
