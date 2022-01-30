@@ -377,5 +377,12 @@ class MqttSchedulerActor(BaseActor):
         logger.debug("[on_instr_meta] %s, %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
         instr_id = topic_parts[1]
-        if instr_id not in self.instr_id_actor_dict:
-            self._remove_instrument(instr_id)
+        payload = json.loads(message.payload)
+        if (instr_id not in self.instr_id_actor_dict) and (
+            payload.get("State", 2) in (2, 1)
+        ):
+            self.mqttc.publish(
+                retain=True,
+                topic=f"{self.is_id}/{instr_id}/meta",
+                payload=json.dumps({"State": 0}),
+            )
