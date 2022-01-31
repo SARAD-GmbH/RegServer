@@ -16,15 +16,14 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg, ReturnLocalPortsMsg,
                                                ReturnLoopPortsMsg,
                                                ReturnNativePortsMsg,
-                                               ReturnUsbPortsMsg, RxBinaryMsg,
-                                               SetDeviceStatusMsg, SetupMsg)
+                                               ReturnUsbPortsMsg,
+                                               SetDeviceStatusMsg, SetupMsg,
+                                               SetupUsbActorMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.usb.usb_actor import UsbActor
 from sarad.cluster import SaradCluster  # type: ignore
-from sarad.sari import SaradInst  # type: ignore
-from serial import SerialException  # type: ignore
 from serial.tools.list_ports import comports  # type: ignore
 
 
@@ -179,64 +178,6 @@ class ClusterActor(BaseActor):
             return True
         return False
 
-    def receiveMsg_TxBinaryMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler for binary message from App to Instrument."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        data = msg.data
-        target = msg.instrument
-        instrument: SaradInst = None
-        if target in self._cluster:
-            try:
-                reply = (
-                    [instrument for instrument in self._cluster if instrument == target]
-                    .pop()
-                    .get_message_payload(data, 5)
-                )
-            except (SerialException, OSError):
-                logger.error("Connection to %s lost", target)
-                reply = {"is_valid": False, "is_last_frame": True}
-        logger.debug("Instrument replied %s", reply)
-        if reply["is_valid"]:
-            self.send(sender, RxBinaryMsg(reply["raw"]))
-            while not reply["is_last_frame"]:
-                try:
-                    reply = (
-                        [
-                            instrument
-                            for instrument in self._cluster
-                            if instrument == target
-                        ]
-                        .pop()
-                        .get_next_payload(5)
-                    )
-                    self.send(sender, RxBinaryMsg(reply["raw"]))
-                except (SerialException, OSError):
-                    logger.error("Connection to %s lost", target)
-                    reply = {"is_valid": False, "is_last_frame": True}
-        if not reply["is_valid"]:
-            logger.warning(
-                "Invalid binary message from instrument. Removing %s", sender
-            )
-            self._remove_actor(self._get_actor_id(sender, self.child_actors))
-
-    def receiveMsg_FreeInstrMsg(self, msg, sender) -> None:
-        # pylint: disable=invalid-name
-        """Handler for FreeInstrMsg indicating that the instrument was released by the App.
-        Used here to release the serial interface with the release_instrument() function."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        instrument: SaradInst = None
-        if msg.instrument in self._cluster:
-            (
-                [
-                    instrument
-                    for instrument in self._cluster
-                    if instrument == msg.instrument
-                ]
-                .pop()
-                .release_instrument()
-            )
-
     def receiveMsg_GetLocalPortsMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for GetLocalPortsMsg request from REST API"""
@@ -296,6 +237,7 @@ class ClusterActor(BaseActor):
         }
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
         self.send(device_actor, SetDeviceStatusMsg(device_status))
+        self.send(device_actor, SetupUsbActorMsg(instrument))
 
     def _remove_actor(self, gone_port):
         logger.debug("[_remove_actor]")

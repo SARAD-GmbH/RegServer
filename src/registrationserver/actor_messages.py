@@ -71,7 +71,6 @@ class AppType(Enum):
 @dataclass
 class SetupMsg:
     """Message used to send setup information after actor __init__.
-    The device_status parameter is only used for the setup of Device Actors.
 
     Args:
         actor_id (str): Unique Id of the actor.
@@ -82,6 +81,19 @@ class SetupMsg:
     actor_id: str
     parent_id: str
     app_type: AppType
+
+
+@dataclass
+class SetupUsbActorMsg:
+    """Message used to send the special setup information required for USB Actors.
+    The parameters are required to create the SaradInst object for serial communication
+    with the instrument.
+
+    Args:
+        instrument (SaradInst): SaradInst object belonging to this device.
+    """
+
+    instrument: SaradInst
 
 
 @dataclass
@@ -181,7 +193,6 @@ class TxBinaryMsg:
 
     data: ByteString
     host: Union[str, None]
-    instrument: Union[SaradInst, None]
 
 
 @dataclass
@@ -285,13 +296,6 @@ class InstrAddedMsg:
 @dataclass
 class InstrRemovedMsg:
     """Request to remove an instrument."""
-
-
-@dataclass
-class FreeInstrMsg:
-    """Request to free an instrument from reservation."""
-
-    instrument: SaradInst
 
 
 @dataclass

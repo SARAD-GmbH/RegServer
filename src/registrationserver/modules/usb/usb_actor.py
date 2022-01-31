@@ -10,11 +10,15 @@
 .. uml :: uml-usb_actor.puml
 """
 
+from typing import Union
+
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (AppType, FreeInstrMsg,
-                                               TxBinaryMsg)
+from registrationserver.actor_messages import KillMsg, RxBinaryMsg
+from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
+from sarad.sari import SaradInst  # type: ignore
+from serial import SerialException  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -26,35 +30,40 @@ class UsbActor(DeviceBaseActor):
     def __init__(self):
         logger.debug("Initialize a new USB actor.")
         super().__init__()
-        self.instrument = None
         self.mqtt_scheduler = None
+        self.instrument: Union[SaradInst, None] = None
         logger.info("USB actor created.")
 
-    @overrides
-    def receiveMsg_SetupMsg(self, msg, sender):
-        super().receiveMsg_SetupMsg(msg, sender)
-        self.instrument = self.my_id.split(".")[0]
+    def receiveMsg_SetupUsbActorMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Set the SaradInst object for serial communication."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.instrument = msg.instrument
 
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Forward binary message from App to cluster actor."""
+        """Handler for binary message from App to Instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.app_type == AppType.ISMQTT:
-            self.mqtt_scheduler = sender
-        cluster_actor = self.parent.parent_address
-        self.send(cluster_actor, TxBinaryMsg(msg.data, msg.host, self.instrument))
-
-    def receiveMsg_RxBinaryMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Forward binary message from cluster actor to App."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.app_type == AppType.ISMQTT:
-            self.send(self.mqtt_scheduler, msg)
-        elif self.app_type == AppType.RS:
-            self.send(self.redirector_actor(), msg)
-        else:
-            # reserved for future use
-            self.send(self.redirector_actor(), msg)
+        try:
+            reply = self.instrument.get_message_payload(msg.data, 5)
+        except (SerialException, OSError):
+            logger.error("Connection to %s lost", self.instrument)
+            reply = {"is_valid": False, "is_last_frame": True}
+        logger.debug("Instrument replied %s", reply)
+        if reply["is_valid"]:
+            self.send(sender, RxBinaryMsg(reply["raw"]))
+            while not reply["is_last_frame"]:
+                try:
+                    reply = self.instrument.get_next_payload(5)
+                    self.send(sender, RxBinaryMsg(reply["raw"]))
+                except (SerialException, OSError):
+                    logger.error("Connection to %s lost", self.my_id)
+                    reply = {"is_valid": False, "is_last_frame": True}
+        if not reply["is_valid"]:
+            logger.warning(
+                "Invalid binary message from instrument. Removing %s", sender
+            )
+            self.send(self.myAddress, KillMsg())
 
     @overrides
     def _reserve_at_is(self):
@@ -66,8 +75,7 @@ class UsbActor(DeviceBaseActor):
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
-        cluster_actor = self.parent.parent_address
-        self.send(cluster_actor, FreeInstrMsg(self.instrument))
+        self.instrument.release_instrument()
         super().receiveMsg_ChildActorExited(msg, sender)
 
 

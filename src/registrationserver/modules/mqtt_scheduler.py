@@ -290,7 +290,7 @@ class MqttSchedulerActor(BaseActor):
             device_actor = self.instr_id_actor_dict.get(instr_id)
             if device_actor is not None:
                 logger.debug("Forward command %s to device actor %s", cmd, device_actor)
-                self.send(device_actor, TxBinaryMsg(cmd, "localhost", instrument=None))
+                self.send(device_actor, TxBinaryMsg(cmd, "localhost"))
 
     def on_message(self, _client, _userdata, message):
         # pylint: disable=no-self-use
@@ -314,7 +314,7 @@ class MqttSchedulerActor(BaseActor):
         when a MQTT control message with a 'reserve' request was received
         for a specific instrument ID."""
         logger.debug(
-            "[RESERVE] client=%s, instrument=%s, control=%s",
+            "[RESERVE] client=%s, instr_id=%s, control=%s",
             self.mqttc,
             instr_id,
             control,
