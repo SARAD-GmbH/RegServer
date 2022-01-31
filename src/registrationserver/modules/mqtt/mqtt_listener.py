@@ -140,15 +140,15 @@ class SaradMqttSubscriber:
                 logger.info(
                     "Check your network connection and IP address in config_windows.toml!"
                 )
-                logger.info(
-                    "I will be waiting %d x %d seconds, then I will give up.",
-                    retry_counter,
-                    retry_interval,
-                )
             except OSError as exception:  # pylint: disable=broad-except
                 logger.error("%s. Check port in config_windows.toml!", exception)
-                return False
+            logger.info(
+                "I will be retrying %d times after %d seconds.",
+                retry_counter,
+                retry_interval,
+            )
             time.sleep(retry_interval)
+        logger.info("Giving up on MQTT. We can handle only local instruments.")
         return False
 
     def mqtt_loop(self):

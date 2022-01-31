@@ -31,7 +31,7 @@ class UsbActor(DeviceBaseActor):
         super().__init__()
         self.mqtt_scheduler = None
         self.instrument: Union[SaradInst, None] = None
-        logger.info("USB actor created.")
+        logger.info("Instrument with Id %s detected.")
 
     def receiveMsg_SetupUsbActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
