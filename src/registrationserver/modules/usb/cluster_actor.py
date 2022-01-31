@@ -237,7 +237,7 @@ class ClusterActor(BaseActor):
         }
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
         self.send(device_actor, SetDeviceStatusMsg(device_status))
-        self.send(device_actor, SetupUsbActorMsg(instrument))
+        self.send(device_actor, SetupUsbActorMsg(instrument.port, instrument.family))
 
     def _remove_actor(self, gone_port):
         logger.debug("[_remove_actor]")

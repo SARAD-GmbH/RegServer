@@ -14,7 +14,6 @@ from typing import Union
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import KillMsg, RxBinaryMsg
-from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from sarad.sari import SaradInst  # type: ignore
@@ -37,8 +36,14 @@ class UsbActor(DeviceBaseActor):
     def receiveMsg_SetupUsbActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Set the SaradInst object for serial communication."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.instrument = msg.instrument
+        logger.debug(
+            "SetUsbActorMsg(port=%s, family=%d) for %s from %s",
+            msg.port,
+            msg.family["family_id"],
+            self.my_id,
+            sender,
+        )
+        self.instrument = SaradInst(msg.port, msg.family)
 
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name

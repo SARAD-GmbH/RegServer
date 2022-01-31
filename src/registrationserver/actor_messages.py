@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import Enum, auto, unique
 from typing import Any, ByteString, Dict, List, Union
 
-from sarad.sari import SaradInst  # type: ignore
+from sarad.sari import FamilyDict  # type: ignore
 from thespian.actors import ActorAddress  # type: ignore
 
 
@@ -90,10 +90,12 @@ class SetupUsbActorMsg:
     with the instrument.
 
     Args:
-        instrument (SaradInst): SaradInst object belonging to this device.
+        port (str): Serial interface port of the instrument.
+        family (FamilyDict): Instrument family from instruments.yaml
     """
 
-    instrument: SaradInst
+    port: str
+    family: FamilyDict
 
 
 @dataclass
