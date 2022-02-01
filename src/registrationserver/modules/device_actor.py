@@ -127,7 +127,6 @@ class DeviceBaseActor(BaseActor):
         if success:
             if self._create_redirector():
                 return
-            self.send(self.sender_api, ReservationStatusMsg(Status.OK))
         else:
             self.send(self.sender_api, ReservationStatusMsg(Status.OCCUPIED))
 
