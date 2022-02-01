@@ -89,22 +89,23 @@ class MqttSchedulerActor(BaseActor):
         self.mqttc.loop_start()
         self._subscribe_to_actor_dict_msg()
 
+    @overrides
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Receive all changes of actor dictionary from Registrar Actor."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        super().receiveMsg_UpdateActorDictMsg(msg, sender)
         old_instr_id_actor_dict = self.instr_id_actor_dict
         self.instr_id_actor_dict = {
             short_id(device_id): dict["address"]
-            for device_id, dict in msg.actor_dict.items()
+            for device_id, dict in self.actor_dict.items()
             if dict["is_device_actor"]
         }
         new_instruments = diff_of_dicts(
             self.instr_id_actor_dict, old_instr_id_actor_dict
         )
+        logger.debug("New instruments %s", new_instruments)
         gone_instruments = diff_of_dicts(
             old_instr_id_actor_dict, self.instr_id_actor_dict
         )
+        logger.debug("Gone instruments %s", gone_instruments)
         for address in new_instruments.values():
             self._subscribe_to_device_status_msg(address)
         for instr_id in gone_instruments:
