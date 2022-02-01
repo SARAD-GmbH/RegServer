@@ -12,11 +12,10 @@ import sys
 import threading
 import time
 
-from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import ActorSystem, PoisonMessage
+from thespian.actors import ActorSystem  # type: ignore
 
 from registrationserver.actor_messages import AppType, KillMsg, SetupMsg
-from registrationserver.config import actor_config, config
+from registrationserver.config import actor_config
 from registrationserver.logdef import LOGFILENAME, logcfg
 from registrationserver.logger import logger
 from registrationserver.registrar import Registrar
@@ -43,10 +42,7 @@ def cleanup():
     logger.debug("Terminate the actor system")
     registrar_actor = ActorSystem().createActor(Registrar, globalName="registrar")
     response = ActorSystem().ask(registrar_actor, KillMsg(), 10)
-    if isinstance(response, PoisonMessage):
-        logger.critical("Critical error in Registrar actor. I will try to proceed.")
-        logger.critical(response.details)
-        ActorSystem().tell(registrar_actor, ActorExitRequest())
+    logger.debug("KillMsg to Registrar returned with %s", response)
     ActorSystem().shutdown()
     logger.info("Actor system shut down finished.")
 

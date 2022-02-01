@@ -9,9 +9,13 @@
 
 """
 
-import win32api  # pylint: disable=import-error
-import win32con  # pylint: disable=import-error
-import win32gui  # pylint: disable=import-error
+try:
+    import win32api  # type: ignore
+    import win32con  # type: ignore
+    import win32gui  # type: ignore
+except ImportError:
+    print("Wrong operating system.")
+    raise
 from registrationserver.actor_messages import InstrAddedMsg, InstrRemovedMsg
 from registrationserver.logger import logger
 from registrationserver.modules.usb.base_listener import BaseListener

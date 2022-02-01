@@ -16,7 +16,7 @@ import threading
 import time
 from datetime import datetime
 
-from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
+from thespian.actors import ActorSystem  # type: ignore
 
 from registrationserver.actor_messages import AppType, KillMsg
 from registrationserver.config import config
@@ -24,7 +24,7 @@ from registrationserver.logdef import LOGFILENAME
 from registrationserver.logger import logger
 from registrationserver.modules.mqtt.mqtt_listener import SaradMqttSubscriber
 from registrationserver.modules.rfc2217.mdns_listener import MdnsListener
-from registrationserver.restapi import RestApi, registrar_actor
+from registrationserver.restapi import REGISTRAR_ACTOR, RestApi
 from registrationserver.shutdown import is_flag_set, set_file_flag
 
 if os.name == "nt":
@@ -64,12 +64,8 @@ def cleanup(mqtt_listener, mdns_listener):
     if mdns_listener is not None:
         mdns_listener.shutdown()
     logger.debug("Terminate the actor system")
-    response = ActorSystem().ask(registrar_actor, KillMsg(), 10)
-    logger.debug("Registrar responded with %s", response)
-    if not response:
-        logger.critical("Critical error in Registrar actor. I will try to proceed.")
-        logger.critical(response.details)
-        ActorSystem().tell(registrar_actor, ActorExitRequest())
+    response = ActorSystem().ask(REGISTRAR_ACTOR, KillMsg(), 10)
+    logger.debug("KillMsg to Registrar returned with %s", response)
     ActorSystem().shutdown()
     logger.info("Actor system shut down finished.")
 
@@ -100,14 +96,14 @@ def startup():
         daemon=True,
     )
     apithread.start()
-    usb_listener = UsbListener(registrar_actor, AppType.RS)
+    usb_listener = UsbListener(REGISTRAR_ACTOR, AppType.RS)
     usb_listener_thread = threading.Thread(
         target=usb_listener.run,
         daemon=True,
     )
     usb_listener_thread.start()
 
-    return MdnsListener(registrar_actor, service_type=config["TYPE"])
+    return MdnsListener(REGISTRAR_ACTOR, service_type=config["TYPE"])
 
 
 def main():
@@ -119,7 +115,7 @@ def main():
         start_stop = sys.argv[1]
     if start_stop == "start":
         mdns_listener = startup()
-        mqtt_listener = SaradMqttSubscriber(registrar_actor)
+        mqtt_listener = SaradMqttSubscriber(REGISTRAR_ACTOR)
         logger.debug("Trying to connect")
         mqtt_connected = mqtt_listener.connect()
         if not mqtt_connected:
