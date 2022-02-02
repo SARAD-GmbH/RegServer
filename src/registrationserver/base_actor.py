@@ -65,6 +65,8 @@ class BaseActor(ActorTypeDispatcher):
         self.registrar = None
         self.parent = None
         self.my_id = None
+        self.is_device_actor = False
+        self.get_updates = False
         self.child_actors = {}  # {actor_id: {"actor_address": <actor address>}}
         self.actor_dict = {}
         self.on_kill = False
@@ -87,8 +89,8 @@ class BaseActor(ActorTypeDispatcher):
             SubscribeMsg(
                 actor_id=self.my_id,
                 parent=self.parent.parent_address,
-                is_device_actor=False,
-                get_updates=False,
+                is_device_actor=self.is_device_actor,
+                get_updates=self.get_updates,
             ),
         )
 
@@ -151,6 +153,7 @@ class BaseActor(ActorTypeDispatcher):
 
     def _subscribe_to_actor_dict_msg(self):
         """Subscribe to receive updates of the Actor Dictionary from Registrar."""
+        self.get_updates = True
         self.send(self.registrar, SubscribeToActorDictMsg(actor_id=self.my_id))
 
     def _subscribe_to_device_status_msg(self, device_actor_address):

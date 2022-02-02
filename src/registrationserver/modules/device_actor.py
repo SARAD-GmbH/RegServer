@@ -61,19 +61,7 @@ class DeviceBaseActor(BaseActor):
         self.user = None
         self.host = None
         self.sender_api = None
-
-    @overrides
-    def _subscribe(self):
-        """Subscribe at Registrar actor."""
-        self.send(
-            self.registrar,
-            SubscribeMsg(
-                actor_id=self.my_id,
-                parent=self.parent.parent_address,
-                is_device_actor=True,
-                get_updates=False,
-            ),
-        )
+        self.is_device_actor = True
 
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name

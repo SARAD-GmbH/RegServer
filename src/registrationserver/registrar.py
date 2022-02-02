@@ -38,7 +38,7 @@ class Registrar(BaseActor):
         self._create_actor(ClusterActor, "cluster")
         if self.app_type == AppType.ISMQTT:
             self._create_actor(MqttSchedulerActor, "mqtt_scheduler")
-        self.wakeupAfter(timedelta(minutes=10), payload="keep alive")
+        self.wakeupAfter(timedelta(minutes=1), payload="keep alive")
 
     def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name, no-self-use
@@ -74,23 +74,23 @@ class Registrar(BaseActor):
             "get_updates": msg.get_updates,
             "is_alive": True,
         }
-        self._send_updates()
+        self._send_updates(self.actor_dict)
 
     def receiveMsg_UnsubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for UnsubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.actor_dict.pop(msg.actor_id)
-        self._send_updates()
+        self._send_updates(self.actor_dict)
 
-    def _send_updates(self):
+    def _send_updates(self, actor_dict):
         """Send the updated Actor Dictionary to all subscribers."""
-        for actor_id in self.actor_dict:
-            if self.actor_dict[actor_id]["get_updates"]:
+        for actor_id in actor_dict:
+            if actor_dict[actor_id]["get_updates"]:
                 logger.debug("Send updated actor_dict to %s", actor_id)
                 self.send(
-                    self.actor_dict[actor_id]["address"],
-                    UpdateActorDictMsg(self.actor_dict),
+                    actor_dict[actor_id]["address"],
+                    UpdateActorDictMsg(actor_dict),
                 )
 
     def receiveMsg_GetActorDictMsg(self, msg, sender):
@@ -137,6 +137,6 @@ class Registrar(BaseActor):
         if msg.actor_id in self.actor_dict:
             logger.debug("Set 'get_updates' for %s", msg.actor_id)
             self.actor_dict[msg.actor_id]["get_updates"] = True
-            self._send_updates()
+            self._send_updates(self.actor_dict)
         else:
             logger.warning("%s not in %s", msg.actor_id, self.actor_dict)
