@@ -244,11 +244,13 @@ class RestApi:
     def getlocalports():
         """Lists Local Ports, Used for Testing atm"""
         cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
-        reply = ActorSystem().ask(cluster_actor, GetLocalPortsMsg, 10)
+        reply = ActorSystem().ask(cluster_actor, GetLocalPortsMsg(), 10)
         reply_is_corrupted = check_msg(reply, ReturnLocalPortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
-        return reply.ports
+        return Response(
+            response=json.dumps(reply.ports), status=200, mimetype="application/json"
+        )
 
     @staticmethod
     @api.route("/ports/<port>/loop", methods=["GET"])
@@ -259,7 +261,9 @@ class RestApi:
         reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
-        return reply.ports
+        return Response(
+            response=json.dumps(reply.ports), status=200, mimetype="application/json"
+        )
 
     @staticmethod
     @api.route("/ports/<port>/stop", methods=["GET"])
@@ -270,7 +274,9 @@ class RestApi:
         reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
-        return reply.ports
+        return Response(
+            response=json.dumps(reply.ports), status=200, mimetype="application/json"
+        )
 
     @staticmethod
     @api.route("/ports/list-usb", methods=["GET"])
@@ -281,7 +287,9 @@ class RestApi:
         reply_is_corrupted = check_msg(reply, ReturnUsbPortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
-        return reply.ports
+        return Response(
+            response=json.dumps(reply.ports), status=200, mimetype="application/json"
+        )
 
     @staticmethod
     @api.route("/ports/list-native", methods=["GET"])
@@ -292,15 +300,17 @@ class RestApi:
         reply_is_corrupted = check_msg(reply, ReturnNativePortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
-        return reply.ports
+        return Response(
+            response=json.dumps(reply.ports), status=200, mimetype="application/json"
+        )
 
     @staticmethod
-    @api.route("/status", methods=["GET"])
-    def getstatus():
+    @api.route("/status/<actor_id>", methods=["GET"])
+    def getstatus(actor_id):
         """Ask actor system to output actor status to debug log"""
-        cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
+        actor_address = get_actor(REGISTRAR_ACTOR, actor_id)
         reply = ActorSystem().ask(
-            actorAddr=cluster_actor, msg=Thespian_StatusReq(), timeout=10
+            actorAddr=actor_address, msg=Thespian_StatusReq(), timeout=10
         )
         reply_is_corrupted = check_msg(reply, Thespian_ActorStatus)
         if reply_is_corrupted:
