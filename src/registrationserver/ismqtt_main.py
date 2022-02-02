@@ -11,6 +11,7 @@ import os
 import sys
 import threading
 import time
+from datetime import datetime
 
 from thespian.actors import ActorSystem  # type: ignore
 
@@ -108,7 +109,14 @@ def main():
         return None
 
     while is_flag_set():
+        before = datetime.now()
         time.sleep(4)
+        after = datetime.now()
+        if (after - before).total_seconds() > 10:
+            logger.debug(
+                "Wakeup from suspension. Shutting down ISMQTT for a fresh restart."
+            )
+            set_file_flag(False)
     try:
         cleanup()
         set_file_flag(False)
