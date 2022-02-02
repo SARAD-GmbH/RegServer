@@ -76,7 +76,8 @@ def check_msg(return_message, message_object_type):
     """
     logger.debug("Returned with %s", return_message)
     if not isinstance(return_message, message_object_type):
-        logger.critical("Critical error in device actor. Stop and shutdown system.")
+        logger.critical("Got message object of unexpected type")
+        logger.critical("-> Stop and shutdown system")
         status = Status.CRITICAL
         answer = {"Error code": status.value, "Error": str(status)}
         system_shutdown()

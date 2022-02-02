@@ -17,7 +17,7 @@ import socket
 import threading
 
 import hashids  # type: ignore
-from registrationserver.actor_messages import (CreateActorMsg,
+from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
                                                SetDeviceStatusMsg)
 from registrationserver.config import config
 from registrationserver.helpers import get_actor
@@ -123,10 +123,15 @@ class MdnsListener(ServiceListener):
                 reply = ActorSystem().ask(
                     self.registrar, CreateActorMsg(Rfc2217Actor, actor_id)
                 )
-                device_actor = reply.actor_address
-                data = self.convert_properties(name=name, info=info)
-                logger.debug("Setup the device actor with %s", data)
-                ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))
+                if not isinstance(reply, ActorCreatedMsg):
+                    logger.critical("Got message object of unexpected type")
+                    logger.critical("-> Stop and shutdown system")
+                    system_shutdown()
+                else:
+                    device_actor = reply.actor_address
+                    data = self.convert_properties(name=name, info=info)
+                    logger.debug("Setup the device actor with %s", data)
+                    ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name

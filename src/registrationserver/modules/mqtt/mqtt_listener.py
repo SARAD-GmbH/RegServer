@@ -18,7 +18,7 @@ import time
 from typing import Any, Dict
 
 import paho.mqtt.client as MQTT  # type: ignore
-from registrationserver.actor_messages import (CreateActorMsg,
+from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
                                                PrepareMqttActorMsg,
                                                SetDeviceStatusMsg)
 from registrationserver.config import mqtt_config
@@ -198,11 +198,16 @@ class SaradMqttSubscriber:
         reply = ActorSystem().ask(
             self.registrar_actor, CreateActorMsg(MqttActor, actor_id)
         )
-        device_actor = reply.actor_address
-        ActorSystem().tell(device_actor, SetDeviceStatusMsg(device_status=payload))
-        ActorSystem().tell(
-            device_actor, PrepareMqttActorMsg(is_id, self.mqtt_broker, self.port)
-        )
+        if not isinstance(reply, ActorCreatedMsg):
+            logger.critical("Got message object of unexpected type")
+            logger.critical("-> Stop and shutdown system")
+            system_shutdown()
+        else:
+            device_actor = reply.actor_address
+            ActorSystem().tell(device_actor, SetDeviceStatusMsg(device_status=payload))
+            ActorSystem().tell(
+                device_actor, PrepareMqttActorMsg(is_id, self.mqtt_broker, self.port)
+            )
 
     def _rm_instr(self, is_id, instr_id) -> None:
         logger.debug("[rm_instr] %s, %s", is_id, instr_id)
