@@ -14,7 +14,6 @@ from datetime import datetime
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (AppType, ConnectMsg, KillMsg,
                                                ReservationStatusMsg, Status,
-                                               SubscribeMsg,
                                                UpdateDeviceStatusMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import ismqtt_config

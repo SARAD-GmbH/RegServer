@@ -17,7 +17,7 @@ import sys
 import time
 
 from flask import Flask, Response, json, request
-from thespian.actors import ActorSystem  # type: ignore
+from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import (  # type: ignore
     Thespian_StatusReq, formatStatus)
 
@@ -63,6 +63,27 @@ system.tell(
     SetupMsg("registrar", "actor_system", AppType.RS),
 )
 logger.debug("Actor system started.")
+
+
+def check_msg(return_message, message_object_type):
+    """Check whether the returned message is of the expected type.
+
+    Args:
+        return_message: Actor message object from the last ask.
+        message_object_type: The expected object type for this request.
+
+    Returns: Either a response to be published by Flask or False.
+    """
+    logger.debug("Returned with %s", return_message)
+    if not isinstance(return_message, message_object_type):
+        logger.critical("Critical error in device actor. Stop and shutdown system.")
+        status = Status.CRITICAL
+        answer = {"Error code": status.value, "Error": str(status)}
+        system_shutdown()
+        return Response(
+            response=json.dumps(answer), status=200, mimetype="application/json"
+        )
+    return False
 
 
 class RestApi:
@@ -176,15 +197,9 @@ class RestApi:
             reserve_return = reserve_sys.ask(
                 device_actor, ReserveDeviceMsg(request_host, user, app), 10
             )
-        if not isinstance(reserve_return, ReservationStatusMsg):
-            logger.critical("Critical error in device actor. Stop and shutdown system.")
-            status = Status.CRITICAL
-            answer = {"Error code": status.value, "Error": str(status), device_id: {}}
-            system_shutdown()
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
-        logger.debug("returned with %s", reserve_return)
+        reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
         status = reserve_return.status
         if status in (Status.OK, Status.OK_SKIPPED, Status.OK_UPDATED, Status.OCCUPIED):
             answer = {"Error code": status.value, "Error": str(status)}
@@ -212,15 +227,10 @@ class RestApi:
             device_actor = get_actor(REGISTRAR_ACTOR, device_id)
             logger.debug("Ask device actor to FREE...")
             free_return = ActorSystem().ask(device_actor, FreeDeviceMsg(), 10)
-            if not isinstance(free_return, ReservationStatusMsg):
-                logger.critical(
-                    "Critical error in device actor. Stop and shutdown system."
-                )
-                status = Status.CRITICAL
-                system_shutdown()
-            else:
-                logger.debug("returned with %s", free_return)
-                status = free_return.status
+            reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
+            if reply_is_corrupted:
+                return reply_is_corrupted
+            status = free_return.status
         answer = {"Error code": status.value, "Error": str(status), device_id: {}}
         if status in (Status.OK, Status.OCCUPIED):
             answer[device_id] = get_device_status(REGISTRAR_ACTOR, device_id)
@@ -235,16 +245,9 @@ class RestApi:
         """Lists Local Ports, Used for Testing atm"""
         cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
         reply = ActorSystem().ask(cluster_actor, GetLocalPortsMsg, 10)
-        if not isinstance(reply, ReturnLocalPortsMsg):
-            logger.critical(
-                "Critical error in cluster actor. Stop and shutdown system."
-            )
-            status = Status.CRITICAL
-            answer = {"Error code": status.value, "Error": str(status)}
-            system_shutdown()
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
+        reply_is_corrupted = check_msg(reply, ReturnLocalPortsMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
         return reply.ports
 
     @staticmethod
@@ -253,16 +256,9 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
         reply = ActorSystem().ask(cluster_actor, AddPortToLoopMsg(port), 10)
-        if not isinstance(reply, ReturnLoopPortsMsg):
-            logger.critical(
-                "Critical error in cluster actor. Stop and shutdown system."
-            )
-            status = Status.CRITICAL
-            answer = {"Error code": status.value, "Error": str(status)}
-            system_shutdown()
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
+        reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
         return reply.ports
 
     @staticmethod
@@ -271,16 +267,9 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
         reply = ActorSystem().ask(cluster_actor, RemovePortFromLoopMsg(port), 10)
-        if not isinstance(reply, ReturnLoopPortsMsg):
-            logger.critical(
-                "Critical error in cluster actor. Stop and shutdown system."
-            )
-            status = Status.CRITICAL
-            answer = {"Error code": status.value, "Error": str(status)}
-            system_shutdown()
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
+        reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
         return reply.ports
 
     @staticmethod
@@ -289,16 +278,9 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
         reply = ActorSystem().ask(cluster_actor, GetUsbPortsMsg(), 10)
-        if not isinstance(reply, ReturnUsbPortsMsg):
-            logger.critical(
-                "Critical error in cluster actor. Stop and shutdown system."
-            )
-            status = Status.CRITICAL
-            answer = {"Error code": status.value, "Error": str(status)}
-            system_shutdown()
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
+        reply_is_corrupted = check_msg(reply, ReturnUsbPortsMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
         return reply.ports
 
     @staticmethod
@@ -307,16 +289,9 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
         reply = ActorSystem().ask(cluster_actor, GetNativePortsMsg(), 10)
-        if not isinstance(reply, ReturnNativePortsMsg):
-            logger.critical(
-                "Critical error in cluster actor. Stop and shutdown system."
-            )
-            status = Status.CRITICAL
-            answer = {"Error code": status.value, "Error": str(status)}
-            system_shutdown()
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
+        reply_is_corrupted = check_msg(reply, ReturnNativePortsMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
         return reply.ports
 
     @staticmethod
@@ -327,9 +302,9 @@ class RestApi:
         reply = ActorSystem().ask(
             actorAddr=cluster_actor, msg=Thespian_StatusReq(), timeout=10
         )
-        if reply is None:
-            logger.critical("Emergency shutdown. Timeout in ask.")
-            system_shutdown()
+        reply_is_corrupted = check_msg(reply, Thespian_ActorStatus)
+        if reply_is_corrupted:
+            return reply_is_corrupted
 
         class Temp:
             # pylint: disable=too-few-public-methods
@@ -338,7 +313,6 @@ class RestApi:
             write = logger.debug
 
         formatStatus(reply, tofd=Temp())
-
         answer = {"Error code": 0}
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
