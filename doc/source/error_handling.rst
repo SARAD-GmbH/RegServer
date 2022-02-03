@@ -42,7 +42,7 @@ because the target Actor is dead or has otherwise exited), the ActorSystem will
 route that message wrapped into a *DeadEnvelope* object to Dead Letter handling.
 
 The Registrar Actor is registered for handling Dead Letter for the whole
-ActorSystem. Every Dead Letter will lead to a call of ``saytem_shutdown`` (see
+ActorSystem. Every Dead Letter will lead to a call of ``system_shutdown`` (see
 `Emergency System Shutdown`_).
 
 Emergency System Shutdown
