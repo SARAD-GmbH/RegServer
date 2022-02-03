@@ -15,9 +15,9 @@ Contents
    regserver_mqtt
    regserver_local
    instrserver_mqtt
-   actor_messages
    folder_structure
    actor_registrar
+   error_handling
    classes
    service_setup
 
