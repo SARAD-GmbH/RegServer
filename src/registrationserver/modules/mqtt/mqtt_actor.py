@@ -19,22 +19,21 @@ import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import RxBinaryMsg
 from registrationserver.config import mqtt_config
+from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
+from registrationserver.modules.mqtt.mqtt_base_actor import MqttBaseActor
 from registrationserver.shutdown import system_shutdown
 
 logger.debug("%s -> %s", __package__, __file__)
 
 
-class MqttActor(DeviceBaseActor):
+class MqttActor(DeviceBaseActor, MqttBaseActor):
     """Actor interacting with a new device"""
 
     @overrides
     def __init__(self):
         super().__init__()
-        self.subscriber = None
-        self.is_id = None
-        self.instr_id = None
         self.allowed_sys_topics = {
             "CTRL": "/control",
             "RESERVE": "/reservation",
@@ -66,18 +65,8 @@ class MqttActor(DeviceBaseActor):
                 # store the address of the sender
             },
         }
-        self.test_cnt = 0
-        logger.debug("test_cnt = %s", self.test_cnt)
         self.cmd_id = 0
-        self.mqttc = None
-        self.ungr_disconn = 2
-        self.is_connected = False
-        self.mid = {
-            "PUBLISH": None,
-            "SUBSCRIBE": None,
-            "UNSUBSCRIBE": None,
-        }  # store the current message ID to check
-        self._subscriptions = {}
+        self.msg_id["UNSUBSCRIBE"] = None
 
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -91,8 +80,6 @@ class MqttActor(DeviceBaseActor):
         logger.debug("To send: %s", data)
         logger.debug("CMD ID is: %s", self.cmd_id)
         self.state["SEND"]["Pending"] = True
-        self.test_cnt = self.test_cnt + 1
-        logger.debug("test_cnt = %s", self.test_cnt)
         self.state["SEND"]["CMD_ID"] = bytes([self.cmd_id])
         logger.debug("CMD ID is: %s", self.state["SEND"]["CMD_ID"])
         self.state["SEND"]["Sender"] = sender
@@ -113,8 +100,6 @@ class MqttActor(DeviceBaseActor):
                 self.allowed_sys_topics["CMD"],
             )
             self.state["SEND"]["Pending"] = False
-            self.test_cnt = self.test_cnt + 1
-            logger.debug("test_cnt = %s", self.test_cnt)
             self.state["SEND"]["CMD_ID"] = None
             return
         logger.debug("[SEND] send status is %s", self.state["SEND"]["Pending"])
@@ -167,7 +152,7 @@ class MqttActor(DeviceBaseActor):
         _re = self._publish(_msg)
         logger.info("Unsubscribe MQTT actor from 'msg' topic")
         self._unsubscribe([self.allowed_sys_topics["MSG"]])
-        super().receiveMsg_ChildActorExited(msg, sender)
+        DeviceBaseActor.receiveMsg_ChildActorExited(msg, sender)
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
@@ -179,13 +164,11 @@ class MqttActor(DeviceBaseActor):
         time.sleep(1)
         super().receiveMsg_KillMsg(msg, sender)
 
+    @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for PrepareMqttActorMsg from MQTT Listener"""
-        self.subscriber = sender
         mqtt_cid = self.my_id + ".client"
-        self.instr_id = self.my_id.split(".")[0]
-        self.is_id = msg.is_id
         mqtt_broker = msg.mqtt_broker
         port = msg.port
         logger.info("Using MQTT broker %s with port %d", mqtt_broker, port)
@@ -199,7 +182,7 @@ class MqttActor(DeviceBaseActor):
         self.mqttc.on_unsubscribe = self.on_unsubscribe
         for k in self.allowed_sys_topics:
             self.allowed_sys_topics[k] = (
-                self.is_id + "/" + self.instr_id + self.allowed_sys_options[k]
+                msg.is_id + "/" + short_id(self.my_id) + self.allowed_sys_options[k]
             )
             logger.debug("allowed topic: %s", self.allowed_sys_topics[k])
         self.mqttc.message_callback_add(
@@ -265,7 +248,7 @@ class MqttActor(DeviceBaseActor):
         """Handler for MQTT messages regarding reservation of instruments"""
         is_reserved = False
         reservation = json.loads(message.payload)
-        logger.debug("Update reservation state of %s: %s", self.instr_id, reservation)
+        logger.debug("Update reservation state of %s: %s", self.my_id, reservation)
         self.device_status["Reservation"] = reservation
         if self.state["RESERVE"]["Pending"]:
             instr_status = reservation.get("Active")
@@ -281,7 +264,7 @@ class MqttActor(DeviceBaseActor):
             ):
                 logger.debug(
                     "MQTT actor receives permission for reservation on instrument %s",
-                    self.instr_id,
+                    self.my_id,
                 )
                 if timestamp is None:
                     timestamp = (
@@ -296,7 +279,7 @@ class MqttActor(DeviceBaseActor):
             else:
                 logger.debug(
                     "MQTT actor receives decline of reservation on instrument %s",
-                    self.instr_id,
+                    self.my_id,
                 )
                 is_reserved = False
             self.state["RESERVE"]["Active"] = is_reserved
@@ -306,7 +289,7 @@ class MqttActor(DeviceBaseActor):
             return
         logger.warning(
             "MQTT actor received a reply to a non-requested reservation on instrument %s",
-            self.instr_id,
+            self.my_id,
         )
 
     def on_msg(self, _client, _userdata, message):
@@ -329,12 +312,10 @@ class MqttActor(DeviceBaseActor):
             logger.debug("Stored CMD ID is %s", self.state["SEND"]["CMD_ID"])
             if re_cmd_id == st_cmd_id:
                 self.state["SEND"]["Pending"] = False
-                self.test_cnt = self.test_cnt + 1
-                logger.debug("test_cnt = %s", self.test_cnt)
                 logger.debug(
                     "MQTT actor receives a binary reply %s from instrument %s",
                     payload[1:],
-                    self.instr_id,
+                    self.my_id,
                 )
                 self.state["SEND"]["Reply"] = payload[1:]
                 self.send(
@@ -349,13 +330,13 @@ class MqttActor(DeviceBaseActor):
                 ),
                 payload,
                 re_cmd_id,
-                self.instr_id,
+                self.my_id,
             )
             return
         logger.warning(
             "MQTT actor receives an unknown binary reply %s from instrument %s",
             payload,
-            self.instr_id,
+            self.my_id,
         )
 
     def on_connect(self, _client, _userdata, _flags, result_code):
@@ -367,7 +348,9 @@ class MqttActor(DeviceBaseActor):
                 "Subscribe MQTT actor to the 'reservation' topic",
             )
             reserve_topic = self.allowed_sys_topics["RESERVE"]
-            return_code, self.mid["SUBSCRIBE"] = self.mqttc.subscribe(reserve_topic, 0)
+            return_code, self.msg_id["SUBSCRIBE"] = self.mqttc.subscribe(
+                reserve_topic, 0
+            )
             if return_code != MQTT.MQTT_ERR_SUCCESS:
                 logger.critical("Subscription to %s went wrong", reserve_topic)
                 system_shutdown()
@@ -396,27 +379,31 @@ class MqttActor(DeviceBaseActor):
             logger.debug("Gracefully disconnected from MQTT broker.")
         self.is_connected = False
 
-    def on_publish(self, _client, _userdata, mid):
+    def on_publish(self, _client, _userdata, msg_id):
         """Here should be a docstring."""
         # self.rc_pub = 0
-        logger.debug("[on_publish] Message-ID %d was published to the broker", mid)
-        if mid == self.mid["PUBLISH"]:
-            logger.debug("Publish: mid is matched")
+        logger.debug("[on_publish] Message-ID %d was published to the broker", msg_id)
+        if msg_id == self.msg_id["PUBLISH"]:
+            logger.debug("Publish: msg_id is matched")
 
-    def on_subscribe(self, _client, _userdata, mid, _grant_qos):
+    def on_subscribe(self, _client, _userdata, msg_id, _grant_qos):
         """Here should be a docstring."""
         logger.debug(
-            "[on_subscribe] mid: %d, stored mid: %d", mid, self.mid["SUBSCRIBE"]
+            "[on_subscribe] msg_id: %d, stored msg_id: %d",
+            msg_id,
+            self.msg_id["SUBSCRIBE"],
         )
-        if mid == self.mid["SUBSCRIBE"]:
+        if msg_id == self.msg_id["SUBSCRIBE"]:
             logger.debug("Subscribed to the topic successfully")
 
-    def on_unsubscribe(self, _client, _userdata, mid):
+    def on_unsubscribe(self, _client, _userdata, msg_id):
         """Here should be a docstring."""
         logger.debug(
-            "[on_unsubscribe] mid: %d, stored mid: %d", mid, self.mid["UNSUBSCRIBE"]
+            "[on_unsubscribe] msg_id: %d, stored msg_id: %d",
+            msg_id,
+            self.msg_id["UNSUBSCRIBE"],
         )
-        if mid == self.mid["UNSUBSCRIBE"]:
+        if msg_id == self.msg_id["UNSUBSCRIBE"]:
             logger.debug("Unsubscribed to the topic successfully")
 
     @staticmethod
@@ -451,7 +438,7 @@ class MqttActor(DeviceBaseActor):
         mqtt_qos = msg["qos"]
         retain = msg.get("retain", False)
         logger.debug("Publish %s to %s", mqtt_payload, mqtt_topic)
-        return_code, self.mid["PUBLISH"] = self.mqttc.publish(
+        return_code, self.msg_id["PUBLISH"] = self.mqttc.publish(
             mqtt_topic,
             payload=mqtt_payload,
             qos=mqtt_qos,
@@ -477,7 +464,7 @@ class MqttActor(DeviceBaseActor):
         if not self.is_connected:
             logger.error("[Subscribe] failed, not connected to broker")
             return False
-        return_code, self.mid["SUBSCRIBE"] = self.mqttc.subscribe(sub_info)
+        return_code, self.msg_id["SUBSCRIBE"] = self.mqttc.subscribe(sub_info)
         if return_code != MQTT.MQTT_ERR_SUCCESS:
             logger.error("Subscribe failed; result code is: %s", return_code)
             return False
@@ -491,7 +478,7 @@ class MqttActor(DeviceBaseActor):
         if not self.is_connected:
             logger.error("[Unsubscribe] failed, not connected to broker")
             return False
-        return_code, self.mid["UNSUBSCRIBE"] = self.mqttc.unsubscribe(topics)
+        return_code, self.msg_id["UNSUBSCRIBE"] = self.mqttc.unsubscribe(topics)
         if return_code != MQTT.MQTT_ERR_SUCCESS:
             logger.warning("[Unsubscribe] failed; result code is: %s", return_code)
             return False
