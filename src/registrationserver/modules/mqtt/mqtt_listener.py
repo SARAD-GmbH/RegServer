@@ -24,7 +24,7 @@ from registrationserver.modules.mqtt.mqtt_base_actor import MqttBaseActor
 logger.debug("%s -> %s", __package__, __file__)
 
 
-class SaradMqttSubscriber(MqttBaseActor):
+class MqttListener(MqttBaseActor):
     """
     Basic flows:
 
@@ -113,7 +113,7 @@ class SaradMqttSubscriber(MqttBaseActor):
         client_id = f"{device_id}.client"
         self.send(
             device_actor,
-            PrepareMqttActorMsg(is_id, self.mqtt_broker, self.port, client_id),
+            PrepareMqttActorMsg(is_id, client_id),
         )
 
     def _rm_instr(self, is_id, instr_id) -> None:
@@ -183,7 +183,7 @@ class SaradMqttSubscriber(MqttBaseActor):
         self._unsubscribe_topic(is_id + "/+/meta")
         instruments_to_remove: Dict[str, Any] = {}
         instruments_to_remove[is_id] = {}
-        for instr_id in self._hosts[is_id]["instr_id"]:
+        for instr_id in self._hosts[is_id]["instr_ids"]:
             logger.info("[Remove Host] Remove %s", instr_id)
             self._rm_instr(is_id, instr_id)
         del self._hosts[is_id]
@@ -259,7 +259,7 @@ class SaradMqttSubscriber(MqttBaseActor):
                     "[+/+/meta] Store properties of instrument %s",
                     instr_id,
                 )
-                if instr_id in self._hosts[is_id]["instr_id"]:
+                if instr_id in self._hosts[is_id]["instr_ids"]:
                     self._update_instr(is_id, instr_id, payload)
                 else:
                     self._add_instr(is_id, instr_id, payload)
@@ -294,8 +294,4 @@ class SaradMqttSubscriber(MqttBaseActor):
     @overrides
     def on_connect(self, client, userdata, flags, result_code):
         super().on_connect(client, userdata, flags, result_code)
-        if self.is_connected:
-            self.mqttc.subscribe("+/meta", 0)
-            for topic, qos in self._subscriptions.items():
-                logger.debug("Restore subscription to %s", topic)
-                self.mqttc.subscribe(topic, qos)
+        self._subscribe_topic([("+/meta", 0)])

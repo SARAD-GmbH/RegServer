@@ -15,7 +15,7 @@ hide stereotype
 Container(app, $app, "wählt ein $instr zur Kommunikation aus.")
 
 Container_Boundary(mod, "MQTT-Modul", $rs, $tags="mod") {
-        Component(listener, "Subscriber", "Python Class", "mit MQTT-Client; erkennt neue $inst_m.")
+        Component(listener, "Listener", "Actor", "mit MQTT-Client; erkennt neue $inst_m.")
         Component(device_actor1, "Device Actor A", "Actor", "mit MQTT-Client")
 }
 Container_Boundary(rs, "Basis", $rs) {

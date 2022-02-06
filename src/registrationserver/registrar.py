@@ -19,10 +19,13 @@ from overrides import overrides  # type: ignore
 
 from registrationserver.actor_messages import (ActorCreatedMsg, AppType,
                                                KeepAliveMsg,
+                                               PrepareMqttActorMsg,
                                                ReturnDeviceActorMsg,
                                                UpdateActorDictMsg)
 from registrationserver.base_actor import BaseActor
+from registrationserver.config import mqtt_config
 from registrationserver.logger import logger
+from registrationserver.modules.mqtt.mqtt_listener import MqttListener
 from registrationserver.modules.mqtt_scheduler import MqttSchedulerActor
 from registrationserver.modules.usb.cluster_actor import ClusterActor
 from registrationserver.shutdown import system_shutdown
@@ -36,8 +39,17 @@ class Registrar(BaseActor):
         super().receiveMsg_SetupMsg(msg, sender)
         self.handleDeadLetters(startHandling=True)
         self._create_actor(ClusterActor, "cluster")
-        if self.app_type == AppType.ISMQTT:
+        if self.app_type is AppType.ISMQTT:
             self._create_actor(MqttSchedulerActor, "mqtt_scheduler")
+        if self.app_type is AppType.RS:
+            mqtt_listener = self._create_actor(MqttListener, "mqtt_listener")
+            self.send(
+                mqtt_listener,
+                PrepareMqttActorMsg(
+                    is_id=None,
+                    client_id=mqtt_config["MQTT_CLIENT_ID"],
+                ),
+            )
         self.wakeupAfter(timedelta(minutes=1), payload="keep alive")
 
     def receiveMsg_WakeupMessage(self, msg, sender):

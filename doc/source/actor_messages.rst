@@ -151,7 +151,7 @@ SETUP
 Request to create the device file that is linked to the actor via its file name.
 
 Sent from:
-    MdnsListener/MqttSubscriber
+    MdnsListener/MqttListener
 
 Parameters:
     Content of the device file.
@@ -214,7 +214,7 @@ Request the termination of an actor, sent when a device gets disconnected
 from the accessable network.
 
 Sent from:
-    MdnsListener/MqttSubscriber
+    MdnsListener/MqttListener
 
 Expected RETURN:
     ERROR_CODE:

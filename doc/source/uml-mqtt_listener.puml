@@ -3,30 +3,30 @@ actor "Service Employee" as user
 entity "Device with Instrument Server" as is_mqtt
 entity "MQTT Broker" as broker
 box "RegistrationServer MQTT"
-entity "SaradMqttSubscriber" as subscriber
+entity "MqttListener" as listener
 entity "MQTT Actor" as mqtt_actor
 database "Host List" as h_list
 database "Device List" as d_list
 end box
-subscriber -> broker : setup and connect
-subscriber -> broker : unsubsribe to topic "+/meta"
-subscriber -> broker : subsribe to topic "+/meta"
+listener -> broker : setup and connect
+listener -> broker : unsubsribe to topic "+/meta"
+listener -> broker : subsribe to topic "+/meta"
 user -> is_mqtt : connect to local network
 is_mqtt -> broker : connect\nwith LWT message "<is_id>/meta = {"State": 0}"
 is_mqtt -> broker : publish "<is_id>/meta = {"State": 2, ...}"\nwith retain=True
-broker -> subscriber : rely the retained message of the topic\n"<is_id>/meta"
-subscriber -> h_list : create a description file for the is_id
-subscriber -> broker : subsribe to topic "<is_id>/+/meta"
+broker -> listener : rely the retained message of the topic\n"<is_id>/meta"
+listener -> h_list : create a description file for the is_id
+listener -> broker : subsribe to topic "<is_id>/+/meta"
 is_mqtt -> broker : publish "<is_id>/<instrument_id>/meta = {"State": 2, ...}"\nwith retain=True
-broker -> subscriber : rely the retained message of the topic\n"<is_id>/<instrument_id>/meta"
-subscriber -> mqtt_actor : create a device actor to receive commands/data\nif the instrument server is_id is already added
-subscriber -> mqtt_actor : ask the mqtt actor to setup itself\nand then prepare itself for the future works
+broker -> listener : rely the retained message of the topic\n"<is_id>/<instrument_id>/meta"
+listener -> mqtt_actor : create a device actor to receive commands/data\nif the instrument server is_id is already added
+listener -> mqtt_actor : ask the mqtt actor to setup itself\nand then prepare itself for the future works
 mqtt_actor -> d_list : create a description file\nfor the "instrument_id.SARAD_Type.mqtt"
 is_mqtt -> broker : subscribe to topic "+/+/control"
 user -> is_mqtt : disconnects from network
 is_mqtt -> broker : ungracefully disconnected from the broker
-broker -> subscriber : send the LWT message\n"<is_id>/meta = {"State": 0}"
-subscriber -> h_list : remove the files of this host and its instruments
-subscriber -> broker : unsubsribe to topic "<is_id>/+/meta"
-subscriber -> mqtt_actor: destroy
+broker -> listener : send the LWT message\n"<is_id>/meta = {"State": 0}"
+listener -> h_list : remove the files of this host and its instruments
+listener -> broker : unsubsribe to topic "<is_id>/+/meta"
+listener -> mqtt_actor: destroy
 @enduml

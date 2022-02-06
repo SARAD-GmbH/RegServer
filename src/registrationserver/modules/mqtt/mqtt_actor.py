@@ -11,14 +11,10 @@
 """
 import datetime
 import json
-import os
-import ssl
-import time
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import RxBinaryMsg
-from registrationserver.config import mqtt_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
@@ -151,35 +147,22 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         }
         _re = self._publish(_msg)
         logger.info("Unsubscribe MQTT actor from 'msg' topic")
-        self._unsubscribe([self.allowed_sys_topics["MSG"]])
-        DeviceBaseActor.receiveMsg_ChildActorExited(msg, sender)
+        self._unsubscribe_topic([self.allowed_sys_topics["MSG"]])
+        DeviceBaseActor.receiveMsg_ChildActorExited(self, msg, sender)
+        MqttBaseActor.receiveMsg_ChildActorExited(self, msg, sender)
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
         logger.debug(self.allowed_sys_topics)
-        success = self._unsubscribe(["+"])
+        success = self._unsubscribe_topic(["+"])
         if success:
             logger.debug("Unsubscribed.")
-        self._disconnect()
-        time.sleep(1)
         super().receiveMsg_KillMsg(msg, sender)
 
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler for PrepareMqttActorMsg from MQTT Listener"""
-        mqtt_cid = self.my_id + ".client"
-        mqtt_broker = msg.mqtt_broker
-        port = msg.port
-        logger.info("Using MQTT broker %s with port %d", mqtt_broker, port)
-        self.mqttc = MQTT.Client(mqtt_cid)
-        self.mqttc.reinitialise()
-        self.mqttc.on_connect = self.on_connect
-        self.mqttc.on_disconnect = self.on_disconnect
-        self.mqttc.on_message = self.on_message
+        super().receiveMsg_PrepareMqttActorMsg(msg, sender)
         self.mqttc.on_publish = self.on_publish
-        self.mqttc.on_subscribe = self.on_subscribe
-        self.mqttc.on_unsubscribe = self.on_unsubscribe
         for k in self.allowed_sys_topics:
             self.allowed_sys_topics[k] = (
                 msg.is_id + "/" + short_id(self.my_id) + self.allowed_sys_options[k]
@@ -198,51 +181,6 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             qos=0,
             retain=True,
         )
-        self._connect(mqtt_broker, port)
-        self.mqttc.loop_start()
-
-    def _connect(self, mqtt_broker, port):
-        success = False
-        retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
-
-        while not success and self.ungr_disconn > 0:
-            try:
-                logger.info(
-                    "Attempting to connect to broker %s: %s",
-                    mqtt_broker,
-                    port,
-                )
-                if mqtt_config["TLS_USE_TLS"] and self.mqttc._ssl_context is None:
-                    ca_certs = os.path.expanduser(mqtt_config["TLS_CA_FILE"])
-                    certfile = os.path.expanduser(mqtt_config["TLS_CERT_FILE"])
-                    keyfile = os.path.expanduser(mqtt_config["TLS_KEY_FILE"])
-                    if not (
-                        os.path.exists(ca_certs)
-                        and os.path.exists(certfile)
-                        and os.path.exists(keyfile)
-                    ):
-                        logger.critical(
-                            "Cannot find files expected in %s, %s, %s",
-                            mqtt_config["TLS_CA_FILE"],
-                            mqtt_config["TLS_CERT_FILE"],
-                            mqtt_config["TLS_KEY_FILE"],
-                        )
-                        system_shutdown()
-                        break
-                    logger.info(
-                        "Setting up TLS: %s | %s | %s", ca_certs, certfile, keyfile
-                    )
-                    self.mqttc.tls_set(
-                        ca_certs=ca_certs,
-                        certfile=certfile,
-                        keyfile=keyfile,
-                        cert_reqs=ssl.CERT_REQUIRED,
-                    )
-                self.mqttc.connect(mqtt_broker, port=port)
-                success = True
-            except Exception as exception:  # pylint: disable=broad-except
-                logger.error("Could not connect to Broker, retrying...: %s", exception)
-                time.sleep(retry_interval)
 
     def on_reserve(self, _client, _userdata, message):
         """Handler for MQTT messages regarding reservation of instruments"""
@@ -339,45 +277,15 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             self.my_id,
         )
 
-    def on_connect(self, _client, _userdata, _flags, result_code):
-        """Will be carried out when the client connected to the MQTT broker."""
-        if result_code == 0:
-            self.is_connected = True
-            logger.info("[CONNECT] Connected to MQTT broker")
-            logger.debug(
-                "Subscribe MQTT actor to the 'reservation' topic",
-            )
-            reserve_topic = self.allowed_sys_topics["RESERVE"]
-            return_code, self.msg_id["SUBSCRIBE"] = self.mqttc.subscribe(
-                reserve_topic, 0
-            )
-            if return_code != MQTT.MQTT_ERR_SUCCESS:
-                logger.critical("Subscription to %s went wrong", reserve_topic)
-                system_shutdown()
-            for topic, qos in self._subscriptions.items():
-                logger.debug("Restore subscription to %s", topic)
-                self.mqttc.subscribe(topic, qos)
-        else:
-            self.is_connected = False
-            logger.critical(
-                "[CONNECT] Connection to MQTT broker failed with %s",
-                result_code,
-            )
-
-    def on_disconnect(self, _client, _userdata, result_code):
-        """Will be carried out when the client disconnected from the MQTT broker."""
-        logger.info("Disconnected from MQTT broker")
-        if result_code >= 1:
-            logger.warning(
-                "Ungraceful disconnect from MQTT broker (%s). Trying to reconnect.",
-                result_code,
-            )
-            # There is no need to do anything.
-            # With loop_start() in place, re-connections will be handled automatically.
-        else:
-            self.ungr_disconn = 0
-            logger.debug("Gracefully disconnected from MQTT broker.")
-        self.is_connected = False
+    @overrides
+    def on_connect(self, client, userdata, flags, result_code):
+        super().on_connect(client, userdata, flags, result_code)
+        logger.debug("Subscribe MQTT actor to the 'reservation' topic")
+        reserve_topic = self.allowed_sys_topics["RESERVE"]
+        return_code, self.msg_id["SUBSCRIBE"] = self.mqttc.subscribe(reserve_topic, 0)
+        if return_code != MQTT.MQTT_ERR_SUCCESS:
+            logger.critical("Subscription to %s went wrong", reserve_topic)
+            system_shutdown()
 
     def on_publish(self, _client, _userdata, msg_id):
         """Here should be a docstring."""
@@ -385,108 +293,3 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         logger.debug("[on_publish] Message-ID %d was published to the broker", msg_id)
         if msg_id == self.msg_id["PUBLISH"]:
             logger.debug("Publish: msg_id is matched")
-
-    def on_subscribe(self, _client, _userdata, msg_id, _grant_qos):
-        """Here should be a docstring."""
-        logger.debug(
-            "[on_subscribe] msg_id: %d, stored msg_id: %d",
-            msg_id,
-            self.msg_id["SUBSCRIBE"],
-        )
-        if msg_id == self.msg_id["SUBSCRIBE"]:
-            logger.debug("Subscribed to the topic successfully")
-
-    def on_unsubscribe(self, _client, _userdata, msg_id):
-        """Here should be a docstring."""
-        logger.debug(
-            "[on_unsubscribe] msg_id: %d, stored msg_id: %d",
-            msg_id,
-            self.msg_id["UNSUBSCRIBE"],
-        )
-        if msg_id == self.msg_id["UNSUBSCRIBE"]:
-            logger.debug("Unsubscribed to the topic successfully")
-
-    @staticmethod
-    def on_message(_client, _userdata, message):
-        """Handler for all MQTT messages that cannot be handled by on_reserve or on_msg."""
-        logger.debug("message received: %s", message.payload)
-        logger.debug("message topic: %s", message.topic)
-        logger.debug("message qos: %s", message.qos)
-        logger.debug("message retain flag: %s", message.retain)
-        if message.payload is None:
-            logger.warning("The payload is none")
-        else:
-            logger.warning("Unknown MQTT message")
-
-    def _disconnect(self):
-        if self.ungr_disconn == 2:
-            logger.debug("To disconnect from the MQTT-broker!")
-            self.mqttc.disconnect()
-        elif self.ungr_disconn in (1, 0):
-            self.ungr_disconn = 2
-            logger.debug("Already disconnected")
-        logger.debug("To stop the MQTT thread!")
-        self.mqttc.loop_stop()
-        logger.debug("Disconnected gracefully")
-
-    def _publish(self, msg) -> bool:
-        if not self.is_connected:
-            logger.warning("Failed to publish the message because of disconnection")
-            return False
-        mqtt_topic = msg["topic"]
-        mqtt_payload = msg["payload"]
-        mqtt_qos = msg["qos"]
-        retain = msg.get("retain", False)
-        logger.debug("Publish %s to %s", mqtt_payload, mqtt_topic)
-        return_code, self.msg_id["PUBLISH"] = self.mqttc.publish(
-            mqtt_topic,
-            payload=mqtt_payload,
-            qos=mqtt_qos,
-            retain=retain,
-        )
-        if return_code != MQTT.MQTT_ERR_SUCCESS:
-            logger.warning("Publish failed; result code is: %s", return_code)
-            return False
-        return True
-
-    def _subscribe_topic(self, sub_info: list) -> bool:
-        """Subscribe to all topics listed in sub_info
-
-        Args:
-            sub_info (List[Tupel[str, int]]): List of tupels of (topic, qos)
-            to subscribe to
-
-        Returns:
-            bool: True if subscription was successful
-
-        """
-        logger.debug("Work state: subscribe")
-        if not self.is_connected:
-            logger.error("[Subscribe] failed, not connected to broker")
-            return False
-        return_code, self.msg_id["SUBSCRIBE"] = self.mqttc.subscribe(sub_info)
-        if return_code != MQTT.MQTT_ERR_SUCCESS:
-            logger.error("Subscribe failed; result code is: %s", return_code)
-            return False
-        logger.info("[Subscribe] to %s successful", sub_info)
-        for (topic, qos) in sub_info:
-            self._subscriptions[topic] = qos
-        return True
-
-    def _unsubscribe(self, topics: list) -> bool:
-        logger.info("Unsubscribe topics %s", topics)
-        if not self.is_connected:
-            logger.error("[Unsubscribe] failed, not connected to broker")
-            return False
-        return_code, self.msg_id["UNSUBSCRIBE"] = self.mqttc.unsubscribe(topics)
-        if return_code != MQTT.MQTT_ERR_SUCCESS:
-            logger.warning("[Unsubscribe] failed; result code is: %s", return_code)
-            return False
-        logger.info("[Unsubscribe] from %s successful", topics)
-        for topic in topics:
-            logger.debug("Pop %s from %s", topic, self._subscriptions)
-            try:
-                self._subscriptions.pop(topic)
-            except KeyError:
-                logger.warning("%s not in list of subscribed topics", topic)
-        return True

@@ -33,9 +33,9 @@ class DeviceBaseActor(BaseActor):
     * SetupMsg: is used to initialize the actor right after its creation.
       This is needed because some parts of the initialization cannot be done in
       __init__(). Other initialization steps require data from the
-      MdnsListener/MqttSubscriber creating the device actor. The same method is
+      MdnsListener/MqttListener creating the device actor. The same method is
       used for updates of the device state comming from the
-      MdnsListener/MqttSubscriber.
+      MdnsListener/MqttListener.
 
     * ReserveDeviceMsg: is being called when the end-user-application wants to
         reserve the directly or indirectly connected device for exclusive

@@ -3,7 +3,7 @@ box "Registration Server 2"
 	      entity "REST API" as api
 	      entity "device actor" as deviceactor
         entity "redirector actor" as redirector
-        entity "listener/subscriber" as listener
+        entity "listener" as listener
 end box
 entity "Instrument Server" as is
 

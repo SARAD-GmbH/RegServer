@@ -370,8 +370,6 @@ class PrepareMqttActorMsg:
     """Message with information to setup the MQTT client of the MQTT Actor."""
 
     is_id: Union[str, None]
-    mqtt_broker: str
-    port: int
     client_id: str
 
 

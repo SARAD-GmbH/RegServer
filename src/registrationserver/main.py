@@ -22,7 +22,6 @@ from registrationserver.actor_messages import AppType, KillMsg
 from registrationserver.config import config
 from registrationserver.logdef import LOGFILENAME
 from registrationserver.logger import logger
-from registrationserver.modules.mqtt.mqtt_listener import SaradMqttSubscriber
 from registrationserver.modules.rfc2217.mdns_listener import MdnsListener
 from registrationserver.restapi import REGISTRAR_ACTOR, RestApi
 from registrationserver.shutdown import is_flag_set, set_file_flag
@@ -39,10 +38,9 @@ def mqtt_loop(mqtt_listener):
         mqtt_listener.mqtt_loop()
 
 
-def cleanup(mqtt_listener, mdns_listener):
+def cleanup(mdns_listener):
     """Make sure all sub threads are stopped.
 
-    * Stops the mqtt_listener if it is existing
     * Stops the mdns_listener if it is existing
     * Initiates the shutdown of the actor system
 
@@ -51,23 +49,11 @@ def cleanup(mqtt_listener, mdns_listener):
     together with the main program.
 
     Args:
-        mqtt_listener: An instance of SaradMqttSubscriber
         mdns_listener: An instance of MdnsListener
 
     Returns:
         None
     """
-    logger.info("Cleaning up before closing.")
-    if mqtt_listener is not None:
-        if mqtt_listener.is_connected:
-            mqtt_listener.stop()
-    if mdns_listener is not None:
-        mdns_listener.shutdown()
-    logger.debug("Terminate the actor system")
-    response = ActorSystem().ask(REGISTRAR_ACTOR, KillMsg(), 10)
-    logger.debug("KillMsg to Registrar returned with %s", response)
-    ActorSystem().shutdown()
-    logger.info("Actor system shut down finished.")
 
 
 def startup():
@@ -115,14 +101,8 @@ def main():
         start_stop = sys.argv[1]
     if start_stop == "start":
         mdns_listener = startup()
-        mqtt_listener = SaradMqttSubscriber(REGISTRAR_ACTOR)
-        logger.debug("Trying to connect")
-        mqtt_connected = mqtt_listener.connect()
-        if not mqtt_connected:
-            logger.warning("Proceed without MQTT")
         set_file_flag(True)
     elif start_stop == "stop":
-        logger.debug("Stopping the MQTT subscriber loop")
         set_file_flag(False)
         return None
     else:
@@ -132,20 +112,21 @@ def main():
     logger.debug("Starting the main loop")
     while is_flag_set():
         before = datetime.now()
-        if mqtt_connected:
-            mqtt_loop(mqtt_listener)
-        else:
-            time.sleep(2)
+        time.sleep(4)
         after = datetime.now()
         if (after - before).total_seconds() > 10:
             logger.debug(
                 "Wakeup from suspension. Shutting down RegServer for a fresh restart."
             )
             set_file_flag(False)
-    try:
-        cleanup(mqtt_listener, mdns_listener)
-    except UnboundLocalError:
-        pass
+    logger.debug("Shutdown MdnsListener")
+    if mdns_listener is not None:
+        mdns_listener.shutdown()
+    logger.debug("Terminate the actor system")
+    response = ActorSystem().ask(REGISTRAR_ACTOR, KillMsg(), 10)
+    logger.debug("KillMsg to Registrar returned with %s", response)
+    ActorSystem().shutdown()
+    logger.info("Actor system shut down finished.")
     logger.debug("This is the end, my only friend, the end.")
     raise SystemExit("Exit with error for automatic restart.")
 

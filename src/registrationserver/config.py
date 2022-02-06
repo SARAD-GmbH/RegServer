@@ -155,7 +155,7 @@ else:
             },
         }
 
-DEFAULT_MQTT_CLIENT_ID = "SARAD_Subscriber"
+DEFAULT_MQTT_CLIENT_ID = "RegistrationServer"
 DEFAULT_MQTT_BROKER = "85.214.243.156"  # Mosquitto running on sarad.de
 DEFAULT_PORT = 1883
 DEFAULT_RETRY_INTERVAL = 5

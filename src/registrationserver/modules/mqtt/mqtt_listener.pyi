@@ -1,9 +1,6 @@
 """Stub file for type checking with Mypy"""
-from registrationserver.base_actor import BaseActor
-from thespian.actors import ActorAddress  # type: ignore
+from registrationserver.modules.mqtt.mqtt_base_actor import MqttBaseActor
 
 
-class SaradMqttSubscriber(BaseActor):
+class MqttListener(MqttBaseActor):
     def __init__(self) -> None: ...
-
-SARAD_MQTT_SUBSCRIBER: ActorAddress

@@ -14,7 +14,7 @@ admin_port = 1901
 process_startup_method = "spawn"
 
 [mqtt]
-mqtt_client_id = "SARAD_Subscriber"
+mqtt_client_id = "Registration Server"
 mqtt_broker = "sarad.de"
 port = 8883
 retry_interval = 5

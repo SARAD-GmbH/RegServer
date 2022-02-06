@@ -57,8 +57,8 @@ class MqttBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for PrepareMqttActorMsg from MQTT Listener"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.mqtt_broker = msg.mqtt_broker
-        self.port = msg.port
+        self.mqtt_broker = mqtt_config["MQTT_BROKER"]
+        self.port = mqtt_config["PORT"]
         self.mqttc = MQTT.Client(msg.client_id)
         self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
@@ -130,7 +130,7 @@ class MqttBaseActor(BaseActor):
     def on_connect(self, client, userdata, flags, result_code):
         # pylint: disable=unused-argument
         """Will be carried out when the client connected to the MQTT broker."""
-        if not result_code:
+        if result_code:
             self.is_connected = False
             logger.critical(
                 "[CONNECT] Connection to MQTT broker failed with %s",
@@ -138,6 +138,9 @@ class MqttBaseActor(BaseActor):
             )
             return
         self.is_connected = True
+        for topic, qos in self._subscriptions.items():
+            logger.debug("Restore subscription to %s", topic)
+            self.mqttc.subscribe(topic, qos)
         logger.info("[CONNECT] Connected to MQTT broker")
 
     def on_disconnect(self, client, userdata, result_code):
