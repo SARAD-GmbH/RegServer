@@ -38,24 +38,6 @@ def mqtt_loop(mqtt_listener):
         mqtt_listener.mqtt_loop()
 
 
-def cleanup(mdns_listener):
-    """Make sure all sub threads are stopped.
-
-    * Stops the mdns_listener if it is existing
-    * Initiates the shutdown of the actor system
-
-    The REST API thread and the usb_listener_thread don't need
-    extra handling since they are daemonized and will be killed
-    together with the main program.
-
-    Args:
-        mdns_listener: An instance of MdnsListener
-
-    Returns:
-        None
-    """
-
-
 def startup():
     """Starting the RegistrationServer
 
@@ -123,8 +105,17 @@ def main():
     if mdns_listener is not None:
         mdns_listener.shutdown()
     logger.debug("Terminate the actor system")
-    response = ActorSystem().ask(REGISTRAR_ACTOR, KillMsg(), 10)
-    logger.debug("KillMsg to Registrar returned with %s", response)
+    retry = True
+    for _i in range(0, 5):
+        while retry:
+            try:
+                response = ActorSystem().ask(REGISTRAR_ACTOR, KillMsg(), 10)
+                retry = False
+                logger.debug("KillMsg to Registrar returned with %s", response)
+            except OSError as exception:
+                logger.error(exception)
+                time.sleep(3)
+            break
     ActorSystem().shutdown()
     logger.info("Actor system shut down finished.")
     logger.debug("This is the end, my only friend, the end.")

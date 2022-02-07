@@ -63,6 +63,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         }
         self.cmd_id = 0
         self.msg_id["UNSUBSCRIBE"] = None
+        self.msg_id["PUBLISH"] = None
 
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
