@@ -57,7 +57,7 @@ class MqttSchedulerActor(MqttBaseActor):
             topic=f"{self.is_id}/meta",
             payload=ismqtt_messages.get_is_meta(self.is_meta),
         )
-        self.mqttc.subscribe(f"{self.is_id}/+/meta", 0)
+        self._subscribe_topic([(f"{self.is_id}/+/meta", 0)])
         self._subscribe_to_actor_dict_msg()
 
     @overrides
@@ -94,9 +94,7 @@ class MqttSchedulerActor(MqttBaseActor):
             (f"{self.is_id}/{instr_id}/control", 0),
             (f"{self.is_id}/{instr_id}/cmd", 0),
         ]
-        self.mqttc.subscribe(new_subscriptions)
-        for (topic, qos) in new_subscriptions:
-            self._subscriptions[topic] = qos
+        self._subscribe_topic(new_subscriptions)
         identification = device_status["Identification"]
         message = {"State": 2, "Identification": identification}
         self.mqttc.publish(
@@ -114,9 +112,7 @@ class MqttSchedulerActor(MqttBaseActor):
             f"{self.is_id}/{instr_id}/control",
             f"{self.is_id}/{instr_id}/cmd",
         ]
-        self.mqttc.unsubscribe(gone_subscriptions)
-        for topic in gone_subscriptions:
-            self._subscriptions.pop(topic)
+        self._unsubscribe_topic(gone_subscriptions)
         self.mqttc.publish(
             retain=True,
             topic=f"{self.is_id}/{instr_id}/meta",

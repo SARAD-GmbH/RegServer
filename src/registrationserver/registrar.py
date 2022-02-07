@@ -23,7 +23,7 @@ from registrationserver.actor_messages import (ActorCreatedMsg, AppType,
                                                ReturnDeviceActorMsg,
                                                UpdateActorDictMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import mqtt_config
+from registrationserver.config import ismqtt_config, mqtt_config
 from registrationserver.logger import logger
 from registrationserver.modules.mqtt.mqtt_listener import MqttListener
 from registrationserver.modules.mqtt_scheduler import MqttSchedulerActor
@@ -40,7 +40,14 @@ class Registrar(BaseActor):
         self.handleDeadLetters(startHandling=True)
         self._create_actor(ClusterActor, "cluster")
         if self.app_type is AppType.ISMQTT:
-            self._create_actor(MqttSchedulerActor, "mqtt_scheduler")
+            mqtt_scheduler = self._create_actor(MqttSchedulerActor, "mqtt_scheduler")
+            self.send(
+                mqtt_scheduler,
+                PrepareMqttActorMsg(
+                    is_id=None,
+                    client_id=ismqtt_config["IS_ID"],
+                ),
+            )
         if self.app_type is AppType.RS:
             mqtt_listener = self._create_actor(MqttListener, "mqtt_listener")
             self.send(
