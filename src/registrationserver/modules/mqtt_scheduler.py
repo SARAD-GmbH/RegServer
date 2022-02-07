@@ -11,7 +11,6 @@ Author
 import json
 import os
 import ssl
-import threading
 import time
 from datetime import datetime
 
@@ -28,20 +27,14 @@ from registrationserver.shutdown import system_shutdown
 logger.debug("%s -> %s", __package__, __file__)
 
 
-class MqttSchedulerActor(BaseActor):
+class MqttSchedulerActor(MqttBaseActor):
     """Actor interacting with a new device"""
 
     MAX_RESERVE_TIME = 300
 
     @overrides
     def __init__(self):
-        """
-        * Initialize variables
-        * Connect to MQTT broker
-        * Start MQTT loop
-        """
         super().__init__()
-        self.lock = threading.Lock()
         self.instr_id_actor_dict = {}  # {instr_id: device_actor}
         self.reservations = {}  # {instr_id: <reservation object>}
         # cmd_id to check the correct order of messages
@@ -160,42 +153,40 @@ class MqttSchedulerActor(BaseActor):
 
         Adds a new instrument to the list of available instruments."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        with self.lock:
-            instr_id = short_id(msg.device_id)
-            device_status = msg.device_status
-            new_subscriptions = [
-                (f"{self.is_id}/{instr_id}/control", 0),
-                (f"{self.is_id}/{instr_id}/cmd", 0),
-            ]
-            self.mqttc.subscribe(new_subscriptions)
-            for (topic, qos) in new_subscriptions:
-                self._subscriptions[topic] = qos
-            identification = device_status["Identification"]
-            message = {"State": 2, "Identification": identification}
-            self.mqttc.publish(
-                topic=f"{self.is_id}/{instr_id}/meta",
-                payload=json.dumps(message),
-                retain=True,
-            )
+        instr_id = short_id(msg.device_id)
+        device_status = msg.device_status
+        new_subscriptions = [
+            (f"{self.is_id}/{instr_id}/control", 0),
+            (f"{self.is_id}/{instr_id}/cmd", 0),
+        ]
+        self.mqttc.subscribe(new_subscriptions)
+        for (topic, qos) in new_subscriptions:
+            self._subscriptions[topic] = qos
+        identification = device_status["Identification"]
+        message = {"State": 2, "Identification": identification}
+        self.mqttc.publish(
+            topic=f"{self.is_id}/{instr_id}/meta",
+            payload=json.dumps(message),
+            retain=True,
+        )
 
     def _remove_instrument(self, instr_id):
         # pylint: disable=invalid-name
         """Removes an instrument from the list of available instruments."""
         logger.debug("Remove %s", instr_id)
-        with self.lock:
-            self.reservations.pop(instr_id, None)
-            gone_subscriptions = [
-                f"{self.is_id}/{instr_id}/control",
-                f"{self.is_id}/{instr_id}/cmd",
-            ]
-            self.mqttc.unsubscribe(gone_subscriptions)
-            for topic in gone_subscriptions:
-                self._subscriptions.pop(topic)
-            self.mqttc.publish(
-                retain=True,
-                topic=f"{self.is_id}/{instr_id}/meta",
-                payload=json.dumps({"State": 0}),
-            )
+        self.reservations.pop(instr_id, None)
+        gone_subscriptions = [
+            f"{self.is_id}/{instr_id}/control",
+            f"{self.is_id}/{instr_id}/cmd",
+        ]
+        self.mqttc.unsubscribe(gone_subscriptions)
+        for topic in gone_subscriptions:
+            self._subscriptions.pop(topic)
+        self.mqttc.publish(
+            retain=True,
+            topic=f"{self.is_id}/{instr_id}/meta",
+            payload=json.dumps({"State": 0}),
+        )
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
@@ -258,40 +249,38 @@ class MqttSchedulerActor(BaseActor):
 
     def on_control(self, _client, _userdata, message):
         """Event handler for all MQTT messages with control topic."""
-        with self.lock:
-            logger.debug("[on_control] %s: %s", message.topic, message.payload)
-            instrument_id = message.topic[: -len("control") - 1][len(self.is_id) + 1 :]
-            if instrument_id in self.instr_id_actor_dict:
-                old_control = self.reservations.get(instrument_id)
-                control = ismqtt_messages.get_instr_control(message, old_control)
-                logger.debug("Control object: %s", control)
-                if control.ctype == ismqtt_messages.ControlType.RESERVE:
-                    self.process_reserve(instrument_id, control)
-                if control.ctype == ismqtt_messages.ControlType.FREE:
-                    self.process_free(instrument_id)
-                    logger.debug(
-                        "[FREE] client=%s, instr_id=%s, control=%s",
-                        self.mqttc,
-                        instrument_id,
-                        control,
-                    )
-            else:
-                logger.error(
-                    "[on_control] The requested instrument %s is not connected",
+        logger.debug("[on_control] %s: %s", message.topic, message.payload)
+        instrument_id = message.topic[: -len("control") - 1][len(self.is_id) + 1 :]
+        if instrument_id in self.instr_id_actor_dict:
+            old_control = self.reservations.get(instrument_id)
+            control = ismqtt_messages.get_instr_control(message, old_control)
+            logger.debug("Control object: %s", control)
+            if control.ctype == ismqtt_messages.ControlType.RESERVE:
+                self.process_reserve(instrument_id, control)
+            if control.ctype == ismqtt_messages.ControlType.FREE:
+                self.process_free(instrument_id)
+                logger.debug(
+                    "[FREE] client=%s, instr_id=%s, control=%s",
+                    self.mqttc,
                     instrument_id,
+                    control,
                 )
+        else:
+            logger.error(
+                "[on_control] The requested instrument %s is not connected",
+                instrument_id,
+            )
 
     def on_cmd(self, _client, _userdata, message):
         """Event handler for all MQTT messages with cmd topic."""
-        with self.lock:
-            logger.debug("[on_cmd] %s: %s", message.topic, message.payload)
-            instr_id = message.topic[: -len("cmd") - 1][len(self.is_id) + 1 :]
-            self.cmd_ids[instr_id] = message.payload[0]
-            cmd = message.payload[1:]
-            device_actor = self.instr_id_actor_dict.get(instr_id)
-            if device_actor is not None:
-                logger.debug("Forward command %s to device actor %s", cmd, device_actor)
-                self.send(device_actor, TxBinaryMsg(cmd, "localhost"))
+        logger.debug("[on_cmd] %s: %s", message.topic, message.payload)
+        instr_id = message.topic[: -len("cmd") - 1][len(self.is_id) + 1 :]
+        self.cmd_ids[instr_id] = message.payload[0]
+        cmd = message.payload[1:]
+        device_actor = self.instr_id_actor_dict.get(instr_id)
+        if device_actor is not None:
+            logger.debug("Forward command %s to device actor %s", cmd, device_actor)
+            self.send(device_actor, TxBinaryMsg(cmd, "localhost"))
 
     def on_message(self, _client, _userdata, message):
         # pylint: disable=no-self-use
