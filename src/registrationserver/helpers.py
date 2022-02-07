@@ -8,6 +8,8 @@ Authors
 """
 import fnmatch
 import os
+from collections.abc import MutableMapping
+from contextlib import suppress
 
 from thespian.actors import ActorSystem  # type: ignore
 
@@ -171,3 +173,13 @@ def diff_of_dicts(dict1, dict2):
         if key in dict1:
             diff_dict[key] = dict1[key]
     return diff_dict
+
+
+def delete_keys_from_dict(dictionary, keys):
+    """Delete the keys present in keys from the nested dictionary."""
+    for key in keys:
+        with suppress(KeyError):
+            del dictionary[key]
+    for value in dictionary.values():
+        if isinstance(value, MutableMapping):
+            delete_keys_from_dict(value, keys)
