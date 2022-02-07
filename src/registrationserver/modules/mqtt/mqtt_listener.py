@@ -11,12 +11,11 @@ in the MQTT network
 .. uml :: uml-mqtt_listener.puml
 """
 import json
-from typing import Any, Dict
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg, PrepareMqttActorMsg,
                                                SetDeviceStatusMsg)
-from registrationserver.helpers import delete_keys_from_dict
+from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.mqtt.mqtt_actor import MqttActor
 from registrationserver.modules.mqtt.mqtt_base_actor import MqttBaseActor
@@ -65,7 +64,6 @@ class MqttListener(MqttBaseActor):
     def __init__(self):
         super().__init__()
         self._hosts = {}
-        # {is_id: {"meta": <data>, "instruments": {instr_id: address}}}
 
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
@@ -99,20 +97,19 @@ class MqttListener(MqttBaseActor):
                 family,
             )
             return
-        device_id = instr_id + "." + sarad_type + ".mqtt"
         if is_id not in self._hosts:
-            logger.warning("Unknown host. Adding it the quick and dirty way.")
-            self._hosts[is_id] = {"meta": None, "instruments": {instr_id: None}}
+            logger.critical(
+                "Instr. Server belonging to this device not in self._hosts."
+            )
+            self._add_host(is_id, None)
+        device_id = instr_id + "." + sarad_type + ".mqtt"
         logger.info(
             "[add_instr] Instrument ID %s, actorname %s",
             instr_id,
             device_id,
         )
         device_actor = self._create_actor(MqttActor, device_id)
-        self._hosts[is_id]["instruments"][instr_id] = device_actor
-        logger.debug(
-            "Instruments in self._hosts: %s", self._hosts[is_id]["instruments"].keys()
-        )
+        self.child_actors[device_id]["host"] = is_id
         self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
         client_id = f"{device_id}.client"
         self.send(
@@ -129,19 +126,6 @@ class MqttListener(MqttBaseActor):
         logger.info("[rm_instr] %s", instr_id)
         device_actor = self.child_actors[device_id]["actor_address"]
         self.send(device_actor, KillMsg())
-
-    @overrides
-    def receiveMsg_ChildActorExited(self, msg, sender):
-        to_remove = None
-        for host in self._hosts.values():
-            for instr_id, address in host["instruments"].items():
-                if address == msg.childAddress:
-                    to_remove = instr_id
-        if to_remove is not None:
-            delete_keys_from_dict(self._hosts, [to_remove])
-        else:
-            logger.critical("%s not in %s", msg.childAddress, self._hosts)
-        super().receiveMsg_ChildActorExited(msg, sender)
 
     def _update_instr(self, is_id, instr_id, payload) -> None:
         if (is_id is None) or (instr_id is None) or (payload is None):
@@ -168,7 +152,7 @@ class MqttListener(MqttBaseActor):
             "[Add Host] Found a new connected host with IS ID %s",
             is_id,
         )
-        self._hosts[is_id] = {"meta": data, "instruments": {}}
+        self._hosts[is_id] = data
         self._subscribe_topic([(is_id + "/+/meta", 0)])
         logger.info("[Add Host] IS %s added", is_id)
 
@@ -183,17 +167,16 @@ class MqttListener(MqttBaseActor):
             "[Update Host] Update an already connected host with IS ID %s",
             is_id,
         )
-        self._hosts[is_id]["meta"] = data
+        self._hosts[is_id] = data
         return
 
     def _rm_host(self, is_id) -> None:
-        logger.debug("[Remove Host] %s", is_id)
+        logger.debug("[_rm_host] %s", is_id)
         self._unsubscribe_topic([is_id + "/+/meta"])
-        instruments_to_remove: Dict[str, Any] = {}
-        instruments_to_remove[is_id] = {}
-        for instr_id in self._hosts[is_id]["instruments"]:
-            logger.info("[Remove Host] Remove %s", instr_id)
-            self._rm_instr(is_id, instr_id)
+        for device_id, description in self.child_actors.items():
+            if description["host"] == is_id:
+                logger.info("[_rm_host] Remove %s", device_id)
+                self._rm_instr(is_id, short_id(device_id))
         del self._hosts[is_id]
 
     def on_is_meta(self, _client, _userdata, message):
@@ -218,10 +201,10 @@ class MqttListener(MqttBaseActor):
                 "[+/meta] Store the properties of cluster %s",
                 is_id,
             )
-            if is_id not in self._hosts:
-                self._add_host(is_id, payload)
-            else:
+            if is_id in self._hosts:
                 self._update_host(is_id, payload)
+            else:
+                self._add_host(is_id, payload)
         elif payload["State"] == 0:
             if is_id in self._hosts:
                 logger.debug(
@@ -267,7 +250,7 @@ class MqttListener(MqttBaseActor):
                     "[+/+/meta] Store properties of instrument %s",
                     instr_id,
                 )
-                if instr_id in self._hosts[is_id]["instruments"]:
+                if self.device_id(instr_id) is not None:
                     self._update_instr(is_id, instr_id, payload)
                 else:
                     self._add_instr(is_id, instr_id, payload)
