@@ -152,14 +152,6 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         MqttBaseActor.receiveMsg_ChildActorExited(self, msg, sender)
 
     @overrides
-    def receiveMsg_KillMsg(self, msg, sender):
-        logger.debug(self.allowed_sys_topics)
-        success = self._unsubscribe_topic(["+"])
-        if success:
-            logger.debug("Unsubscribed.")
-        super().receiveMsg_KillMsg(msg, sender)
-
-    @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
         self.mqttc.on_publish = self.on_publish

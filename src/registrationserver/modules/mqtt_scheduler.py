@@ -9,20 +9,15 @@ Author
 .. uml :: uml-mqtt_scheduler.puml
 """
 import json
-import os
-import ssl
-import time
 from datetime import datetime
 
-import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import TxBinaryMsg
-from registrationserver.base_actor import BaseActor
-from registrationserver.config import ismqtt_config, mqtt_config
+from registrationserver.config import ismqtt_config
 from registrationserver.helpers import diff_of_dicts, get_key, short_id
 from registrationserver.logger import logger
 from registrationserver.modules import ismqtt_messages
-from registrationserver.shutdown import system_shutdown
+from registrationserver.modules.mqtt.mqtt_base_actor import MqttBaseActor
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -39,24 +34,8 @@ class MqttSchedulerActor(MqttBaseActor):
         self.reservations = {}  # {instr_id: <reservation object>}
         # cmd_id to check the correct order of messages
         self.cmd_ids = {}  # {instr_id: <command id>}
-        self.ungr_disconn = 2
-        self.is_connected = False
-        self.msg_id = {
-            "PUBLISH": None,
-            "SUBSCRIBE": None,
-            "UNSUBSCRIBE": None,
-        }
-        # Start MQTT client
+        self.msg_id["PUBLISH"] = None
         self.is_id = ismqtt_config["IS_ID"]
-        self._subscriptions = {}
-        self.mqttc = MQTT.Client()
-        self.mqttc.reinitialise()
-        self.mqttc.on_connect = self.on_connect
-        self.mqttc.on_disconnect = self.on_disconnect
-        self.mqttc.message_callback_add("+/+/control", self.on_control)
-        self.mqttc.message_callback_add("+/+/cmd", self.on_cmd)
-        self.mqttc.message_callback_add(f"{self.is_id}/+/meta", self.on_instr_meta)
-        self.mqttc.on_message = self.on_message
         self.is_meta = ismqtt_messages.InstrumentServerMeta(
             state=0,
             host=self.is_id,
@@ -66,20 +45,19 @@ class MqttSchedulerActor(MqttBaseActor):
             longitude=ismqtt_config["LONGITUDE"],
             height=ismqtt_config["HEIGHT"],
         )
+
+    @overrides
+    def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
+        super().receiveMsg_PrepareMqttActorMsg(msg, sender)
+        self.mqttc.message_callback_add("+/+/control", self.on_control)
+        self.mqttc.message_callback_add("+/+/cmd", self.on_cmd)
+        self.mqttc.message_callback_add(f"{self.is_id}/+/meta", self.on_instr_meta)
         self.mqttc.will_set(
             retain=True,
             topic=f"{self.is_id}/meta",
             payload=ismqtt_messages.get_is_meta(self.is_meta),
         )
-
-    @overrides
-    def receiveMsg_SetupMsg(self, msg, sender):
-        super().receiveMsg_SetupMsg(msg, sender)
-        mqtt_broker = mqtt_config["MQTT_BROKER"]
-        port = mqtt_config["PORT"]
-        self._connect(mqtt_broker, port)
         self.mqttc.subscribe(f"{self.is_id}/+/meta", 0)
-        self.mqttc.loop_start()
         self._subscribe_to_actor_dict_msg()
 
     @overrides
@@ -103,49 +81,6 @@ class MqttSchedulerActor(MqttBaseActor):
             self._subscribe_to_device_status_msg(address)
         for instr_id in gone_instruments:
             self._remove_instrument(instr_id)
-
-    def _connect(self, mqtt_broker, port):
-        success = False
-        retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
-
-        while not success and self.ungr_disconn > 0:
-            try:
-                logger.info(
-                    "Attempting to connect to broker %s: %s",
-                    mqtt_broker,
-                    port,
-                )
-                if mqtt_config["TLS_USE_TLS"] and self.mqttc._ssl_context is None:
-                    ca_certs = os.path.expanduser(mqtt_config["TLS_CA_FILE"])
-                    certfile = os.path.expanduser(mqtt_config["TLS_CERT_FILE"])
-                    keyfile = os.path.expanduser(mqtt_config["TLS_KEY_FILE"])
-                    if not (
-                        os.path.exists(ca_certs)
-                        and os.path.exists(certfile)
-                        and os.path.exists(keyfile)
-                    ):
-                        logger.critical(
-                            "Cannot find files expected in %s, %s, %s",
-                            mqtt_config["TLS_CA_FILE"],
-                            mqtt_config["TLS_CERT_FILE"],
-                            mqtt_config["TLS_KEY_FILE"],
-                        )
-                        system_shutdown()
-                        break
-                    logger.info(
-                        "Setting up TLS: %s | %s | %s", ca_certs, certfile, keyfile
-                    )
-                    self.mqttc.tls_set(
-                        ca_certs=ca_certs,
-                        certfile=certfile,
-                        keyfile=keyfile,
-                        cert_reqs=ssl.CERT_REQUIRED,
-                    )
-                self.mqttc.connect(mqtt_broker, port=port)
-                success = True
-            except Exception as exception:  # pylint: disable=broad-except
-                logger.error("Could not connect to Broker, retrying...: %s", exception)
-                time.sleep(retry_interval)
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -190,62 +125,20 @@ class MqttSchedulerActor(MqttBaseActor):
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
-        self.mqttc.unsubscribe(topic="+")
         self.mqttc.publish(
             retain=True, topic=f"{self.is_id}/meta", payload=json.dumps({"State": 0})
         )
-        self._disconnect()
-        time.sleep(1)
         super().receiveMsg_KillMsg(msg, sender)
 
-    def _disconnect(self):
-        if self.ungr_disconn == 2:
-            logger.debug("Disconnect from MQTT broker!")
-            self.mqttc.disconnect()
-        elif self.ungr_disconn in [0, 1]:
-            self.ungr_disconn = 2
-            logger.debug("Already disconnected")
-        self.mqttc.loop_stop()
-        logger.debug("Disconnected gracefully")
-
-    def on_connect(self, _client, _userdata, _flags, result_code):
+    @overrides
+    def on_connect(self, client, userdata, flags, result_code):
         """Will be carried out when the client connected to the MQTT broker."""
-        if result_code == 0:
-            self.is_connected = True
-            logger.debug(
-                "[CONNECT] IS ID %s connected with result code %s.",
-                self.is_id,
-                result_code,
-            )
-            for topic, qos in self._subscriptions.items():
-                logger.debug("Restore subscription to %s", topic)
-                self.mqttc.subscribe(topic, qos)
-            self.mqttc.publish(
-                retain=True,
-                topic=f"{self.is_id}/meta",
-                payload=ismqtt_messages.get_is_meta(self.is_meta._replace(state=2)),
-            )
-        else:
-            self.is_connected = False
-            logger.error(
-                "[CONNECT] Connection to MQTT broker failed with %s",
-                result_code,
-            )
-
-    def on_disconnect(self, _client, _userdata, result_code):
-        """Will be carried out when the client disconnected from the MQTT broker."""
-        logger.info("Disconnected from MQTT broker")
-        if result_code >= 1:
-            logger.warning(
-                "Ungraceful disconnect from MQTT broker (%s). Trying to reconnect.",
-                result_code,
-            )
-            # There is no need to do anything.
-            # With loop_start() in place, re-connections will be handled automatically.
-        else:
-            self.ungr_disconn = 0
-            logger.debug("Gracefully disconnected from MQTT broker.")
-        self.is_connected = False
+        super().on_connect(client, userdata, flags, result_code)
+        self.mqttc.publish(
+            retain=True,
+            topic=f"{self.is_id}/meta",
+            payload=ismqtt_messages.get_is_meta(self.is_meta._replace(state=2)),
+        )
 
     def on_control(self, _client, _userdata, message):
         """Event handler for all MQTT messages with control topic."""
@@ -281,14 +174,6 @@ class MqttSchedulerActor(MqttBaseActor):
         if device_actor is not None:
             logger.debug("Forward command %s to device actor %s", cmd, device_actor)
             self.send(device_actor, TxBinaryMsg(cmd, "localhost"))
-
-    def on_message(self, _client, _userdata, message):
-        # pylint: disable=no-self-use
-        """
-        Event handler for after a MQTT message was received on a subscribed topic.
-        This will catch only remaining topics that are not control or cmd messages.
-        """
-        logger.error("%s(%s): %s", message.topic, len(message.topic), message.payload)
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
