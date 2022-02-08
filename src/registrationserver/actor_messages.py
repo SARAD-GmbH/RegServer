@@ -120,12 +120,15 @@ class SubscribeMsg:
         is_device_actor (bool): True if the actor is a Device Actor.
         get_updates (bool): True if the actor shall receive updates
                             of the Actor Dictionary from the Registrar actor.
+        keep_alive (bool): True indicates that this is a follow-up SubscribeMsg.
+                           False if this is the initial SubscribeMsg.
     """
 
     actor_id: str
     parent: ActorAddress
     is_device_actor: bool = False
     get_updates: bool = False
+    keep_alive: bool = False
 
 
 @dataclass

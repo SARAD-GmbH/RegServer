@@ -18,7 +18,7 @@ from datetime import timedelta
 from overrides import overrides  # type: ignore
 
 from registrationserver.actor_messages import (ActorCreatedMsg, AppType,
-                                               KeepAliveMsg,
+                                               KeepAliveMsg, KillMsg,
                                                PrepareMqttActorMsg,
                                                ReturnDeviceActorMsg,
                                                UpdateActorDictMsg)
@@ -86,14 +86,21 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.actor_dict[msg.actor_id] = {
-            "address": sender,
-            "parent": msg.parent,
-            "is_device_actor": msg.is_device_actor,
-            "get_updates": msg.get_updates,
-            "is_alive": True,
-        }
-        self._send_updates(self.actor_dict)
+        if (msg.actor_id not in self.actor_dict) or msg.keep_alive:
+            self.actor_dict[msg.actor_id] = {
+                "address": sender,
+                "parent": msg.parent,
+                "is_device_actor": msg.is_device_actor,
+                "get_updates": msg.get_updates,
+                "is_alive": True,
+            }
+            self._send_updates(self.actor_dict)
+        else:
+            logger.critical(
+                "The actor already exists in the system -> emergency shutdown"
+            )
+            self.send(sender, KillMsg())
+            system_shutdown()
 
     def receiveMsg_UnsubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name

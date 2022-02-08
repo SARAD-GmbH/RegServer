@@ -80,9 +80,9 @@ class BaseActor(ActorTypeDispatcher):
         self.parent = Parent(parent_id=msg.parent_id, parent_address=sender)
         self.registrar = self.createActor(Actor, globalName="registrar")
         self.app_type = msg.app_type
-        self._subscribe()
+        self._subscribe(False)
 
-    def _subscribe(self):
+    def _subscribe(self, keep_alive):
         """Subscribe at Registrar actor."""
         self.send(
             self.registrar,
@@ -91,6 +91,7 @@ class BaseActor(ActorTypeDispatcher):
                 parent=self.parent.parent_address,
                 is_device_actor=self.is_device_actor,
                 get_updates=self.get_updates,
+                keep_alive=keep_alive,
             ),
         )
 
@@ -115,7 +116,7 @@ class BaseActor(ActorTypeDispatcher):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if self.child_actors:
             self._forward_to_children(msg)
-        self._subscribe()
+        self._subscribe(True)
 
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
