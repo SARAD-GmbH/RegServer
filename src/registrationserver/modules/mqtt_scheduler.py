@@ -121,6 +121,7 @@ class MqttSchedulerActor(MqttBaseActor):
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
+        map(self._remove_instrument, self.instr_id_actor_dict.keys())
         self.mqttc.publish(
             retain=True, topic=f"{self.is_id}/meta", payload=json.dumps({"State": 0})
         )
