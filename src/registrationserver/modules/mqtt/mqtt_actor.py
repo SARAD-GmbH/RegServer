@@ -14,12 +14,11 @@ import json
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import RxBinaryMsg
+from registrationserver.actor_messages import KillMsg, RxBinaryMsg
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.modules.mqtt.mqtt_base_actor import MqttBaseActor
-from registrationserver.shutdown import system_shutdown
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -278,7 +277,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         return_code, self.msg_id["SUBSCRIBE"] = self.mqttc.subscribe(reserve_topic, 0)
         if return_code != MQTT.MQTT_ERR_SUCCESS:
             logger.critical("Subscription to %s went wrong", reserve_topic)
-            system_shutdown()
+            self.send(self.registrar, KillMsg())
 
     def on_publish(self, _client, _userdata, msg_id):
         """Here should be a docstring."""

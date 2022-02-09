@@ -16,7 +16,8 @@ import threading
 import time
 from datetime import datetime
 
-from thespian.actors import ActorSystem  # type: ignore
+from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
+from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
 
 from registrationserver.actor_messages import AppType, KillMsg
 from registrationserver.config import config
@@ -30,12 +31,6 @@ if os.name == "nt":
     from registrationserver.modules.usb.win_listener import UsbListener
 else:
     from registrationserver.modules.usb.unix_listener import UsbListener
-
-
-def mqtt_loop(mqtt_listener):
-    """Loop function of the MQTT Listener"""
-    if mqtt_listener is not None:
-        mqtt_listener.mqtt_loop()
 
 
 def startup():
@@ -94,6 +89,9 @@ def main():
     logger.debug("Starting the main loop")
     while is_flag_set():
         before = datetime.now()
+        reply = ActorSystem().ask(REGISTRAR_ACTOR, Thespian_StatusReq(), timeout=3)
+        if not isinstance(reply, Thespian_ActorStatus):
+            set_file_flag(False)
         time.sleep(4)
         after = datetime.now()
         if (after - before).total_seconds() > 10:
@@ -117,8 +115,7 @@ def main():
                 time.sleep(3)
             break
     ActorSystem().shutdown()
-    logger.info("Actor system shut down finished.")
-    logger.debug("This is the end, my only friend, the end.")
+    logger.info("This is the end, my only friend, the end.")
     raise SystemExit("Exit with error for automatic restart.")
 
 

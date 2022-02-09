@@ -22,12 +22,12 @@ from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import Actor, ActorAddress, ActorTypeDispatcher
 
-from registrationserver.actor_messages import (AppType, SetupMsg, SubscribeMsg,
+from registrationserver.actor_messages import (AppType, KillMsg, SetupMsg,
+                                               SubscribeMsg,
                                                SubscribeToActorDictMsg,
                                                SubscribeToDeviceStatusMsg,
                                                UnsubscribeMsg)
 from registrationserver.logger import logger
-from registrationserver.shutdown import system_shutdown
 
 
 @dataclass
@@ -129,7 +129,7 @@ class BaseActor(ActorTypeDispatcher):
         """Handler for PoisonMessage"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         logger.critical("-> Emergency shutdown.")
-        system_shutdown()
+        self.send(self.registrar, KillMsg())
 
     def receiveMsg_ChildActorExited(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
@@ -150,7 +150,7 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name, no-self-use
         """Handler for messages that do not fit the spec."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        system_shutdown()
+        self.send(self.registrar, KillMsg())
 
     def _subscribe_to_actor_dict_msg(self):
         """Subscribe to receive updates of the Actor Dictionary from Registrar."""

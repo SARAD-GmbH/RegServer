@@ -13,7 +13,8 @@ import threading
 import time
 from datetime import datetime
 
-from thespian.actors import ActorSystem  # type: ignore
+from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
+from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
 
 from registrationserver.actor_messages import AppType, KillMsg, SetupMsg
 from registrationserver.config import actor_config
@@ -26,26 +27,6 @@ if os.name == "nt":
     from registrationserver.modules.usb.win_listener import UsbListener
 else:
     from registrationserver.modules.usb.unix_listener import UsbListener
-
-
-def cleanup():
-    """Make sure all sub threads are stopped.
-
-    * Initiates the shutdown of the actor system
-
-    The usb_listener_thread doesn't need
-    extra handling since it is daemonized and will be killed
-    together with the main program.
-
-    Returns:
-        None
-    """
-    logger.debug("Terminate the actor system")
-    registrar_actor = ActorSystem().createActor(Registrar, globalName="registrar")
-    response = ActorSystem().ask(registrar_actor, KillMsg(), 10)
-    logger.debug("KillMsg to Registrar returned with %s", response)
-    ActorSystem().shutdown()
-    logger.info("Actor system shut down finished.")
 
 
 def startup():
@@ -87,6 +68,7 @@ def startup():
         daemon=True,
     )
     usb_listener_thread.start()
+    return registrar_actor
 
 
 def main():
@@ -97,7 +79,7 @@ def main():
     else:
         start_stop = sys.argv[1]
     if start_stop == "start":
-        startup()
+        registrar_actor = startup()
         set_file_flag(True)
     elif start_stop == "stop":
         set_file_flag(False)
@@ -110,6 +92,9 @@ def main():
 
     while is_flag_set():
         before = datetime.now()
+        reply = ActorSystem().ask(registrar_actor, Thespian_StatusReq(), timeout=3)
+        if not isinstance(reply, Thespian_ActorStatus):
+            set_file_flag(False)
         time.sleep(4)
         after = datetime.now()
         if (after - before).total_seconds() > 10:
@@ -117,12 +102,20 @@ def main():
                 "Wakeup from suspension. Shutting down ISMQTT for a fresh restart."
             )
             set_file_flag(False)
-    try:
-        cleanup()
-        set_file_flag(False)
-    except UnboundLocalError:
-        pass
-    logger.debug("This is the end, my only friend, the end.")
+    logger.debug("Terminate the actor system")
+    retry = True
+    for _i in range(0, 5):
+        while retry:
+            try:
+                response = ActorSystem().ask(registrar_actor, KillMsg(), 10)
+                retry = False
+                logger.debug("KillMsg to Registrar returned with %s", response)
+            except OSError as exception:
+                logger.error(exception)
+                time.sleep(3)
+            break
+    ActorSystem().shutdown()
+    logger.info("This is the end, my only friend, the end.")
     raise SystemExit("Exit with error for automatic restart.")
 
 

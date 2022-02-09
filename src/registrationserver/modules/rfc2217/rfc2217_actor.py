@@ -12,10 +12,9 @@
 
 import serial.rfc2217  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import RxBinaryMsg
+from registrationserver.actor_messages import KillMsg, RxBinaryMsg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
-from registrationserver.shutdown import system_shutdown
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -49,7 +48,7 @@ class Rfc2217Actor(DeviceBaseActor):
                 logger.critical(
                     "Fatal error connecting Instrument Server. System shutdown."
                 )
-                system_shutdown()
+                self.send(self.registrar, KillMsg())
                 return False
         if self.__port and self.__port.is_open:
             return True

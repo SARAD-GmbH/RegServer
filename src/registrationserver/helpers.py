@@ -88,7 +88,7 @@ def get_actor(registrar_actor, actor_id: str):
                 "Emergency shutdown. Ask to Registrar took more than 10 sec."
             )
             system_shutdown()
-            return None
+            return {}
         actor_dict = result.actor_dict
     try:
         return actor_dict[actor_id]["address"]

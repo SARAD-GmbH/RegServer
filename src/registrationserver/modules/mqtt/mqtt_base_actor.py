@@ -14,11 +14,10 @@ import time
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import AppType
+from registrationserver.actor_messages import AppType, KillMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import mqtt_config
 from registrationserver.logger import logger
-from registrationserver.shutdown import system_shutdown
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -109,7 +108,7 @@ class MqttBaseActor(BaseActor):
                     logger.critical(
                         "I cannot live without MQTT broker. -> Emergency shutdown"
                     )
-                    system_shutdown()
+                    self.send(self.registrar, KillMsg())
                 else:
                     logger.warning("Proceed without MQTT.")
                 return False

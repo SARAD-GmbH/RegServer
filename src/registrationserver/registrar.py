@@ -28,7 +28,6 @@ from registrationserver.logger import logger
 from registrationserver.modules.mqtt.mqtt_listener import MqttListener
 from registrationserver.modules.mqtt_scheduler import MqttSchedulerActor
 from registrationserver.modules.usb.cluster_actor import ClusterActor
-from registrationserver.shutdown import system_shutdown
 
 
 class Registrar(BaseActor):
@@ -70,7 +69,7 @@ class Registrar(BaseActor):
                         "Actor %s did not respond to KeepAliveMsg.", actor_id
                     )
                     logger.critical("-> Emergency shutdown")
-                    system_shutdown()
+                    self.send(self.registrar, KillMsg())
                 self.actor_dict[actor_id]["is_alive"] = False
             self.send(self.myAddress, KeepAliveMsg())
         self.wakeupAfter(timedelta(minutes=10), payload="keep alive")
@@ -80,7 +79,7 @@ class Registrar(BaseActor):
         """Handler for all DeadEnvelope messages in the actor system."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         logger.critical("-> Emergency shutdown")
-        system_shutdown()
+        self.send(self.registrar, KillMsg())
 
     def receiveMsg_SubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -100,7 +99,7 @@ class Registrar(BaseActor):
                 "The actor already exists in the system -> emergency shutdown"
             )
             self.send(sender, KillMsg())
-            system_shutdown()
+            self.send(self.registrar, KillMsg())
 
     def receiveMsg_UnsubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
