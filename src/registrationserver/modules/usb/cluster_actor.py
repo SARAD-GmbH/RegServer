@@ -219,11 +219,6 @@ class ClusterActor(BaseActor):
         actor_id = f"{device_id}.{sarad_type}.local"
         logger.debug("Create actor %s", actor_id)
         device_actor = self._create_actor(UsbActor, actor_id)
-        self.child_actors[actor_id]["port"] = instrument.port
-        self.send(
-            device_actor,
-            SetupMsg(actor_id=actor_id, parent_id=self.my_id, app_type=self.app_type),
-        )
         device_status = {
             "Identification": {
                 "Name": instrument.type_name,
@@ -237,6 +232,7 @@ class ClusterActor(BaseActor):
         }
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
         self.send(device_actor, SetDeviceStatusMsg(device_status))
+        self.child_actors[actor_id]["port"] = instrument.port
         self.send(device_actor, SetupUsbActorMsg(instrument.port, instrument.family))
 
     def _remove_actor(self, gone_port):
