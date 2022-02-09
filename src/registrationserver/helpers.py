@@ -141,21 +141,26 @@ def get_device_statuses(registrar_actor):
     }
     device_statuses = {}
     for _id, device_actor in device_actor_dict.items():
-        reply = ActorSystem().ask(device_actor, GetDeviceStatusMsg())
-        device_statuses[reply.device_id] = reply.device_status
+        with ActorSystem().private() as status_sys:
+            result = status_sys.ask(device_actor, GetDeviceStatusMsg())
+            if not isinstance(result, UpdateDeviceStatusMsg):
+                logger.critical("Emergency shutdown. Wrong reply type: %s", result)
+                system_shutdown()
+                return {}
+            device_statuses[result.device_id] = result.device_status
     return device_statuses
 
 
 def get_instr_id_actor_dict(registrar_actor):
     """Return a dictionary of device actor addresses with instr_id as key."""
-    with ActorSystem().private() as db_sys:
-        result = db_sys.ask(registrar_actor, GetActorDictMsg(), 10)
+    with ActorSystem().private() as iid_sys:
+        result = iid_sys.ask(registrar_actor, GetActorDictMsg(), 10)
         if not isinstance(result, UpdateActorDictMsg):
             logger.critical(
                 "Emergency shutdown. Ask to Registrar took more than 10 sec."
             )
             system_shutdown()
-            return None
+            return {}
     return {
         short_id(id): dict["address"]
         for id, dict in result.actor_dict.items()
