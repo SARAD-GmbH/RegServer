@@ -171,7 +171,7 @@ class MqttSchedulerActor(MqttBaseActor):
         device_actor = self.instr_id_actor_dict.get(instr_id)
         if device_actor is not None:
             logger.debug("Forward command %s to device actor %s", cmd, device_actor)
-            self.send(device_actor, TxBinaryMsg(cmd, "localhost"))
+            self.send(device_actor, TxBinaryMsg(cmd))
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name

@@ -193,11 +193,9 @@ class TxBinaryMsg:
 
     Args:
         data (ByteString): Binary data to be forwarded.
-        host (str): Host sending the data, to check reservation at the Instrument Server.
     """
 
     data: ByteString
-    host: Union[str, None]
 
 
 @dataclass
