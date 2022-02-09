@@ -17,7 +17,7 @@ from registrationserver.actor_messages import (KillMsg, ReturnLocalPortsMsg,
                                                ReturnLoopPortsMsg,
                                                ReturnNativePortsMsg,
                                                ReturnUsbPortsMsg,
-                                               SetDeviceStatusMsg, SetupMsg,
+                                               SetDeviceStatusMsg,
                                                SetupUsbActorMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
