@@ -118,10 +118,12 @@ class MqttSchedulerActor(MqttBaseActor):
             topic=f"{self.is_id}/{instr_id}/meta",
             payload=json.dumps({"State": 0}),
         )
+        self.instr_id_actor_dict.pop(instr_id, None)
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
-        for instr_id in self.instr_id_actor_dict:
+        to_remove = self.instr_id_actor_dict
+        for instr_id in to_remove:
             self._remove_instrument(instr_id)
         self.mqttc.publish(
             retain=True, topic=f"{self.is_id}/meta", payload=json.dumps({"State": 0})
