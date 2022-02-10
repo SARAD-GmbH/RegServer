@@ -122,7 +122,7 @@ class MqttSchedulerActor(MqttBaseActor):
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
-        to_remove = self.instr_id_actor_dict.keys()
+        to_remove = list(self.instr_id_actor_dict.keys())
         for instr_id in to_remove:
             self._remove_instrument(instr_id)
         self.mqttc.publish(
