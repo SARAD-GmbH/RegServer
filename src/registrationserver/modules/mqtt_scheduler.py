@@ -12,7 +12,7 @@ import json
 from datetime import datetime
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import TxBinaryMsg
+from registrationserver.actor_messages import KeepAliveMsg, TxBinaryMsg
 from registrationserver.config import ismqtt_config
 from registrationserver.helpers import diff_of_dicts, get_key, short_id
 from registrationserver.logger import logger
@@ -193,6 +193,10 @@ class MqttSchedulerActor(MqttBaseActor):
             instr_id,
             control,
         )
+        device_actor = self.instr_id_actor_dict.get(instr_id)
+        if device_actor is not None:
+            logger.debug("Send KeepAliveMsg to %s", device_actor)
+            self.send(device_actor, KeepAliveMsg())
         success = False
         if not success and not self.reservations.get(instr_id, None):
             success = True
