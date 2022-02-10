@@ -178,6 +178,7 @@ class MqttSchedulerActor(MqttBaseActor):
         """Handler for actor messages returning from 'SEND" command
 
         Forward the payload received from device_actor via MQTT."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         instr_id = get_key(sender, self.instr_id_actor_dict)
         reply = bytes([self.cmd_ids[instr_id]]) + msg.data
         self.mqttc.publish(f"{self.is_id}/{instr_id}/msg", reply)
