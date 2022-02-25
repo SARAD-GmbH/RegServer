@@ -17,12 +17,13 @@ import sys
 import time
 
 from flask import Flask, Response, json, request
-from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
+from thespian.actors import (Actor, ActorSystem,  # type: ignore
+                             Thespian_ActorStatus)
 from thespian.system.messages.status import (  # type: ignore
     Thespian_StatusReq, formatStatus)
 
-from registrationserver.actor_messages import (AddPortToLoopMsg, AppType,
-                                               FreeDeviceMsg, GetLocalPortsMsg,
+from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
+                                               GetLocalPortsMsg,
                                                GetNativePortsMsg,
                                                GetUsbPortsMsg,
                                                RemovePortFromLoopMsg,
@@ -31,14 +32,11 @@ from registrationserver.actor_messages import (AddPortToLoopMsg, AppType,
                                                ReturnLocalPortsMsg,
                                                ReturnLoopPortsMsg,
                                                ReturnNativePortsMsg,
-                                               ReturnUsbPortsMsg, SetupMsg,
-                                               Status)
-from registrationserver.config import actor_config, config, mqtt_config
+                                               ReturnUsbPortsMsg, Status)
+from registrationserver.config import mqtt_config
 from registrationserver.helpers import (get_actor, get_device_status,
                                         get_device_statuses)
-from registrationserver.logdef import logcfg
 from registrationserver.logger import logger  # type: ignore
-from registrationserver.registrar import Registrar
 from registrationserver.shutdown import system_shutdown
 
 logger.debug("%s -> %s", __package__, __file__)
@@ -46,23 +44,7 @@ logger.debug("%s -> %s", __package__, __file__)
 MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 RESERVE_KEYWORD = "reserve"
 FREE_KEYWORD = "free"
-
-# =======================
-# Initialization of the actor system,
-# can be changed to a distributed system here.
-# =======================
-config["APP_TYPE"] = AppType.RS
-system = ActorSystem(
-    systemBase=actor_config["systemBase"],
-    capabilities=actor_config["capabilities"],
-    logDefs=logcfg,
-)
-REGISTRAR_ACTOR = system.createActor(Registrar, globalName="registrar")
-system.tell(
-    REGISTRAR_ACTOR,
-    SetupMsg("registrar", "actor_system", AppType.RS),
-)
-logger.debug("Actor system started.")
+REGISTRAR_ACTOR = ActorSystem().createActor(Actor, globalName="registrar")
 
 
 def check_msg(return_message, message_object_type):
