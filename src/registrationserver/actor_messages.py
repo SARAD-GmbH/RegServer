@@ -302,6 +302,11 @@ class InstrRemovedMsg:
 
 
 @dataclass
+class RescanMsg:
+    """Request to rebuild the list of instruments."""
+
+
+@dataclass
 class AddPortToLoopMsg:
     """Request to set a serial interface or a list of serial interfaces
     to the list of interfaces for polling."""

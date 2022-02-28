@@ -251,8 +251,8 @@ class ClusterActor(BaseActor):
 
     def receiveMsg_InstrAddedMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Create device actors for instruments connected to
-        the serial ports given in the argument list."""
+        """Create device actors for instruments connected to newly detected serial
+        ports."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         port_actors = self._switch_to_port_key(self.child_actors)
         old_ports = set(port_actors.keys())
@@ -262,8 +262,7 @@ class ClusterActor(BaseActor):
         new_ports = set()
         for instrument in new_instruments:
             new_ports.add(instrument.port)
-        target = list(new_ports)
-        for port in target:
+        for port in new_ports:
             for instrument in self._cluster.connected_instruments:
                 if instrument.port == port:
                     self._create_and_setup_actor(instrument)
@@ -279,6 +278,24 @@ class ClusterActor(BaseActor):
         gone_ports = old_ports.difference(current_ports)
         logger.debug("Call _remove_actor for %s", gone_ports)
         for port in gone_ports:
+            self._remove_actor(port)
+
+    def receiveMsg_RescanMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Rescan for connected instruments and create or remove device actors
+        accordingly."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        active_instruments = self._cluster.update_connected_instruments()
+        active_ports = set()
+        port_actors = self._switch_to_port_key(self.child_actors)
+        old_ports = set(port_actors.keys())
+        for instrument in active_instruments:
+            active_ports.add(instrument.port)
+        for port in active_ports.difference(old_ports):
+            for instrument in self._cluster.connected_instruments:
+                if instrument.port == port:
+                    self._create_and_setup_actor(instrument)
+        for port in old_ports.difference(active_ports):
             self._remove_actor(port)
 
     def receiveMsg_WakeupMessage(self, _msg, _sender):

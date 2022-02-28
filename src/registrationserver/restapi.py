@@ -27,7 +27,7 @@ from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
                                                GetNativePortsMsg,
                                                GetUsbPortsMsg,
                                                RemovePortFromLoopMsg,
-                                               ReservationStatusMsg,
+                                               RescanMsg, ReservationStatusMsg,
                                                ReserveDeviceMsg,
                                                ReturnLocalPortsMsg,
                                                ReturnLoopPortsMsg,
@@ -42,9 +42,6 @@ from registrationserver.shutdown import system_shutdown
 logger.debug("%s -> %s", __package__, __file__)
 
 MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
-RESERVE_KEYWORD = "reserve"
-FREE_KEYWORD = "free"
-REGISTRAR_ACTOR = ActorSystem().createActor(Actor, globalName="registrar")
 
 
 def check_msg(return_message, message_object_type):
@@ -101,8 +98,28 @@ class RestApi:
     @api.route("/list/", methods=["GET"])
     def get_list():
         """Path for getting the list of active devices"""
+        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         return Response(
-            response=json.dumps(get_device_statuses(REGISTRAR_ACTOR)),
+            response=json.dumps(get_device_statuses(registrar_actor)),
+            status=200,
+            mimetype="application/json",
+        )
+
+    @staticmethod
+    @api.route("/scan", methods=["GET"])
+    @api.route("/scan/", methods=["GET"])
+    def scan_for_new_instr():
+        """Refresh the list of active devices"""
+        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        cluster_actor = get_actor(registrar_actor, "cluster")
+        ActorSystem().tell(cluster_actor, RescanMsg())
+        status = Status.OK
+        answer = {
+            "Error code": status.value,
+            "Error": str(status),
+        }
+        return Response(
+            response=json.dumps(answer),
             status=200,
             mimetype="application/json",
         )
@@ -112,19 +129,21 @@ class RestApi:
     @api.route("/list/<device_id>/", methods=["GET"])
     def get_device(device_id):
         """Path for getting information for a single active device"""
+        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         if not MATCHID.fullmatch(device_id):
             return json.dumps({"Error": "Wronly formated ID"})
         answer = {}
-        answer[device_id] = get_device_status(REGISTRAR_ACTOR, device_id)
+        answer[device_id] = get_device_status(registrar_actor, device_id)
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
     @staticmethod
-    @api.route(f"/list/<device_id>/{RESERVE_KEYWORD}", methods=["GET"])
+    @api.route("/list/<device_id>/reserve", methods=["GET"])
     def reserve_device(device_id):
         """Path for reserving a single active device"""
         # Collect information about who sent the request.
+        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         try:
             attribute_who = request.args.get("who").strip('"')
             app = attribute_who.split(" - ")[0]
@@ -153,7 +172,7 @@ class RestApi:
         )
         if not MATCHID.fullmatch(device_id):
             return json.dumps({"Error": "Wronly formated ID"})
-        device_state = get_device_status(REGISTRAR_ACTOR, device_id)
+        device_state = get_device_status(registrar_actor, device_id)
         if (
             not "_rfc2217" in device_id
             and not "mqtt" in device_id
@@ -166,7 +185,7 @@ class RestApi:
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
         # send RESERVE message to device actor
-        device_actor = get_actor(REGISTRAR_ACTOR, device_id)
+        device_actor = get_actor(registrar_actor, device_id)
         with ActorSystem().private() as reserve_sys:
             reserve_return = reserve_sys.ask(
                 device_actor, ReserveDeviceMsg(request_host, user, app), 10
@@ -177,7 +196,7 @@ class RestApi:
         status = reserve_return.status
         if status in (Status.OK, Status.OK_SKIPPED, Status.OK_UPDATED, Status.OCCUPIED):
             answer = {"Error code": status.value, "Error": str(status)}
-            answer[device_id] = get_device_status(REGISTRAR_ACTOR, device_id)
+            answer[device_id] = get_device_status(registrar_actor, device_id)
         else:
             status = Status.CRITICAL
             answer = {"Error code": status.value, "Error": str(status), device_id: {}}
@@ -187,10 +206,11 @@ class RestApi:
         )
 
     @staticmethod
-    @api.route(f"/list/<device_id>/{FREE_KEYWORD}", methods=["GET"])
+    @api.route("/list/<device_id>/free", methods=["GET"])
     def free_device(device_id):
         """Path for freeing a single active device"""
-        device_state = get_device_status(REGISTRAR_ACTOR, device_id)
+        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        device_state = get_device_status(registrar_actor, device_id)
         if device_state == {}:
             status = Status.NOT_FOUND
         elif (device_state.get("Reservation", None) is None) or (
@@ -198,7 +218,7 @@ class RestApi:
         ):
             status = Status.OK_SKIPPED
         else:
-            device_actor = get_actor(REGISTRAR_ACTOR, device_id)
+            device_actor = get_actor(registrar_actor, device_id)
             logger.debug("Ask device actor to FREE...")
             free_return = ActorSystem().ask(device_actor, FreeDeviceMsg(), 10)
             reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
@@ -207,7 +227,7 @@ class RestApi:
             status = free_return.status
         answer = {"Error code": status.value, "Error": str(status), device_id: {}}
         if status in (Status.OK, Status.OCCUPIED):
-            answer[device_id] = get_device_status(REGISTRAR_ACTOR, device_id)
+            answer[device_id] = get_device_status(registrar_actor, device_id)
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -217,7 +237,8 @@ class RestApi:
     @api.route("/ports/", methods=["GET"])
     def getlocalports():
         """Lists Local Ports, Used for Testing atm"""
-        cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
+        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        cluster_actor = get_actor(registrar_actor, "cluster")
         reply = ActorSystem().ask(cluster_actor, GetLocalPortsMsg(), 10)
         reply_is_corrupted = check_msg(reply, ReturnLocalPortsMsg)
         if reply_is_corrupted:
@@ -230,7 +251,8 @@ class RestApi:
     @api.route("/ports/<port>/loop", methods=["GET"])
     def getloopport(port):
         """Loops Local Ports, Used for Testing"""
-        cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
+        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        cluster_actor = get_actor(registrar_actor, "cluster")
         reply = ActorSystem().ask(cluster_actor, AddPortToLoopMsg(port), 10)
         reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
         if reply_is_corrupted:
@@ -243,7 +265,8 @@ class RestApi:
     @api.route("/ports/<port>/stop", methods=["GET"])
     def getstopport(port):
         """Loops Local Ports, Used for Testing"""
-        cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
+        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        cluster_actor = get_actor(registrar_actor, "cluster")
         reply = ActorSystem().ask(cluster_actor, RemovePortFromLoopMsg(port), 10)
         reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
         if reply_is_corrupted:
@@ -256,7 +279,8 @@ class RestApi:
     @api.route("/ports/list-usb", methods=["GET"])
     def getusbports():
         """Loops Local Ports, Used for Testing"""
-        cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
+        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        cluster_actor = get_actor(registrar_actor, "cluster")
         reply = ActorSystem().ask(cluster_actor, GetUsbPortsMsg(), 10)
         reply_is_corrupted = check_msg(reply, ReturnUsbPortsMsg)
         if reply_is_corrupted:
@@ -269,7 +293,8 @@ class RestApi:
     @api.route("/ports/list-native", methods=["GET"])
     def getnativeports():
         """Loops Local Ports, Used for Testing"""
-        cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
+        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        cluster_actor = get_actor(registrar_actor, "cluster")
         reply = ActorSystem().ask(cluster_actor, GetNativePortsMsg(), 10)
         reply_is_corrupted = check_msg(reply, ReturnNativePortsMsg)
         if reply_is_corrupted:
@@ -282,7 +307,8 @@ class RestApi:
     @api.route("/status/<actor_id>", methods=["GET"])
     def getstatus(actor_id):
         """Ask actor system to output actor status to debug log"""
-        actor_address = get_actor(REGISTRAR_ACTOR, actor_id)
+        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        actor_address = get_actor(registrar_actor, actor_id)
         reply = ActorSystem().ask(
             actorAddr=actor_address, msg=Thespian_StatusReq(), timeout=10
         )
