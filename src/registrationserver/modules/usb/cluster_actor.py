@@ -13,12 +13,13 @@ Covers as well USB ports as native RS-232 ports.
 from typing import List
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (KillMsg, ReturnLocalPortsMsg,
+from registrationserver.actor_messages import (KillMsg, RescanFinishedMsg,
+                                               ReturnLocalPortsMsg,
                                                ReturnLoopPortsMsg,
                                                ReturnNativePortsMsg,
                                                ReturnUsbPortsMsg,
                                                SetDeviceStatusMsg,
-                                               SetupUsbActorMsg)
+                                               SetupUsbActorMsg, Status)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
 from registrationserver.logger import logger
@@ -285,18 +286,21 @@ class ClusterActor(BaseActor):
         """Rescan for connected instruments and create or remove device actors
         accordingly."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        active_instruments = self._cluster.update_connected_instruments()
+        self._cluster.update_connected_instruments()
+        active_instruments = self._cluster.connected_instruments
         active_ports = set()
         port_actors = self._switch_to_port_key(self.child_actors)
         old_ports = set(port_actors.keys())
         for instrument in active_instruments:
             active_ports.add(instrument.port)
+        logger.debug("Current: %s, Old: %s", active_ports, old_ports)
         for port in active_ports.difference(old_ports):
             for instrument in self._cluster.connected_instruments:
                 if instrument.port == port:
                     self._create_and_setup_actor(instrument)
         for port in old_ports.difference(active_ports):
             self._remove_actor(port)
+        self.send(sender, RescanFinishedMsg(Status.OK))
 
     def receiveMsg_WakeupMessage(self, _msg, _sender):
         # pylint: disable=invalid-name

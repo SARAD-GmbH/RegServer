@@ -27,7 +27,8 @@ from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
                                                GetNativePortsMsg,
                                                GetUsbPortsMsg,
                                                RemovePortFromLoopMsg,
-                                               RescanMsg, ReservationStatusMsg,
+                                               RescanFinishedMsg, RescanMsg,
+                                               ReservationStatusMsg,
                                                ReserveDeviceMsg,
                                                ReturnLocalPortsMsg,
                                                ReturnLoopPortsMsg,
@@ -112,11 +113,14 @@ class RestApi:
         """Refresh the list of active devices"""
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         cluster_actor = get_actor(registrar_actor, "cluster")
-        ActorSystem().tell(cluster_actor, RescanMsg())
-        status = Status.OK
+        with ActorSystem().private() as scan_sys:
+            reply = scan_sys.ask(cluster_actor, RescanMsg(), timeout=10)
+        reply_is_corrupted = check_msg(reply, RescanFinishedMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
         answer = {
-            "Error code": status.value,
-            "Error": str(status),
+            "Error code": reply.status.value,
+            "Error": str(reply.status),
         }
         return Response(
             response=json.dumps(answer),
@@ -323,7 +327,8 @@ class RestApi:
             write = logger.debug
 
         formatStatus(reply, tofd=Temp())
-        answer = {"Error code": 0}
+        status = Status.OK
+        answer = {"Error code": status.value, "Error": str(status)}
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )

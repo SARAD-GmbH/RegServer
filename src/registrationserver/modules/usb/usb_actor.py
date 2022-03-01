@@ -43,6 +43,7 @@ class UsbActor(DeviceBaseActor):
             sender,
         )
         self.instrument = SaradInst(msg.port, msg.family)
+        self.instrument.release_instrument()
         logger.info("Instrument with Id %s detected.", self.my_id)
 
     def receiveMsg_TxBinaryMsg(self, msg, sender):

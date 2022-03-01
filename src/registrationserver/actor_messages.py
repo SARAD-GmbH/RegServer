@@ -307,6 +307,13 @@ class RescanMsg:
 
 
 @dataclass
+class RescanFinishedMsg:
+    """Confirmation that the RescanMsg was handled properly."""
+
+    status: Status
+
+
+@dataclass
 class AddPortToLoopMsg:
     """Request to set a serial interface or a list of serial interfaces
     to the list of interfaces for polling."""
