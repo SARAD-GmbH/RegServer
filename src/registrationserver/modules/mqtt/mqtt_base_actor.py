@@ -65,13 +65,14 @@ class MqttBaseActor(BaseActor):
         self.mqttc.on_message = self.on_message
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
-        self._connect(self.mqtt_broker, self.port)
-        self.mqttc.loop_start()
+        if self._connect(self.mqtt_broker, self.port):
+            self.mqttc.loop_start()
 
     def _connect(self, mqtt_broker, port):
         """Try to connect the MQTT broker
 
-        Give up after 3 attempts with RETRY_INTERVAL.
+        Retry forever with RETRY_INTERVAL,
+        if there is a chance that the connection can be established.
         Give up, if TLS files are not available.
         """
         retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
