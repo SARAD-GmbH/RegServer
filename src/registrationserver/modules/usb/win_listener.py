@@ -16,6 +16,7 @@ try:
 except ImportError:
     print("Wrong operating system.")
     raise
+from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import InstrAddedMsg, InstrRemovedMsg
 from registrationserver.logger import logger
 from registrationserver.modules.usb.base_listener import BaseListener
@@ -71,6 +72,12 @@ class UsbListener(BaseListener):
         0xFFFF: ("DBT_USERDEFINED", "The meaning of this message is user-defined."),
     }
 
+    @overrides
+    def __init__(self, registrar_actor, app_type):
+        super().__init__(registrar_actor, app_type)
+        self.hwnd = self._create_listener()
+        logger.debug("Created listener window with hwnd=%s", self.hwnd)
+
     def _create_listener(self):
         win_class = win32gui.WNDCLASS()
         win_class.lpfnWndProc = self._on_message
@@ -91,16 +98,14 @@ class UsbListener(BaseListener):
             None,
         )
 
-    def run(self):
+    def run(self):  # pylint: disable=no-self-use
         """Start listening for new devices"""
         logger.info("[Start] Windows USB Listener")
-        hwnd = self._create_listener()
-        logger.debug("Created listener window with hwnd=%s", hwnd)
         win32gui.PumpMessages()
 
     def stop(self):  # pylint: disable=no-self-use
         """Stop listening."""
-        win32gui.SendMessage(win32gui.WM_QUIT)
+        win32gui.PostQuitMessage(self.hwnd)
         logger.debug("Stop listening for USB devices.")
 
     def _on_message(self, _hwnd: int, msg: int, wparam: int, _lparam: int):
