@@ -98,6 +98,11 @@ class UsbListener(BaseListener):
         logger.debug("Created listener window with hwnd=%s", hwnd)
         win32gui.PumpMessages()
 
+    def stop(self):  # pylint: disable=no-self-use
+        """Stop listening."""
+        win32gui.SendMessage(win32gui.WM_QUIT)
+        logger.debug("Stop listening for USB devices.")
+
     def _on_message(self, _hwnd: int, msg: int, wparam: int, _lparam: int):
         if msg == win32con.WM_DEVICECHANGE:
             event, description = self.WM_DEVICECHANGE_EVENTS[wparam]

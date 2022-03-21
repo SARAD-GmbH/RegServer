@@ -84,7 +84,11 @@ def startup():
     )
     usb_listener_thread.start()
 
-    return (registrar_actor, MdnsListener(registrar_actor, service_type=config["TYPE"]))
+    return (
+        registrar_actor,
+        MdnsListener(registrar_actor, service_type=config["TYPE"]),
+        usb_listener,
+    )
 
 
 def main():
@@ -98,6 +102,7 @@ def main():
         startup_tupel = startup()
         registrar_actor = startup_tupel[0]
         mdns_listener = startup_tupel[1]
+        usb_listener = startup_tupel[2]
         set_file_flag(True)
     elif start_stop == "stop":
         set_file_flag(False)
@@ -122,6 +127,11 @@ def main():
     logger.debug("Shutdown MdnsListener")
     if mdns_listener is not None:
         mdns_listener.shutdown()
+    logger.debug("Terminate UsbListener")
+    if usb_listener is not None:
+        usb_listener.stop()
+    logger.debug("Wait for 10 sec. before shuting down the actor system")
+    time.sleep(10)
     logger.debug("Terminate the actor system")
     retry = True
     for _i in range(0, 5):
