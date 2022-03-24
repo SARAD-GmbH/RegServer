@@ -114,7 +114,7 @@ class RestApi:
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         cluster_actor = get_actor(registrar_actor, "cluster")
         with ActorSystem().private() as scan_sys:
-            reply = scan_sys.ask(cluster_actor, RescanMsg(), timeout=10)
+            reply = scan_sys.ask(cluster_actor, RescanMsg(), timeout=60)
         reply_is_corrupted = check_msg(reply, RescanFinishedMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
