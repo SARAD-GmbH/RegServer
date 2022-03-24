@@ -75,8 +75,7 @@ class UsbListener(BaseListener):
     @overrides
     def __init__(self, registrar_actor, app_type):
         super().__init__(registrar_actor, app_type)
-        self.hwnd = self._create_listener()
-        logger.debug("Created listener window with hwnd=%s", self.hwnd)
+        self.hwnd = None
 
     def _create_listener(self):
         win_class = win32gui.WNDCLASS()
@@ -100,6 +99,8 @@ class UsbListener(BaseListener):
 
     def run(self):  # pylint: disable=no-self-use
         """Start listening for new devices"""
+        self.hwnd = self._create_listener()
+        logger.debug("Created listener window with hwnd=%s", self.hwnd)
         logger.info("[Start] Windows USB Listener")
         win32gui.PumpMessages()
 
