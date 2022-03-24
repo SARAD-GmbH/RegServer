@@ -1,1 +1,1 @@
-Powershell.exe -executionpolicy remotesigned -File  C:\Users\mstrey\Privat\src-registrationserver2\copy-distribution.ps1
+Powershell.exe -executionpolicy remotesigned -File D:\Projekte\RegServer\copy-distribution.ps1

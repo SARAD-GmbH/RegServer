@@ -3,7 +3,7 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [("*.bat", "."), ("network.ico", "."), ("eula.txt", "."), ("*.toml", ".")]
 binaries = []
-hiddenimports = ["thespian.system.multiprocTCPBase", "win32timezone"]
+hiddenimports = ["thespian.system.multiprocTCPBase", "thespian.system.multiprocUDPBase", "win32timezone"]
 tmp_ret = collect_all("sarad")
 datas += tmp_ret[0]
 binaries += tmp_ret[1]
@@ -15,7 +15,7 @@ block_cipher = None
 
 a = Analysis(
     ["regserver-service.py"],
-    pathex=["C:\\Users\\mstrey\\Privat\\src-registrationserver2\\src"],
+    pathex=["D:\\Projekte\\RegServer\\src"],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
