@@ -9,7 +9,7 @@ api_port = 8000
 host = "::1"  # Localhost IPv6
 
 [actor]
-system_base = "multiprocTCPBase"
+system_base = "multiprocUDPBase"
 admin_port = 1901
 process_startup_method = "spawn"
 

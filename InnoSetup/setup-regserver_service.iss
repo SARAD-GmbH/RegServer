@@ -2,13 +2,12 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "RegServer-Service"
-#define MyAppVersion "1.0"
+#define MyAppVersion "2.0"
 #define MyAppPublisher "SARAD"
 #define MyAppURL "https://www.sarad.de"
-#define MyOutputDir "C:\Users\mstrey\Privat\RegServer-Service"
-#define Sarad_dev "Y:\Software\Sarad_dev"
+#define MyOutputDir "D:\bin\RegServer-Service"
 #define Source "Y:\Software\Sarad_dev\regserver-service"
-#define Destination "{commonpf}\SARAD\RegServer-Service"
+#define Destination "{commonpf64}\SARAD\RegServer-Service"
 #define Distribution "\\server\system\distribution"
 #define DriverExeName "CDM212362_Setup.exe"
 
@@ -39,8 +38,8 @@ DisableReadyPage=True
 DisableReadyMemo=True
 DisableFinishedPage=True
 AppName=SARAD Registration Server Service
-AppVersion=1.0
-DefaultDirName={commonpf}\SARAD\RegServer-Service
+AppVersion=2.0
+DefaultDirName={#Destination}
 DisableDirPage=yes
 AllowUNCPath=False
 
