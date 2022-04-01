@@ -55,7 +55,7 @@ class MqttSchedulerActor(MqttBaseActor):
         self.mqttc.will_set(
             retain=True,
             topic=f"{self.is_id}/meta",
-            payload=ismqtt_messages.get_is_meta(self.is_meta),
+            payload=ismqtt_messages.get_is_meta(self.is_meta._replace(state=0)),
         )
         self._subscribe_topic([(f"{self.is_id}/+/meta", 0)])
         self._subscribe_to_actor_dict_msg()
