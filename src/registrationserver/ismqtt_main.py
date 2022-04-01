@@ -11,7 +11,7 @@ import os
 import sys
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
@@ -68,7 +68,7 @@ def startup():
         daemon=True,
     )
     usb_listener_thread.start()
-    return registrar_actor
+    return (registrar_actor, usb_listener)
 
 
 def main():
@@ -79,7 +79,9 @@ def main():
     else:
         start_stop = sys.argv[1]
     if start_stop == "start":
-        registrar_actor = startup()
+        startup_tupel = startup()
+        registrar_actor = startup_tupel[0]
+        usb_listener = startup_tupel[1]
         set_file_flag(True)
     elif start_stop == "stop":
         set_file_flag(False)
@@ -90,26 +92,40 @@ def main():
         print("Usage: <program> start|stop")
         return None
 
+    logger.debug("Starting the main loop")
+    wait_some_time = False
     while is_flag_set():
         before = datetime.now()
-        reply = ActorSystem().ask(registrar_actor, Thespian_StatusReq(), timeout=3)
+        reply = ActorSystem().ask(
+            registrar_actor, Thespian_StatusReq(), timeout=timedelta(seconds=3)
+        )
         if not isinstance(reply, Thespian_ActorStatus):
             set_file_flag(False)
         time.sleep(4)
         after = datetime.now()
         if (after - before).total_seconds() > 10:
-            logger.debug(
-                "Wakeup from suspension. Shutting down ISMQTT for a fresh restart."
-            )
+            logger.debug("Wakeup from suspension.")
+            wait_some_time = True
             set_file_flag(False)
+    logger.debug("Terminate UsbListener")
+    if usb_listener is not None:
+        usb_listener.stop()
+    if wait_some_time:
+        logger.debug("Wait for 10 sec before shutting down ISMQTT.")
+        time.sleep(10)
     logger.debug("Terminate the actor system")
     retry = True
     for _i in range(0, 5):
         while retry:
             try:
-                response = ActorSystem().ask(registrar_actor, KillMsg(), 10)
-                retry = False
+                response = ActorSystem().ask(
+                    registrar_actor, KillMsg(), timeout=timedelta(seconds=10)
+                )
                 logger.debug("KillMsg to Registrar returned with %s", response)
+                if response:
+                    retry = False
+                else:
+                    time.sleep(3)
             except OSError as exception:
                 logger.error(exception)
                 time.sleep(3)

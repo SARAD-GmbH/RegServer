@@ -15,6 +15,7 @@ import re
 import socket
 import sys
 import time
+from datetime import timedelta
 
 from flask import Flask, Response, json, request
 from thespian.actors import (Actor, ActorSystem,  # type: ignore
@@ -114,7 +115,9 @@ class RestApi:
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         cluster_actor = get_actor(registrar_actor, "cluster")
         with ActorSystem().private() as scan_sys:
-            reply = scan_sys.ask(cluster_actor, RescanMsg(), timeout=60)
+            reply = scan_sys.ask(
+                cluster_actor, RescanMsg(), timeout=timedelta(seconds=60)
+            )
         reply_is_corrupted = check_msg(reply, RescanFinishedMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
@@ -192,7 +195,9 @@ class RestApi:
         device_actor = get_actor(registrar_actor, device_id)
         with ActorSystem().private() as reserve_sys:
             reserve_return = reserve_sys.ask(
-                device_actor, ReserveDeviceMsg(request_host, user, app), 10
+                device_actor,
+                ReserveDeviceMsg(request_host, user, app),
+                timeout=timedelta(seconds=10),
             )
         reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
         if reply_is_corrupted:
@@ -224,7 +229,9 @@ class RestApi:
         else:
             device_actor = get_actor(registrar_actor, device_id)
             logger.debug("Ask device actor to FREE...")
-            free_return = ActorSystem().ask(device_actor, FreeDeviceMsg(), 10)
+            free_return = ActorSystem().ask(
+                device_actor, FreeDeviceMsg(), timeout=timedelta(seconds=10)
+            )
             reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
             if reply_is_corrupted:
                 return reply_is_corrupted
@@ -243,7 +250,9 @@ class RestApi:
         """Lists Local Ports, Used for Testing atm"""
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         cluster_actor = get_actor(registrar_actor, "cluster")
-        reply = ActorSystem().ask(cluster_actor, GetLocalPortsMsg(), 10)
+        reply = ActorSystem().ask(
+            cluster_actor, GetLocalPortsMsg(), timeout=timedelta(seconds=10)
+        )
         reply_is_corrupted = check_msg(reply, ReturnLocalPortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
@@ -257,7 +266,9 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         cluster_actor = get_actor(registrar_actor, "cluster")
-        reply = ActorSystem().ask(cluster_actor, AddPortToLoopMsg(port), 10)
+        reply = ActorSystem().ask(
+            cluster_actor, AddPortToLoopMsg(port), timeout=timedelta(seconds=10)
+        )
         reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
@@ -271,7 +282,9 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         cluster_actor = get_actor(registrar_actor, "cluster")
-        reply = ActorSystem().ask(cluster_actor, RemovePortFromLoopMsg(port), 10)
+        reply = ActorSystem().ask(
+            cluster_actor, RemovePortFromLoopMsg(port), timeout=timedelta(seconds=10)
+        )
         reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
@@ -285,7 +298,9 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         cluster_actor = get_actor(registrar_actor, "cluster")
-        reply = ActorSystem().ask(cluster_actor, GetUsbPortsMsg(), 10)
+        reply = ActorSystem().ask(
+            cluster_actor, GetUsbPortsMsg(), timeout=timedelta(seconds=10)
+        )
         reply_is_corrupted = check_msg(reply, ReturnUsbPortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
@@ -299,7 +314,9 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         cluster_actor = get_actor(registrar_actor, "cluster")
-        reply = ActorSystem().ask(cluster_actor, GetNativePortsMsg(), 10)
+        reply = ActorSystem().ask(
+            cluster_actor, GetNativePortsMsg(), timeout=timedelta(seconds=10)
+        )
         reply_is_corrupted = check_msg(reply, ReturnNativePortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
@@ -314,7 +331,9 @@ class RestApi:
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         actor_address = get_actor(registrar_actor, actor_id)
         reply = ActorSystem().ask(
-            actorAddr=actor_address, msg=Thespian_StatusReq(), timeout=10
+            actorAddr=actor_address,
+            msg=Thespian_StatusReq(),
+            timeout=timedelta(seconds=10),
         )
         reply_is_corrupted = check_msg(reply, Thespian_ActorStatus)
         if reply_is_corrupted:
