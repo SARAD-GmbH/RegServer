@@ -199,11 +199,20 @@ class RestApi:
                 ReserveDeviceMsg(request_host, user, app),
                 timeout=timedelta(seconds=10),
             )
-        reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
-        if reply_is_corrupted:
-            return reply_is_corrupted
-        status = reserve_return.status
-        if status in (Status.OK, Status.OK_SKIPPED, Status.OK_UPDATED, Status.OCCUPIED):
+        if reserve_return is None:
+            status = Status.NOT_FOUND
+        else:
+            reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
+            if reply_is_corrupted:
+                return reply_is_corrupted
+            status = reserve_return.status
+        if status in (
+            Status.OK,
+            Status.OK_SKIPPED,
+            Status.OK_UPDATED,
+            Status.OCCUPIED,
+            Status.NOT_FOUND,
+        ):
             answer = {"Error code": status.value, "Error": str(status)}
             answer[device_id] = get_device_status(registrar_actor, device_id)
         else:
