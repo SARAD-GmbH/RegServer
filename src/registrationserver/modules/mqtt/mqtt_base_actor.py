@@ -113,17 +113,19 @@ class MqttBaseActor(BaseActor):
                 else:
                     logger.warning("Proceed without MQTT.")
                 return False
-            except socket.gaierror:
+            except socket.gaierror as exception:
                 logger.error("We are offline and can handle only local instruments.")
                 logger.info(
-                    "Check your network connection and IP address in config_windows.toml!"
+                    "Check your network connection and IP address in config_<os>.toml!"
                 )
+                connect_exception = exception
             except OSError as exception:  # pylint: disable=broad-except
-                logger.error("%s. Check port in config_windows.toml!", exception)
+                logger.error("%s. Check port in config_<os>.toml!", exception)
+                connect_exception = exception
             logger.error(
                 "I will be retrying after %d seconds: %s",
                 retry_interval,
-                exception,
+                connect_exception,
             )
             time.sleep(retry_interval)
 
