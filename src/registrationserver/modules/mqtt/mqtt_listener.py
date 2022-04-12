@@ -70,6 +70,8 @@ class MqttListener(MqttBaseActor):
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
         self.mqttc.message_callback_add("+/meta", self.on_is_meta)
         self.mqttc.message_callback_add("+/+/meta", self.on_instr_meta)
+        if self._connect(self.mqtt_broker, self.port):
+            self.mqttc.loop_start()
 
     def _add_instr(self, is_id, instr_id, payload: dict) -> None:
         # pylint: disable=too-many-return-statements

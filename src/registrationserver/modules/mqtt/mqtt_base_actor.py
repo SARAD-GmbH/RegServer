@@ -65,8 +65,6 @@ class MqttBaseActor(BaseActor):
         self.mqttc.on_message = self.on_message
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
-        if self._connect(self.mqtt_broker, self.port):
-            self.mqttc.loop_start()
 
     def _connect(self, mqtt_broker, port):
         """Try to connect the MQTT broker

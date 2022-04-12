@@ -173,6 +173,8 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             qos=0,
             retain=True,
         )
+        if self._connect(self.mqtt_broker, self.port):
+            self.mqttc.loop_start()
 
     def on_reserve(self, _client, _userdata, message):
         """Handler for MQTT messages regarding reservation of instruments"""

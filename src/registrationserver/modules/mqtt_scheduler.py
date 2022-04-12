@@ -57,6 +57,8 @@ class MqttSchedulerActor(MqttBaseActor):
             topic=f"{self.is_id}/meta",
             payload=ismqtt_messages.get_is_meta(self.is_meta._replace(state=0)),
         )
+        if self._connect(self.mqtt_broker, self.port):
+            self.mqttc.loop_start()
         self._subscribe_topic([(f"{self.is_id}/+/meta", 0)])
         self._subscribe_to_actor_dict_msg()
 
