@@ -159,7 +159,7 @@ def main():
         logger.critical(exception)
         if os.name == "posix":
             logger.info("Trying to kill residual processes. Fingers crossed!")
-            exception = kill_processes("python.instrument_server_mqtt")
+            exception = kill_processes("python.sarad_registration_server")
             if exception is not None:
                 logger.critical(exception)
                 logger.critical("There might be residual processes!")
