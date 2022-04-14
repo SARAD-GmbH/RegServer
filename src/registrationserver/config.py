@@ -108,6 +108,7 @@ DEFAULT_SYSTEM_BASE = "multiprocTCPBase"
 DEFAULT_ADMIN_PORT = 1901
 DEFAULT_WINDOWS_METHOD = "spawn"
 DEFAULT_LINUX_METHOD = "fork"
+DEFAULT_CONVENTION_ADDRESS = None
 if customization.get("actor") is None:
     if os.name == "nt":
         actor_config = {
@@ -115,6 +116,7 @@ if customization.get("actor") is None:
             "capabilities": {
                 "Admin Port": DEFAULT_ADMIN_PORT,
                 "Process Startup Method": DEFAULT_WINDOWS_METHOD,
+                "Convention Address.IPv4": DEFAULT_CONVENTION_ADDRESS,
             },
         }
     else:
@@ -123,6 +125,7 @@ if customization.get("actor") is None:
             "capabilities": {
                 "Admin Port": DEFAULT_ADMIN_PORT,
                 "Process Startup Method": DEFAULT_LINUX_METHOD,
+                "Convention Address.IPv4": DEFAULT_CONVENTION_ADDRESS,
             },
         }
 else:
@@ -138,6 +141,7 @@ else:
                 "Process Startup Method": customization["actor"].get(
                     "process_startup_method", DEFAULT_WINDOWS_METHOD
                 ),
+                "Convention Address.IPv4": DEFAULT_CONVENTION_ADDRESS,
             },
         }
     else:
@@ -152,6 +156,7 @@ else:
                 "Process Startup Method": customization["actor"].get(
                     "process_startup_method", DEFAULT_LINUX_METHOD
                 ),
+                "Convention Address.IPv4": DEFAULT_CONVENTION_ADDRESS,
             },
         }
 
