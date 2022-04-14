@@ -1,0 +1,38 @@
+@startuml
+!include <c4/C4_Component.puml>
+!include <office/Users/user.puml>
+
+hide stereotype
+
+' AddTagSupport("mod", $borderColor="#d73027")
+
+!$app = "SARAD App"
+!$rs = "Registration Server for IS-1"
+!$is = "Instrument Server 1"
+!$inst = "SARAD Instrument"
+
+Container(app, $app, "chose a $instr for communication")
+
+Container_Boundary(mod, "IS1 Module", $rs, $tags="mod") {
+        Component(listener, "IS1 Listener", "Python Class", "Provides a server socket for registration")
+        Component(device_actor1, "Device Actor A", "Actor", "Raw")
+}
+Container_Boundary(rs, "Basis", $rs) {
+        Component(api, "REST API", "JSON/HTTP", "Instrument list with status")
+        Component(redirector1, "Redirector Actor A", "Actor", "TCP Socket")
+}
+
+Container(is1, $is, "has one connected instrument, provides a server socket for communication")
+
+Rel(is1, listener, "1. announce IS with instrument A", "socket communication with binary commands")
+Rel(listener, device_actor1, "2. creates", "createActor")
+Rel(listener, device_actor1, "3. SetupMsg", "message")
+Rel(api, app, "4. GET list", "JSON/HTTP")
+Rel(app, api, "5. GET reserve", "JSON/HTTP")
+Rel(api, device_actor1, "6. RESERVE", "Message")
+Rel(device_actor1, is1, "7. select COM port", "binary cmd")
+Rel(device_actor1, redirector1, "8. creates", "createActor")
+BiRel(app, redirector1, "9. binary msg", "TCP socket")
+BiRel(redirector1, device_actor1, "9. binary msg", "Messages")
+BiRel(is1, device_actor1, "9. binary msg", "raw")
+@enduml

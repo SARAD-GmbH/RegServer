@@ -11,6 +11,7 @@ Contents
 
    use_case
    usage
+   regserver_is1
    regserver_rfc2217
    regserver_mqtt
    regserver_local
