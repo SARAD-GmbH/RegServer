@@ -4,6 +4,7 @@ import multiprocessing
 import signal
 
 import registrationserver.ismqtt_main
+from registrationserver.shutdown import system_shutdown
 
 
 def signal_handler(_sig, _frame):
@@ -11,7 +12,7 @@ def signal_handler(_sig, _frame):
 
     The signal handler removes the flag file. This will cause the main MQTT
     loop to stop and call the cleanup function."""
-    registrationserver.ismqtt_main.set_file_flag(False)
+    system_shutdown()
 
 
 def main():

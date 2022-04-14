@@ -15,6 +15,7 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import KillMsg, RxBinaryMsg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
+from registrationserver.shutdown import is_flag_set
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -39,7 +40,7 @@ class Rfc2217Actor(DeviceBaseActor):
             port = self.device_status.get("Remote", {}).get("Port", None)
             if not address or not port:
                 return False
-            port_ident = fr"rfc2217://{address}:{port}"
+            port_ident = rf"rfc2217://{address}:{port}"
         if port_ident and not (self.__port and self.__port.is_open):
             try:
                 self.__port = serial.rfc2217.Serial(port_ident)
@@ -61,7 +62,7 @@ class Rfc2217Actor(DeviceBaseActor):
         if self._connect():
             self.__port.write(msg.data)
             _return = b""
-            while True:
+            while is_flag_set():
                 _return_part = (
                     self.__port.read_all() if self.__port.inWaiting() else b""
                 )

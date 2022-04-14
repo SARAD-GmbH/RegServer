@@ -17,6 +17,7 @@ import win32service
 import win32serviceutil
 
 import registrationserver.main
+from registrationserver.shutdown import system_shutdown
 
 
 class SaradRegistrationServer(win32serviceutil.ServiceFramework):
@@ -40,7 +41,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         Removes the flag file to cause the main loop to stop."""
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.hWaitStop)
-        registrationserver.main.set_file_flag(False)
+        system_shutdown()
 
     def SvcDoRun(self):
         """Function that will be performed on 'service start'.

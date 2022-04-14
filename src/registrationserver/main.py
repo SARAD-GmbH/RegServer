@@ -26,7 +26,8 @@ from registrationserver.logger import logger
 from registrationserver.modules.rfc2217.mdns_listener import MdnsListener
 from registrationserver.registrar import Registrar
 from registrationserver.restapi import RestApi
-from registrationserver.shutdown import is_flag_set, set_file_flag
+from registrationserver.shutdown import (is_flag_set, kill_processes,
+                                         set_file_flag)
 
 if os.name == "nt":
     from registrationserver.modules.usb.win_listener import UsbListener
@@ -99,11 +100,11 @@ def main():
     else:
         start_stop = sys.argv[1]
     if start_stop == "start":
+        set_file_flag(True)
         startup_tupel = startup()
         registrar_actor = startup_tupel[0]
         mdns_listener = startup_tupel[1]
         usb_listener = startup_tupel[2]
-        set_file_flag(True)
     elif start_stop == "stop":
         set_file_flag(False)
         return None
@@ -152,7 +153,17 @@ def main():
                 logger.error(exception)
                 time.sleep(3)
             break
-    ActorSystem().shutdown()
+    try:
+        ActorSystem().shutdown()
+    except OSError as exception:
+        logger.critical(exception)
+        if os.name == "posix":
+            logger.info("Trying to kill residual processes. Fingers crossed!")
+            exception = kill_processes("python.instrument_server_mqtt")
+            if exception is not None:
+                logger.critical(exception)
+                logger.critical("There might be residual processes!")
+                logger.info("Consider using 'ps ax' to investigate.")
     logger.info("This is the end, my only friend, the end.")
     raise SystemExit("Exit with error for automatic restart.")
 

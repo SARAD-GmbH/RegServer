@@ -10,6 +10,7 @@ import win32service
 import win32serviceutil
 
 import registrationserver.ismqtt_main
+from registrationserver.shutdown import system_shutdown
 
 
 class InstrumentServerMqtt(win32serviceutil.ServiceFramework):
@@ -33,7 +34,7 @@ class InstrumentServerMqtt(win32serviceutil.ServiceFramework):
         Removes the flag file to cause the main loop to stop."""
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.hWaitStop)
-        registrationserver.ismqtt_main.set_file_flag(False)
+        system_shutdown()
 
     def SvcDoRun(self):
         """Function that will be performed on 'service start'.

@@ -7,6 +7,7 @@ Authors
     Michael Strey <strey@sarad.de>
 """
 import os
+import signal
 
 from registrationserver.config import home
 
@@ -48,3 +49,28 @@ def system_shutdown():
     This is only a wrapper for set_file_flag()
     that was introduced in order to improve the readability of code"""
     set_file_flag(False)
+
+
+def kill_processes(regex):
+    """Try to kill residual processes
+
+    Args:
+        regex (string): regular expression for the names of the
+                        processes to be killed
+    Returns:
+        string: None in the case of success, exception string elsewise.
+    """
+    try:
+        my_pid = os.getpid()
+        pids = []
+        for line in os.popen("ps ax | grep " + regex + " | grep -v grep"):
+            fields = line.split()
+            pid = int(fields[0])
+            if pid != my_pid:
+                pids.append(pid)
+        pids.sort(reverse=True)
+        for pid in pids:
+            os.kill(pid, signal.SIGKILL)
+        return None
+    except Exception as exception:  # pylint: disable=broad-except
+        return exception

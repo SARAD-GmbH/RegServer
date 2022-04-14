@@ -18,6 +18,7 @@ from registrationserver.actor_messages import AppType, KillMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import mqtt_config
 from registrationserver.logger import logger
+from registrationserver.shutdown import is_flag_set
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -74,7 +75,7 @@ class MqttBaseActor(BaseActor):
         Give up, if TLS files are not available.
         """
         retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
-        while self.ungr_disconn > 0:
+        while self.ungr_disconn > 0 and is_flag_set():
             try:
                 logger.info(
                     "Attempting to connect to broker %s: %s",
@@ -120,12 +121,17 @@ class MqttBaseActor(BaseActor):
             except OSError as exception:  # pylint: disable=broad-except
                 logger.error("%s. Check port in config_<os>.toml!", exception)
                 connect_exception = exception
-            logger.error(
-                "I will be retrying after %d seconds: %s",
-                retry_interval,
-                connect_exception,
-            )
-            time.sleep(retry_interval)
+            if is_flag_set():
+                logger.error(
+                    "I will be retrying after %d seconds: %s",
+                    retry_interval,
+                    connect_exception,
+                )
+                time.sleep(retry_interval)
+            else:
+                logger.info(
+                    "Shutdown flag detected. Giving up on connecting to MQTT broker."
+                )
 
     def on_connect(self, client, userdata, flags, result_code):
         # pylint: disable=unused-argument
