@@ -25,6 +25,7 @@ from registrationserver.actor_messages import (ActorCreatedMsg, AppType,
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import ismqtt_config, mqtt_config
 from registrationserver.logger import logger
+from registrationserver.modules.is1.is1_listener import Is1Listener
 from registrationserver.modules.mqtt.mqtt_listener import MqttListener
 from registrationserver.modules.mqtt_scheduler import MqttSchedulerActor
 from registrationserver.modules.usb.cluster_actor import ClusterActor
@@ -56,6 +57,7 @@ class Registrar(BaseActor):
                     client_id=mqtt_config["MQTT_CLIENT_ID"],
                 ),
             )
+            _is1_listener = self._create_actor(Is1Listener, "is1_listener")
         self.wakeupAfter(timedelta(minutes=1), payload="keep alive")
 
     def receiveMsg_WakeupMessage(self, msg, sender):

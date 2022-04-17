@@ -6,9 +6,9 @@ native_serial_ports = []
 ignored_serial_ports = []
 local_retry_interval = 30  # in seconds
 api_port = 8000
-# host = "::1"  # Localhost IPv6
+host = "::1"  # Localhost IPv6
 # host = "192.168.10.19"  # Michael@HomeVPN
-host = "ap-strey.hq.sarad.de"  # Michael@Work
+# host = "ap-strey.hq.sarad.de"  # Michael@Work
 # host = "192.168.178.20"  # Michael@Home
 
 [actor]
