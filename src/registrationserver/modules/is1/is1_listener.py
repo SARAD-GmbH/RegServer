@@ -74,6 +74,61 @@ class Is1Listener(BaseActor):
         )
         return output
 
+    @staticmethod
+    def _get_port_and_id(is_id):
+        id_string = is_id.decode("utf-8")
+        id_list = id_string.split("-")
+        return {"port": int(id_list[0]), "id": id_list[1]}
+
+    @staticmethod
+    def _check_message(answer: bytes, multiframe: bool):
+        """Returns a dictionary of:
+        is_valid: True if answer is valid, False otherwise
+        is_control_message: True if control message
+        payload: Payload of answer
+        number_of_bytes_in_payload
+        raw"""
+        logger.debug("Checking answer from serial port:")
+        logger.debug("Raw answer: %s", answer)
+        if answer.startswith(b"B") and answer.endswith(b"E"):
+            control_byte = answer[1]
+            control_byte_ok = bool((control_byte ^ 0xFF) == answer[2])
+            number_of_bytes_in_payload = (control_byte & 0x7F) + 1
+            is_control = bool(control_byte & 0x80)
+            status_byte = answer[3]
+            logger.debug("Status byte: %s", status_byte)
+            payload = answer[3 : 3 + number_of_bytes_in_payload]
+            calculated_checksum = 0
+            for byte in payload:
+                calculated_checksum = calculated_checksum + byte
+            received_checksum_bytes = answer[
+                3 + number_of_bytes_in_payload : 5 + number_of_bytes_in_payload
+            ]
+            received_checksum = int.from_bytes(
+                received_checksum_bytes, byteorder="little", signed=False
+            )
+            checksum_ok = bool(received_checksum == calculated_checksum)
+            is_valid = bool(control_byte_ok and checksum_ok)
+        else:
+            logger.debug("Invalid B-E frame")
+            is_valid = False
+        if not is_valid:
+            is_control = False
+            payload = b""
+            number_of_bytes_in_payload = 0
+        # is_rend is True if that this is the last frame of a multiframe reply
+        # (DOSEman data download)
+        is_rend = bool(is_valid and is_control and (payload == b"\x04"))
+        logger.debug("Payload: %s", payload)
+        return {
+            "is_valid": is_valid,
+            "is_control": is_control,
+            "is_last_frame": (not multiframe) or is_rend,
+            "payload": payload,
+            "number_of_bytes_in_payload": number_of_bytes_in_payload,
+            "raw": answer,
+        }
+
     @overrides
     def __init__(self):
         super().__init__()
@@ -117,7 +172,7 @@ class Is1Listener(BaseActor):
                 self.read_list.append(self._client_socket)
                 logger.debug("Connection from %s", self._socket_info)
             else:
-                self._cmd_handler()
+                self._cmd_handler(self._socket_info[0])
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="Connect")
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
@@ -126,7 +181,7 @@ class Is1Listener(BaseActor):
         if msg.payload == "Connect":
             self.listen()
 
-    def _cmd_handler(self):
+    def _cmd_handler(self, is_host):
         """Handle a binary SARAD command received via the socket."""
         for _i in range(0, 5):
             try:
@@ -141,9 +196,22 @@ class Is1Listener(BaseActor):
                 "Received %s from Instrument Server 1",
                 data,
             )
+            is_port_id = self._get_port_and_id(data)
+            logger.debug("IS1 port: %d", is_port_id["port"])
+            logger.debug("IS1 id: %s", is_port_id["id"])
             cmd_msg = self._make_command_msg(self.GET_FIRST_COM)
-            logger.debug("Get first COM: %s", cmd_msg)
-            self.conn.sendall(cmd_msg)
+            logger.debug("Send GetFirstCOM: %s", cmd_msg)
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+                client_socket.connect((is_host, is_port_id["port"]))
+                client_socket.sendall(cmd_msg)
+                reply = client_socket.recv(1024)
+                checked_reply = self._check_message(reply, multiframe=False)
+                while checked_reply != b"\xe4":
+                    logger.debug("Received reply: %s", checked_reply["payload"])
+                    cmd_msg = self._make_command_msg(self.GET_NEXT_COM)
+                    client_socket.sendall(cmd_msg)
+                    reply = client_socket.recv(1024)
+                    checked_reply = self._check_message(reply, multiframe=False)
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
