@@ -12,9 +12,12 @@ import socket
 import time
 from typing import List
 
+from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.base_actor import BaseActor
 from registrationserver.logger import logger
+from registrationserver.modules.is1.is1_actor import Is1Actor
+from sarad.sari import SaradInst  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -77,7 +80,7 @@ class Is1Listener(BaseActor):
     @staticmethod
     def _get_port_and_id(is_id):
         id_string = is_id.decode("utf-8")
-        id_list = id_string.split("-")
+        id_list = id_string.rstrip("\r\n").split("-")
         return {"port": int(id_list[0]), "id": id_list[1]}
 
     @staticmethod
@@ -88,8 +91,7 @@ class Is1Listener(BaseActor):
         payload: Payload of answer
         number_of_bytes_in_payload
         raw"""
-        logger.debug("Checking answer from serial port:")
-        logger.debug("Raw answer: %s", answer)
+        logger.debug("Checking raw answer: %s", answer)
         if answer.startswith(b"B") and answer.endswith(b"E"):
             control_byte = answer[1]
             control_byte_ok = bool((control_byte ^ 0xFF) == answer[2])
@@ -119,7 +121,6 @@ class Is1Listener(BaseActor):
         # is_rend is True if that this is the last frame of a multiframe reply
         # (DOSEman data download)
         is_rend = bool(is_valid and is_control and (payload == b"\x04"))
-        logger.debug("Payload: %s", payload)
         return {
             "is_valid": is_valid,
             "is_control": is_control,
@@ -128,6 +129,69 @@ class Is1Listener(BaseActor):
             "number_of_bytes_in_payload": number_of_bytes_in_payload,
             "raw": answer,
         }
+
+    @staticmethod
+    def _get_instrument_id(payload: bytes):
+        """Decode payload of the reply received from IS1 to get instrument id
+
+        Args:
+            payload (bytes): content of the reply to GET_FIRST_COM or GET_NEXT_COM
+
+        Returns:
+            Dict of port, type, version, sn, family"""
+        try:
+            logger.debug("Payload: %s", payload)
+            port = int(payload[1])
+            type_id = int(payload[2])
+            version = int(payload[3])
+            serial_number = int.from_bytes(
+                payload[4:6], byteorder="little", signed=False
+            )
+            family_id = int(payload[6])
+            hid = Hashids()
+            instr_id = hid.encode(family_id, type_id, serial_number)
+            return {
+                "port": port,
+                "type_id": type_id,
+                "version": version,
+                "sn": serial_number,
+                "family_id": family_id,
+                "instr_id": instr_id,
+            }
+        except TypeError:
+            logger.error("TypeError when parsing the payload.")
+            return False
+        except ReferenceError:
+            logger.error("ReferenceError when parsing the payload.")
+            return False
+        except LookupError:
+            logger.error("LookupError when parsing the payload.")
+            return False
+        except ValueError:
+            logger.error("ValueError when parsing the payload.")
+            return False
+        except Exception:  # pylint: disable=broad-except
+            logger.error("Unknown error when parsing the payload.")
+            return False
+
+    @staticmethod
+    def _get_name(instr_id):
+        """Get instrument name from library of SARAD products and instr_id
+
+        Args:
+            instr_id (str): hash id of family_id, type_id, serial number
+
+        Returns:
+            string with name of instrument type"""
+        hid = Hashids()
+        family_id = hid.decode(instr_id)[0]
+        type_id = hid.decode(instr_id)[1]
+        for family in SaradInst.products:
+            if family["family_id"] == family_id:
+                for instr_type in family["types"]:
+                    if instr_type["type_id"] == type_id:
+                        return instr_type["type_name"]
+        return "Unknown"
 
     @overrides
     def __init__(self):
@@ -165,20 +229,25 @@ class Is1Listener(BaseActor):
         """Listen for notification from Instrument Server"""
         server_socket = self.read_list[0]
         timeout = 0.1
-        readable, _writable, _errored = select.select(self.read_list, [], [], timeout)
-        for self.conn in readable:
-            if self.conn is server_socket:
-                self._client_socket, self._socket_info = server_socket.accept()
-                self.read_list.append(self._client_socket)
-                logger.debug("Connection from %s", self._socket_info)
-            else:
-                self._cmd_handler(self._socket_info[0])
-        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="Connect")
+        try:
+            readable, _writable, _errored = select.select(
+                self.read_list, [], [], timeout
+            )
+            for self.conn in readable:
+                if self.conn is server_socket:
+                    self._client_socket, self._socket_info = server_socket.accept()
+                    self.read_list.append(self._client_socket)
+                    logger.debug("Connection from %s", self._socket_info)
+                else:
+                    self._cmd_handler(self._socket_info[0])
+        except ValueError:
+            logger.error("Port %s not available", self._port)
+        self.wakeupAfter(datetime.timedelta(seconds=1), payload="Connect")
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
-        if msg.payload == "Connect":
+        if msg.payload == "Connect" and not self.on_kill:
             self.listen()
 
     def _cmd_handler(self, is_host):
@@ -206,8 +275,21 @@ class Is1Listener(BaseActor):
                 client_socket.sendall(cmd_msg)
                 reply = client_socket.recv(1024)
                 checked_reply = self._check_message(reply, multiframe=False)
-                while checked_reply != b"\xe4":
-                    logger.debug("Received reply: %s", checked_reply["payload"])
+                while checked_reply["is_valid"] and checked_reply["payload"] not in [
+                    b"\xe4",
+                    b"",
+                ]:
+                    this_instrument = self._get_instrument_id(checked_reply["payload"])
+                    logger.info(
+                        "Instrument %s on COM port %d",
+                        this_instrument["instr_id"],
+                        this_instrument["port"],
+                    )
+                    self._create_and_setup_actor(
+                        is_port_id["id"],
+                        this_instrument["instr_id"],
+                        this_instrument["port"],
+                    )
                     cmd_msg = self._make_command_msg(self.GET_NEXT_COM)
                     client_socket.sendall(cmd_msg)
                     reply = client_socket.recv(1024)
@@ -218,3 +300,38 @@ class Is1Listener(BaseActor):
         """Handler to exit the redirector actor."""
         self.read_list[0].close()
         super().receiveMsg_KillMsg(msg, sender)
+
+    def _create_and_setup_actor(self, host, instr_id, port):
+        logger.debug("[_create_and_setup_actor]")
+        hid = Hashids()
+        family_id = hid.decode(instr_id)[0]
+        type_id = hid.decode(instr_id)[1]
+        serial_number = hid.decode(instr_id)[2]
+        if family_id == 5:
+            sarad_type = "sarad-dacm"
+        elif family_id in [1, 2]:
+            sarad_type = "sarad-1688"
+        else:
+            logger.error(
+                "[Add Instrument]: unknown instrument family (index: %s)",
+                family_id,
+            )
+            sarad_type = "unknown"
+        actor_id = f"{instr_id}.{sarad_type}.is1"
+        logger.debug("Create actor %s", actor_id)
+        device_actor = self._create_actor(Is1Actor, actor_id)
+        device_status = {
+            "Identification": {
+                "Name": self._get_name(instr_id),
+                "Family": family_id,
+                "Type": type_id,
+                "Serial number": serial_number,
+                "Host": host,
+                "Protocol": sarad_type,
+            },
+            "Serial": port,
+        }
+        logger.debug("Setup device actor %s with %s", actor_id, device_status)
+        # self.send(device_actor, SetDeviceStatusMsg(device_status))
+        # self.child_actors[actor_id]["port"] = instrument.port
+        # self.send(device_actor, SetupUsbActorMsg(instrument.port, instrument.family))

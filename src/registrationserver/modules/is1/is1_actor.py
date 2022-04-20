@@ -22,7 +22,7 @@ logger.debug("%s -> %s", __package__, __file__)
 CMD_CYCLE_TIMEOUT = 1
 
 
-class Rfc2217Actor(DeviceBaseActor):
+class Is1Actor(DeviceBaseActor):
     """Actor for dealing with RFC2217 Connections, creates and maintains
     a RFC2217Protocol handler and relays messages towards it
     https://pythonhosted.org/pyserial/pyserial_api.html#module-serial.aio"""
