@@ -184,6 +184,7 @@ class RestApi:
             not "_rfc2217" in device_id
             and not "mqtt" in device_id
             and not "local" in device_id
+            and not "is1" in device_id
         ) or device_state == {}:
             logger.error("Requested service not supported by actor system.")
             status = Status.NOT_FOUND

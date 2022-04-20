@@ -99,6 +99,22 @@ class SetupUsbActorMsg:
 
 
 @dataclass
+class SetupIs1ActorMsg:
+    """Message used to send the special setup information required for IS1 device Actors.
+    The parameters are required to establish the socket connection to the Instrument Server 1.
+
+    Args:
+        is_host (str): IP address of IS1.
+        is_port (int): IP port the IS1 is listening on.
+        com_port (int): COM port of the instrument.
+    """
+
+    is_host: str
+    is_port: int
+    com_port: int
+
+
+@dataclass
 class SetDeviceStatusMsg:
     """Message used to send setup information about the device status to a Device Actor.
 

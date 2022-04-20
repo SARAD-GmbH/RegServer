@@ -10,11 +10,13 @@ import datetime
 import select
 import socket
 import time
-from typing import List
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
+from registrationserver.actor_messages import (SetDeviceStatusMsg,
+                                               SetupIs1ActorMsg)
 from registrationserver.base_actor import BaseActor
+from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.is1.is1_actor import Is1Actor
 from sarad.sari import SaradInst  # type: ignore
@@ -30,7 +32,7 @@ class Is1Listener(BaseActor):
 
     GET_FIRST_COM = [b"\xe0", b""]
     GET_NEXT_COM = [b"\xe1", b""]
-    SELECT_COM = [b"\xe2", b""]
+    PORTS = [50001]
 
     @staticmethod
     def get_ip():
@@ -52,83 +54,10 @@ class Is1Listener(BaseActor):
         return address
 
     @staticmethod
-    def _make_command_msg(cmd_data: List[bytes]) -> bytes:
-        """Encode the message to be sent to the SARAD instrument.
-        Arguments are the one byte long command
-        and the data bytes to be sent."""
-        cmd: bytes = cmd_data[0]
-        data: bytes = cmd_data[1]
-        payload: bytes = cmd + data
-        control_byte = len(payload) - 1
-        if cmd:  # Control message
-            control_byte = control_byte | 0x80  # set Bit 7
-        neg_control_byte = control_byte ^ 0xFF
-        checksum = 0
-        for byte in payload:
-            checksum = checksum + byte
-        checksum_bytes = (checksum).to_bytes(2, byteorder="little")
-        output = (
-            b"B"
-            + bytes([control_byte])
-            + bytes([neg_control_byte])
-            + payload
-            + checksum_bytes
-            + b"E"
-        )
-        return output
-
-    @staticmethod
     def _get_port_and_id(is_id):
         id_string = is_id.decode("utf-8")
         id_list = id_string.rstrip("\r\n").split("-")
         return {"port": int(id_list[0]), "id": id_list[1]}
-
-    @staticmethod
-    def _check_message(answer: bytes, multiframe: bool):
-        """Returns a dictionary of:
-        is_valid: True if answer is valid, False otherwise
-        is_control_message: True if control message
-        payload: Payload of answer
-        number_of_bytes_in_payload
-        raw"""
-        logger.debug("Checking raw answer: %s", answer)
-        if answer.startswith(b"B") and answer.endswith(b"E"):
-            control_byte = answer[1]
-            control_byte_ok = bool((control_byte ^ 0xFF) == answer[2])
-            number_of_bytes_in_payload = (control_byte & 0x7F) + 1
-            is_control = bool(control_byte & 0x80)
-            status_byte = answer[3]
-            logger.debug("Status byte: %s", status_byte)
-            payload = answer[3 : 3 + number_of_bytes_in_payload]
-            calculated_checksum = 0
-            for byte in payload:
-                calculated_checksum = calculated_checksum + byte
-            received_checksum_bytes = answer[
-                3 + number_of_bytes_in_payload : 5 + number_of_bytes_in_payload
-            ]
-            received_checksum = int.from_bytes(
-                received_checksum_bytes, byteorder="little", signed=False
-            )
-            checksum_ok = bool(received_checksum == calculated_checksum)
-            is_valid = bool(control_byte_ok and checksum_ok)
-        else:
-            logger.debug("Invalid B-E frame")
-            is_valid = False
-        if not is_valid:
-            is_control = False
-            payload = b""
-            number_of_bytes_in_payload = 0
-        # is_rend is True if that this is the last frame of a multiframe reply
-        # (DOSEman data download)
-        is_rend = bool(is_valid and is_control and (payload == b"\x04"))
-        return {
-            "is_valid": is_valid,
-            "is_control": is_control,
-            "is_last_frame": (not multiframe) or is_rend,
-            "payload": payload,
-            "number_of_bytes_in_payload": number_of_bytes_in_payload,
-            "raw": answer,
-        }
 
     @staticmethod
     def _get_instrument_id(payload: bytes):
@@ -202,9 +131,10 @@ class Is1Listener(BaseActor):
         self.conn = None
         self._host = self.get_ip()
         logger.debug("IP address of Registration Server: %s", self._host)
-        for self._port in [50001]:
+        for self._port in self.PORTS:
             try:
                 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 server_socket.bind((self._host, self._port))
                 self._port = server_socket.getsockname()[1]
                 break
@@ -241,7 +171,7 @@ class Is1Listener(BaseActor):
                 else:
                     self._cmd_handler(self._socket_info[0])
         except ValueError:
-            logger.error("Port %s not available", self._port)
+            logger.error("None of ports in %s available", self.PORTS)
         self.wakeupAfter(datetime.timedelta(seconds=1), payload="Connect")
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
@@ -268,13 +198,13 @@ class Is1Listener(BaseActor):
             is_port_id = self._get_port_and_id(data)
             logger.debug("IS1 port: %d", is_port_id["port"])
             logger.debug("IS1 id: %s", is_port_id["id"])
-            cmd_msg = self._make_command_msg(self.GET_FIRST_COM)
+            cmd_msg = make_command_msg(self.GET_FIRST_COM)
             logger.debug("Send GetFirstCOM: %s", cmd_msg)
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
                 client_socket.connect((is_host, is_port_id["port"]))
                 client_socket.sendall(cmd_msg)
                 reply = client_socket.recv(1024)
-                checked_reply = self._check_message(reply, multiframe=False)
+                checked_reply = check_message(reply, multiframe=False)
                 while checked_reply["is_valid"] and checked_reply["payload"] not in [
                     b"\xe4",
                     b"",
@@ -289,11 +219,13 @@ class Is1Listener(BaseActor):
                         is_port_id["id"],
                         this_instrument["instr_id"],
                         this_instrument["port"],
+                        is_host=is_host,
+                        is_port=is_port_id["port"],
                     )
-                    cmd_msg = self._make_command_msg(self.GET_NEXT_COM)
+                    cmd_msg = make_command_msg(self.GET_NEXT_COM)
                     client_socket.sendall(cmd_msg)
                     reply = client_socket.recv(1024)
-                    checked_reply = self._check_message(reply, multiframe=False)
+                    checked_reply = check_message(reply, multiframe=False)
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
@@ -301,7 +233,7 @@ class Is1Listener(BaseActor):
         self.read_list[0].close()
         super().receiveMsg_KillMsg(msg, sender)
 
-    def _create_and_setup_actor(self, host, instr_id, port):
+    def _create_and_setup_actor(self, host, instr_id, port, is_host, is_port):
         logger.debug("[_create_and_setup_actor]")
         hid = Hashids()
         family_id = hid.decode(instr_id)[0]
@@ -320,6 +252,10 @@ class Is1Listener(BaseActor):
         actor_id = f"{instr_id}.{sarad_type}.is1"
         logger.debug("Create actor %s", actor_id)
         device_actor = self._create_actor(Is1Actor, actor_id)
+        self.send(
+            device_actor,
+            SetupIs1ActorMsg(is_host=is_host, is_port=is_port, com_port=port),
+        )
         device_status = {
             "Identification": {
                 "Name": self._get_name(instr_id),
@@ -329,9 +265,7 @@ class Is1Listener(BaseActor):
                 "Host": host,
                 "Protocol": sarad_type,
             },
-            "Serial": port,
+            "State": 2,
         }
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
-        # self.send(device_actor, SetDeviceStatusMsg(device_status))
-        # self.child_actors[actor_id]["port"] = instrument.port
-        # self.send(device_actor, SetupUsbActorMsg(instrument.port, instrument.family))
+        self.send(device_actor, SetDeviceStatusMsg(device_status))

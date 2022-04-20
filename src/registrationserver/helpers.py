@@ -11,6 +11,7 @@ import os
 from collections.abc import MutableMapping
 from contextlib import suppress
 from datetime import timedelta
+from typing import List
 
 from thespian.actors import ActorSystem  # type: ignore
 
@@ -20,6 +21,79 @@ from registrationserver.actor_messages import (GetActorDictMsg,
                                                UpdateDeviceStatusMsg)
 from registrationserver.logger import logger
 from registrationserver.shutdown import system_shutdown
+
+
+def make_command_msg(cmd_data: List[bytes]) -> bytes:
+    """Encode the message to be sent to the SARAD instrument.
+    Arguments are the one byte long command
+    and the data bytes to be sent."""
+    cmd: bytes = cmd_data[0]
+    data: bytes = cmd_data[1]
+    payload: bytes = cmd + data
+    control_byte = len(payload) - 1
+    if cmd:  # Control message
+        control_byte = control_byte | 0x80  # set Bit 7
+    neg_control_byte = control_byte ^ 0xFF
+    checksum = 0
+    for byte in payload:
+        checksum = checksum + byte
+    checksum_bytes = (checksum).to_bytes(2, byteorder="little")
+    output = (
+        b"B"
+        + bytes([control_byte])
+        + bytes([neg_control_byte])
+        + payload
+        + checksum_bytes
+        + b"E"
+    )
+    return output
+
+
+def check_message(answer: bytes, multiframe: bool):
+    """Returns a dictionary of:
+    is_valid: True if answer is valid, False otherwise
+    is_control_message: True if control message
+    payload: Payload of answer
+    number_of_bytes_in_payload
+    raw"""
+    logger.debug("Checking raw answer: %s", answer)
+    if answer.startswith(b"B") and answer.endswith(b"E"):
+        control_byte = answer[1]
+        control_byte_ok = bool((control_byte ^ 0xFF) == answer[2])
+        number_of_bytes_in_payload = (control_byte & 0x7F) + 1
+        is_control = bool(control_byte & 0x80)
+        status_byte = answer[3]
+        logger.debug("Status byte: %s", status_byte)
+        payload = answer[3 : 3 + number_of_bytes_in_payload]
+        calculated_checksum = 0
+        for byte in payload:
+            calculated_checksum = calculated_checksum + byte
+        received_checksum_bytes = answer[
+            3 + number_of_bytes_in_payload : 5 + number_of_bytes_in_payload
+        ]
+        received_checksum = int.from_bytes(
+            received_checksum_bytes, byteorder="little", signed=False
+        )
+        checksum_ok = bool(received_checksum == calculated_checksum)
+        is_valid = bool(control_byte_ok and checksum_ok)
+    else:
+        logger.debug("Invalid B-E frame")
+        is_valid = False
+    if not is_valid:
+        is_control = False
+        payload = b""
+        number_of_bytes_in_payload = 0
+    # is_rend is True if that this is the last frame of a multiframe reply
+    # (DOSEman data download)
+    is_rend = bool(is_valid and is_control and (payload == b"\x04"))
+    return {
+        "is_valid": is_valid,
+        "is_control": is_control,
+        "is_last_frame": (not multiframe) or is_rend,
+        "payload": payload,
+        "number_of_bytes_in_payload": number_of_bytes_in_payload,
+        "raw": answer,
+    }
 
 
 def short_id(device_id: str) -> str:
