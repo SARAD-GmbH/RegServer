@@ -45,9 +45,44 @@ class Is1Actor(DeviceBaseActor):
         """Handler for TxBinaryMsg from App to Instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-            client_socket.connect((self._is_host, self._is_port))
-            client_socket.sendall(msg.data)
-            reply = client_socket.recv(1024)
+            client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            retry = True
+            counter = 5
+            while retry and counter:
+                try:
+                    logger.debug(
+                        "Trying to connect %s:%d", self._is_host, self._is_port
+                    )
+                    client_socket.connect((self._is_host, self._is_port))
+                    retry = False
+                except ConnectionRefusedError:
+                    counter = counter - 1
+                    logger.debug("%d retries left", counter)
+                    time.sleep(1)
+            if retry:
+                logger.error(
+                    "Connection refused on %s:%d", self._is_host, self._is_port
+                )
+                return
+            retry = True
+            counter = 5
+            while retry and counter:
+                try:
+                    client_socket.sendall(msg.data)
+                    retry = False
+                except OSError as exception:
+                    logger.error(exception)
+                    counter = counter - 1
+                    logger.debug("%d retries left", counter)
+                    time.sleep(1)
+            if retry:
+                logger.error("Cannot send to IS1")
+                return
+            try:
+                reply = client_socket.recv(1024)
+            except TimeoutError:
+                logger.error("Timeout on waiting for reply from IS1")
+                return
         return_message = RxBinaryMsg(reply)
         self.send(self.redirector_actor(), return_message)
 

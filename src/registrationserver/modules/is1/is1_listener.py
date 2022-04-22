@@ -220,8 +220,12 @@ class Is1Listener(BaseActor):
                         "Connection refused on %s:%d", is_host, is_port_id["port"]
                     )
                     return False
-                client_socket.sendall(cmd_msg)
-                reply = client_socket.recv(1024)
+                try:
+                    client_socket.sendall(cmd_msg)
+                    reply = client_socket.recv(1024)
+                except ConnectionResetError as exception:
+                    logger.error("%s. IS1 closed or disconnected.", exception)
+                    return False
                 checked_reply = check_message(reply, multiframe=False)
                 while checked_reply["is_valid"] and checked_reply["payload"] not in [
                     b"\xe4",
