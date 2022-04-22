@@ -56,11 +56,16 @@ def startup():
     # can be changed to a distributed system here.
     # =======================
     config["APP_TYPE"] = AppType.RS
-    system = ActorSystem(
-        systemBase=actor_config["systemBase"],
-        capabilities=actor_config["capabilities"],
-        logDefs=logcfg,
-    )
+    try:
+        system = ActorSystem(
+            systemBase=actor_config["systemBase"],
+            capabilities=actor_config["capabilities"],
+            logDefs=logcfg,
+        )
+    except Exception as exception:  # pylint: disable=broad-except
+        logger.critical(exception)
+        kill_processes("python.sarad_registration_server")
+        return ()
     registrar_actor = system.createActor(Registrar, globalName="registrar")
     system.tell(
         registrar_actor,
@@ -102,12 +107,15 @@ def main():
     if start_stop == "start":
         set_file_flag(True)
         startup_tupel = startup()
-        registrar_actor = startup_tupel[0]
-        mdns_listener = startup_tupel[1]
-        usb_listener = startup_tupel[2]
+        try:
+            registrar_actor = startup_tupel[0]
+            mdns_listener = startup_tupel[1]
+            usb_listener = startup_tupel[2]
+        except IndexError as exception:
+            raise SystemExit("Exit with error for automatic restart.") from exception
     elif start_stop == "stop":
         set_file_flag(False)
-        return None
+        raise SystemExit("Exit with error for automatic restart.")
     else:
         print("Usage: <program> start|stop")
         return None

@@ -201,7 +201,25 @@ class Is1Listener(BaseActor):
             cmd_msg = make_command_msg(self.GET_FIRST_COM)
             logger.debug("Send GetFirstCOM: %s", cmd_msg)
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-                client_socket.connect((is_host, is_port_id["port"]))
+                client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                retry = True
+                counter = 5
+                while retry and counter:
+                    try:
+                        logger.debug(
+                            "Trying to connect %s:%d", is_host, is_port_id["port"]
+                        )
+                        client_socket.connect((is_host, is_port_id["port"]))
+                        retry = False
+                    except ConnectionRefusedError:
+                        counter = counter - 1
+                        logger.debug("%d retries left", counter)
+                        time.sleep(1)
+                if retry:
+                    logger.critical(
+                        "Connection refused on %s:%d", is_host, is_port_id["port"]
+                    )
+                    return False
                 client_socket.sendall(cmd_msg)
                 reply = client_socket.recv(1024)
                 checked_reply = check_message(reply, multiframe=False)
@@ -226,6 +244,7 @@ class Is1Listener(BaseActor):
                     client_socket.sendall(cmd_msg)
                     reply = client_socket.recv(1024)
                     checked_reply = check_message(reply, multiframe=False)
+        return True
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
