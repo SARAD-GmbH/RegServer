@@ -32,7 +32,7 @@ class Is1Listener(BaseActor):
 
     GET_FIRST_COM = [b"\xe0", b""]
     GET_NEXT_COM = [b"\xe1", b""]
-    PORTS = [50001]
+    PORTS = [50002]
 
     @staticmethod
     def get_ip():
@@ -269,12 +269,15 @@ class Is1Listener(BaseActor):
             )
             sarad_type = "unknown"
         actor_id = f"{instr_id}.{sarad_type}.is1"
-        logger.debug("Create actor %s", actor_id)
-        device_actor = self._create_actor(Is1Actor, actor_id)
-        self.send(
-            device_actor,
-            SetupIs1ActorMsg(is_host=is_host, is_port=is_port, com_port=port),
-        )
+        if actor_id not in self.child_actors:
+            logger.debug("Create actor %s", actor_id)
+            device_actor = self._create_actor(Is1Actor, actor_id)
+            self.send(
+                device_actor,
+                SetupIs1ActorMsg(is_host=is_host, is_port=is_port, com_port=port),
+            )
+        else:
+            device_actor = self.child_actors[actor_id]["actor_address"]
         device_status = {
             "Identification": {
                 "Name": self._get_name(instr_id),
