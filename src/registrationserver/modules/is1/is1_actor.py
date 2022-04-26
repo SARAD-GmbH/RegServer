@@ -23,7 +23,11 @@ class Is1Actor(DeviceBaseActor):
     """Actor for dealing with connection to Instrument Server 1"""
 
     SELECT_COM = b"\xe2"
+    CLOSE_COM_PORT = b"\xe9"
     COM_SELECTED = b"\xe5"
+    COM_NOT_AVAILABLE = b"\xe6"
+    COM_FRAME_ERROR = b"\xe7"
+    COM_TIMEOUT = b"\xe8"
 
     @overrides
     def __init__(self):
@@ -104,7 +108,10 @@ class Is1Actor(DeviceBaseActor):
 
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
-        self._destroy_socket()
+        cmd_msg = make_command_msg(
+            [self.CLOSE_COM_PORT, (self._com_port).to_bytes(1, byteorder="little")]
+        )
+        self._send_via_socket(cmd_msg)
         super().receiveMsg_FreeDeviceMsg(msg, sender)
 
     @overrides
