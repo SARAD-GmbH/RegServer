@@ -130,6 +130,9 @@ class Is1Listener(BaseActor):
         self._socket_info = None
         self.conn = None
         self._host = self.get_ip()
+        self.allow_child_suicide = (
+            True  # Children commiting suicide shall not affect the listener.
+        )
         logger.debug("IP address of Registration Server: %s", self._host)
         for self._port in self.PORTS:
             try:

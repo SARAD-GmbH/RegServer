@@ -70,6 +70,9 @@ class BaseActor(ActorTypeDispatcher):
         self.child_actors = {}  # {actor_id: {"actor_address": <actor address>}}
         self.actor_dict = {}
         self.on_kill = False
+        self.allow_child_suicide = (
+            False  # Children commiting suicide shall affect the listener.
+        )
         self.app_type = AppType.RS
 
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -137,7 +140,7 @@ class BaseActor(ActorTypeDispatcher):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         actor_id = self._get_actor_id(msg.childAddress, self.child_actors)
         self.child_actors.pop(actor_id, None)
-        if not self.child_actors and self.on_kill:
+        if (not self.child_actors) and self.on_kill:
             self.send(self.myAddress, ActorExitRequest())
 
     def receiveMsg_ActorExitRequest(self, msg, sender):

@@ -11,7 +11,7 @@ import socket
 import time
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import RxBinaryMsg
+from registrationserver.actor_messages import KillMsg, RxBinaryMsg
 from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
@@ -68,6 +68,7 @@ class Is1Actor(DeviceBaseActor):
                 logger.error(
                     "Connection refused on %s:%d", self._is_host, self._is_port
                 )
+                self.send(self.myAddress, KillMsg())
                 return False
         else:
             return True
@@ -100,24 +101,7 @@ class Is1Actor(DeviceBaseActor):
                 time.sleep(1)
         if retry:
             logger.error("Cannot send to IS1")
-            try:
-                self._destroy_socket()
-            except OSError as destroy_exception:
-                logger.error("Failed to destroy socket: %s", destroy_exception)
-            return
-
-    @overrides
-    def receiveMsg_FreeDeviceMsg(self, msg, sender):
-        cmd_msg = make_command_msg(
-            [self.CLOSE_COM_PORT, (self._com_port).to_bytes(1, byteorder="little")]
-        )
-        self._send_via_socket(cmd_msg)
-        super().receiveMsg_FreeDeviceMsg(msg, sender)
-
-    @overrides
-    def receiveMsg_ChildActorExited(self, msg, sender):
-        self._destroy_socket()
-        super().receiveMsg_ChildActorExited(msg, sender)
+            self.send(self.myAddress, KillMsg())
 
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -131,6 +115,7 @@ class Is1Actor(DeviceBaseActor):
             reply = self._socket.recv(1024)
         except TimeoutError:
             logger.error("Timeout on waiting for reply from IS1")
+            self.send(self.myAddress, KillMsg())
             return
         return_message = RxBinaryMsg(reply)
         self.send(self.redirector_actor(), return_message)
@@ -157,6 +142,12 @@ class Is1Actor(DeviceBaseActor):
         if checked_reply["is_valid"] and checked_reply["payload"] == self.COM_SELECTED:
             logger.debug("Reserve at IS1 replied %s", checked_reply)
             self._forward_reservation(True)
+        elif (
+            checked_reply["is_valid"]
+            and checked_reply["payload"] == self.COM_NOT_AVAILABLE
+        ):
+            logger.debug("Reserve at IS1 replied %s", checked_reply)
+            self.send(self.myAddress, KillMsg())
         else:
             self._forward_reservation(False)
 

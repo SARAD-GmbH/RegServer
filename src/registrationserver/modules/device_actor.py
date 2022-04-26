@@ -112,10 +112,10 @@ class DeviceBaseActor(BaseActor):
         This function has to be called in the protocol specific modules.
         """
         if success:
-            if self._create_redirector():
-                return
-        else:
-            self.send(self.sender_api, ReservationStatusMsg(Status.OCCUPIED))
+            if not self._create_redirector():
+                logger.error("Tried to create a redirector that already exists.")
+            return
+        self.send(self.sender_api, ReservationStatusMsg(Status.OCCUPIED))
 
     def _create_redirector(self) -> bool:
         """Create redirector actor if it does not exist already"""
