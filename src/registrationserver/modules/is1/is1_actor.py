@@ -135,18 +135,21 @@ class Is1Actor(DeviceBaseActor):
         try:
             reply = self._socket.recv(1024)
         except TimeoutError:
-            logger.error("Timeout on waiting for reply to SELECT_COM.")
+            logger.error("Timeout on waiting for reply to SELECT_COM: %s", cmd_msg)
             self._forward_reservation(False)
             return
         checked_reply = check_message(reply, multiframe=False)
-        if checked_reply["is_valid"] and checked_reply["payload"] == self.COM_SELECTED:
-            logger.debug("Reserve at IS1 replied %s", checked_reply)
+        logger.debug("Reserve at IS1 replied %s", checked_reply)
+        if (
+            checked_reply["is_valid"]
+            and checked_reply["payload"][0].to_bytes(1, byteorder="little")
+            == self.COM_SELECTED
+        ):
             self._forward_reservation(True)
         elif (
             checked_reply["is_valid"]
             and checked_reply["payload"] == self.COM_NOT_AVAILABLE
         ):
-            logger.debug("Reserve at IS1 replied %s", checked_reply)
             self.send(self.myAddress, KillMsg())
         else:
             self._forward_reservation(False)
