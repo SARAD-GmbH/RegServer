@@ -194,10 +194,7 @@ def get_device_status(registrar_actor, device_id: str) -> dict:
             device_actor, GetDeviceStatusMsg(), timeout=timedelta(seconds=10)
         )
         if not isinstance(result, UpdateDeviceStatusMsg):
-            logger.critical(
-                "Emergency shutdown. Ask to device_actor took more than 10 sec."
-            )
-            system_shutdown()
+            logger.error("Ask to device_actor took more than 10 sec.")
             return {}
     return result.device_status
 

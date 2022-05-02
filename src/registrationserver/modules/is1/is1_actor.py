@@ -47,9 +47,8 @@ class Is1Actor(DeviceBaseActor):
 
     def _establish_socket(self):
         if self._socket is None:
-            socket.setdefaulttimeout(8)
+            socket.setdefaulttimeout(1)
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             retry = True
             counter = 5
             while retry and counter:
@@ -114,8 +113,15 @@ class Is1Actor(DeviceBaseActor):
         try:
             reply = self._socket.recv(1024)
         except TimeoutError:
-            logger.error("Timeout on waiting for reply from IS1")
-            self.send(self.myAddress, KillMsg())
+            logger.warning("Timeout on waiting for reply from IS1. Retrying...")
+            # Dirty workaround for bug in SARAD instruments
+            # Sometimes an instrument just doesn't answer.
+            self._send_via_socket(msg.data)
+            try:
+                reply = self._socket.recv(1024)
+            except TimeoutError:
+                logger.error("Timeout on waiting for reply from IS1")
+                self.send(self.myAddress, KillMsg())
             return
         return_message = RxBinaryMsg(reply)
         self.send(self.redirector_actor(), return_message)
@@ -137,6 +143,7 @@ class Is1Actor(DeviceBaseActor):
         except TimeoutError:
             logger.error("Timeout on waiting for reply to SELECT_COM: %s", cmd_msg)
             self._forward_reservation(False)
+            self._destroy_socket()
             return
         checked_reply = check_message(reply, multiframe=False)
         logger.debug("Reserve at IS1 replied %s", checked_reply)
@@ -153,6 +160,12 @@ class Is1Actor(DeviceBaseActor):
             self.send(self.myAddress, KillMsg())
         else:
             self._forward_reservation(False)
+        self._destroy_socket()
+
+    @overrides
+    def receiveMsg_FreeDeviceMsg(self, msg, sender):
+        self._destroy_socket()
+        super().receiveMsg_FreeDeviceMsg(msg, sender)
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):

@@ -305,4 +305,5 @@ class ClusterActor(BaseActor):
     def receiveMsg_WakeupMessage(self, _msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
-        self._continue_loop()
+        if not self.on_kill:
+            self._continue_loop()

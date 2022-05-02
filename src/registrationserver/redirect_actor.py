@@ -65,7 +65,7 @@ class RedirectorActor(BaseActor):
     def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
-        if msg.payload == "Connect":
+        if msg.payload == "Connect" and not self.on_kill:
             self.receiveMsg_ConnectMsg(msg, sender)
 
     @overrides

@@ -108,10 +108,12 @@ class DeviceBaseActor(BaseActor):
 
     def _forward_reservation(self, success: bool):
         # pylint: disable=unused-argument, no-self-use
-        """Forward the reply from the Instrument Server to the redirector actor.
+        """Create redirector.
+        Forward the reservation state from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
         if success:
+            # create redirector
             if not self._create_redirector():
                 logger.error("Tried to create a redirector that already exists.")
             return

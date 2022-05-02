@@ -204,7 +204,6 @@ class Is1Listener(BaseActor):
             cmd_msg = make_command_msg(self.GET_FIRST_COM)
             logger.debug("Send GetFirstCOM: %s", cmd_msg)
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-                client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 retry = True
                 counter = 5
                 while retry and counter:
@@ -251,6 +250,7 @@ class Is1Listener(BaseActor):
                     client_socket.sendall(cmd_msg)
                     reply = client_socket.recv(1024)
                     checked_reply = check_message(reply, multiframe=False)
+                client_socket.shutdown(socket.SHUT_WR)
         return True
 
     @overrides
