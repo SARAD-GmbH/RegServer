@@ -44,7 +44,7 @@ def startup():
     * starts the MdnsListener
 
     Returns:
-        Object of type MdnsListener
+        Tuple of Registrar Actor, MdnsListener, and UsbListener
     """
     try:
         with open(LOGFILENAME, "w", encoding="utf8") as _:
@@ -102,54 +102,19 @@ def startup():
     return (registrar_actor, mdns_backend, usb_listener)
 
 
-def main():
-    """Main function of the Registration Server"""
-    logger.debug("Entering main()")
-    if len(sys.argv) < 2:
-        start_stop = "start"
-    else:
-        start_stop = sys.argv[1]
-    if start_stop == "start":
-        set_file_flag(True)
-        startup_tupel = startup()
-        try:
-            registrar_actor = startup_tupel[0]
-            mdns_listener = startup_tupel[1]
-            usb_listener = startup_tupel[2]
-        except IndexError as exception:
-            raise SystemExit("Exit with error for automatic restart.") from exception
-    elif start_stop == "stop":
-        set_file_flag(False)
-        raise SystemExit("Exit with error for automatic restart.")
-    else:
-        print("Usage: <program> start|stop")
-        return None
-
-    logger.debug("Starting the main loop")
-    wait_some_time = False
-    while is_flag_set():
-        before = datetime.now()
-        reply = ActorSystem().ask(
-            registrar_actor, Thespian_StatusReq(), timeout=timedelta(seconds=3)
-        )
-        if not isinstance(reply, Thespian_ActorStatus):
-            set_file_flag(False)
-        time.sleep(4)
-        after = datetime.now()
-        if (after - before).total_seconds() > 10:
-            logger.debug("Wakeup from suspension.")
-            wait_some_time = True
-            set_file_flag(False)
-
-    logger.debug("Shutdown MdnsListener")
+def shutdown(startup_tupel, wait_some_time):
+    # pylint: disable=too-many-branches
+    """Shutdown application"""
+    mdns_listener = startup_tupel[1]
     if mdns_listener is not None:
-        logger.debug(mdns_listener)
+        logger.debug("Shutdown MdnsListener")
         try:
             mdns_listener.shutdown()
         except Exception as exception:  # pylint: disable=broad-except
             logger.critical(exception)
-    logger.debug("Terminate UsbListener")
+    usb_listener = startup_tupel[2]
     if usb_listener is not None:
+        logger.debug("Terminate UsbListener")
         try:
             usb_listener.stop()
         except Exception as exception:  # pylint: disable=broad-except
@@ -158,8 +123,9 @@ def main():
         logger.debug("Wait for 10 sec before shutting down RegServer.")
         time.sleep(10)
     logger.debug("Terminate the actor system")
+    registrar_actor = startup_tupel[0]
     retry = True
-    for _i in range(0, 5):
+    for _i in range(0, 3):
         while retry:
             try:
                 response = ActorSystem().ask(
@@ -169,10 +135,10 @@ def main():
                 if response:
                     retry = False
                 else:
-                    time.sleep(3)
+                    time.sleep(1)
             except OSError as exception:
                 logger.error(exception)
-                time.sleep(3)
+                time.sleep(1)
             break
     try:
         ActorSystem().shutdown()
@@ -185,6 +151,41 @@ def main():
                 logger.critical(exception)
                 logger.critical("There might be residual processes!")
                 logger.info("Consider using 'ps ax' to investigate.")
+
+
+def main():
+    """Main function of the Registration Server"""
+    logger.debug("Entering main()")
+    if len(sys.argv) < 2:
+        start_stop = "start"
+    else:
+        start_stop = sys.argv[1]
+    if start_stop == "start":
+        set_file_flag(True)
+        startup_tupel = startup()
+    elif start_stop == "stop":
+        set_file_flag(False)
+        raise SystemExit("Exit with error for automatic restart.")
+    else:
+        print("Usage: <program> start|stop")
+        return None
+
+    logger.debug("Starting the main loop")
+    wait_some_time = False
+    while is_flag_set():
+        before = datetime.now()
+        reply = ActorSystem().ask(
+            startup_tupel[0], Thespian_StatusReq(), timeout=timedelta(seconds=3)
+        )
+        if not isinstance(reply, Thespian_ActorStatus):
+            set_file_flag(False)
+        time.sleep(4)
+        after = datetime.now()
+        if (after - before).total_seconds() > 10:
+            logger.debug("Wakeup from suspension.")
+            wait_some_time = True
+            set_file_flag(False)
+    shutdown(startup_tupel, wait_some_time)
     logger.info("This is the end, my only friend, the end.")
     raise SystemExit("Exit with error for automatic restart.")
 
