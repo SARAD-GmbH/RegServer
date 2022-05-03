@@ -24,6 +24,7 @@ from registrationserver.actor_messages import (ActorCreatedMsg, Backend,
                                                ReturnDeviceActorMsg,
                                                UpdateActorDictMsg)
 from registrationserver.base_actor import BaseActor
+from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.is1.is1_listener import Is1Listener
 from registrationserver.modules.mqtt.mqtt_listener import MqttListener
@@ -104,6 +105,17 @@ class Registrar(BaseActor):
             )
             self.send(sender, KillMsg())
             self.send(self.registrar, KillMsg())
+        logger.debug("Check for local or IS1 version of %s", msg.actor_id)
+        if msg.is_device_actor:
+            for actor_id in self.actor_dict:
+                if (short_id(actor_id) == short_id(msg.actor_id)) and (
+                    actor_id != msg.actor_id
+                ):
+                    logger.debug(
+                        "%s has already a device actor - skip", short_id(actor_id)
+                    )
+                    self.send(sender, KillMsg())
+                    return
 
     def receiveMsg_UnsubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
