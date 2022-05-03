@@ -35,8 +35,8 @@ class UsbListener(BaseListener):
         return hashlib.sha224(identifier_string.encode("utf-8")).hexdigest()
 
     @overrides
-    def __init__(self, registrar_actor, app_type):
-        super().__init__(registrar_actor, app_type)
+    def __init__(self, registrar_actor):
+        super().__init__(registrar_actor)
         context = pyudev.Context()
         monitor = pyudev.Monitor.from_netlink(context)
         monitor.filter_by("tty")

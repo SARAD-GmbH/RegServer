@@ -22,8 +22,7 @@ from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import Actor, ActorAddress, ActorTypeDispatcher
 
-from registrationserver.actor_messages import (AppType, KillMsg, SetupMsg,
-                                               SubscribeMsg,
+from registrationserver.actor_messages import (KillMsg, SetupMsg, SubscribeMsg,
                                                SubscribeToActorDictMsg,
                                                SubscribeToDeviceStatusMsg,
                                                UnsubscribeMsg)
@@ -73,7 +72,6 @@ class BaseActor(ActorTypeDispatcher):
         self.allow_child_suicide = (
             False  # Children commiting suicide shall affect the listener.
         )
-        self.app_type = AppType.RS
 
     def receiveMsg_SetupMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -82,7 +80,6 @@ class BaseActor(ActorTypeDispatcher):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.parent = Parent(parent_id=msg.parent_id, parent_address=sender)
         self.registrar = self.createActor(Actor, globalName="registrar")
-        self.app_type = msg.app_type
         self._subscribe(False)
 
     def _subscribe(self, keep_alive):
@@ -167,6 +164,6 @@ class BaseActor(ActorTypeDispatcher):
     def _create_actor(self, actor_type, actor_id):
         logger.debug("Create %s with parent %s", actor_id, self.my_id)
         new_actor_address = self.createActor(actor_type)
-        self.send(new_actor_address, SetupMsg(actor_id, self.my_id, self.app_type))
+        self.send(new_actor_address, SetupMsg(actor_id, self.my_id))
         self.child_actors[actor_id] = {"actor_address": new_actor_address}
         return new_actor_address

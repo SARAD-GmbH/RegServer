@@ -17,13 +17,13 @@ from datetime import timedelta
 
 from overrides import overrides  # type: ignore
 
-from registrationserver.actor_messages import (ActorCreatedMsg, AppType,
-                                               KeepAliveMsg, KillMsg,
+import registrationserver.config as configuration
+from registrationserver.actor_messages import (ActorCreatedMsg, Backend,
+                                               Frontend, KeepAliveMsg, KillMsg,
                                                PrepareMqttActorMsg,
                                                ReturnDeviceActorMsg,
                                                UpdateActorDictMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import ismqtt_config, mqtt_config
 from registrationserver.logger import logger
 from registrationserver.modules.is1.is1_listener import Is1Listener
 from registrationserver.modules.mqtt.mqtt_listener import MqttListener
@@ -38,25 +38,27 @@ class Registrar(BaseActor):
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         self.handleDeadLetters(startHandling=True)
-        self._create_actor(ClusterActor, "cluster")
-        if self.app_type is AppType.ISMQTT:
+        if Backend.USB in configuration.backend_config:
+            self._create_actor(ClusterActor, "cluster")
+        if Frontend.MQTT in configuration.frontend_config:
             mqtt_scheduler = self._create_actor(MqttSchedulerActor, "mqtt_scheduler")
             self.send(
                 mqtt_scheduler,
                 PrepareMqttActorMsg(
                     is_id=None,
-                    client_id=ismqtt_config["IS_ID"],
+                    client_id=configuration.ismqtt_config["IS_ID"],
                 ),
             )
-        if self.app_type is AppType.RS:
+        if Backend.MQTT in configuration.backend_config:
             mqtt_listener = self._create_actor(MqttListener, "mqtt_listener")
             self.send(
                 mqtt_listener,
                 PrepareMqttActorMsg(
                     is_id=None,
-                    client_id=mqtt_config["MQTT_CLIENT_ID"],
+                    client_id=configuration.mqtt_config["MQTT_CLIENT_ID"],
                 ),
             )
+        if Backend.IS1 in configuration.backend_config:
             _is1_listener = self._create_actor(Is1Listener, "is1_listener")
         self.wakeupAfter(timedelta(minutes=1), payload="keep alive")
 

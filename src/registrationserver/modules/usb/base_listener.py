@@ -10,7 +10,8 @@
 """
 import time
 
-from registrationserver.actor_messages import AppType
+import registrationserver.config as configuration
+from registrationserver.actor_messages import Frontend
 from registrationserver.helpers import get_actor
 from registrationserver.shutdown import is_flag_set
 
@@ -20,9 +21,9 @@ class BaseListener:
     """Process listening for new connected SARAD instruments
     -- base for OS specific implementations."""
 
-    def __init__(self, registrar_actor, app_type):
+    def __init__(self, registrar_actor):
         """Wait for the Registrar Actor to create the Cluster Actor."""
-        if app_type is AppType.ISMQTT:
+        if Frontend.MQTT in configuration.frontend_config:
             mqtt_scheduler = None
             while mqtt_scheduler is None and is_flag_set():
                 mqtt_scheduler = get_actor(registrar_actor, "mqtt_scheduler")

@@ -11,12 +11,12 @@
 """
 from datetime import datetime
 
+import registrationserver.config as configuration
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (AppType, ConnectMsg, KillMsg,
+from registrationserver.actor_messages import (ConnectMsg, Frontend, KillMsg,
                                                ReservationStatusMsg, Status,
                                                UpdateDeviceStatusMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import ismqtt_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.redirect_actor import RedirectorActor
@@ -68,8 +68,10 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.device_status = msg.device_status
         logger.debug("Device status: %s", self.device_status)
-        if self.app_type is AppType.ISMQTT:
-            self.device_status["Identification"]["Host"] = ismqtt_config["IS_ID"]
+        if Frontend.MQTT in configuration.frontend_config:
+            self.device_status["Identification"]["Host"] = configuration.ismqtt_config[
+                "IS_ID"
+            ]
         self._publish_status_change()
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
@@ -80,18 +82,17 @@ class DeviceBaseActor(BaseActor):
         self.app = msg.app
         self.host = msg.host
         self.user = msg.user
-        if self.app_type == AppType.RS:
-            try:
-                if self.device_status["Reservation"]["Active"]:
-                    if self.device_status["Reservation"]["Host"] == self.host:
-                        return_message = ReservationStatusMsg(Status.OK_UPDATED)
-                    else:
-                        return_message = ReservationStatusMsg(Status.OCCUPIED)
-                    self.send(self.sender_api, return_message)
-                    return
-            except KeyError:
-                logger.debug("First reservation since restart of RegServer")
-            self._reserve_at_is()
+        try:
+            if self.device_status["Reservation"]["Active"]:
+                if self.device_status["Reservation"]["Host"] == self.host:
+                    return_message = ReservationStatusMsg(Status.OK_UPDATED)
+                else:
+                    return_message = ReservationStatusMsg(Status.OCCUPIED)
+                self.send(self.sender_api, return_message)
+                return
+        except KeyError:
+            logger.debug("First reservation since restart of RegServer")
+        self._reserve_at_is()
         self._publish_status_change()
 
     def _reserve_at_is(self):

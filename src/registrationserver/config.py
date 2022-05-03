@@ -17,7 +17,7 @@ from uuid import getnode as get_mac
 import toml
 from zeroconf import IPVersion
 
-from registrationserver.actor_messages import AppType
+from registrationserver.actor_messages import Backend, Frontend
 
 
 def unique_id(ambiguous_id):
@@ -43,7 +43,6 @@ try:
 except OSError:
     customization = {}
 
-DEFAULT_APP_TYPE = AppType.RS
 DEFAULT_MDNS_TIMEOUT = 3000
 DEFAULT_TYPE = "_rfc2217._tcp.local."
 DEFAULT_LEVEL = logging.INFO
@@ -85,7 +84,6 @@ except Exception:  # pylint: disable=broad-except
     PORT_RANGE = DEFAULT_PORT_RANGE
 
 config = {
-    "APP_TYPE": DEFAULT_APP_TYPE,
     "MDNS_TIMEOUT": customization.get("mdns_timeout", DEFAULT_MDNS_TIMEOUT),
     "TYPE": customization.get("type", DEFAULT_TYPE),
     "LEVEL": DEBUG_LEVEL,
@@ -103,6 +101,32 @@ config = {
     "API_PORT": customization.get("api_port", DEFAULT_API_PORT),
     "HOST": customization.get("host", DEFAULT_HOST),
 }
+
+frontend_config = set()
+DEFAULT_FRONTENDS = {Frontend.REST}
+if customization.get("frontends") is None:
+    frontend_config = DEFAULT_FRONTENDS
+else:
+    if customization["frontends"].get("rest", False):
+        frontend_config.add(Frontend.REST)
+    if customization["frontends"].get("mqtt", False):
+        frontend_config.add(Frontend.MQTT)
+    if customization["frontends"].get("mdns", False):
+        frontend_config.add(Frontend.MDNS)
+
+backend_config = set()
+DEFAULT_BACKENDS = {Backend.USB, Backend.MDNS, Backend.MQTT, Backend.IS1}
+if customization.get("backends") is None:
+    backend_config = DEFAULT_BACKENDS
+else:
+    if customization["backends"].get("usb", False):
+        backend_config.add(Backend.USB)
+    if customization["backends"].get("mqtt", False):
+        backend_config.add(Backend.MQTT)
+    if customization["backends"].get("mdns", False):
+        backend_config.add(Backend.MDNS)
+    if customization["backends"].get("is1", False):
+        backend_config.add(Backend.IS1)
 
 DEFAULT_SYSTEM_BASE = "multiprocTCPBase"
 DEFAULT_ADMIN_PORT = 1901

@@ -8,6 +8,17 @@ local_retry_interval = 86400  # in seconds
 api_port = 8000
 host = "::1"  # Localhost IPv6
 
+[frontends]
+rest = true
+mqtt = true
+mdns = false
+
+[backends]
+usb = true
+mqtt = true
+mdns = true
+is1 = true
+
 [actor]
 system_base = "multiprocUDPBase"
 admin_port = 1901

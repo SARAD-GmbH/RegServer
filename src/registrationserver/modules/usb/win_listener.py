@@ -73,8 +73,8 @@ class UsbListener(BaseListener):
     }
 
     @overrides
-    def __init__(self, registrar_actor, app_type):
-        super().__init__(registrar_actor, app_type)
+    def __init__(self, registrar_actor):
+        super().__init__(registrar_actor)
         self.hwnd = None
 
     def _create_listener(self):

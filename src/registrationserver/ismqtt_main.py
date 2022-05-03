@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
 
-from registrationserver.actor_messages import AppType, KillMsg, SetupMsg
+from registrationserver.actor_messages import KillMsg, SetupMsg
 from registrationserver.config import actor_config
 from registrationserver.logdef import LOGFILENAME, logcfg
 from registrationserver.logger import logger
@@ -47,7 +47,6 @@ def startup():
     except Exception:  # pylint: disable=broad-except
         logger.error("Initialization of log file failed.")
     logger.info("Logging system initialized.")
-    app_type = AppType.ISMQTT
     # =======================
     # Initialization of the actor system,
     # can be changed to a distributed system here.
@@ -60,10 +59,10 @@ def startup():
     registrar_actor = system.createActor(Registrar, globalName="registrar")
     system.tell(
         registrar_actor,
-        SetupMsg("registrar", "actor_system", app_type),
+        SetupMsg("registrar", "actor_system"),
     )
     logger.debug("Actor system started.")
-    usb_listener = UsbListener(registrar_actor, app_type)
+    usb_listener = UsbListener(registrar_actor)
     usb_listener_thread = threading.Thread(
         target=usb_listener.run,
         daemon=True,

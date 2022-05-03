@@ -13,10 +13,10 @@ import ssl
 import time
 
 import paho.mqtt.client as MQTT  # type: ignore
+import registrationserver.config as configuration
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import AppType, KillMsg
+from registrationserver.actor_messages import Frontend, KillMsg
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import mqtt_config
 from registrationserver.logger import logger
 from registrationserver.shutdown import is_flag_set
 
@@ -57,8 +57,8 @@ class MqttBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for PrepareMqttActorMsg from MQTT Listener"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.mqtt_broker = mqtt_config["MQTT_BROKER"]
-        self.port = mqtt_config["PORT"]
+        self.mqtt_broker = configuration.mqtt_config["MQTT_BROKER"]
+        self.port = configuration.mqtt_config["PORT"]
         self.mqttc = MQTT.Client(msg.client_id)
         self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
@@ -74,7 +74,7 @@ class MqttBaseActor(BaseActor):
         if there is a chance that the connection can be established.
         Give up, if TLS files are not available.
         """
-        retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
+        retry_interval = configuration.mqtt_config.get("RETRY_INTERVAL", 60)
         while self.ungr_disconn > 0 and is_flag_set():
             try:
                 logger.info(
@@ -82,10 +82,19 @@ class MqttBaseActor(BaseActor):
                     mqtt_broker,
                     port,
                 )
-                if mqtt_config["TLS_USE_TLS"] and self.mqttc._ssl_context is None:
-                    ca_certs = os.path.expanduser(mqtt_config["TLS_CA_FILE"])
-                    certfile = os.path.expanduser(mqtt_config["TLS_CERT_FILE"])
-                    keyfile = os.path.expanduser(mqtt_config["TLS_KEY_FILE"])
+                if (
+                    configuration.mqtt_config["TLS_USE_TLS"]
+                    and self.mqttc._ssl_context is None
+                ):
+                    ca_certs = os.path.expanduser(
+                        configuration.mqtt_config["TLS_CA_FILE"]
+                    )
+                    certfile = os.path.expanduser(
+                        configuration.mqtt_config["TLS_CERT_FILE"]
+                    )
+                    keyfile = os.path.expanduser(
+                        configuration.mqtt_config["TLS_KEY_FILE"]
+                    )
                     logger.info(
                         "Setting up TLS: %s | %s | %s", ca_certs, certfile, keyfile
                     )
@@ -100,11 +109,11 @@ class MqttBaseActor(BaseActor):
             except FileNotFoundError:
                 logger.critical(
                     "Cannot find files expected in %s, %s, %s",
-                    mqtt_config["TLS_CA_FILE"],
-                    mqtt_config["TLS_CERT_FILE"],
-                    mqtt_config["TLS_KEY_FILE"],
+                    configuration.mqtt_config["TLS_CA_FILE"],
+                    configuration.mqtt_config["TLS_CERT_FILE"],
+                    configuration.mqtt_config["TLS_KEY_FILE"],
                 )
-                if self.app_type is AppType.ISMQTT:
+                if Frontend.MQTT in configuration.frontend_config:
                     logger.critical(
                         "I cannot live without MQTT broker. -> Emergency shutdown"
                     )

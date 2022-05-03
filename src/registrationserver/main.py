@@ -19,8 +19,9 @@ from datetime import datetime, timedelta
 from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
 
-from registrationserver.actor_messages import AppType, KillMsg, SetupMsg
-from registrationserver.config import actor_config, config
+import registrationserver.config as configuration
+from registrationserver.actor_messages import (Backend, Frontend, KillMsg,
+                                               SetupMsg)
 from registrationserver.logdef import LOGFILENAME, logcfg
 from registrationserver.logger import logger
 from registrationserver.modules.rfc2217.mdns_listener import MdnsListener
@@ -55,11 +56,10 @@ def startup():
     # Initialization of the actor system,
     # can be changed to a distributed system here.
     # =======================
-    config["APP_TYPE"] = AppType.RS
     try:
         system = ActorSystem(
-            systemBase=actor_config["systemBase"],
-            capabilities=actor_config["capabilities"],
+            systemBase=configuration.actor_config["systemBase"],
+            capabilities=configuration.actor_config["capabilities"],
             logDefs=logcfg,
         )
     except Exception as exception:  # pylint: disable=broad-except
@@ -69,32 +69,37 @@ def startup():
     registrar_actor = system.createActor(Registrar, globalName="registrar")
     system.tell(
         registrar_actor,
-        SetupMsg("registrar", "actor_system", AppType.RS),
+        SetupMsg("registrar", "actor_system"),
     )
     logger.debug("Actor system started.")
     # The Actor System must be started *before* the RestApi
-    restapi = RestApi()
-    apithread = threading.Thread(
-        target=restapi.run,
-        args=(
-            config["HOST"],
-            config["API_PORT"],
-        ),
-        daemon=True,
-    )
-    apithread.start()
-    usb_listener = UsbListener(registrar_actor, AppType.RS)
-    usb_listener_thread = threading.Thread(
-        target=usb_listener.run,
-        daemon=True,
-    )
-    usb_listener_thread.start()
-
-    return (
-        registrar_actor,
-        MdnsListener(registrar_actor, service_type=config["TYPE"]),
-        usb_listener,
-    )
+    if Frontend.REST in configuration.frontend_config:
+        restapi = RestApi()
+        apithread = threading.Thread(
+            target=restapi.run,
+            args=(
+                configuration.config["HOST"],
+                configuration.config["API_PORT"],
+            ),
+            daemon=True,
+        )
+        apithread.start()
+    if Backend.USB in configuration.backend_config:
+        usb_listener = UsbListener(registrar_actor)
+        usb_listener_thread = threading.Thread(
+            target=usb_listener.run,
+            daemon=True,
+        )
+        usb_listener_thread.start()
+    else:
+        usb_listener = None
+    if Backend.MDNS in configuration.backend_config:
+        mdns_backend = MdnsListener(
+            registrar_actor, service_type=configuration.config["TYPE"]
+        )
+    else:
+        mdns_backend = None
+    return (registrar_actor, mdns_backend, usb_listener)
 
 
 def main():
@@ -135,12 +140,20 @@ def main():
             logger.debug("Wakeup from suspension.")
             wait_some_time = True
             set_file_flag(False)
+
     logger.debug("Shutdown MdnsListener")
     if mdns_listener is not None:
-        mdns_listener.shutdown()
+        logger.debug(mdns_listener)
+        try:
+            mdns_listener.shutdown()
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.critical(exception)
     logger.debug("Terminate UsbListener")
     if usb_listener is not None:
-        usb_listener.stop()
+        try:
+            usb_listener.stop()
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.critical(exception)
     if wait_some_time:
         logger.debug("Wait for 10 sec before shutting down RegServer.")
         time.sleep(10)

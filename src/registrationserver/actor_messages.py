@@ -48,24 +48,29 @@ class Status(Enum):
         return longform[self.value]
 
 
-class AppType(Enum):
-    """Indicates the type of the application that shall be implemented
-    with the Actor System.
+class Frontend(Enum):
+    """One item for every possible frontend of of the RegServer or Instrument Server
 
-    The program can be started either as Instrument Server (ISMQTT or IS2) or
-    as Registration Server (RS).
-    There are three main files:
-
-    * main.py for the Registration Server,
-    * ismqtt_main.py for Instrument Server MQTT,
-    * is2_main.py for Instrument Server 2,
-
-    where `config["APP_TYPE]` will be set with the appropriate AppType.
+    `config["FRONTENDS"]` will contain a list of frontends that are active in
+    the application defined by this configuration.
     """
 
-    ISMQTT = auto()
-    IS2 = auto()
-    RS = auto()
+    REST = 1
+    MDNS = 2
+    MQTT = 4
+
+
+class Backend(Enum):
+    """One item for every possible backend of of the RegServer or Instrument Server
+
+    `config["BACKENDS"]` will contain a list of backends that are active in
+    the application defined by this configuration.
+    """
+
+    USB = 1
+    MDNS = 2
+    MQTT = 4
+    IS1 = 8
 
 
 @dataclass
@@ -80,7 +85,6 @@ class SetupMsg:
 
     actor_id: str
     parent_id: str
-    app_type: AppType
 
 
 @dataclass
