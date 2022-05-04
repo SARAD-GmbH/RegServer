@@ -90,7 +90,7 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if (msg.actor_id not in self.actor_dict) or msg.keep_alive:
+        if msg.keep_alive:
             self.actor_dict[msg.actor_id] = {
                 "address": sender,
                 "parent": msg.parent,
@@ -99,12 +99,22 @@ class Registrar(BaseActor):
                 "is_alive": True,
             }
             self._send_updates(self.actor_dict)
-        else:
+            return
+        if msg.actor_id in self.actor_dict:
             logger.critical(
                 "The actor already exists in the system -> emergency shutdown"
             )
             self.send(sender, KillMsg())
             self.send(self.registrar, KillMsg())
+            return
+        self.actor_dict[msg.actor_id] = {
+            "address": sender,
+            "parent": msg.parent,
+            "is_device_actor": msg.is_device_actor,
+            "get_updates": msg.get_updates,
+            "is_alive": True,
+        }
+        self._send_updates(self.actor_dict)
         logger.debug("Check for local or IS1 version of %s", msg.actor_id)
         if msg.is_device_actor:
             for actor_id in self.actor_dict:
@@ -121,8 +131,13 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for UnsubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.actor_dict.pop(msg.actor_id)
-        self._send_updates(self.actor_dict)
+        try:
+            self.actor_dict.pop(msg.actor_id)
+            self._send_updates(self.actor_dict)
+        except KeyError as exception:
+            logger.error(
+                "%s. The actor to unsubscribe was not subscribed properly.", exception
+            )
 
     def _send_updates(self, actor_dict):
         """Send the updated Actor Dictionary to all subscribers."""
@@ -144,6 +159,7 @@ class Registrar(BaseActor):
     def receiveMsg_ActorExitRequest(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for ActorExitRequest"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.send(self.parent.parent_address, True)
 
     def receiveMsg_CreateActorMsg(self, msg, sender):

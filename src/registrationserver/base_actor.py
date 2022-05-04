@@ -137,7 +137,12 @@ class BaseActor(ActorTypeDispatcher):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         actor_id = self._get_actor_id(msg.childAddress, self.child_actors)
         self.child_actors.pop(actor_id, None)
+        logger.debug(
+            "List of child actors after removal of %s: %s", actor_id, self.child_actors
+        )
+        logger.debug("self.on_kill is %s", self.on_kill)
         if (not self.child_actors) and self.on_kill:
+            logger.debug("Send ActorExitRequest to myself")
             self.send(self.myAddress, ActorExitRequest())
 
     def receiveMsg_ActorExitRequest(self, msg, sender):

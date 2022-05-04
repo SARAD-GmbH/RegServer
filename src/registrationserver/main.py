@@ -102,7 +102,7 @@ def startup():
     return (registrar_actor, mdns_backend, usb_listener)
 
 
-def shutdown(startup_tupel, wait_some_time):
+def shutdown(startup_tupel, wait_some_time, registrar_is_down):
     # pylint: disable=too-many-branches
     """Shutdown application"""
     mdns_listener = startup_tupel[1]
@@ -123,23 +123,14 @@ def shutdown(startup_tupel, wait_some_time):
         logger.debug("Wait for 10 sec before shutting down RegServer.")
         time.sleep(10)
     logger.debug("Terminate the actor system")
-    registrar_actor = startup_tupel[0]
-    retry = True
-    for _i in range(0, 3):
-        while retry:
-            try:
-                response = ActorSystem().ask(
-                    registrar_actor, KillMsg(), timeout=timedelta(seconds=10)
-                )
-                logger.debug("KillMsg to Registrar returned with %s", response)
-                if response:
-                    retry = False
-                else:
-                    time.sleep(1)
-            except OSError as exception:
-                logger.error(exception)
-                time.sleep(1)
-            break
+    if registrar_is_down:
+        logger.debug("Registrar actor already died from emergency shutdown")
+    else:
+        registrar_actor = startup_tupel[0]
+        response = ActorSystem().ask(
+            registrar_actor, KillMsg(), timeout=timedelta(seconds=10)
+        )
+        logger.error("KillMsg to Registrar returned with %s", response)
     try:
         ActorSystem().shutdown()
     except OSError as exception:
@@ -172,6 +163,7 @@ def main():
 
     logger.debug("Starting the main loop")
     wait_some_time = False
+    registrar_is_down = False
     while is_flag_set():
         before = datetime.now()
         reply = ActorSystem().ask(
@@ -179,13 +171,14 @@ def main():
         )
         if not isinstance(reply, Thespian_ActorStatus):
             set_file_flag(False)
-        time.sleep(4)
+            registrar_is_down = True
+        time.sleep(1)
         after = datetime.now()
         if (after - before).total_seconds() > 10:
             logger.debug("Wakeup from suspension.")
             wait_some_time = True
             set_file_flag(False)
-    shutdown(startup_tupel, wait_some_time)
+    shutdown(startup_tupel, wait_some_time, registrar_is_down)
     logger.info("This is the end, my only friend, the end.")
     raise SystemExit("Exit with error for automatic restart.")
 
