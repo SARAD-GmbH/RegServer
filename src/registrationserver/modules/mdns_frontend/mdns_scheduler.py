@@ -10,17 +10,14 @@ Author
     Michael Strey <strey@sarad.de>
 
 """
-
-from typing import List
-
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg,
-                                               SetupMdnsAdvertiserActorMsg)
+                                               SetupRfc2217RedirectorMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.helpers import diff_of_dicts, short_id
 from registrationserver.logger import logger
-from registrationserver.modules.mdns_frontend.mdns_advertiser import \
-    MdnsAdvertiserActor
+from registrationserver.modules.mdns_frontend.rfc2217_redirector import \
+    Rfc2217RedirectorActor
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -29,14 +26,13 @@ class MdnsSchedulerActor(BaseActor):
     """Actor interacting with a new device"""
 
     @staticmethod
-    def _advertiser(instr_id):
-        return f"advertiser-{instr_id}"
+    def _redirector(instr_id):
+        return f"redirector-{instr_id}"
 
     @overrides
     def __init__(self):
         super().__init__()
         self.instr_id_actor_dict = {}  # {instr_id: device_actor}
-        self.available_ports = list(range(5560, 5580))
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -68,13 +64,12 @@ class MdnsSchedulerActor(BaseActor):
     def _create_instrument(self, instr_id):
         """Create advertiser actor if it does not exist already"""
         logger.debug("Create mDNS Advertiser of %s", instr_id)
-        self._create_actor(MdnsAdvertiserActor, self._advertiser(instr_id))
-        selected_port = self.available_ports.pop()
+        redirector = self._create_actor(
+            Rfc2217RedirectorActor, self._redirector(instr_id)
+        )
         self.send(
-            self.child_actors[self._advertiser(instr_id)]["actor_address"],
-            SetupMdnsAdvertiserActorMsg(
-                device_actor=self.instr_id_actor_dict[instr_id], tcp_port=selected_port
-            ),
+            redirector,
+            SetupRfc2217RedirectorMsg(device_actor=self.instr_id_actor_dict[instr_id]),
         )
 
     def _remove_instrument(self, instr_id):
@@ -82,5 +77,5 @@ class MdnsSchedulerActor(BaseActor):
         """Remove the redirector actor for instr_id."""
         logger.debug("Remove RFC2217 Redirector of %s", instr_id)
         self.send(
-            self.child_actors[self._advertiser(instr_id)]["actor_address"], KillMsg()
+            self.child_actors[self._redirector(instr_id)]["actor_address"], KillMsg()
         )

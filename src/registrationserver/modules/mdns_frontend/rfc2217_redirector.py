@@ -1,112 +1,88 @@
-#!/usr/bin/env python
-#
-# redirect data from a TCP/IP connection to a serial port and vice versa
-# using RFC 2217
-#
-# (C) 2009-2015 Chris Liechti <cliechti@gmx.net>
-#
-# SPDX-License-Identifier:    BSD-3-Clause
+"""Redirect data from a TCP/IP socket to the Device Actor and vice versa using
+RFC 2217
+
+Based on an example of Chris Liechti <cliechti@gmx.net>.
+
+:Created:
+    2022-05-06
+
+:Authors:
+    | Michael Strey <strey@sarad.de>
+
+"""
 
 import socket
-import threading
 import time
+from typing import List
 
 import serial.rfc2217
+from overrides import overrides  # type: ignore
+from registrationserver.actor_messages import (GetDeviceStatusMsg,
+                                               SetupMdnsAdvertiserActorMsg)
 from registrationserver.base_actor import BaseActor
+from registrationserver.config import mdns_frontend_config
+from registrationserver.helpers import short_id
 from registrationserver.logger import logger
+from registrationserver.modules.mdns_frontend.mdns_advertiser import \
+    MdnsAdvertiserActor
 
 
-class RedirectorActor(BaseActor):
-    def __init__(self, serial_instance, socket, debug=False):
-        self.serial = serial_instance
-        self.socket = socket
-        self.socket.settimeout(1.0)
-        self._write_lock = threading.Lock()
-        self.rfc2217 = serial.rfc2217.PortManager(
-            self.serial,
-            self,
-            logger=logger if debug else None,
-        )
+class Rfc2217RedirectorActor(BaseActor):
+    """Redirect binary messages from socket to Device Actor and vice versa"""
 
-    def statusline_poller(self):
-        logger.debug("Status line poll thread started")
-        while self.alive:
-            time.sleep(0.5)
-            try:
-                self.rfc2217.check_modem_lines()
-            except OSError:
-                break
-        logger.debug("Status line poll thread terminated")
+    PORT_RANGE = mdns_frontend_config["MDNS_PORT_RANGE"]
+    _is_port_range_init = False
+    _available_ports: List[int] = []
 
-    def shortcircuit(self):
-        """connect the serial port to the TCP port by copying everything
-        from one side to the other"""
-        self.alive = True
-        self.thread_read = threading.Thread(target=self.reader)
-        self.thread_read.daemon = True
-        self.thread_read.name = "serial->socket"
-        self.thread_read.start()
-        self.thread_poll = threading.Thread(target=self.statusline_poller)
-        self.thread_poll.daemon = True
-        self.thread_poll.name = "status line poll"
-        self.thread_poll.start()
-        self.writer()
+    @staticmethod
+    def _advertiser(instr_id):
+        return f"advertiser-{instr_id}"
 
-    def reader(self):
-        """loop forever and copy serial->socket"""
-        logger.info("Reader started")
-        while self.alive:
-            try:
-                data = self.serial.read(self.serial.in_waiting or 1)
-                if data:
-                    # escape outgoing data when needed
-                    # (Telnet IAC (0xff) character)
-                    logger.info("--> %s", list(self.rfc2217.escape(data)))
-                    self.write(b"".join(self.rfc2217.escape(data)))
-            except socket.error as msg:
-                logger.error("%s", msg)
-                # probably got disconnected
-                break
-        self.alive = False
-        logger.debug("Reader thread terminated")
+    @classmethod
+    def set_port_range_initialised(cls):
+        """The first created redirector initialises the port range."""
+        cls._isPortRangeInit = True
 
-    def write(self, data):
-        """thread safe socket write with no data escaping.
-        Used to send telnet stuff"""
-        retries = 3
-        with self._write_lock:
-            while retries:
-                try:
-                    self.socket.sendall(data)
-                    retries = 0
-                except:
-                    logger.debug("retry --> %s", data)
-                    retries -= 1
+    def __init__(self):
+        super().__init__()
+        self.device_actor = None
+        self._selected_port = None
+        if not self._is_port_range_init:
+            self.set_port_range_initialised()
+            self._available_ports = list(self.PORT_RANGE)
+            if not self._available_ports:
+                logger.critical("No more available ports")
 
-    def writer(self):
-        """loop forever and copy socket->serial"""
-        while self.alive:
-            try:
-                data = self.socket.recv(1024)
-                if not data:
-                    break
-                logger.info("<-- %s", list(self.rfc2217.filter(data)))
-                self.serial.write(b"".join(self.rfc2217.filter(data)))
-                logger.debug("serial.write")
-                logger.debug("%s", b"".join(self.rfc2217.filter(data)))
-            except socket.timeout:
-                logger.debug("socket timeout")
-                pass
-            except socket.error as msg:
-                logger.error("Writer error: %s", msg)
-                # probably got disconnected
-                break
-        self.stop()
+    def receiveMsg_SetupRfc2217RedirectorMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for the initialisation message from MdnsScheduler"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.device_actor = msg.device_actor
+        self.send(self.device_actor, GetDeviceStatusMsg())
 
-    def stop(self):
-        """Stop copying"""
-        logger.debug("stopping")
-        if self.alive:
-            self.alive = False
-            self.thread_read.join()
-            self.thread_poll.join()
+    def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for UpdateDeviceStatusMsg from Device Actor."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        instr_id = short_id(msg.device_id)
+        if self.open_socket():
+            my_advertiser = self._create_actor(
+                MdnsAdvertiserActor, self._advertiser(instr_id)
+            )
+            self.send(
+                my_advertiser,
+                SetupMdnsAdvertiserActorMsg(
+                    device_actor=self.device_actor, tcp_port=self._selected_port
+                ),
+            )
+
+    @overrides
+    def receiveMsg_KillMsg(self, msg, sender):
+        if self._isPortRangeInit:
+            self._available_ports.append(self._selected_port)
+        super().receiveMsg_KillMsg(msg, sender)
+
+    def open_socket(self):
+        """Open listening TCP/IP socket and return its port number"""
+        self._selected_port = self._available_ports.pop()
+        return True

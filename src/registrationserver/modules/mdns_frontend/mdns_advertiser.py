@@ -23,6 +23,8 @@ from zeroconf import ServiceInfo, Zeroconf
 
 
 class MdnsAdvertiserActor(BaseActor):
+    """Actor to advertise a listening RFC 2217 server socket via mDNS"""
+
     def __init__(self):
         super().__init__()
         self.device_actor = None
@@ -33,7 +35,7 @@ class MdnsAdvertiserActor(BaseActor):
 
     def receiveMsg_SetupMdnsAdvertiserActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Handler for the initialisation message from MdnsScheduler"""
+        """Handler for the initialisation message from Rfc2217RedirectorActor"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.device_actor = msg.device_actor
         self.tcp_port = msg.tcp_port

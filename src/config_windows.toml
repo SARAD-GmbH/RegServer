@@ -19,6 +19,9 @@ mqtt = true
 mdns = true
 is1 = true
 
+[mdns_frontend]
+port_range = [5560, 5580]
+
 [actor]
 system_base = "multiprocUDPBase"
 admin_port = 1901
