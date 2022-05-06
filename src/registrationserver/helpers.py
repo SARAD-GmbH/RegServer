@@ -8,6 +8,7 @@ Authors
 """
 import fnmatch
 import os
+import socket
 from collections.abc import MutableMapping
 from contextlib import suppress
 from datetime import timedelta
@@ -268,3 +269,22 @@ def delete_keys_from_dict(dictionary, keys):
     for value in dictionary.values():
         if isinstance(value, MutableMapping):
             delete_keys_from_dict(value, keys)
+
+
+def get_ip():
+    """Find the external IP address of the computer running the RegServer
+
+    Returns:
+        string: IP address
+    """
+    my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    my_socket.settimeout(0)
+    try:
+        # doesn't even have to be reachable
+        my_socket.connect(("10.255.255.255", 1))
+        address = my_socket.getsockname()[0]
+    except Exception:  # pylint: disable=broad-except
+        address = "127.0.0.1"
+    finally:
+        my_socket.close()
+    return address

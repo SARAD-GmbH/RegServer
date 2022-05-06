@@ -148,13 +148,12 @@ class MdnsListener(ServiceListener):
             logger.info("[Del] Service %s of type %s", name, type_)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             logger.debug("[Del] Info: %s", info)
-            try:
-                device_actor = get_actor(self.registrar, name)
-            except KeyError:
-                logger.critical("The actor to remove does not exist.")
-                system_shutdown()
-            logger.debug("Kill the device actor...")
-            ActorSystem().tell(device_actor, ActorExitRequest())
+            device_actor = get_actor(self.registrar, name)
+            if (device_actor is not None) and (device_actor != {}):
+                logger.debug("Kill device actor %s", name)
+                ActorSystem().tell(device_actor, ActorExitRequest())
+            else:
+                logger.warning("Actor %s does not exist.", name)
 
     def shutdown(self) -> None:
         """Cleanup"""

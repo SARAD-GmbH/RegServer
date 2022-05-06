@@ -119,6 +119,20 @@ class SetupIs1ActorMsg:
 
 
 @dataclass
+class SetupMdnsAdvertiserActorMsg:
+    """Message used to send the special setup information required for mDNS Advertiser Actors.
+    The parameters are required to advertise the RFC2217 socket connection via Zeroconf.
+
+    Args:
+        device_actor (ActorAddress): address of the associated device actor
+        tcp_port (int): TCP port number that shall be used for the service
+    """
+
+    device_actor: ActorAddress
+    tcp_port: int
+
+
+@dataclass
 class SetDeviceStatusMsg:
     """Message used to send setup information about the device status to a Device Actor.
 

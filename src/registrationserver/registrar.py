@@ -27,6 +27,8 @@ from registrationserver.base_actor import BaseActor
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.is1.is1_listener import Is1Listener
+from registrationserver.modules.mdns_frontend.mdns_scheduler import \
+    MdnsSchedulerActor
 from registrationserver.modules.mqtt.mqtt_listener import MqttListener
 from registrationserver.modules.mqtt_scheduler import MqttSchedulerActor
 from registrationserver.modules.usb.cluster_actor import ClusterActor
@@ -39,8 +41,6 @@ class Registrar(BaseActor):
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         self.handleDeadLetters(startHandling=True)
-        if Backend.USB in configuration.backend_config:
-            self._create_actor(ClusterActor, "cluster")
         if Frontend.MQTT in configuration.frontend_config:
             mqtt_scheduler = self._create_actor(MqttSchedulerActor, "mqtt_scheduler")
             self.send(
@@ -50,6 +50,10 @@ class Registrar(BaseActor):
                     client_id=configuration.ismqtt_config["IS_ID"],
                 ),
             )
+        if Frontend.MDNS in configuration.frontend_config:
+            _mdns_scheduler = self._create_actor(MdnsSchedulerActor, "mdns_scheduler")
+        if Backend.USB in configuration.backend_config:
+            self._create_actor(ClusterActor, "cluster")
         if Backend.MQTT in configuration.backend_config:
             mqtt_listener = self._create_actor(MqttListener, "mqtt_listener")
             self.send(
@@ -115,8 +119,8 @@ class Registrar(BaseActor):
             "is_alive": True,
         }
         self._send_updates(self.actor_dict)
-        logger.debug("Check for local or IS1 version of %s", msg.actor_id)
         if msg.is_device_actor:
+            logger.debug("Check for local or IS1 version of %s", msg.actor_id)
             for actor_id in self.actor_dict:
                 if (short_id(actor_id) == short_id(msg.actor_id)) and (
                     actor_id != msg.actor_id

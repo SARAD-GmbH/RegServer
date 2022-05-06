@@ -16,7 +16,7 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (SetDeviceStatusMsg,
                                                SetupIs1ActorMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.helpers import check_message, make_command_msg
+from registrationserver.helpers import check_message, get_ip, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.is1.is1_actor import Is1Actor
 from sarad.sari import SaradInst  # type: ignore
@@ -33,25 +33,6 @@ class Is1Listener(BaseActor):
     GET_FIRST_COM = [b"\xe0", b""]
     GET_NEXT_COM = [b"\xe1", b""]
     PORTS = [50002]
-
-    @staticmethod
-    def get_ip():
-        """Find the external IP address of the computer running the RegServer
-
-        Returns:
-            string: IP address
-        """
-        my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        my_socket.settimeout(0)
-        try:
-            # doesn't even have to be reachable
-            my_socket.connect(("10.255.255.255", 1))
-            address = my_socket.getsockname()[0]
-        except Exception:  # pylint: disable=broad-except
-            address = "127.0.0.1"
-        finally:
-            my_socket.close()
-        return address
 
     @staticmethod
     def _get_port_and_id(is_id):
@@ -129,7 +110,7 @@ class Is1Listener(BaseActor):
         self._client_socket = None
         self._socket_info = None
         self.conn = None
-        self._host = self.get_ip()
+        self._host = get_ip()
         self.allow_child_suicide = (
             True  # Children commiting suicide shall not affect the listener.
         )
