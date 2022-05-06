@@ -11,6 +11,8 @@ Author
 
 """
 
+from typing import List
+
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg,
                                                SetupMdnsAdvertiserActorMsg)
@@ -26,8 +28,6 @@ logger.debug("%s -> %s", __package__, __file__)
 class MdnsSchedulerActor(BaseActor):
     """Actor interacting with a new device"""
 
-    PORT_RANGE = [5560, 5580]
-
     @staticmethod
     def _advertiser(instr_id):
         return f"advertiser-{instr_id}"
@@ -36,6 +36,7 @@ class MdnsSchedulerActor(BaseActor):
     def __init__(self):
         super().__init__()
         self.instr_id_actor_dict = {}  # {instr_id: device_actor}
+        self.available_ports = list(range(5560, 5580))
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -68,10 +69,11 @@ class MdnsSchedulerActor(BaseActor):
         """Create advertiser actor if it does not exist already"""
         logger.debug("Create mDNS Advertiser of %s", instr_id)
         self._create_actor(MdnsAdvertiserActor, self._advertiser(instr_id))
+        selected_port = self.available_ports.pop()
         self.send(
             self.child_actors[self._advertiser(instr_id)]["actor_address"],
             SetupMdnsAdvertiserActorMsg(
-                device_actor=self.instr_id_actor_dict[instr_id], tcp_port=5560
+                device_actor=self.instr_id_actor_dict[instr_id], tcp_port=selected_port
             ),
         )
 
