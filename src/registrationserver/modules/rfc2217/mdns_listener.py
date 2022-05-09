@@ -41,7 +41,7 @@ class MdnsListener(ServiceListener):
     @staticmethod
     def convert_properties(info=None, name=""):
         """Helper function to convert mdns service information
-        to the desired yaml format"""
+        to the desired dictionary"""
         if not info or not name:
             return None
         properties = info.properties
@@ -68,7 +68,7 @@ class MdnsListener(ServiceListener):
         except Exception:  # pylint: disable=broad-except
             logger.critical("Fatal error")
             system_shutdown()
-        out = {
+        return {
             "Identification": {
                 "Name": properties[b"MODEL_ENC"].decode("utf-8"),
                 "Family": _ids[0],
@@ -79,8 +79,6 @@ class MdnsListener(ServiceListener):
             },
             "Remote": {"Address": _addr_ip, "Port": info.port, "Name": name},
         }
-        logger.debug(out)
-        return json.dumps(out)
 
     @staticmethod
     def get_ip():
