@@ -18,7 +18,8 @@ import threading
 
 import hashids  # type: ignore
 from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
-                                               SetDeviceStatusMsg)
+                                               SetDeviceStatusMsg,
+                                               SetupIs1ActorMsg)
 from registrationserver.config import config
 from registrationserver.helpers import get_actor
 from registrationserver.logger import logger
@@ -127,6 +128,11 @@ class MdnsListener(ServiceListener):
                 else:
                     device_actor = reply.actor_address
                     data = self.convert_properties(name=name, info=info)
+                    is_host = data["Remote"]["Address"]
+                    is_port = data["Remote"]["Port"]
+                    ActorSystem().tell(
+                        device_actor, SetupIs1ActorMsg(is_host, is_port, None)
+                    )
                     logger.debug("Setup the device actor with %s", data)
                     ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))
 
