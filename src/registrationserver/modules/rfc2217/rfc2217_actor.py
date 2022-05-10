@@ -48,9 +48,9 @@ class Rfc2217Actor(DeviceBaseActor):
             except Exception as exception:  # pylint: disable=broad-except
                 logger.error(exception)
                 logger.critical(
-                    "Fatal error connecting Instrument Server. System shutdown."
+                    "Fatal error connecting Instrument Server. Killing myself."
                 )
-                self.send(self.registrar, KillMsg())
+                self.send(self.myAddress, KillMsg())
                 return False
         if self.__port and self.__port.is_open:
             return True

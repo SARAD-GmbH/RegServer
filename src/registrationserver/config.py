@@ -130,7 +130,7 @@ else:
 
 DEFAULT_MDNS_PORT_RANGE = range(5560, 5580)
 try:
-    mdns_port_range_list = customization["port_range"]
+    mdns_port_range_list = customization["mdns_frontend"]["port_range"]
     MDNS_PORT_RANGE = range(mdns_port_range_list[0], mdns_port_range_list[-1])
 except Exception:  # pylint: disable=broad-except
     MDNS_PORT_RANGE = DEFAULT_MDNS_PORT_RANGE
