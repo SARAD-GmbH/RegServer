@@ -1,5 +1,5 @@
 mdns_timeout = 3000
-debug_level = "info"
+debug_level = "debug"
 ip_version = "all"
 port_range = [50000, 50500]
 native_serial_ports = ["COM1"]
@@ -10,14 +10,14 @@ host = "::1"  # Localhost IPv6
 
 [frontends]
 rest = true
-mqtt = true
+mqtt = false
 mdns = false
 
 [backends]
 usb = true
-mqtt = true
+mqtt = false
 mdns = true
-is1 = true
+is1 = false
 
 [mdns_frontend]
 port_range = [5560, 5580]

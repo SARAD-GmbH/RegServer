@@ -45,7 +45,8 @@ class Rfc2217Actor(DeviceBaseActor):
             try:
                 self.__port = serial.rfc2217.Serial(port_ident)
                 # move the send ( test if connection is up and if not create)
-            except Exception:  # pylint: disable=broad-except
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.error(exception)
                 logger.critical(
                     "Fatal error connecting Instrument Server. System shutdown."
                 )
