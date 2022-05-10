@@ -116,8 +116,7 @@ class MdnsListener(ServiceListener):
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             if info is not None:
                 logger.info("[Add] %s", info.properties)
-                # Take the first 3 elements to form a short_name
-                actor_id = ".".join(name.split(".", 3)[:-1])
+                actor_id = name
                 reply = ActorSystem().ask(
                     self.registrar, CreateActorMsg(Rfc2217Actor, actor_id)
                 )
