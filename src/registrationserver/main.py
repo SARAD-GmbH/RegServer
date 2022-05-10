@@ -166,9 +166,10 @@ def main():
     registrar_is_down = False
     while is_flag_set():
         before = datetime.now()
-        reply = ActorSystem().ask(
-            startup_tupel[0], Thespian_StatusReq(), timeout=timedelta(seconds=3)
-        )
+        with ActorSystem().private() as registrar_status:
+            reply = registrar_status.ask(
+                startup_tupel[0], Thespian_StatusReq(), timeout=timedelta(seconds=3)
+            )
         if not isinstance(reply, Thespian_ActorStatus):
             set_file_flag(False)
             registrar_is_down = True

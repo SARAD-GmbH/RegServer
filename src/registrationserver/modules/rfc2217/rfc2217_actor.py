@@ -47,9 +47,9 @@ class Rfc2217Actor(DeviceBaseActor):
                 # move the send ( test if connection is up and if not create)
             except Exception:  # pylint: disable=broad-except
                 logger.critical(
-                    "Fatal error connecting Instrument Server. System shutdown."
+                    "Fatal error connecting Instrument Server. Killing myself."
                 )
-                self.send(self.registrar, KillMsg())
+                self.send(self.myAddress, KillMsg())
                 return False
         if self.__port and self.__port.is_open:
             return True

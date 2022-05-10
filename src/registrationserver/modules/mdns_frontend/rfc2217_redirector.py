@@ -68,7 +68,7 @@ class Rfc2217RedirectorActor(BaseActor):
     @classmethod
     def set_port_range_initialised(cls):
         """The first created redirector initialises the port range."""
-        cls._isPortRangeInit = True
+        cls._is_port_range_init = True
 
     def __init__(self):
         super().__init__()
@@ -111,6 +111,7 @@ class Rfc2217RedirectorActor(BaseActor):
                     device_actor=self.device_actor, tcp_port=self._selected_port
                 ),
             )
+            logger.debug("Starting the read loop")
             self._loop()
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
@@ -125,8 +126,9 @@ class Rfc2217RedirectorActor(BaseActor):
         # read_list = list of server sockets from which we expect to read
         try:
             self.conn, self._socket_info = self.s_socket.accept()
-        except BlockingIOError:
-            time.sleep(0.5)
+        except BlockingIOError as exception:
+            logger.debug(exception)
+            self.wakeupAfter(datetime.timedelta(seconds=0.5), payload="Connect")
             return
         logger.debug("Connected by %s:%s", self._socket_info[0], self._socket_info[1])
         self.conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -182,8 +184,14 @@ class Rfc2217RedirectorActor(BaseActor):
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
-        if self._isPortRangeInit:
+        if self._is_port_range_init and self._selected_port is not None:
             self._available_ports.append(self._selected_port)
-        self.s_socket.shutdown(socket.SHUT_RDWR)
-        self.s_socket.close()
+        try:
+            self.s_socket.shutdown(socket.SHUT_RDWR)
+        except (OSError, AttributeError) as exception:
+            logger.error("%s during socket.shutdown", exception)
+        try:
+            self.s_socket.close()
+        except OSError as exception:
+            logger.error("%s during socket.close", exception)
         super().receiveMsg_KillMsg(msg, sender)

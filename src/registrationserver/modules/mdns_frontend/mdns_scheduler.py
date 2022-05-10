@@ -63,7 +63,7 @@ class MdnsSchedulerActor(BaseActor):
 
     def _create_instrument(self, instr_id):
         """Create advertiser actor if it does not exist already"""
-        logger.debug("Create mDNS Advertiser of %s", instr_id)
+        logger.debug("Create Rfc2217RedirectorActor of %s", instr_id)
         redirector = self._create_actor(
             Rfc2217RedirectorActor, self._redirector(instr_id)
         )
