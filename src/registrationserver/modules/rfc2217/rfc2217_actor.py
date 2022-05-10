@@ -10,7 +10,9 @@
 .. uml :: uml-rfc2217_actor.puml
 """
 
-import serial.rfc2217  # type: ignore
+import socket
+import time
+
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import KillMsg, RxBinaryMsg
 from registrationserver.logger import logger
@@ -30,67 +32,99 @@ class Rfc2217Actor(DeviceBaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self.__port: serial.rfc2217.Serial = None
-        logger.debug("RFC2217 actor created.")
+        self._socket = None
+        self._is_host = None
+        self._is_port = None
 
-    def _connect(self):
-        """internal Function to connect to instrument server 2 over rfc2217"""
-        if self.device_status:
-            address = self.device_status.get("Remote", {}).get("Address", None)
-            port = self.device_status.get("Remote", {}).get("Port", None)
-            if not address or not port:
-                return False
-            port_ident = rf"rfc2217://{address}:{port}"
-        if port_ident and not (self.__port and self.__port.is_open):
-            try:
-                self.__port = serial.rfc2217.Serial(port_ident)
-                # move the send ( test if connection is up and if not create)
-            except Exception as exception:  # pylint: disable=broad-except
-                logger.error(exception)
-                logger.critical(
-                    "Fatal error connecting Instrument Server. Killing myself."
+    def receiveMsg_SetupIs1ActorMsg(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for SetupIs1ActorMsg containing setup information
+        that is special to the IS1 device actor"""
+        self._is_port = msg.is_port
+        self._is_host = msg.is_host
+
+    def _establish_socket(self):
+        if self._socket is None:
+            socket.setdefaulttimeout(1)
+            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            retry = True
+            counter = 5
+            while retry and counter:
+                try:
+                    logger.debug(
+                        "Trying to connect %s:%d", self._is_host, self._is_port
+                    )
+                    self._socket.connect((self._is_host, self._is_port))
+                    retry = False
+                    return True
+                except ConnectionRefusedError:
+                    counter = counter - 1
+                    logger.debug("%d retries left", counter)
+                    time.sleep(1)
+            if retry:
+                logger.error(
+                    "Connection refused on %s:%d", self._is_host, self._is_port
                 )
                 self.send(self.myAddress, KillMsg())
                 return False
-        if self.__port and self.__port.is_open:
+        else:
             return True
-        return False
+
+    def _destroy_socket(self):
+        if self._socket is not None:
+            try:
+                self._socket.shutdown(socket.SHUT_RDWR)
+                self._socket.close()
+            except OSError as exception:
+                logger.warning(exception)
+            self._socket = None
+            logger.debug("Socket shutdown and closed.")
+
+    def _send_via_socket(self, msg):
+        retry = True
+        counter = 5
+        while retry and counter:
+            try:
+                self._socket.sendall(msg)
+                retry = False
+            except OSError as exception:
+                logger.error(exception)
+                try:
+                    self._establish_socket()
+                except OSError as re_exception:
+                    logger.error("Failed to re-establish socket: %s", re_exception)
+                counter = counter - 1
+                logger.debug("%d retries left", counter)
+                time.sleep(1)
+        if retry:
+            logger.error("Cannot send to IS1")
+            self.send(self.myAddress, KillMsg())
 
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for TxBinaryMsg from App to Instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self._connect():
-            self.__port.write(msg.data)
-            _return = b""
-            while is_flag_set():
-                _return_part = (
-                    self.__port.read_all() if self.__port.inWaiting() else b""
-                )
-                if _return_part != b"":
-                    if chr(_return_part[-1]) == "E":
-                        _return = _return + _return_part
-                        break
-                _return = _return + _return_part
-            return_message = RxBinaryMsg(_return)
-        else:
-            return_message = RxBinaryMsg(b"")
+        if not self._establish_socket():
+            logger.error("Can't establish the client socket.")
+            return
+        self._send_via_socket(msg.data)
+        try:
+            reply = self._socket.recv(1024)
+        except TimeoutError:
+            logger.error("Timeout on waiting for reply from IS")
+            self.send(self.myAddress, KillMsg())
+            return
+        return_message = RxBinaryMsg(reply)
         self.send(self.redirector_actor(), return_message)
 
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
-        if self.__port is not None:
-            if self.__port.isOpen():
-                self.__port.close()
-            self.__port = None
+        self._destroy_socket()
         super().receiveMsg_FreeDeviceMsg(msg, sender)
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
-        if self.__port is not None:
-            if self.__port.isOpen():
-                self.__port.close()
-            self.__port = None
+        self._destroy_socket()
         super().receiveMsg_KillMsg(msg, sender)
 
     @overrides

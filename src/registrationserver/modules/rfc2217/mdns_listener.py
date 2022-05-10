@@ -18,7 +18,8 @@ import threading
 
 import hashids  # type: ignore
 from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
-                                               SetDeviceStatusMsg)
+                                               SetDeviceStatusMsg,
+                                               SetupIs1ActorMsg)
 from registrationserver.config import config
 from registrationserver.helpers import get_actor
 from registrationserver.logger import logger
@@ -116,8 +117,7 @@ class MdnsListener(ServiceListener):
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             if info is not None:
                 logger.info("[Add] %s", info.properties)
-                # Take the first 3 elements to form a short_name
-                actor_id = ".".join(name.split(".", 3)[:-1])
+                actor_id = name
                 reply = ActorSystem().ask(
                     self.registrar, CreateActorMsg(Rfc2217Actor, actor_id)
                 )
@@ -128,6 +128,11 @@ class MdnsListener(ServiceListener):
                 else:
                     device_actor = reply.actor_address
                     data = self.convert_properties(name=name, info=info)
+                    is_host = data["Remote"]["Address"]
+                    is_port = data["Remote"]["Port"]
+                    ActorSystem().tell(
+                        device_actor, SetupIs1ActorMsg(is_host, is_port, None)
+                    )
                     logger.debug("Setup the device actor with %s", data)
                     ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))
 

@@ -26,7 +26,6 @@ from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.mdns_frontend.mdns_advertiser import \
     MdnsAdvertiserActor
-from serial.serialutil import iterbytes  # type: ignore
 
 
 class Rfc2217RedirectorActor(BaseActor):
@@ -35,21 +34,6 @@ class Rfc2217RedirectorActor(BaseActor):
     PORT_RANGE = mdns_frontend_config["MDNS_PORT_RANGE"]
     _is_port_range_init = False
     _available_ports: List[int] = []
-
-    @staticmethod
-    def escape(data):
-        """This generator function is for the user. All outgoing data has to be
-        properly escaped, so that no IAC character in the data stream messes up
-        the Telnet state machine in the server.
-        socket.sendall(escape(data))
-        """
-        iac = b"\xff"  # Interpret As Command
-        for byte in iterbytes(data):
-            if byte == iac:
-                yield iac
-                yield iac
-            else:
-                yield byte
 
     @staticmethod
     def _advertiser(instr_id):
@@ -171,10 +155,9 @@ class Rfc2217RedirectorActor(BaseActor):
         # pylint: disable=invalid-name
         """Redirect any received reply to the socket."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        data = b"".join(self.escape(msg.data))
         for _i in range(0, 5):
             try:
-                self.conn.sendall(data)
+                self.conn.sendall(msg.data)
                 return
             except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")
