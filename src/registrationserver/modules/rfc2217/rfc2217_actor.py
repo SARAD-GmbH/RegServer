@@ -61,6 +61,10 @@ class Rfc2217Actor(DeviceBaseActor):
                     counter = counter - 1
                     logger.debug("%d retries left", counter)
                     time.sleep(1)
+                except socket.timeout as exception:
+                    logger.error("%s. Killing myself.", exception)
+                    self.send(self.myAddress, KillMsg())
+                    return False
             if retry:
                 logger.error(
                     "Connection refused on %s:%d", self._is_host, self._is_port
