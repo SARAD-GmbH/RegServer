@@ -20,7 +20,7 @@ mdns = true
 usb = true
 mqtt = false
 mdns = false
-is1 = false
+is1 = true
 
 [mdns_frontend]
 port_range = [50000, 50500]

@@ -44,7 +44,7 @@ class Rfc2217Actor(DeviceBaseActor):
 
     def _establish_socket(self):
         if self._socket is None:
-            socket.setdefaulttimeout(1)
+            socket.setdefaulttimeout(5)
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             retry = True
             counter = 5
