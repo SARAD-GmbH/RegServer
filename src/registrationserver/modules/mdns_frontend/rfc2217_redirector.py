@@ -15,10 +15,9 @@ import datetime
 import select
 import socket
 import time
-from typing import List
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (GetDeviceStatusMsg,
+from registrationserver.actor_messages import (GetDeviceStatusMsg, KillMsg,
                                                SetupMdnsAdvertiserActorMsg,
                                                TxBinaryMsg)
 from registrationserver.base_actor import BaseActor
@@ -31,10 +30,6 @@ from registrationserver.modules.mdns_frontend.mdns_advertiser import \
 
 class Rfc2217RedirectorActor(BaseActor):
     """Redirect binary messages from socket to Device Actor and vice versa"""
-
-    PORT_RANGE = mdns_frontend_config["MDNS_PORT_RANGE"]
-    _is_port_range_init = False
-    _available_ports: List[int] = []
 
     @staticmethod
     def _advertiser(instr_id):
@@ -49,25 +44,15 @@ class Rfc2217RedirectorActor(BaseActor):
         srv.listen(5)
         return srv
 
-    @classmethod
-    def set_port_range_initialised(cls):
-        """The first created redirector initialises the port range."""
-        cls._is_port_range_init = True
-
     def __init__(self):
         super().__init__()
         self.device_actor = None
-        self._selected_port = None
-        if not self._is_port_range_init:
-            self.set_port_range_initialised()
-            self._available_ports = list(self.PORT_RANGE)
-            if not self._available_ports:
-                logger.critical("No more available ports")
-        self.s_socket = None
+        self.selected_port = None
         self.conn = None
-        self._socket_info = None
+        self.socket_info = None
         self.read_list = []
-        self._client_socket = None
+        self.client_socket = None
+        self.port_range = list(mdns_frontend_config["MDNS_PORT_RANGE"])
 
     def receiveMsg_SetupRfc2217RedirectorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -81,13 +66,24 @@ class Rfc2217RedirectorActor(BaseActor):
         """Handler for UpdateDeviceStatusMsg from Device Actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         instr_id = short_id(msg.device_id)
-        try:
-            self._selected_port = self._available_ports.pop()
-            self.read_list = [self.create_socket(self._selected_port)]
-            logger.debug(self.read_list[0].getsockname())
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.error("Cannot create listening socket on %d", self._selected_port)
-            logger.error(exception)
+        try_next = True
+        while try_next:
+            try:
+                self.selected_port = self.port_range.pop()
+                self.read_list = [self.create_socket(self.selected_port)]
+                logger.debug(self.read_list[0].getsockname())
+                try_next = False
+            except IndexError:
+                logger.critical(
+                    "Cannot establish server socket on any port in the given range."
+                )
+                self.send(self.myAddress, KillMsg())
+                return
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.warning(
+                    "Cannot create listening socket on %d", self.selected_port
+                )
+                logger.debug(exception)
         if self.read_list:
             my_advertiser = self._create_actor(
                 MdnsAdvertiserActor, self._advertiser(instr_id)
@@ -95,7 +91,7 @@ class Rfc2217RedirectorActor(BaseActor):
             self.send(
                 my_advertiser,
                 SetupMdnsAdvertiserActorMsg(
-                    device_actor=self.device_actor, tcp_port=self._selected_port
+                    device_actor=self.device_actor, tcp_port=self.selected_port
                 ),
             )
             logger.debug("Starting the read loop")
@@ -116,9 +112,9 @@ class Rfc2217RedirectorActor(BaseActor):
         readable, _writable, _errored = select.select(self.read_list, [], [], timeout)
         for self.conn in readable:
             if self.conn is server_socket:
-                self._client_socket, self._socket_info = server_socket.accept()
-                self.read_list.append(self._client_socket)
-                logger.debug("Connection from %s", self._socket_info)
+                self.client_socket, self.socket_info = server_socket.accept()
+                self.read_list.append(self.client_socket)
+                logger.debug("Connection from %s", self.socket_info)
             else:
                 self._cmd_handler()
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="Connect")
@@ -141,7 +137,7 @@ class Rfc2217RedirectorActor(BaseActor):
             logger.debug(
                 "Redirect %s from RegServer, socket %s to device actor %s",
                 data,
-                self._socket_info,
+                self.socket_info,
                 self.device_actor,
             )
             self.send(self.device_actor, TxBinaryMsg(data))
@@ -161,8 +157,6 @@ class Rfc2217RedirectorActor(BaseActor):
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
-        if self._is_port_range_init and self._selected_port is not None:
-            self._available_ports.append(self._selected_port)
         try:
             self.read_list[0].shutdown(socket.SHUT_RDWR)
         except (OSError, AttributeError, IndexError) as exception:
