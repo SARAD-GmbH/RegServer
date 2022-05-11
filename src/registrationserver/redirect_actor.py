@@ -62,11 +62,11 @@ class RedirectorActor(BaseActor):
         if self._port is not None:
             logger.info("Socket listening on %s:%d", self._host, self._port)
 
-    def receiveMsg_WakeupMessage(self, msg, sender):
+    def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
-        if msg.payload == "Connect" and not self.on_kill:
-            self.receiveMsg_ConnectMsg(msg, sender)
+        if msg.payload == "loop" and not self.on_kill:
+            self._loop()
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -90,6 +90,8 @@ class RedirectorActor(BaseActor):
             )
         logger.debug("Setup finished with %s", return_msg)
         self.send(sender, return_msg)
+        logger.debug("Start socket loop")
+        self._loop()
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
@@ -97,11 +99,8 @@ class RedirectorActor(BaseActor):
         self.read_list[0].close()
         super().receiveMsg_KillMsg(msg, sender)
 
-    def receiveMsg_ConnectMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
+    def _loop(self):
         """Listen to socket and redirect any message from the socket to the device actor"""
-        # logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        # read_list = list of server sockets from which we expect to read
         server_socket = self.read_list[0]
         timeout = 0.1
         readable, _writable, _errored = select.select(self.read_list, [], [], timeout)
@@ -112,7 +111,7 @@ class RedirectorActor(BaseActor):
                 logger.debug("Connection from %s", self._socket_info)
             else:
                 self._cmd_handler()
-        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="Connect")
+        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="loop")
 
     def _cmd_handler(self):
         """Handle a binary SARAD command received via the socket."""

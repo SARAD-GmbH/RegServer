@@ -46,10 +46,11 @@ class UsbActor(DeviceBaseActor):
         self.instrument.release_instrument()
         logger.info("Instrument with Id %s detected.", self.my_id)
 
+    @overrides
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for binary message from App to Instrument."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        super().receiveMsg_TxBinaryMsg(msg, sender)
         try:
             reply = self.instrument.get_message_payload(msg.data, 5)
         except (SerialException, OSError):

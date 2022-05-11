@@ -420,12 +420,6 @@ class ReturnNativePortsMsg:
 
 
 @dataclass
-class ConnectMsg:
-    """Request to start the listening server socket connecting to the app and
-    to redirect all incoming binary data to the device actor."""
-
-
-@dataclass
 class PrepareMqttActorMsg:
     """Message with information to setup the MQTT client of the MQTT Actor."""
 

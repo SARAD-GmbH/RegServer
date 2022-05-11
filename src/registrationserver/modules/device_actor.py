@@ -13,7 +13,7 @@ from datetime import datetime
 
 import registrationserver.config as configuration
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (ConnectMsg, Frontend, KillMsg,
+from registrationserver.actor_messages import (Frontend, KillMsg,
                                                ReservationStatusMsg, Status,
                                                UpdateDeviceStatusMsg)
 from registrationserver.base_actor import BaseActor
@@ -61,6 +61,7 @@ class DeviceBaseActor(BaseActor):
         self.host = None
         self.sender_api = None
         self.is_device_actor = True
+        self.redirector_actor = None
 
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -104,7 +105,6 @@ class DeviceBaseActor(BaseActor):
             self.app: String identifying the requesting app.
             self.host: String identifying the host running the app.
             self.user: String identifying the user of the app.
-            self.sender_api: The actor object asking for reservation.
         """
 
     def _forward_reservation(self, success: bool):
@@ -127,10 +127,6 @@ class DeviceBaseActor(BaseActor):
             return True
         return False
 
-    def redirector_actor(self):
-        """The device actor has only one child that is called Redirector Actor."""
-        return self.child_actors[short_id(self.my_id)]["actor_address"]
-
     def receiveMsg_SocketMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SocketMsg from Redirector Actor."""
@@ -152,7 +148,6 @@ class DeviceBaseActor(BaseActor):
         }
         self.device_status["Reservation"] = reservation
         logger.debug("Reservation state updated: %s", self.device_status)
-        self.send(self.redirector_actor(), ConnectMsg())
         self.send(self.sender_api, ReservationStatusMsg(Status.OK))
         self._publish_status_change()
 
@@ -176,8 +171,8 @@ class DeviceBaseActor(BaseActor):
             logger.debug("Instr. was not reserved before.")
             return_message = ReservationStatusMsg(Status.OK_SKIPPED)
         self.send(self.sender_api, return_message)
-        if self.child_actors:
-            self.send(self.redirector_actor(), KillMsg())
+        for child_actor in self.child_actors:
+            self.send(child_actor["actor_address"], KillMsg())
         self._publish_status_change()
 
     @overrides
@@ -223,3 +218,9 @@ class DeviceBaseActor(BaseActor):
                 actor_address,
                 UpdateDeviceStatusMsg(self.my_id, self.device_status),
             )
+
+    def receiveMsg_TxBinaryMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for TxBinaryMsg from App to Instrument."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.redirector_actor = sender

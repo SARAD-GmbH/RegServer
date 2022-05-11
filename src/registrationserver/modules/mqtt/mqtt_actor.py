@@ -64,9 +64,11 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         self.msg_id["UNSUBSCRIBE"] = None
         self.msg_id["PUBLISH"] = None
 
+    @overrides
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for TxBinaryMsg from Redirector Actor."""
+        super().receiveMsg_TxBinaryMsg(msg, sender)
         data = msg.data
         if (data is None) or (not isinstance(data, bytes)):
             logger.error(
@@ -108,7 +110,6 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             self.app: String identifying the requesting app.
             self.host: String identifying the host running the app.
             self.user: String identifying the user of the app.
-            self.sender_api: The actor object asking for reservation.
         """
         if not self.state["RESERVE"]["Pending"]:
             _msg = {
@@ -251,7 +252,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                 )
                 self.state["SEND"]["Reply"] = payload[1:]
                 self.send(
-                    self.redirector_actor(),
+                    self.redirector_actor,
                     RxBinaryMsg(self.state["SEND"]["Reply"]),
                 )
                 return

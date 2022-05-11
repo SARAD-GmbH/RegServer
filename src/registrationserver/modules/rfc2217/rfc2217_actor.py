@@ -103,10 +103,11 @@ class Rfc2217Actor(DeviceBaseActor):
             logger.error("Cannot send to IS1")
             self.send(self.myAddress, KillMsg())
 
+    @overrides
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for TxBinaryMsg from App to Instrument."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        super().receiveMsg_TxBinaryMsg(msg, sender)
         if not self._establish_socket():
             logger.error("Can't establish the client socket.")
             return
@@ -118,7 +119,7 @@ class Rfc2217Actor(DeviceBaseActor):
             self.send(self.myAddress, KillMsg())
             return
         return_message = RxBinaryMsg(reply)
-        self.send(self.redirector_actor(), return_message)
+        self.send(self.redirector_actor, return_message)
 
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
