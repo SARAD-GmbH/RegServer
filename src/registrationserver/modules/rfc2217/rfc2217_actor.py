@@ -17,7 +17,6 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import KillMsg, RxBinaryMsg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
-from registrationserver.shutdown import is_flag_set
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -114,7 +113,7 @@ class Rfc2217Actor(DeviceBaseActor):
         self._send_via_socket(msg.data)
         try:
             reply = self._socket.recv(1024)
-        except TimeoutError:
+        except (TimeoutError, socket.timeout):
             logger.error("Timeout on waiting for reply from IS")
             self.send(self.myAddress, KillMsg())
             return

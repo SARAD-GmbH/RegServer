@@ -12,6 +12,7 @@ Based on an example of Chris Liechti <cliechti@gmx.net>.
 """
 
 import datetime
+import select
 import socket
 import time
 from typing import List
@@ -43,10 +44,9 @@ class Rfc2217RedirectorActor(BaseActor):
     def create_socket(port):
         """Open listening TCP/IP socket and return its port number"""
         srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        srv.bind(("", port))
-        srv.listen(1)
         srv.setblocking(0)
+        srv.bind(("", port))
+        srv.listen(5)
         return srv
 
     @classmethod
@@ -66,6 +66,8 @@ class Rfc2217RedirectorActor(BaseActor):
         self.s_socket = None
         self.conn = None
         self._socket_info = None
+        self.read_list = []
+        self._client_socket = None
 
     def receiveMsg_SetupRfc2217RedirectorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -81,11 +83,12 @@ class Rfc2217RedirectorActor(BaseActor):
         instr_id = short_id(msg.device_id)
         try:
             self._selected_port = self._available_ports.pop()
-            self.s_socket = self.create_socket(self._selected_port)
+            self.read_list = [self.create_socket(self._selected_port)]
+            logger.debug(self.read_list[0].getsockname())
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("Cannot create listening socket on %d", self._selected_port)
             logger.error(exception)
-        if self.s_socket is not None:
+        if self.read_list:
             my_advertiser = self._create_actor(
                 MdnsAdvertiserActor, self._advertiser(instr_id)
             )
@@ -108,22 +111,16 @@ class Rfc2217RedirectorActor(BaseActor):
         """Listen to socket and redirect any message from the socket to the device actor"""
         # logger.debug("%s for %s from %s", msg, self.my_id, sender)
         # read_list = list of server sockets from which we expect to read
-        try:
-            self.conn, self._socket_info = self.s_socket.accept()
-        except BlockingIOError as exception:
-            logger.debug(exception)
-            self.wakeupAfter(datetime.timedelta(seconds=0.5), payload="Connect")
-            return
-        logger.debug("Connected by %s:%s", self._socket_info[0], self._socket_info[1])
-        self.conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        try:
-            self._cmd_handler()
-        finally:
-            try:
-                self.conn.shutdown(socket.SHUT_RDWR)
-            except OSError:
-                logger.warning("socket shutdown error")
-            self.conn.close()
+        server_socket = self.read_list[0]
+        timeout = 0.1
+        readable, _writable, _errored = select.select(self.read_list, [], [], timeout)
+        for self.conn in readable:
+            if self.conn is server_socket:
+                self._client_socket, self._socket_info = server_socket.accept()
+                self.read_list.append(self._client_socket)
+                logger.debug("Connection from %s", self._socket_info)
+            else:
+                self._cmd_handler()
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="Connect")
 
     def _cmd_handler(self):
@@ -133,18 +130,16 @@ class Rfc2217RedirectorActor(BaseActor):
                 data = self.conn.recv(1024)
                 break
             except (ConnectionResetError, BrokenPipeError):
-                logger.error("Connection reset by SARAD application software.")
+                logger.error("Connection reset by RegServer.")
                 data = None
                 time.sleep(5)
         if data is None:
-            logger.critical("Application software seems to be dead.")
-            self.receiveMsg_KillMsg(None, self.parent)
+            logger.error("RegServer seems to be dead.")
         elif data == b"":
-            logger.debug("The application closed the socket.")
-            self.receiveMsg_KillMsg(None, self.parent)
+            pass
         else:
             logger.debug(
-                "Redirect %s from app, socket %s to device actor %s",
+                "Redirect %s from RegServer, socket %s to device actor %s",
                 data,
                 self._socket_info,
                 self.device_actor,
@@ -160,21 +155,20 @@ class Rfc2217RedirectorActor(BaseActor):
                 self.conn.sendall(msg.data)
                 return
             except (ConnectionResetError, BrokenPipeError):
-                logger.error("Connection reset by SARAD application software.")
+                logger.error("Connection reset by RegServer.")
                 time.sleep(5)
-        logger.critical("Application software seems to be dead.")
-        self.receiveMsg_KillMsg(None, self.parent)
+        logger.error("RegServer seems to be dead.")
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
         if self._is_port_range_init and self._selected_port is not None:
             self._available_ports.append(self._selected_port)
         try:
-            self.s_socket.shutdown(socket.SHUT_RDWR)
-        except (OSError, AttributeError) as exception:
+            self.read_list[0].shutdown(socket.SHUT_RDWR)
+        except (OSError, AttributeError, IndexError) as exception:
             logger.error("%s during socket.shutdown", exception)
         try:
-            self.s_socket.close()
-        except OSError as exception:
+            self.read_list[0].close()
+        except (OSError, IndexError) as exception:
             logger.error("%s during socket.close", exception)
         super().receiveMsg_KillMsg(msg, sender)

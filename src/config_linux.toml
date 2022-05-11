@@ -23,7 +23,7 @@ mdns = false
 is1 = false
 
 [mdns_frontend]
-port_range = [5560, 5580]
+port_range = [50000, 50500]
 
 [actor]
 system_base = "multiprocUDPBase"
