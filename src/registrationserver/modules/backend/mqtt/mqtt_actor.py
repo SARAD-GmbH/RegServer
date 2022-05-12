@@ -17,8 +17,9 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import KillMsg, RxBinaryMsg
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
+from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
+    MqttBaseActor
 from registrationserver.modules.device_actor import DeviceBaseActor
-from registrationserver.modules.mqtt.mqtt_base_actor import MqttBaseActor
 
 logger.debug("%s -> %s", __package__, __file__)
 

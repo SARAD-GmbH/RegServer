@@ -12,7 +12,6 @@ services (SARAD devices) in the local network.
 
 """
 import ipaddress
-import json
 import socket
 import threading
 
@@ -23,7 +22,7 @@ from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
 from registrationserver.config import config
 from registrationserver.helpers import get_actor
 from registrationserver.logger import logger
-from registrationserver.modules.rfc2217.rfc2217_actor import Rfc2217Actor
+from registrationserver.modules.backend.mdns.rfc2217_actor import Rfc2217Actor
 from registrationserver.shutdown import system_shutdown
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf

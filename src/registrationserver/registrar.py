@@ -26,12 +26,13 @@ from registrationserver.actor_messages import (ActorCreatedMsg, Backend,
 from registrationserver.base_actor import BaseActor
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
-from registrationserver.modules.is1.is1_listener import Is1Listener
-from registrationserver.modules.mdns_frontend.mdns_scheduler import \
+from registrationserver.modules.backend.is1.is1_listener import Is1Listener
+from registrationserver.modules.backend.mqtt.mqtt_listener import MqttListener
+from registrationserver.modules.backend.usb.cluster_actor import ClusterActor
+from registrationserver.modules.frontend.mdns.mdns_scheduler import \
     MdnsSchedulerActor
-from registrationserver.modules.mqtt.mqtt_listener import MqttListener
-from registrationserver.modules.mqtt_scheduler import MqttSchedulerActor
-from registrationserver.modules.usb.cluster_actor import ClusterActor
+from registrationserver.modules.frontend.mqtt.mqtt_scheduler import \
+    MqttSchedulerActor
 
 
 class Registrar(BaseActor):

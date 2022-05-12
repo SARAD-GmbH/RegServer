@@ -19,7 +19,7 @@ except ImportError:
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import InstrAddedMsg, InstrRemovedMsg
 from registrationserver.logger import logger
-from registrationserver.modules.usb.base_listener import BaseListener
+from registrationserver.modules.backend.usb.base_listener import BaseListener
 from thespian.actors import ActorSystem  # type: ignore
 
 

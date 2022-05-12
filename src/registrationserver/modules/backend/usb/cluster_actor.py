@@ -23,7 +23,7 @@ from registrationserver.actor_messages import (KillMsg, RescanFinishedMsg,
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
 from registrationserver.logger import logger
-from registrationserver.modules.usb.usb_actor import UsbActor
+from registrationserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.cluster import SaradCluster  # type: ignore
 from serial.tools.list_ports import comports  # type: ignore
 

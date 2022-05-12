@@ -18,7 +18,7 @@ from registrationserver.actor_messages import (SetDeviceStatusMsg,
 from registrationserver.base_actor import BaseActor
 from registrationserver.helpers import check_message, get_ip, make_command_msg
 from registrationserver.logger import logger
-from registrationserver.modules.is1.is1_actor import Is1Actor
+from registrationserver.modules.backend.is1.is1_actor import Is1Actor
 from sarad.sari import SaradInst  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)

@@ -24,16 +24,17 @@ from registrationserver.actor_messages import (Backend, Frontend, KillMsg,
                                                SetupMsg)
 from registrationserver.logdef import LOGFILENAME, logcfg
 from registrationserver.logger import logger
-from registrationserver.modules.rfc2217.mdns_listener import MdnsListener
+from registrationserver.modules.backend.mdns.mdns_listener import MdnsListener
 from registrationserver.registrar import Registrar
 from registrationserver.restapi import RestApi
 from registrationserver.shutdown import (is_flag_set, kill_processes,
                                          set_file_flag)
 
 if os.name == "nt":
-    from registrationserver.modules.usb.win_listener import UsbListener
+    from registrationserver.modules.backend.usb.win_listener import UsbListener
 else:
-    from registrationserver.modules.usb.unix_listener import UsbListener
+    from registrationserver.modules.backend.usb.unix_listener import \
+        UsbListener
 
 
 def startup():

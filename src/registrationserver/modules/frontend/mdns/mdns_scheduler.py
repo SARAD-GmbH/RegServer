@@ -16,7 +16,7 @@ from registrationserver.actor_messages import (KillMsg,
 from registrationserver.base_actor import BaseActor
 from registrationserver.helpers import diff_of_dicts, short_id
 from registrationserver.logger import logger
-from registrationserver.modules.mdns_frontend.rfc2217_redirector import \
+from registrationserver.modules.frontend.mdns.rfc2217_redirector import \
     Rfc2217RedirectorActor
 
 logger.debug("%s -> %s", __package__, __file__)

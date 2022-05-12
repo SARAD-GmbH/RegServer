@@ -24,7 +24,7 @@ from registrationserver.base_actor import BaseActor
 from registrationserver.config import mdns_frontend_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
-from registrationserver.modules.mdns_frontend.mdns_advertiser import \
+from registrationserver.modules.frontend.mdns.mdns_advertiser import \
     MdnsAdvertiserActor
 
 

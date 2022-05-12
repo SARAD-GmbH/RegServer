@@ -15,7 +15,7 @@ import pyudev  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import InstrAddedMsg, InstrRemovedMsg
 from registrationserver.logger import logger
-from registrationserver.modules.usb.base_listener import BaseListener
+from registrationserver.modules.backend.usb.base_listener import BaseListener
 from thespian.actors import ActorSystem  # type: ignore
 
 logger.debug("%s -> %s", __package__, __file__)

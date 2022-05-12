@@ -17,8 +17,9 @@ from registrationserver.actor_messages import (KillMsg, PrepareMqttActorMsg,
                                                SetDeviceStatusMsg)
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
-from registrationserver.modules.mqtt.mqtt_actor import MqttActor
-from registrationserver.modules.mqtt.mqtt_base_actor import MqttBaseActor
+from registrationserver.modules.backend.mqtt.mqtt_actor import MqttActor
+from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
+    MqttBaseActor
 
 logger.debug("%s -> %s", __package__, __file__)
 
