@@ -106,7 +106,6 @@ class Is1Listener(BaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self.my_parent = None
         self._client_socket = None
         self._socket_info = None
         self.conn = None
