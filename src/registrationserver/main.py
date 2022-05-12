@@ -64,7 +64,7 @@ def startup():
         )
     except Exception as exception:  # pylint: disable=broad-except
         logger.critical(exception)
-        kill_processes("python.sarad_registration_server")
+        kill_residual_processes()
         return ()
     registrar_actor = system.createActor(Registrar, globalName="registrar")
     system.tell(
@@ -135,13 +135,26 @@ def shutdown(startup_tupel, wait_some_time, registrar_is_down):
         ActorSystem().shutdown()
     except OSError as exception:
         logger.critical(exception)
-        if os.name == "posix":
-            logger.info("Trying to kill residual processes. Fingers crossed!")
-            exception = kill_processes("python.sarad_registration_server")
-            if exception is not None:
-                logger.critical(exception)
-                logger.critical("There might be residual processes!")
-                logger.info("Consider using 'ps ax' to investigate.")
+        kill_residual_processes()
+
+
+def kill_residual_processes():
+    """Kill RegServer processes. OS independent."""
+    logger.info("Trying to kill residual processes. Fingers crossed!")
+    if os.name == "posix":
+        process_regex = "python.sarad_registration_server"
+    elif os.name == "nt":
+        process_regex = "regserver-service.exe"
+    else:
+        process_regex = ""
+    exception = kill_processes(process_regex)
+    if exception is not None:
+        logger.critical(exception)
+        logger.critical("There might be residual processes.")
+    if os.name == "posix":
+        logger.info("Consider using 'ps ax' to investigate!")
+    if os.name == "nt":
+        logger.info("Inspect Task Manager to investigate!")
 
 
 def main():

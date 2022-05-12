@@ -60,17 +60,38 @@ def kill_processes(regex):
     Returns:
         string: None in the case of success, exception string elsewise.
     """
-    try:
-        my_pid = os.getpid()
-        pids = []
-        for line in os.popen("ps ax | grep " + regex + " | grep -v grep"):
-            fields = line.split()
-            pid = int(fields[0])
-            if pid != my_pid:
-                pids.append(pid)
-        pids.sort(reverse=True)
-        for pid in pids:
-            os.kill(pid, signal.SIGKILL)
+    if os.name == "posix":
+        try:
+            my_pid = os.getpid()
+            pids = []
+            for line in os.popen("ps ax | grep " + regex + " | grep -v grep"):
+                fields = line.split()
+                pid = int(fields[0])
+                if pid != my_pid:
+                    pids.append(pid)
+            pids.sort(reverse=True)
+            for pid in pids:
+                os.kill(pid, signal.SIGKILL)
+            return None
+        except Exception as exception:  # pylint: disable=broad-except
+            return exception
+    elif os.name == "nt":
+        try:
+            my_pid = os.getpid()
+            pids = []
+            for line in (
+                os.popen("wmic process get description, processid").read().split("\n\n")
+            ):
+                fields = line.split()
+                process = int(fields[0])
+                pid = int(fields[1])
+                if (pid != my_pid) and (process == "regserver-service.exe"):
+                    pids.append(pid)
+            pids.sort(reverse=True)
+            for pid in pids:
+                os.kill(pid, signal.SIGTERM)
+            return None
+        except Exception as exception:  # pylint: disable=broad-except
+            return exception
+    else:
         return None
-    except Exception as exception:  # pylint: disable=broad-except
-        return exception
