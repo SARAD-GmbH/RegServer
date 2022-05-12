@@ -1,12 +1,12 @@
 [Unit]
 Description=Instrument Server
-Wants=network-online.target
+After=network-online.target
 Wants=network-online.target
 
 [Service]
 WorkingDirectory=/home/pi/RegServer/src
-ExecStart=/usr/local/bin/start_instrument_server
-ExecStop=/usr/local/bin/stop-instrument-server
+ExecStart=/usr/local/bin/start-regserver
+ExecStop=/usr/local/bin/stop-regserver
 Restart=always
 RestartSec=10
 
