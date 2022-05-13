@@ -11,11 +11,11 @@ Contents
 
    use_case
    usage
-   regserver_is1
-   regserver_rfc2217
-   regserver_mqtt
-   regserver_local
-   instrserver_mqtt
+   backend_is1
+   backend_mdns
+   backend_mqtt
+   backend_usb
+   frontend_mqtt
    folder_structure
    actor_registrar
    error_handling

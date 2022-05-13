@@ -168,7 +168,7 @@ Example::
      "Remote": {
          "Address": "192.168.178.20",
          "Port": 5580,
-         "Name": "0ghMF8Y.sarad-1688._rfc2217._tcp.local."}}
+         "Name": "0ghMF8Y.sarad-1688._raw._tcp.local."}}
 
 Expected RETURN:
     ERROR_CODE:

@@ -1,4 +1,4 @@
-"""Main actor of the Registration Server -- implementation for RFC 2217
+"""Device actor for socket communication in the backend
 
 :Created:
     2020-10-14
@@ -7,7 +7,6 @@
     | Riccardo Förster <foerster@sarad.de>,
     | Michael Strey <strey@sarad.de>
 
-.. uml :: uml-rfc2217_actor.puml
 """
 
 import socket
@@ -23,10 +22,8 @@ logger.debug("%s -> %s", __package__, __file__)
 CMD_CYCLE_TIMEOUT = 1
 
 
-class Rfc2217Actor(DeviceBaseActor):
-    """Actor for dealing with RFC2217 Connections, creates and maintains
-    a RFC2217Protocol handler and relays messages towards it
-    https://pythonhosted.org/pyserial/pyserial_api.html#module-serial.aio"""
+class DeviceActor(DeviceBaseActor):
+    """Actor for dealing with raw socket connections"""
 
     @overrides
     def __init__(self):

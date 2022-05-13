@@ -14,14 +14,13 @@ Project Files
 src: Python Source Files
 ------------------------
 
-* modules: Contains all instrument server specific code ( required to connect to
-  specific instrumentserver)
+* modules: Contains code that is specific to a special implementation of the RegServer
 
-  * modules/device_actor.py: Base Class for Instrument specific Actors
-  * modules/rfc2217 : module for connecting to the rfc2217gateway
+  * modules/frontend: modules pointing into the direction of the app
+  * modules/backend: modules pointing into the direction of the instrument
 
 * main.py: code entry point
-* config.py: configuraition file
+* config.py: configuration file
 * redirect_actor.py: will be created, when a reservation was successful, will manage
   incomming messages from the app, and relay them to the device specific actors
 * restapi: rest api endpoint

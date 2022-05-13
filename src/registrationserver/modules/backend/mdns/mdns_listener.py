@@ -22,7 +22,7 @@ from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
 from registrationserver.config import config
 from registrationserver.helpers import get_actor
 from registrationserver.logger import logger
-from registrationserver.modules.backend.mdns.rfc2217_actor import Rfc2217Actor
+from registrationserver.modules.backend.mdns.device_actor import DeviceActor
 from registrationserver.shutdown import system_shutdown
 from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
@@ -118,7 +118,7 @@ class MdnsListener(ServiceListener):
                 logger.info("[Add] %s", info.properties)
                 actor_id = name
                 reply = ActorSystem().ask(
-                    self.registrar, CreateActorMsg(Rfc2217Actor, actor_id)
+                    self.registrar, CreateActorMsg(DeviceActor, actor_id)
                 )
                 if not isinstance(reply, ActorCreatedMsg):
                     logger.critical("Got message object of unexpected type")

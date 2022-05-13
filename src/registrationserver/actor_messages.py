@@ -119,8 +119,8 @@ class SetupIs1ActorMsg:
 
 
 @dataclass
-class SetupRfc2217RedirectorMsg:
-    """Message used to send the special setup information required for Rfc2217
+class SetupRedirectorMsg:
+    """Message used to send the special setup information required for mDNS
     Redirector Actors.
 
     Args:
@@ -134,7 +134,7 @@ class SetupRfc2217RedirectorMsg:
 @dataclass
 class SetupMdnsAdvertiserActorMsg:
     """Message used to send the special setup information required for mDNS Advertiser Actors.
-    The parameters are required to advertise the RFC2217 socket connection via Zeroconf.
+    The parameters are required to advertise the raw socket connection via Zeroconf.
 
     Args:
         device_actor (ActorAddress): address of the associated device actor

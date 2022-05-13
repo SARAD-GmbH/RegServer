@@ -181,7 +181,7 @@ class RestApi:
             return json.dumps({"Error": "Wronly formated ID"})
         device_state = get_device_status(registrar_actor, device_id)
         if (
-            not "_rfc2217" in device_id
+            not "_raw" in device_id
             and not "mqtt" in device_id
             and not "local" in device_id
             and not "is1" in device_id

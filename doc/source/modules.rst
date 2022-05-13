@@ -49,52 +49,52 @@ registrationserver.redirect_actor
 Modules for local USB and RS-232 connection
 ===========================================
 
-registrationserver.modules.usb.win_listener
--------------------------------------------
+registrationserver.modules.backend.usb.win_listener
+---------------------------------------------------
 
-.. automodule:: registrationserver.modules.usb.win_listener
+.. automodule:: registrationserver.modules.backend.usb.win_listener
    :members:
    :undoc-members:
 
-registrationserver.modules.usb.usb_actor
-----------------------------------------
-
-.. automodule:: registrationserver.modules.usb.usb_actor
-   :members:
-   :undoc-members:
-
-
-RFC 2217 specific modules
-=========================
-
-registrationserver.modules.rfc2217.mdns_listener
+registrationserver.modules.backend.usb.usb_actor
 ------------------------------------------------
 
-.. automodule :: registrationserver.modules.rfc2217.mdns_listener
+.. automodule:: registrationserver.modules.backend.usb.usb_actor
    :members:
    :undoc-members:
 
-registrationserver.modules.rfc2217.rfc2217_actor
-------------------------------------------------
 
-.. automodule:: registrationserver.modules.rfc2217.rfc2217_actor
+Backend modules for raw socket communication advertised by mDNS
+===============================================================
+
+registrationserver.modules.backend.mdns.mdns_listener
+-----------------------------------------------------
+
+.. automodule :: registrationserver.modules.backend.mdns.mdns_listener
    :members:
    :undoc-members:
 
-MQTT specific modules
-=====================
+registrationserver.modules.backend.mdns.device_actor
+----------------------------------------------------
 
-registrationserver.modules.mqtt.mqtt_listener
----------------------------------------------
-
-.. automodule :: registrationserver.modules.mqtt.mqtt_listener
+.. automodule:: registrationserver.modules.backend.mdns.device_actor
    :members:
    :undoc-members:
 
-registrationserver.modules.mqtt.mqtt_actor
-------------------------------------------
+Modules specific to the MQTT backend
+====================================
 
-.. automodule:: registrationserver.modules.mqtt.mqtt_actor
+registrationserver.modules.backend.mqtt.mqtt_listener
+-----------------------------------------------------
+
+.. automodule :: registrationserver.modules.backend.mqtt.mqtt_listener
+   :members:
+   :undoc-members:
+
+registrationserver.modules.backend.mqtt.mqtt_actor
+--------------------------------------------------
+
+.. automodule:: registrationserver.modules.backend.mqtt.mqtt_actor
    :members:
    :undoc-members:
 

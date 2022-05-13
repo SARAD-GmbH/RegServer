@@ -1,7 +1,4 @@
-"""Redirect data from a TCP/IP socket to the Device Actor and vice versa using
-RFC 2217
-
-Based on an example of Chris Liechti <cliechti@gmx.net>.
+"""Redirect data from a TCP/IP socket to the Device Actor and vice versa
 
 :Created:
     2022-05-06
@@ -28,7 +25,7 @@ from registrationserver.modules.frontend.mdns.mdns_advertiser import \
     MdnsAdvertiserActor
 
 
-class Rfc2217RedirectorActor(BaseActor):
+class MdnsRedirectorActor(BaseActor):
     """Redirect binary messages from socket to Device Actor and vice versa"""
 
     @staticmethod
@@ -54,7 +51,7 @@ class Rfc2217RedirectorActor(BaseActor):
         self.client_socket = None
         self.port_range = list(mdns_frontend_config["MDNS_PORT_RANGE"])
 
-    def receiveMsg_SetupRfc2217RedirectorMsg(self, msg, sender):
+    def receiveMsg_SetupRedirectorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for the initialisation message from MdnsScheduler"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)

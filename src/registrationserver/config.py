@@ -44,7 +44,7 @@ except OSError:
     customization = {}
 
 DEFAULT_MDNS_TIMEOUT = 3000
-DEFAULT_TYPE = "_rfc2217._tcp.local."
+DEFAULT_TYPE = "_raw._tcp.local."
 DEFAULT_LEVEL = logging.INFO
 DEFAULT_IP_VERSION = IPVersion.All
 DEFAULT_PORT_RANGE = range(50000, 50500)

@@ -14,9 +14,9 @@ hide stereotype
 
 Container(app, $app, "wählt ein $instr zur Kommunikation aus.")
 
-Container_Boundary(mod, "RFC2217-Modul", $rs, $tags="mod") {
+Container_Boundary(mod, "mDNS-Modul", $rs, $tags="mod") {
         Component(listener, "mDNS Listener", "Python Class", "Erkennt neue $inst_m.")
-        Component(device_actor1, "Device Actor A", "Actor", "RFC2217")
+        Component(device_actor1, "Device Actor A", "Actor", "raw socket")
 }
 Container_Boundary(rs, "Basis", $rs) {
         Component(api, "REST API", "JSON/HTTP", "Geräteliste mit Status")
@@ -35,5 +35,5 @@ Rel(device_actor1, is1, "7. Reservierung", "JSON/HTTP")
 Rel(device_actor1, redirector1, "8. erzeugt", "createActor")
 BiRel(app, redirector1, "9. Binärpaket", "TCP-Socket")
 BiRel(redirector1, device_actor1, "9. Binärpaket", "Messages")
-BiRel(is1, device_actor1, "9. Binärpaket", "RFC2217")
+BiRel(is1, device_actor1, "9. Binärpaket", "raw")
 @enduml
