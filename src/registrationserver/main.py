@@ -178,15 +178,22 @@ def main():
     logger.debug("Starting the main loop")
     wait_some_time = False
     registrar_is_down = False
-    while is_flag_set():
+    retry_counter = 3
+    while is_flag_set() and retry_counter:
         before = datetime.now()
         with ActorSystem().private() as registrar_status:
             reply = registrar_status.ask(
                 startup_tupel[0], Thespian_StatusReq(), timeout=timedelta(seconds=3)
             )
         if not isinstance(reply, Thespian_ActorStatus):
-            set_file_flag(False)
-            registrar_is_down = True
+            logger.error("Registrar replied %s instead of Thespian_ActorStatus")
+            retry_conter = retry_conter - 1
+            if not retry_counter:
+                set_file_flag(False)
+                registrar_is_down = True
+                logger.critical(
+                    "No status response from Registrar Actor. Emergency shutdown."
+                )
         time.sleep(1)
         after = datetime.now()
         if (after - before).total_seconds() > 10:
