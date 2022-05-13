@@ -20,6 +20,7 @@ from registrationserver.base_actor import BaseActor
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.redirect_actor import RedirectorActor
+from registrationserver.shutdown import system_shutdown
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -107,18 +108,22 @@ class DeviceBaseActor(BaseActor):
             self.user: String identifying the user of the app.
         """
 
-    def _forward_reservation(self, success: bool):
+    def _forward_reservation(self, success: Status):
         # pylint: disable=unused-argument, no-self-use
         """Create redirector.
         Forward the reservation state from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
-        if success:
+        self.send(self.sender_api, ReservationStatusMsg(success))
+        if success in [Status.OK, Status.OK_UPDATED, Status.OK_SKIPPED]:
             # create redirector
             if not self._create_redirector():
-                logger.error("Tried to create a redirector that already exists.")
-            return
-        self.send(self.sender_api, ReservationStatusMsg(Status.OCCUPIED))
+                logger.warning("Tried to create a redirector that already exists.")
+        elif success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
+            self.send(self.myAddress, KillMsg())
+        elif success == Status.ERROR:
+            logger.critical("%s during reservation", success)
+            system_shutdown()
 
     def _create_redirector(self) -> bool:
         """Create redirector actor if it does not exist already"""

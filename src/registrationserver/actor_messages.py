@@ -9,7 +9,7 @@ commands and data within the actor system
 
 """
 from dataclasses import dataclass
-from enum import Enum, auto, unique
+from enum import Enum, unique
 from typing import Any, ByteString, Dict, List, Union
 
 from sarad.sari import FamilyDict  # type: ignore
@@ -25,11 +25,14 @@ class Status(Enum):
     OCCUPIED = 6
     OK_SKIPPED = 10
     NOT_FOUND = 11
+    IS_NOT_FOUND = 12
     ATTRIBUTE_ERROR = 13
+    OTHER_APP_USER = 14
     OK_UPDATED = 20
     SUBSCRIBE = 34
     UNSUBSCRIBE = 35
     UNKNOWN_PORT = 40
+    ERROR = 98
     CRITICAL = 99
 
     def __str__(self):
@@ -38,11 +41,14 @@ class Status(Enum):
             6: "Device occupied",
             10: "OK, skipped",
             11: "Device not found.",
+            12: "Instrument server not found",
             13: "No or incomplete attributes",
+            14: "Instrument reserved for other app or other user",
             20: "OK, updated",
             34: "Error when subscribing to an MQTT topic",
             35: "Error when unsubscribing from an MQTT topic",
             40: "Port does not exist.",
+            98: "Unknown error",
             99: "Critical error. Stop and shutdown system.",
         }
         return longform[self.value]

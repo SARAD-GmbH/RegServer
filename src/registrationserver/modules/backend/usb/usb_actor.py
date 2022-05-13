@@ -13,7 +13,7 @@
 from typing import Union
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import KillMsg, RxBinaryMsg
+from registrationserver.actor_messages import KillMsg, RxBinaryMsg, Status
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from sarad.sari import SaradInst  # type: ignore
@@ -78,7 +78,7 @@ class UsbActor(DeviceBaseActor):
         """Reserve the requested instrument.
         In this dummy we suppose, that the instrument is always available for us.
         """
-        self._forward_reservation(True)
+        self._forward_reservation(Status.OK)
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):

@@ -28,6 +28,7 @@ polling2 = "*"
 pefile = "*"
 pyinstaller = "*"
 toml = "*"
+requests = "*"
 
 [requires]
 python_version = "3"

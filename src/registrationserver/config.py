@@ -54,7 +54,7 @@ else:
     DEFAULT_NATIVE_SERIAL_PORTS = ["/dev/ttyS0"]
 DEFAULT_IGNORED_SERIAL_PORTS: List[str] = []
 DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
-DEFAULT_API_PORT = 8000
+DEFAULT_API_PORT = 8008
 DEFAULT_HOST = "localhost"
 level_dict = {
     "info": logging.INFO,

@@ -14,7 +14,7 @@ import json
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import KillMsg, RxBinaryMsg
+from registrationserver.actor_messages import KillMsg, RxBinaryMsg, Status
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
@@ -180,7 +180,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
 
     def on_reserve(self, _client, _userdata, message):
         """Handler for MQTT messages regarding reservation of instruments"""
-        is_reserved = False
+        reservation_status = Status.ERROR
         reservation = json.loads(message.payload)
         logger.debug("Update reservation state of %s: %s", self.my_id, reservation)
         self.device_status["Reservation"] = reservation
@@ -209,16 +209,19 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                         "Subscription to %s went wrong", self.allowed_sys_topics["MSG"]
                     )
                     return
-                is_reserved = True
+                reservation_status = Status.OK
             else:
                 logger.debug(
                     "MQTT actor receives decline of reservation on instrument %s",
                     self.my_id,
                 )
-                is_reserved = False
-            self.state["RESERVE"]["Active"] = is_reserved
-            logger.debug("Instrument reserved %s", is_reserved)
-            self._forward_reservation(is_reserved)  # create redirector actor
+                reservation_status = Status.OCCUPIED
+            reservation_active = bool(
+                reservation_status in [Status.OK, Status.OK_SKIPPED, Status.OK_UPDATED]
+            )
+            self.state["RESERVE"]["Active"] = reservation_active
+            logger.debug("Reservation status: %s", reservation_status)
+            self._forward_reservation(reservation_status)  # create redirector actor
             self.state["RESERVE"]["Pending"] = False
             return
         logger.warning(

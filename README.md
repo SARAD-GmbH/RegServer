@@ -81,7 +81,7 @@ during the development (for instance test), use
 
 ### Ussage ###
 
-Make sure that port 8000 is not used by any other application.
+Make sure that port 8008 is not used by any other application.
 
     cd src
     python -m registrationserver.main
@@ -92,7 +92,7 @@ With Instrument Server 2 running anywhere in the same LAN, you should see log
 entries on the command line indicating newly attached or disconnected SARAD
 instrument.
 
-With your webbrower pointing to http://localhost:8000/list/, you should see a
+With your webbrower pointing to http://localhost:8008/list/, you should see a
 JSON list of attached SARAD instruments with identification information like
 Family, Type, Serial number.
 

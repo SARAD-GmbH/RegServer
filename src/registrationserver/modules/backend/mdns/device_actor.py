@@ -12,8 +12,10 @@
 import socket
 import time
 
+import requests
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import KillMsg, RxBinaryMsg
+from registrationserver.actor_messages import KillMsg, RxBinaryMsg, Status
+from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 
@@ -136,4 +138,16 @@ class DeviceActor(DeviceBaseActor):
         TODO: Read the reply from the REST API of the Instrument Server.
         In this dummy we suppose, that the instrument is always available for us.
         """
-        self._forward_reservation(True)
+        base_url = f'http://{self._is_host}:{config["API_PORT"]}'
+        device_id = self.my_id
+        app = f"{self.app} - {self.user}"
+        resp = requests.get(f"{base_url}/list/{device_id}/reserve", {"who": app})
+        if resp.status_code != 200:
+            success = Status.IS_NOT_FOUND
+        else:
+            logger.debug(resp.json())
+            try:
+                success = Status(resp.json()["Error code"])
+            except KeyError:
+                success = Status.ERROR
+        self._forward_reservation(success)

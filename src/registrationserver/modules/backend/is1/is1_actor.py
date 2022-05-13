@@ -11,7 +11,7 @@ import socket
 import time
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import KillMsg, RxBinaryMsg
+from registrationserver.actor_messages import KillMsg, RxBinaryMsg, Status
 from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
@@ -133,7 +133,7 @@ class Is1Actor(DeviceBaseActor):
         """Reserve the requested instrument at the instrument server."""
         if not self._establish_socket():
             logger.error("Can't establish the client socket.")
-            self._forward_reservation(False)
+            self._forward_reservation(Status.IS_NOT_FOUND)
             return
         cmd_msg = make_command_msg(
             [self.SELECT_COM, (self._com_port).to_bytes(1, byteorder="little")]
@@ -143,7 +143,7 @@ class Is1Actor(DeviceBaseActor):
             reply = self._socket.recv(1024)
         except TimeoutError:
             logger.error("Timeout on waiting for reply to SELECT_COM: %s", cmd_msg)
-            self._forward_reservation(False)
+            self._forward_reservation(Status.IS_NOT_FOUND)
             self._destroy_socket()
             return
         checked_reply = check_message(reply, multiframe=False)
@@ -153,14 +153,14 @@ class Is1Actor(DeviceBaseActor):
             and checked_reply["payload"][0].to_bytes(1, byteorder="little")
             == self.COM_SELECTED
         ):
-            self._forward_reservation(True)
+            self._forward_reservation(Status.OK)
         elif (
             checked_reply["is_valid"]
             and checked_reply["payload"] == self.COM_NOT_AVAILABLE
         ):
             self.send(self.myAddress, KillMsg())
         else:
-            self._forward_reservation(False)
+            self._forward_reservation(Status.NOT_FOUND)
         self._destroy_socket()
 
     @overrides
