@@ -132,22 +132,35 @@ class DeviceActor(DeviceBaseActor):
 
     @overrides
     def _reserve_at_is(self):
-        # pylint: disable=unused-argument, no-self-use
-        """Reserve the requested instrument at the instrument server. This function has
-        to be implemented (overridden) in the protocol specific modules.
-        TODO: Read the reply from the REST API of the Instrument Server.
-        In this dummy we suppose, that the instrument is always available for us.
-        """
+        """Reserve the requested instrument at the instrument server."""
         base_url = f'http://{self._is_host}:{config["API_PORT"]}'
-        device_id = self.my_id
-        app = f"{self.app} - {self.user}"
-        resp = requests.get(f"{base_url}/list/{device_id}/reserve", {"who": app})
-        if resp.status_code != 200:
+        list_resp = requests.get(f"http://{base_url}/list/")
+        if list_resp.status_code != 200:
             success = Status.IS_NOT_FOUND
-        else:
-            logger.debug(resp.json())
-            try:
-                success = Status(resp.json()["Error code"])
-            except KeyError:
-                success = Status.ERROR
+            self._forward_reservation(success)
+            return
+        logger.debug(list_resp.json())
+        for device_id, device_desc in list_resp.json().items():
+            if device_id.split(".")[0] == self.my_id.split(".")[0]:
+                reservation = device_desc.get("Reservation")
+                if (reservation is None) or not reservation.get("Active", False):
+                    logger.debug("Try to reserve this instrument for me.")
+                    app = f"{self.app} - {self.user}"
+                    resp = requests.get(
+                        f"{base_url}/list/{device_id}/reserve", {"who": app}
+                    )
+                    if resp.status_code != 200:
+                        success = Status.IS_NOT_FOUND
+                    else:
+                        logger.debug(resp.json())
+                        success = Status(resp.json()).get("Error code", Status.ERROR)
+                else:
+                    using_host = device_desc["Reservation"]["Host"].split(".")[0]
+                    my_host = socket.gethostname().split(".")[0]
+                    if using_host == my_host:
+                        logger.debug("Already occupied by me.")
+                        success = Status.OK_SKIPPED
+                    else:
+                        logger.debug("Occupied by somebody else.")
+                        success = Status.OCCUPIED
         self._forward_reservation(success)
