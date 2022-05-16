@@ -123,7 +123,7 @@ class DeviceActor(DeviceBaseActor):
 
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
-        base_url = f"http://{self._is_host}:self.api_port"
+        base_url = f"http://{self._is_host}:{self._api_port}"
         list_resp = requests.get(f"{base_url}/list/")
         if list_resp.status_code != 200:
             success = Status.IS_NOT_FOUND
@@ -161,7 +161,7 @@ class DeviceActor(DeviceBaseActor):
     @overrides
     def _reserve_at_is(self):
         """Reserve the requested instrument at the instrument server."""
-        base_url = f"http://{self._is_host}:self.api_port"
+        base_url = f"http://{self._is_host}:{self._api_port}"
         list_resp = requests.get(f"{base_url}/list/")
         if list_resp.status_code != 200:
             success = Status.IS_NOT_FOUND
