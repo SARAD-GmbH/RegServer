@@ -17,6 +17,7 @@ import socket
 
 from registrationserver.actor_messages import GetDeviceStatusMsg
 from registrationserver.base_actor import BaseActor
+from registrationserver.config import config
 from registrationserver.helpers import get_ip, short_id
 from registrationserver.logger import logger
 from zeroconf import ServiceInfo, Zeroconf
@@ -66,6 +67,7 @@ class MdnsAdvertiserActor(BaseActor):
             "VENDOR": "SARAD GmbH",
             "MODEL_ENC": instr_name,
             "SERIAL_SHORT": service_name,
+            "API_PORT": config["API_PORT"],
         }
         self.service = ServiceInfo(
             "_raw._tcp.local.",

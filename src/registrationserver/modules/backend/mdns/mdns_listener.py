@@ -46,11 +46,17 @@ class MdnsListener(ServiceListener):
             return None
         properties = info.properties
         if properties is not None:
-            _model = properties.get(b"MODEL_ENC", None)
+            _model = properties.get(b"MODEL_ENC")
             if _model is None:
                 return None
         _model = _model.decode("utf-8")
-        _serial_short = properties.get(b"SERIAL_SHORT", None)
+        _api_port = properties.get(b"API_PORT")
+        if _api_port is None:
+            logger.debug("Fallback to default API port")
+            _api_port = config["API_PORT"]
+        else:
+            _api_port = _api_port.decode("utf-8")
+        _serial_short = properties.get(b"SERIAL_SHORT")
         if _serial_short is None:
             return None
         _device_id = _serial_short.decode("utf-8").split(".")[0]
@@ -76,6 +82,7 @@ class MdnsListener(ServiceListener):
                 "Serial number": _ids[2],
                 "Host": _addr,
                 "Protocol": _sarad_protocol,
+                "API port": _api_port,
             },
             "Remote": {"Address": _addr_ip, "Port": info.port, "Name": name},
         }
