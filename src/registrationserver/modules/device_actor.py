@@ -120,6 +120,9 @@ class DeviceBaseActor(BaseActor):
             if not self._create_redirector():
                 logger.warning("Tried to create a redirector that already exists.")
         elif success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
+            logger.error(
+                "Reservation failed with %s. Removing device from list.", success
+            )
             self.send(self.myAddress, KillMsg())
         elif success == Status.ERROR:
             logger.critical("%s during reservation", success)
