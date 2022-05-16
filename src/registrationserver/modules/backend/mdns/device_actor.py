@@ -133,10 +133,7 @@ class DeviceActor(DeviceBaseActor):
         for device_id, device_desc in list_resp.json().items():
             if device_id.split(".")[0] == self.my_id.split(".")[0]:
                 reservation = device_desc.get("Reservation")
-                if (reservation is None) or not reservation.get("Active", False):
-                    logger.debug("Tried to free a device that was not reserved.")
-                    success = Status.OK_SKIPPED
-                else:
+                if (reservation is None) or reservation.get("Active", True):
                     resp = requests.get(f"{base_url}/list/{device_id}/free")
                     if resp.status_code != 200:
                         success = Status.IS_NOT_FOUND
@@ -148,6 +145,9 @@ class DeviceActor(DeviceBaseActor):
                             success = Status.ERROR
                         else:
                             success = Status(error_code)
+                else:
+                    logger.debug("Tried to free a device that was not reserved.")
+                    success = Status.OK_SKIPPED
         logger.debug("Freeing remote device ended with %s", success)
         self._destroy_socket()
         super().receiveMsg_FreeDeviceMsg(msg, sender)
