@@ -233,7 +233,7 @@ class RestApi:
         if device_state == {}:
             status = Status.NOT_FOUND
         else:
-            reservation = device_state.git("Reservation")
+            reservation = device_state.get("Reservation")
             if (reservation is None) or reservation.get("Active", True):
                 device_actor = get_actor(registrar_actor, device_id)
                 logger.debug("Ask device actor to FREE...")
