@@ -187,7 +187,7 @@ def main():
             )
         if not isinstance(reply, Thespian_ActorStatus):
             logger.error("Registrar replied %s instead of Thespian_ActorStatus")
-            retry_conter = retry_conter - 1
+            retry_counter = retry_counter - 1
             if not retry_counter:
                 set_file_flag(False)
                 registrar_is_down = True

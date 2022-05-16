@@ -176,8 +176,7 @@ class DeviceBaseActor(BaseActor):
             logger.debug("Instr. was not reserved before.")
             return_message = ReservationStatusMsg(Status.OK_SKIPPED)
         self.send(self.sender_api, return_message)
-        for child_actor in self.child_actors:
-            self.send(child_actor["actor_address"], KillMsg())
+        self._forward_to_children(KillMsg())
         self._publish_status_change()
 
     @overrides

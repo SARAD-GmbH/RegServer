@@ -122,6 +122,33 @@ class DeviceActor(DeviceBaseActor):
 
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
+        base_url = f'http://{self._is_host}:{config["API_PORT"]}'
+        list_resp = requests.get(f"{base_url}/list/")
+        if list_resp.status_code != 200:
+            success = Status.IS_NOT_FOUND
+            logger.error("%s, cannot access REST API of IS", success)
+            self._destroy_socket()
+            super().receiveMsg_FreeDeviceMsg(msg, sender)
+            return
+        for device_id, device_desc in list_resp.json().items():
+            if device_id.split(".")[0] == self.my_id.split(".")[0]:
+                reservation = device_desc.get("Reservation")
+                if (reservation is None) or not reservation.get("Active", False):
+                    logger.debug("Tried to free a device that was not reserved.")
+                    success = Status.OK_SKIPPED
+                else:
+                    resp = requests.get(f"{base_url}/list/{device_id}/free")
+                    if resp.status_code != 200:
+                        success = Status.IS_NOT_FOUND
+                        logger.error("%s, cannot access REST API of IS", success)
+                    else:
+                        error_code = resp.json().get("Error code")
+                        logger.debug("Error code: %d", error_code)
+                        if error_code is None:
+                            success = Status.ERROR
+                        else:
+                            success = Status(error_code)
+        logger.debug("Freeing remote device ended with %s", success)
         self._destroy_socket()
         super().receiveMsg_FreeDeviceMsg(msg, sender)
 
@@ -134,12 +161,11 @@ class DeviceActor(DeviceBaseActor):
     def _reserve_at_is(self):
         """Reserve the requested instrument at the instrument server."""
         base_url = f'http://{self._is_host}:{config["API_PORT"]}'
-        list_resp = requests.get(f"http://{base_url}/list/")
+        list_resp = requests.get(f"{base_url}/list/")
         if list_resp.status_code != 200:
             success = Status.IS_NOT_FOUND
             self._forward_reservation(success)
             return
-        logger.debug(list_resp.json())
         for device_id, device_desc in list_resp.json().items():
             if device_id.split(".")[0] == self.my_id.split(".")[0]:
                 reservation = device_desc.get("Reservation")
@@ -152,8 +178,12 @@ class DeviceActor(DeviceBaseActor):
                     if resp.status_code != 200:
                         success = Status.IS_NOT_FOUND
                     else:
-                        logger.debug(resp.json())
-                        success = Status(resp.json()).get("Error code", Status.ERROR)
+                        error_code = resp.json().get("Error code")
+                        logger.debug("Error code: %d", error_code)
+                        if error_code is None:
+                            success = Status.ERROR
+                        else:
+                            success = Status(error_code)
                 else:
                     using_host = device_desc["Reservation"]["Host"].split(".")[0]
                     my_host = socket.gethostname().split(".")[0]
