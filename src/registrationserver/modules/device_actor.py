@@ -114,12 +114,12 @@ class DeviceBaseActor(BaseActor):
         Forward the reservation state from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
-        self.send(self.sender_api, ReservationStatusMsg(success))
         if success in [Status.OK, Status.OK_UPDATED, Status.OK_SKIPPED]:
             # create redirector
             if not self._create_redirector():
                 logger.warning("Tried to create a redirector that already exists.")
-        elif success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
+            return
+        if success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
             logger.error(
                 "Reservation failed with %s. Removing device from list.", success
             )
@@ -127,6 +127,7 @@ class DeviceBaseActor(BaseActor):
         elif success == Status.ERROR:
             logger.critical("%s during reservation", success)
             system_shutdown()
+        self.send(self.sender_api, ReservationStatusMsg(success))
 
     def _create_redirector(self) -> bool:
         """Create redirector actor if it does not exist already"""
