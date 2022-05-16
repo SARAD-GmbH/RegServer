@@ -18,7 +18,7 @@ import threading
 import hashids  # type: ignore
 from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
                                                SetDeviceStatusMsg,
-                                               SetupIs1ActorMsg)
+                                               SetupMdnsActorMsg)
 from registrationserver.config import config
 from registrationserver.helpers import get_actor
 from registrationserver.logger import logger
@@ -82,9 +82,13 @@ class MdnsListener(ServiceListener):
                 "Serial number": _ids[2],
                 "Host": _addr,
                 "Protocol": _sarad_protocol,
+            },
+            "Remote": {
+                "Address": _addr_ip,
+                "Port": info.port,
+                "Name": name,
                 "API port": _api_port,
             },
-            "Remote": {"Address": _addr_ip, "Port": info.port, "Name": name},
         }
 
     @staticmethod
@@ -136,8 +140,9 @@ class MdnsListener(ServiceListener):
                     data = self.convert_properties(name=name, info=info)
                     is_host = data["Remote"]["Address"]
                     is_port = data["Remote"]["Port"]
+                    api_port = data["Remote"]["API port"]
                     ActorSystem().tell(
-                        device_actor, SetupIs1ActorMsg(is_host, is_port, None)
+                        device_actor, SetupMdnsActorMsg(is_host, is_port, api_port)
                     )
                     logger.debug("Setup the device actor with %s", data)
                     ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))

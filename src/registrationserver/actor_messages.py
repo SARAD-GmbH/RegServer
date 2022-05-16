@@ -125,6 +125,22 @@ class SetupIs1ActorMsg:
 
 
 @dataclass
+class SetupMdnsActorMsg:
+    """Message used to send the special setup information required for mDNS device Actors.
+    The parameters are required to establish the socket connection to the Instrument Server 2.
+
+    Args:
+        is_host (str): IP address of IS2.
+        is_port (int): IP port the IS2 is listening on.
+        api_port (int): Port the REST API of IS2 is on.
+    """
+
+    is_host: str
+    is_port: int
+    api_port: int
+
+
+@dataclass
 class SetupRedirectorMsg:
     """Message used to send the special setup information required for mDNS
     Redirector Actors.

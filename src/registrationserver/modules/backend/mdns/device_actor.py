@@ -15,7 +15,6 @@ import time
 import requests
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import KillMsg, RxBinaryMsg, Status
-from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 
@@ -33,13 +32,15 @@ class DeviceActor(DeviceBaseActor):
         self._socket = None
         self._is_host = None
         self._is_port = None
+        self._api_port = None
 
-    def receiveMsg_SetupIs1ActorMsg(self, msg, _sender):
+    def receiveMsg_SetupMdnsActorMsg(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for SetupIs1ActorMsg containing setup information
         that is special to the IS1 device actor"""
         self._is_port = msg.is_port
         self._is_host = msg.is_host
+        self._api_port = msg.api_port
 
     def _establish_socket(self):
         if self._socket is None:
@@ -122,7 +123,7 @@ class DeviceActor(DeviceBaseActor):
 
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
-        base_url = f'http://{self._is_host}:{config["API_PORT"]}'
+        base_url = f"http://{self._is_host}:self.api_port"
         list_resp = requests.get(f"{base_url}/list/")
         if list_resp.status_code != 200:
             success = Status.IS_NOT_FOUND
@@ -160,7 +161,7 @@ class DeviceActor(DeviceBaseActor):
     @overrides
     def _reserve_at_is(self):
         """Reserve the requested instrument at the instrument server."""
-        base_url = f'http://{self._is_host}:{config["API_PORT"]}'
+        base_url = f"http://{self._is_host}:self.api_port"
         list_resp = requests.get(f"{base_url}/list/")
         if list_resp.status_code != 200:
             success = Status.IS_NOT_FOUND
