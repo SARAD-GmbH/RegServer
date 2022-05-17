@@ -20,7 +20,7 @@ from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
                                                SetDeviceStatusMsg,
                                                SetupMdnsActorMsg)
 from registrationserver.config import config
-from registrationserver.helpers import get_actor, get_ip
+from registrationserver.helpers import get_actor
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mdns.device_actor import DeviceActor
 from registrationserver.shutdown import system_shutdown
@@ -100,7 +100,7 @@ class MdnsListener(ServiceListener):
         with self.lock:
             self.zeroconf = Zeroconf(
                 ip_version=config["IP_VERSION"],
-                interfaces=[get_ip(ipv6=False), "127.0.0.1"],
+                interfaces=[config["MY_IP"], "127.0.0.1"],
             )
             _ = ServiceBrowser(self.zeroconf, service_type, self)
 

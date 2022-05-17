@@ -173,7 +173,8 @@ class RestApi:
             remote_addr = "0.0.0.0"
         try:
             request_host = socket.gethostbyaddr(remote_addr)[0]
-        except socket.herror:
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.error(exception)
             request_host = remote_addr
         logger.info(
             "Request reservation of %s for %s@%s",

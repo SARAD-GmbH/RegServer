@@ -20,6 +20,47 @@ from zeroconf import IPVersion
 from registrationserver.actor_messages import Backend, Frontend
 
 
+def get_ip(ipv6=False):
+    """Find the external IP address of the computer running the RegServer.
+    TODO: The IPv6 part of this function is not yet functional!
+    https://pypi.org/project/netifaces/ might help
+
+    Returns:
+        string: IP address
+    """
+    my_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+    my_socket.settimeout(0)
+    try:
+        # doesn't even have to be reachable
+        my_socket.connect(("fe80::b630:531e:1381:33a3", 1))
+        ipv6_address = my_socket.getsockname()[0]
+    except Exception:  # pylint: disable=broad-except
+        ipv6_address = "::1"
+    finally:
+        my_socket.close()
+    my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    my_socket.settimeout(0)
+    try:
+        # doesn't even have to be reachable
+        my_socket.connect(("10.255.255.255", 1))
+        ipv4_address = my_socket.getsockname()[0]
+    except Exception:  # pylint: disable=broad-except
+        ipv4_address = "127.0.0.1"
+    finally:
+        my_socket.close()
+    if ipv6:
+        return ipv6_address
+    return ipv4_address
+
+
+def get_hostname(ip_address):
+    """Find the host name for the given IP address"""
+    try:
+        return socket.gethostbyaddr(ip_address)[0]
+    except Exception:  # pylint: disable=broad-except
+        return "unknown host"
+
+
 def unique_id(ambiguous_id):
     """Create a unique id out of given id and MAC address of computer"""
     return f"{ambiguous_id}-{hex(get_mac())}"
@@ -55,7 +96,9 @@ else:
 DEFAULT_IGNORED_SERIAL_PORTS: List[str] = []
 DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
 DEFAULT_API_PORT = 8008
-DEFAULT_HOST = "localhost"
+DEFAULT_HOST = "::"
+DEFAULT_MY_IP = get_ip(ipv6=False)
+DEFAULT_MY_HOSTNAME = get_hostname(DEFAULT_MY_IP)
 level_dict = {
     "info": logging.INFO,
     "warning": logging.WARNING,
@@ -100,6 +143,8 @@ config = {
     ),
     "API_PORT": customization.get("api_port", DEFAULT_API_PORT),
     "HOST": customization.get("host", DEFAULT_HOST),
+    "MY_IP": customization.get("my_ip", DEFAULT_MY_IP),
+    "MY_HOSTNAME": customization.get("my_hostname", DEFAULT_MY_HOSTNAME),
 }
 
 frontend_config = set()

@@ -52,7 +52,7 @@ class UsbActor(DeviceBaseActor):
         """Handler for binary message from App to Instrument."""
         super().receiveMsg_TxBinaryMsg(msg, sender)
         try:
-            reply = self.instrument.get_message_payload(msg.data)
+            reply = self.instrument.get_message_payload(msg.data, timeout=1)
         except (SerialException, OSError):
             logger.error("Connection to %s lost", self.instrument)
             reply = {"is_valid": False, "is_last_frame": True}
@@ -61,7 +61,7 @@ class UsbActor(DeviceBaseActor):
             self.send(sender, RxBinaryMsg(reply["raw"]))
             while not reply["is_last_frame"]:
                 try:
-                    reply = self.instrument.get_next_payload()
+                    reply = self.instrument.get_next_payload(timeout=1)
                     self.send(sender, RxBinaryMsg(reply["raw"]))
                 except (SerialException, OSError):
                     logger.error("Connection to %s lost", self.my_id)

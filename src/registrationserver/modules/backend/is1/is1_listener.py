@@ -16,7 +16,8 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (SetDeviceStatusMsg,
                                                SetupIs1ActorMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.helpers import check_message, get_ip, make_command_msg
+from registrationserver.config import config
+from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_actor import Is1Actor
 from sarad.sari import SaradInst  # type: ignore
@@ -109,7 +110,7 @@ class Is1Listener(BaseActor):
         self._client_socket = None
         self._socket_info = None
         self.conn = None
-        self._host = get_ip(ipv6=False)
+        self._host = config["MY_IP"]
         self.allow_child_suicide = (
             True  # Children commiting suicide shall not affect the listener.
         )

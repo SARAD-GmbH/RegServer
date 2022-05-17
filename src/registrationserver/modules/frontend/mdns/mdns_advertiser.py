@@ -18,7 +18,7 @@ import socket
 from registrationserver.actor_messages import GetDeviceStatusMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
-from registrationserver.helpers import get_ip, short_id
+from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from zeroconf import ServiceInfo, Zeroconf
 
@@ -30,7 +30,7 @@ class MdnsAdvertiserActor(BaseActor):
         super().__init__()
         self.device_actor = None
         self.tcp_port = None
-        self.address = get_ip(ipv6=False)
+        self.address = config["MY_IP"]
         self.service = None
         self.zeroconf = Zeroconf()
 
