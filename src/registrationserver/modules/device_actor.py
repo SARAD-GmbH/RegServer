@@ -183,23 +183,6 @@ class DeviceBaseActor(BaseActor):
         self._forward_to_children(KillMsg())
         self._publish_status_change()
 
-    @overrides
-    def receiveMsg_ChildActorExited(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Change the device status to Free after receiving the confirmation
-        that the redirector exited."""
-        reservation = {
-            "Active": False,
-            "App": self.device_status["Reservation"]["App"],
-            "Host": self.device_status["Reservation"]["Host"],
-            "User": self.device_status["Reservation"]["User"],
-            "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
-        }
-        logger.info("[Free] %s", reservation)
-        self.device_status["Reservation"] = reservation
-        self._publish_status_change()
-        super().receiveMsg_ChildActorExited(msg, sender)
-
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for GetDeviceStatusMsg asking to send updated information
