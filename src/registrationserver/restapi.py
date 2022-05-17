@@ -167,10 +167,14 @@ class RestApi:
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
         try:
-            logger.debug(request.environ["REMOTE_ADDR"])
-            request_host = socket.gethostbyaddr(request.environ["REMOTE_ADDR"])[0]
+            remote_addr = request.environ["REMOTE_ADDR"].split(":")[-1]
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.error(exception)
+            remote_addr = "0.0.0.0"
+        try:
+            request_host = socket.gethostbyaddr(remote_addr)[0]
         except socket.herror:
-            request_host = request.environ["REMOTE_ADDR"]
+            request_host = remote_addr
         logger.info(
             "Request reservation of %s for %s@%s",
             device_id,

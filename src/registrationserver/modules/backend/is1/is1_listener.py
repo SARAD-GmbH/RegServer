@@ -109,7 +109,7 @@ class Is1Listener(BaseActor):
         self._client_socket = None
         self._socket_info = None
         self.conn = None
-        self._host = get_ip()
+        self._host = get_ip(ipv6=False)
         self.allow_child_suicide = (
             True  # Children commiting suicide shall not affect the listener.
         )

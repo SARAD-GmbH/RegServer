@@ -271,20 +271,38 @@ def delete_keys_from_dict(dictionary, keys):
             delete_keys_from_dict(value, keys)
 
 
-def get_ip():
-    """Find the external IP address of the computer running the RegServer
+def get_ip(ipv6=False):
+    """Find the external IP address of the computer running the RegServer.
+    TODO: The IPv6 part of this function is not yet functional!
+    https://pypi.org/project/netifaces/ might help
 
     Returns:
         string: IP address
     """
+    my_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+    my_socket.settimeout(0)
+    try:
+        # doesn't even have to be reachable
+        my_socket.connect(("fe80::b630:531e:1381:33a3", 1))
+        ipv6_address = my_socket.getsockname()[0]
+    except Exception as exception:  # pylint: disable=broad-except
+        logger.debug(exception)
+        logger.error("Cannot find my external IPv4 address. Fallback to localhost.")
+        ipv6_address = "::1"
+    finally:
+        my_socket.close()
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     my_socket.settimeout(0)
     try:
         # doesn't even have to be reachable
         my_socket.connect(("10.255.255.255", 1))
-        address = my_socket.getsockname()[0]
-    except Exception:  # pylint: disable=broad-except
-        address = "127.0.0.1"
+        ipv4_address = my_socket.getsockname()[0]
+    except Exception as exception:  # pylint: disable=broad-except
+        logger.debug(exception)
+        logger.error("Cannot find my external IPv4 address. Fallback to localhost.")
+        ipv4_address = "127.0.0.1"
     finally:
         my_socket.close()
-    return address
+    if ipv6:
+        return ipv6_address
+    return ipv4_address

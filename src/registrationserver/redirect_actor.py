@@ -21,6 +21,7 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import SocketMsg, Status, TxBinaryMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
+from registrationserver.helpers import get_ip
 from registrationserver.logger import logger
 
 logger.debug("%s -> %s", __package__, __file__)
@@ -36,7 +37,7 @@ class RedirectorActor(BaseActor):
         self._client_socket = None
         self._socket_info = None
         self.conn = None
-        self._host = config["HOST"]
+        self._host = get_ip(ipv6=False)
         logger.debug("IP address of Registration Server: %s", self._host)
         for self._port in config["PORT_RANGE"]:
             try:

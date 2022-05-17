@@ -30,7 +30,7 @@ class MdnsAdvertiserActor(BaseActor):
         super().__init__()
         self.device_actor = None
         self.tcp_port = None
-        self.address = get_ip()
+        self.address = get_ip(ipv6=False)
         self.service = None
         self.zeroconf = Zeroconf()
 

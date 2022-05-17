@@ -11,12 +11,12 @@ services (SARAD devices) in the local network.
 .. uml:: uml-mdns_listener.puml
 
 """
-import socket
 import threading
 
 from zeroconf import IPVersion, ServiceBrowser, ServiceListener, Zeroconf
 
 from registrationserver import config
+from registrationserver.helpers import get_ip
 from registrationserver.logger import logger
 
 logger.debug("%s -> %s", __package__, __file__)
@@ -30,21 +30,6 @@ class MdnsListener(ServiceListener):
     * removes services when they disapear from the network
     """
 
-    @staticmethod
-    def get_ip():
-        """Find my own IP address"""
-        test_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            # doesn't even have to be reachable
-            test_socket.connect(("10.255.255.255", 1))
-            ip_address = test_socket.getsockname()[0]
-        except Exception:  # pylint: disable=broad-except
-            ip_address = "127.0.0.1"
-        finally:
-            test_socket.close()
-        logger.debug("My IP address is %s", ip_address)
-        return ip_address
-
     def __init__(self, _type):
         """
         Initialize a mdns Listener for a specific device group
@@ -52,7 +37,7 @@ class MdnsListener(ServiceListener):
         self.__type: str = type
         self.__lock = threading.Lock()
         self.__zeroconf = Zeroconf(
-            ip_version=IPVersion.All, interfaces=[self.get_ip(), "127.0.0.1"]
+            ip_version=IPVersion.All, interfaces=[get_ip(ipv6=False), "127.0.0.1"]
         )
         self.__browser = ServiceBrowser(self.__zeroconf, _type, self)
 
