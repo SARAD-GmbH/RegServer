@@ -167,7 +167,8 @@ class RestApi:
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
         try:
-            remote_addr = request.environ["REMOTE_ADDR"].split(":")[-1]
+            remote_addr = request.remote_addr
+            logger.debug(remote_addr)
         except Exception as exception:  # pylint: disable=broad-except
             logger.error(exception)
             remote_addr = "0.0.0.0"
