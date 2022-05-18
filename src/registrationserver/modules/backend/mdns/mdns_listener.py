@@ -65,7 +65,7 @@ class MdnsListener(ServiceListener):
         _ids = hids.decode(_device_id)
         if _ids is None:
             return None
-        if (len(_ids) != 3) or not info.port:
+        if len(_ids) != 3:
             return None
         _addr = ""
         try:
@@ -85,7 +85,6 @@ class MdnsListener(ServiceListener):
             },
             "Remote": {
                 "Address": _addr_ip,
-                "Port": info.port,
                 "Name": name,
                 "API port": _api_port,
             },
@@ -125,10 +124,9 @@ class MdnsListener(ServiceListener):
                     device_actor = reply.actor_address
                     data = self.convert_properties(name=name, info=info)
                     is_host = data["Remote"]["Address"]
-                    is_port = data["Remote"]["Port"]
                     api_port = data["Remote"]["API port"]
                     ActorSystem().tell(
-                        device_actor, SetupMdnsActorMsg(is_host, is_port, api_port)
+                        device_actor, SetupMdnsActorMsg(is_host, api_port)
                     )
                     logger.debug("Setup the device actor with %s", data)
                     ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))

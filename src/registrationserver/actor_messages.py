@@ -131,12 +131,10 @@ class SetupMdnsActorMsg:
 
     Args:
         is_host (str): IP address of IS2.
-        is_port (int): IP port the IS2 is listening on.
         api_port (int): Port the REST API of IS2 is on.
     """
 
     is_host: str
-    is_port: int
     api_port: int
 
 
