@@ -11,12 +11,13 @@ Author
 
 """
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import KillMsg, SetupRedirectorMsg
+from registrationserver.actor_messages import (KillMsg,
+                                               SetupMdnsAdvertiserActorMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.helpers import diff_of_dicts, short_id
 from registrationserver.logger import logger
-from registrationserver.modules.frontend.mdns.redirector import \
-    MdnsRedirectorActor
+from registrationserver.modules.frontend.mdns.mdns_advertiser import \
+    MdnsAdvertiserActor
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -25,8 +26,8 @@ class MdnsSchedulerActor(BaseActor):
     """Actor interacting with a new device"""
 
     @staticmethod
-    def _redirector(instr_id):
-        return f"redirector-{instr_id}"
+    def _advertiser(instr_id):
+        return f"advertiser-{instr_id}"
 
     @overrides
     def __init__(self):
@@ -62,17 +63,21 @@ class MdnsSchedulerActor(BaseActor):
 
     def _create_instrument(self, instr_id):
         """Create advertiser actor if it does not exist already"""
-        logger.debug("Create MdnsRedirectorActor of %s", instr_id)
-        redirector = self._create_actor(MdnsRedirectorActor, self._redirector(instr_id))
+        logger.debug("Create MdnsAdvertiserActor of %s", instr_id)
+        my_advertiser = self._create_actor(
+            MdnsAdvertiserActor, self._advertiser(instr_id)
+        )
         self.send(
-            redirector,
-            SetupRedirectorMsg(device_actor=self.instr_id_actor_dict[instr_id]),
+            my_advertiser,
+            SetupMdnsAdvertiserActorMsg(
+                device_actor=self.instr_id_actor_dict[instr_id]
+            ),
         )
 
     def _remove_instrument(self, instr_id):
         # pylint: disable=invalid-name
-        """Remove the redirector actor for instr_id."""
-        logger.debug("Remove redirector of %s", instr_id)
+        """Remove the advertiser actor for instr_id."""
+        logger.debug("Remove advertiser of %s", instr_id)
         self.send(
-            self.child_actors[self._redirector(instr_id)]["actor_address"], KillMsg()
+            self.child_actors[self._advertiser(instr_id)]["actor_address"], KillMsg()
         )

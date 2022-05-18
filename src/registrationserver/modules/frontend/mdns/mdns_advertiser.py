@@ -29,7 +29,7 @@ class MdnsAdvertiserActor(BaseActor):
     def __init__(self):
         super().__init__()
         self.device_actor = None
-        self.tcp_port = None
+        self.tcp_port = config["API_PORT"]
         self.address = config["MY_IP"]
         self.service = None
         self.zeroconf = Zeroconf()
@@ -39,7 +39,6 @@ class MdnsAdvertiserActor(BaseActor):
         """Handler for the initialisation message from MdnsRedirectorActor"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.device_actor = msg.device_actor
-        self.tcp_port = msg.tcp_port
         self.send(self.device_actor, GetDeviceStatusMsg())
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
@@ -67,7 +66,6 @@ class MdnsAdvertiserActor(BaseActor):
             "VENDOR": "SARAD GmbH",
             "MODEL_ENC": instr_name,
             "SERIAL_SHORT": service_name,
-            "API_PORT": config["API_PORT"],
         }
         self.service = ServiceInfo(
             "_raw._tcp.local.",

@@ -139,30 +139,15 @@ class SetupMdnsActorMsg:
 
 
 @dataclass
-class SetupRedirectorMsg:
-    """Message used to send the special setup information required for mDNS
-    Redirector Actors.
-
-    Args:
-        device_actor (ActorAddress): address of the associated device actor
-
-    """
-
-    device_actor: ActorAddress
-
-
-@dataclass
 class SetupMdnsAdvertiserActorMsg:
     """Message used to send the special setup information required for mDNS Advertiser Actors.
     The parameters are required to advertise the raw socket connection via Zeroconf.
 
     Args:
         device_actor (ActorAddress): address of the associated device actor
-        tcp_port (int): TCP port number that shall be used for the service
     """
 
     device_actor: ActorAddress
-    tcp_port: int
 
 
 @dataclass

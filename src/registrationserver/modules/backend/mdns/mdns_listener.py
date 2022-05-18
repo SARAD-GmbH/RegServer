@@ -50,12 +50,6 @@ class MdnsListener(ServiceListener):
             if _model is None:
                 return None
         _model = _model.decode("utf-8")
-        _api_port = properties.get(b"API_PORT")
-        if _api_port is None:
-            logger.debug("Fallback to default API port")
-            _api_port = config["API_PORT"]
-        else:
-            _api_port = _api_port.decode("utf-8")
         _serial_short = properties.get(b"SERIAL_SHORT")
         if _serial_short is None:
             return None
@@ -86,7 +80,7 @@ class MdnsListener(ServiceListener):
             "Remote": {
                 "Address": _addr_ip,
                 "Name": name,
-                "API port": _api_port,
+                "API port": info.port,
             },
         }
 
