@@ -155,6 +155,7 @@ class RestApi:
             attribute_who = request.args.get("who").strip('"')
             app = attribute_who.split(" - ")[0]
             user = attribute_who.split(" - ")[1]
+            request_host = attribute_who.split(" - ")[2]
         except (IndexError, AttributeError):
             logger.error("Reserve request without proper who attribute.")
             status = Status.ATTRIBUTE_ERROR
@@ -166,17 +167,6 @@ class RestApi:
             return Response(
                 response=json.dumps(answer), status=200, mimetype="application/json"
             )
-        try:
-            remote_addr = request.remote_addr
-            logger.debug(remote_addr)
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.error(exception)
-            remote_addr = "0.0.0.0"
-        try:
-            request_host = socket.gethostbyaddr(remote_addr)[0]
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.error(exception)
-            request_host = remote_addr
         logger.info(
             "Request reservation of %s for %s@%s",
             device_id,

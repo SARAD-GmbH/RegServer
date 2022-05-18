@@ -87,7 +87,7 @@ class DeviceActor(DeviceBaseActor):
                     reservation.pop("Port", None)
                     self.device_status["Reservation"] = reservation
                 if (reservation is None) or not reservation.get("Active", False):
-                    app = f"{self.app} - {self.user}"
+                    app = f"{self.app} - {self.user} - {self.host}"
                     logger.debug("Try to reserve this instrument for %s.", app)
                     resp = requests.get(
                         f"{base_url}/list/{device_id}/reserve", {"who": app}
