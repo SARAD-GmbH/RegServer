@@ -14,9 +14,11 @@ import time
 
 import requests
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import KillMsg, RxBinaryMsg, Status
+from registrationserver.actor_messages import (KillMsg, ReservationStatusMsg,
+                                               RxBinaryMsg, Status)
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
+from registrationserver.shutdown import system_shutdown
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -170,11 +172,15 @@ class DeviceActor(DeviceBaseActor):
         for device_id, device_desc in list_resp.json().items():
             if device_id.split(".")[0] == self.my_id.split(".")[0]:
                 reservation = device_desc.get("Reservation")
+                self.device_status["Reservation"] = reservation
                 if (reservation is None) or not reservation.get("Active", False):
-                    logger.debug("Try to reserve this instrument for me.")
                     app = f"{self.app} - {self.user}"
+                    logger.debug("Try to reserve this instrument for %s.", app)
                     resp = requests.get(
                         f"{base_url}/list/{device_id}/reserve", {"who": app}
+                    )
+                    self.device_status["Reservation"] = resp.json()[device_id].get(
+                        "Reservation"
                     )
                     if resp.status_code != 200:
                         success = Status.IS_NOT_FOUND
@@ -195,3 +201,16 @@ class DeviceActor(DeviceBaseActor):
                         logger.debug("Occupied by somebody else.")
                         success = Status.OCCUPIED
         self._forward_reservation(success)
+
+    @overrides
+    def _forward_reservation(self, success: Status):
+        """Forward the reservation state from the Instrument Server to the REST API."""
+        if success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
+            logger.error(
+                "Reservation failed with %s. Removing device from list.", success
+            )
+            self.send(self.myAddress, KillMsg())
+        elif success == Status.ERROR:
+            logger.critical("%s during reservation", success)
+            system_shutdown()
+        self.send(self.sender_api, ReservationStatusMsg(success))
