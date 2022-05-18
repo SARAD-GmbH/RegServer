@@ -126,3 +126,32 @@ class DeviceActor(DeviceBaseActor):
             logger.critical("%s during reservation", success)
             system_shutdown()
         self.send(self.sender_api, ReservationStatusMsg(success))
+
+    @overrides
+    def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
+        """Handler for GetDeviceStatusMsg asking to send updated information
+        about the device status to the sender.
+
+        Sends back a message containing the device_status."""
+        base_url = f"http://{self._is_host}:{self._api_port}"
+        list_resp = requests.get(f"{base_url}/list/")
+        if list_resp.status_code != 200:
+            success = Status.IS_NOT_FOUND
+            logger.error(success)
+            self.send(self.myAddress, KillMsg())
+        else:
+            for device_id, device_desc in list_resp.json().items():
+                if device_id.split(".")[0] == self.my_id.split(".")[0]:
+                    reservation = device_desc.get("Reservation")
+                    using_host = reservation.get("Host", "").split(".")[0]
+                    my_host = config["MY_HOSTNAME"].split(".")[0]
+                    if using_host == my_host:
+                        logger.debug("Occupied by me.")
+                        success = Status.OK_SKIPPED
+                    else:
+                        logger.debug("Occupied by somebody else.")
+                        success = Status.OCCUPIED
+                        reservation.pop("IP", None)
+                        reservation.pop("Port", None)
+                    self.device_status["Reservation"] = reservation
+        super().receiveMsg_GetDeviceStatusMsg(msg, sender)
