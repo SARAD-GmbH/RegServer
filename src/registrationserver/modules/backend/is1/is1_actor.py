@@ -49,21 +49,20 @@ class Is1Actor(DeviceBaseActor):
         if self._socket is None:
             socket.setdefaulttimeout(5)
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            retry = True
-            counter = 5
-            while retry and counter:
+            retry_counter = 5
+            while retry_counter:
                 try:
                     logger.debug(
                         "Trying to connect %s:%d", self._is_host, self._is_port
                     )
                     self._socket.connect((self._is_host, self._is_port))
-                    retry = False
+                    retry_counter = 0
                     return True
                 except ConnectionRefusedError:
-                    counter = counter - 1
-                    logger.debug("%d retries left", counter)
+                    retry_counter = retry_counter - 1
+                    logger.debug("%d retries left", retry_counter)
                     time.sleep(1)
-            if retry:
+            if retry_counter:
                 logger.error(
                     "Connection refused on %s:%d", self._is_host, self._is_port
                 )
@@ -83,22 +82,22 @@ class Is1Actor(DeviceBaseActor):
             logger.debug("Socket shutdown and closed.")
 
     def _send_via_socket(self, msg):
-        retry = True
-        counter = 5
-        while retry and counter:
+        retry_counter = 5
+        while retry_counter:
             try:
                 self._socket.sendall(msg)
-                retry = False
+                retry_counter = 0
+                success = True
             except OSError as exception:
                 logger.error(exception)
                 try:
                     self._establish_socket()
                 except OSError as re_exception:
                     logger.error("Failed to re-establish socket: %s", re_exception)
-                counter = counter - 1
-                logger.debug("%d retries left", counter)
+                retry_counter = retry_counter - 1
+                logger.debug("%d retries left", retry_counter)
                 time.sleep(1)
-        if retry:
+        if retry_counter and not success:
             logger.error("Cannot send to IS1")
             self.send(self.myAddress, KillMsg())
 
@@ -110,22 +109,23 @@ class Is1Actor(DeviceBaseActor):
         if not self._establish_socket():
             logger.error("Can't establish the client socket.")
             return
-        self._send_via_socket(msg.data)
-        try:
-            reply = self._socket.recv(1024)
-        except TimeoutError:
-            logger.warning("Timeout on waiting for reply from IS1. Retrying...")
-            # Dirty workaround for bug in SARAD instruments
-            # Sometimes an instrument just doesn't answer.
+        # Dirty workaround for bug in SARAD instruments
+        # Sometimes an instrument just doesn't answer.
+        retry_counter = 5
+        while retry_counter:
             self._send_via_socket(msg.data)
             try:
                 reply = self._socket.recv(1024)
+                retry_counter = 0
+                success = True
             except TimeoutError:
-                logger.error("Timeout on waiting for reply from IS1")
-                self.send(self.myAddress, KillMsg())
-            return
-        return_message = RxBinaryMsg(reply)
-        self.send(self.redirector_actor, return_message)
+                logger.warning("Timeout on waiting for reply from IS1. Retrying...")
+                retry_counter = retry_counter - 1
+        if retry_counter and not success:
+            logger.error("Timeout on waiting for reply from IS1")
+            self.send(self.myAddress, KillMsg())
+            reply = b""
+        self.send(self.redirector_actor, RxBinaryMsg(reply))
 
     @overrides
     def _reserve_at_is(self):
