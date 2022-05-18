@@ -12,7 +12,6 @@ connected instrument.
 Based on work of Riccardo Förster <foerster@sarad.de>.
 
 """
-
 import socket
 
 from registrationserver.actor_messages import GetDeviceStatusMsg
@@ -74,7 +73,6 @@ class MdnsAdvertiserActor(BaseActor):
             weight=0,
             priority=0,
             properties=properties,
-            server=f"{socket.gethostname()}.local.",
             addresses=[socket.inet_aton(self.address)],
         )
         self.zeroconf.register_service(self.service)
