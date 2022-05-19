@@ -50,6 +50,7 @@ class Is1Actor(DeviceBaseActor):
             socket.setdefaulttimeout(5)
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             retry_counter = 5
+            success = False
             while retry_counter:
                 try:
                     logger.debug(
@@ -57,12 +58,13 @@ class Is1Actor(DeviceBaseActor):
                     )
                     self._socket.connect((self._is_host, self._is_port))
                     retry_counter = 0
+                    success = True
                     return True
                 except ConnectionRefusedError:
                     retry_counter = retry_counter - 1
                     logger.debug("%d retries left", retry_counter)
                     time.sleep(1)
-            if retry_counter:
+            if not success:
                 logger.error(
                     "Connection refused on %s:%d", self._is_host, self._is_port
                 )
@@ -83,6 +85,7 @@ class Is1Actor(DeviceBaseActor):
 
     def _send_via_socket(self, msg):
         retry_counter = 5
+        success = False
         while retry_counter:
             try:
                 self._socket.sendall(msg)
@@ -97,7 +100,7 @@ class Is1Actor(DeviceBaseActor):
                 retry_counter = retry_counter - 1
                 logger.debug("%d retries left", retry_counter)
                 time.sleep(1)
-        if retry_counter and not success:
+        if not success:
             logger.error("Cannot send to IS1")
             self.send(self.myAddress, KillMsg())
 
@@ -112,6 +115,7 @@ class Is1Actor(DeviceBaseActor):
         # Dirty workaround for bug in SARAD instruments
         # Sometimes an instrument just doesn't answer.
         retry_counter = 5
+        success = False
         while retry_counter:
             self._send_via_socket(msg.data)
             try:
@@ -121,7 +125,7 @@ class Is1Actor(DeviceBaseActor):
             except TimeoutError:
                 logger.warning("Timeout on waiting for reply from IS1. Retrying...")
                 retry_counter = retry_counter - 1
-        if retry_counter and not success:
+        if not success:
             logger.error("Timeout on waiting for reply from IS1")
             self.send(self.myAddress, KillMsg())
             reply = b""
