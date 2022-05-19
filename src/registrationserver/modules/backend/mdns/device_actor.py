@@ -134,6 +134,10 @@ class DeviceActor(DeviceBaseActor):
         about the device status to the sender.
 
         Sends back a message containing the device_status."""
+        if (self._is_host is None) or (self._api_port is None):
+            logger.warning("Actor initialisation incomplete.")
+            super().receiveMsg_GetDeviceStatusMsg(msg, sender)
+            return
         base_url = f"http://{self._is_host}:{self._api_port}"
         list_resp = requests.get(f"{base_url}/list/")
         if list_resp.status_code != 200:
