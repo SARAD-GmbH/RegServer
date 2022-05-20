@@ -126,11 +126,17 @@ class Registrar(BaseActor):
                 if (short_id(actor_id) == short_id(msg.actor_id)) and (
                     actor_id != msg.actor_id
                 ):
-                    logger.debug(
-                        "%s has already a device actor - skip", short_id(actor_id)
-                    )
-                    self.send(sender, KillMsg())
-                    return
+                    if actor_id.split(".")[-1] == "is1":
+                        logger.debug(
+                            "Replace existing device actor by %s", short_id(actor_id)
+                        )
+                        self.send(self.actor_dict[actor_id]["address"], KillMsg())
+                    else:
+                        logger.debug(
+                            "%s has already a device actor - skip", short_id(actor_id)
+                        )
+                        self.send(sender, KillMsg())
+                        return
 
     def receiveMsg_UnsubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
