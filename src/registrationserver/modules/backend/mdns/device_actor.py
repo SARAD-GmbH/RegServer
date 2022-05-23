@@ -47,7 +47,7 @@ class DeviceActor(DeviceBaseActor):
             list_resp = requests.get(f"{base_url}/list/")
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
-        if (list_resp.status_code != 200) or exception:
+        if exception or (list_resp.status_code != 200):
             success = Status.IS_NOT_FOUND
             logger.error("%s, cannot access REST API of IS", success)
             super().receiveMsg_FreeDeviceMsg(msg, sender)
@@ -60,7 +60,7 @@ class DeviceActor(DeviceBaseActor):
                         resp = requests.get(f"{base_url}/list/{device_id}/free")
                     except Exception as exception:  # pylint: disable=broad-except
                         logger.error("REST API of IS is not responding. %s", exception)
-                    if (resp.status_code != 200) or exception:
+                    if exception or (list_resp.status_code != 200):
                         success = Status.IS_NOT_FOUND
                         logger.error("%s, cannot access REST API of IS", success)
                     else:
@@ -84,7 +84,7 @@ class DeviceActor(DeviceBaseActor):
             list_resp = requests.get(f"{base_url}/list/")
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
-        if (list_resp.status_code != 200) or exception:
+        if exception or (list_resp.status_code != 200):
             success = Status.IS_NOT_FOUND
             self._forward_reservation(success)
             return
@@ -104,7 +104,7 @@ class DeviceActor(DeviceBaseActor):
                         )
                     except Exception as exception:  # pylint: disable=broad-except
                         logger.error("REST API of IS is not responding. %s", exception)
-                    if (resp.status_code != 200) or exception:
+                    if exception or (list_resp.status_code != 200):
                         success = Status.IS_NOT_FOUND
                         self._forward_reservation(success)
                         return
@@ -157,7 +157,7 @@ class DeviceActor(DeviceBaseActor):
             list_resp = requests.get(f"{base_url}/list/")
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
-        if (list_resp.status_code != 200) or exception:
+        if exception or (list_resp.status_code != 200):
             success = Status.IS_NOT_FOUND
             logger.error(success)
             self.send(self.myAddress, KillMsg())
