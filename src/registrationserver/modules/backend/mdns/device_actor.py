@@ -43,6 +43,7 @@ class DeviceActor(DeviceBaseActor):
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         base_url = f"http://{self._is_host}:{self._api_port}"
+        exception = False
         try:
             list_resp = requests.get(f"{base_url}/list/")
         except Exception as exception:  # pylint: disable=broad-except
@@ -56,6 +57,7 @@ class DeviceActor(DeviceBaseActor):
             if device_id.split(".")[0] == self.my_id.split(".")[0]:
                 reservation = device_desc.get("Reservation")
                 if (reservation is None) or reservation.get("Active", True):
+                    exception = False
                     try:
                         resp = requests.get(f"{base_url}/list/{device_id}/free")
                     except Exception as exception:  # pylint: disable=broad-except
@@ -80,6 +82,7 @@ class DeviceActor(DeviceBaseActor):
     def _reserve_at_is(self):
         """Reserve the requested instrument at the instrument server."""
         base_url = f"http://{self._is_host}:{self._api_port}"
+        exception = False
         try:
             list_resp = requests.get(f"{base_url}/list/")
         except Exception as exception:  # pylint: disable=broad-except
@@ -98,6 +101,7 @@ class DeviceActor(DeviceBaseActor):
                 if (reservation is None) or not reservation.get("Active", False):
                     app = f"{self.app} - {self.user} - {self.host}"
                     logger.debug("Try to reserve this instrument for %s.", app)
+                    exception = False
                     try:
                         resp = requests.get(
                             f"{base_url}/list/{device_id}/reserve", {"who": app}
