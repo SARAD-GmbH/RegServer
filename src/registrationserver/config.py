@@ -158,6 +158,8 @@ else:
         frontend_config.add(Frontend.MQTT)
     if customization["frontends"].get("mdns", False):
         frontend_config.add(Frontend.MDNS)
+        # REST frontend is part of the mDNS frontend
+        frontend_config.add(Frontend.REST)
 
 backend_config = set()
 DEFAULT_BACKENDS = {Backend.USB, Backend.MDNS, Backend.MQTT, Backend.IS1}
