@@ -63,6 +63,8 @@ class MqttSchedulerActor(MqttBaseActor):
 
     @overrides
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
+        if not self.is_connected:
+            return
         super().receiveMsg_UpdateActorDictMsg(msg, sender)
         old_instr_id_actor_dict = self.instr_id_actor_dict
         self.instr_id_actor_dict = {
@@ -142,6 +144,8 @@ class MqttSchedulerActor(MqttBaseActor):
         )
         self._subscribe_topic([(f"{self.is_id}/+/meta", 0)])
         self._subscribe_to_actor_dict_msg()
+        for instr_id in self.instr_id_actor_dict:
+            self.process_free(instr_id)
 
     def on_control(self, _client, _userdata, message):
         """Event handler for all MQTT messages with control topic."""
