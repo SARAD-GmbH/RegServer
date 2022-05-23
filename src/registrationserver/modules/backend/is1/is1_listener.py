@@ -273,6 +273,7 @@ class Is1Listener(BaseActor):
                 "Type": type_id,
                 "Serial number": serial_number,
                 "Host": host,
+                "Origin": host,
                 "Protocol": sarad_type,
             },
             "State": 2,
