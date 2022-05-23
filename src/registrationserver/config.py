@@ -99,6 +99,10 @@ DEFAULT_API_PORT = 8008
 DEFAULT_HOST = "::"
 DEFAULT_MY_IP = get_ip(ipv6=False)
 DEFAULT_MY_HOSTNAME = get_hostname(DEFAULT_MY_IP)
+try:
+    DEFAULT_IS_ID = socket.gethostname()
+except Exception:  # pylint: disable=broad-except
+    DEFAULT_IS_ID = "Instrument Server"
 level_dict = {
     "info": logging.INFO,
     "warning": logging.WARNING,
@@ -145,6 +149,7 @@ config = {
     "HOST": customization.get("host", DEFAULT_HOST),
     "MY_IP": customization.get("my_ip", DEFAULT_MY_IP),
     "MY_HOSTNAME": customization.get("my_hostname", DEFAULT_MY_HOSTNAME),
+    "IS_ID": customization.get("is_id", DEFAULT_IS_ID),
 }
 
 frontend_config = set()
@@ -290,10 +295,6 @@ else:
         ),
     }
 
-try:
-    DEFAULT_ISMQTT_IS_ID = socket.gethostname()
-except Exception:  # pylint: disable=broad-except
-    DEFAULT_ISMQTT_IS_ID = "IS_MQTT"
 DEFAULT_ISMQTT_DESCRIPTION = "SARAD Instrument Server"
 DEFAULT_ISMQTT_PLACE = "Dresden"
 DEFAULT_ISMQTT_LATITUDE = 0
@@ -301,7 +302,6 @@ DEFAULT_ISMQTT_LONGITUDE = 0
 DEFAULT_ISMQTT_HEIGHT = 0
 if customization.get("ismqtt") is None:
     ismqtt_config = {
-        "IS_ID": DEFAULT_ISMQTT_IS_ID,
         "DESCRIPTION": DEFAULT_ISMQTT_DESCRIPTION,
         "PLACE": DEFAULT_ISMQTT_PLACE,
         "LATITUDE": DEFAULT_ISMQTT_LATITUDE,
@@ -310,7 +310,6 @@ if customization.get("ismqtt") is None:
     }
 else:
     ismqtt_config = {
-        "IS_ID": customization["ismqtt"].get("is_id", DEFAULT_ISMQTT_IS_ID),
         "DESCRIPTION": customization["ismqtt"].get(
             "description", DEFAULT_ISMQTT_DESCRIPTION
         ),

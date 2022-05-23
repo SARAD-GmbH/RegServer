@@ -173,6 +173,9 @@ class DeviceActor(DeviceBaseActor):
         else:
             for device_id, device_desc in list_resp.json().items():
                 if device_id.split(".")[0] == self.my_id.split(".")[0]:
+                    self.device_status["Identification"]["Origin"] = device_desc[
+                        "Identification"
+                    ].get("Origin")
                     reservation = device_desc.get("Reservation")
                     if reservation is not None:
                         using_host = reservation.get("Host", "").split(".")[0]

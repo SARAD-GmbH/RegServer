@@ -12,9 +12,10 @@ host = "::"  # all hosts IPv6
 # host = "192.168.10.19"  # Michael@HomeVPN
 # host = "ap-strey.hq.sarad.de"  # Michael@Work
 # host = "192.168.178.20"  # Michael@Home
+is_id = "aranea0003"
 
 [frontends]
-rest = true
+rest = false
 mqtt = false
 mdns = true
 
@@ -40,7 +41,6 @@ retry_interval = 5
 tls_use_tls = true
 
 [ismqtt]
-is_id = "aranea0003"
 description = "A longer text describing this Instrument Server"
 place = "A text describing where the Instrument Controller running this Instrument Server is placed"
 latitude = 51.0764194  # positive values for North, negative for South

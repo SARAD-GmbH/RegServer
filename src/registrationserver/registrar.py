@@ -48,7 +48,7 @@ class Registrar(BaseActor):
                 mqtt_scheduler,
                 PrepareMqttActorMsg(
                     is_id=None,
-                    client_id=configuration.ismqtt_config["IS_ID"],
+                    client_id=configuration.config["IS_ID"],
                 ),
             )
         if Frontend.MDNS in configuration.frontend_config:

@@ -7,6 +7,7 @@ ignored_serial_ports = []
 local_retry_interval = 86400  # in seconds
 api_port = 8008
 host = "::"  # all hosts IPv6
+is_id = "Instrument Server A"
 
 [frontends]
 rest = true
@@ -35,7 +36,6 @@ retry_interval = 5
 tls_use_tls = true
 
 [ismqtt]
-is_id = "Instrument Server A"
 description = "A longer text describing this Instrument Server"
 place = "A text describing where the Instrument Controller running this Instrument Server is placed"
 latitude = 51.0764194  # positive values for North, negative for South

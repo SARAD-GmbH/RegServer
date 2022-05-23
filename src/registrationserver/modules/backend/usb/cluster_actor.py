@@ -228,6 +228,7 @@ class ClusterActor(BaseActor):
                 "Serial number": instrument.serial_number,
                 "Host": "127.0.0.1",
                 "Protocol": sarad_type,
+                "Origin": config["IS_ID"],
             },
             "Serial": instrument.port,
         }

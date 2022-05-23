@@ -13,7 +13,7 @@ from datetime import datetime
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import TxBinaryMsg
-from registrationserver.config import ismqtt_config
+from registrationserver.config import config, ismqtt_config
 from registrationserver.helpers import diff_of_dicts, get_key, short_id
 from registrationserver.logger import logger
 from registrationserver.modules import ismqtt_messages
@@ -36,7 +36,7 @@ class MqttSchedulerActor(MqttBaseActor):
         # cmd_id to check the correct order of messages
         self.cmd_ids = {}  # {instr_id: <command id>}
         self.msg_id["PUBLISH"] = None
-        self.is_id = ismqtt_config["IS_ID"]
+        self.is_id = config["IS_ID"]
         self.is_meta = ismqtt_messages.InstrumentServerMeta(
             state=0,
             host=self.is_id,
