@@ -71,9 +71,7 @@ class DeviceBaseActor(BaseActor):
         self.device_status = msg.device_status
         logger.debug("Device status: %s", self.device_status)
         if Frontend.MQTT in configuration.frontend_config:
-            self.device_status["Identification"]["Host"] = configuration.ismqtt_config[
-                "IS_ID"
-            ]
+            self.device_status["Identification"]["Host"] = configuration.config["IS_ID"]
         self._publish_status_change()
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
