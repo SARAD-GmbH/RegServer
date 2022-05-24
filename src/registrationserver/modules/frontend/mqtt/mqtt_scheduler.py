@@ -80,7 +80,7 @@ class MqttSchedulerActor(MqttBaseActor):
             old_instr_id_actor_dict, self.instr_id_actor_dict
         )
         logger.debug("Gone instruments %s", gone_instruments)
-        for address in new_instruments.values():
+        for address in self.instr_id_actor_dict.values():
             self._subscribe_to_device_status_msg(address)
         for instr_id in gone_instruments:
             self._remove_instrument(instr_id)
