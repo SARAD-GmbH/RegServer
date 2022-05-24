@@ -136,7 +136,7 @@ def shutdown(startup_tupel, wait_some_time, registrar_is_down):
         ActorSystem().shutdown()
     except OSError as exception:
         logger.critical(exception)
-        kill_residual_processes()
+    kill_residual_processes()
 
 
 def kill_residual_processes():
