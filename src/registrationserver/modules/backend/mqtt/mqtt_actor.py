@@ -140,16 +140,6 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             msg: ChildActorExited message
             sender: usually the redirector actor
         """
-        logger.debug("Redirector actor exited")
-        _msg = {
-            "topic": self.allowed_sys_topics["CTRL"],
-            "payload": json.dumps({"Req": "free"}),
-            "qos": 0,
-            "retain": True,
-        }
-        _re = self._publish(_msg)
-        logger.info("Unsubscribe MQTT actor from 'msg' topic")
-        self._unsubscribe_topic([self.allowed_sys_topics["MSG"]])
         DeviceBaseActor.receiveMsg_ChildActorExited(self, msg, sender)
         MqttBaseActor.receiveMsg_ChildActorExited(self, msg, sender)
 
@@ -177,6 +167,19 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         )
         if self._connect(self.mqtt_broker, self.port):
             self.mqttc.loop_start()
+
+    @overrides
+    def receiveMsg_FreeDeviceMsg(self, msg, sender):
+        super().receiveMsg_FreeDeviceMsg(msg, sender)
+        _msg = {
+            "topic": self.allowed_sys_topics["CTRL"],
+            "payload": json.dumps({"Req": "free"}),
+            "qos": 0,
+            "retain": True,
+        }
+        _re = self._publish(_msg)
+        logger.info("Unsubscribe MQTT actor from 'msg' topic")
+        self._unsubscribe_topic([self.allowed_sys_topics["MSG"]])
 
     def on_reserve(self, _client, _userdata, message):
         """Handler for MQTT messages regarding reservation of instruments"""

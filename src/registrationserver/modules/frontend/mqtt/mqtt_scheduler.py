@@ -168,6 +168,7 @@ class MqttSchedulerActor(MqttBaseActor):
                         payload=get_instr_reservation(reservation_object),
                         retain=True,
                     )
+            self.pending_control_action = ControlType.UNKNOWN
 
     def _remove_instrument(self, instr_id):
         # pylint: disable=invalid-name
