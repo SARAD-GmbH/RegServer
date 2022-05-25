@@ -228,19 +228,15 @@ class RestApi:
         if device_state == {}:
             status = Status.NOT_FOUND
         else:
-            reservation = device_state.get("Reservation")
-            if (reservation is None) or reservation.get("Active", True):
-                device_actor = get_actor(registrar_actor, device_id)
-                logger.debug("Ask device actor to FREE...")
-                free_return = ActorSystem().ask(
-                    device_actor, FreeDeviceMsg(), timeout=timedelta(seconds=10)
-                )
-                reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
-                if reply_is_corrupted:
-                    return reply_is_corrupted
-                status = free_return.status
-            else:
-                status = Status.OK_SKIPPED
+            device_actor = get_actor(registrar_actor, device_id)
+            logger.debug("Ask device actor to FREE...")
+            free_return = ActorSystem().ask(
+                device_actor, FreeDeviceMsg(), timeout=timedelta(seconds=10)
+            )
+            reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
+            if reply_is_corrupted:
+                return reply_is_corrupted
+            status = free_return.status
         answer = {"Error code": status.value, "Error": str(status), device_id: {}}
         if status in (Status.OK, Status.OCCUPIED):
             answer[device_id] = get_device_status(registrar_actor, device_id)
