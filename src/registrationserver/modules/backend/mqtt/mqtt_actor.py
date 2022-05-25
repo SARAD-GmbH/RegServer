@@ -124,7 +124,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                     }
                 ),
                 "qos": 0,
-                "retain": True,
+                "retain": False,
             }
             self.state["RESERVE"]["Pending"] = True
             if not self._publish(_msg):

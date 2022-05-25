@@ -35,7 +35,7 @@ class MdnsAdvertiserActor(BaseActor):
 
     def receiveMsg_SetupMdnsAdvertiserActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Handler for the initialisation message from MdnsRedirectorActor"""
+        """Handler for the initialisation message from MdnsScheduler"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.device_actor = msg.device_actor
         self.send(self.device_actor, GetDeviceStatusMsg())

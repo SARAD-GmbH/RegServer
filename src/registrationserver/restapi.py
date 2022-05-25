@@ -12,7 +12,6 @@
 """
 
 import re
-import socket
 import sys
 import time
 from datetime import timedelta

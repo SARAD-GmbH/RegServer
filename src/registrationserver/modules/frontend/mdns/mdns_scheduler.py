@@ -1,7 +1,7 @@
 """mDNS Scheduler Actor for mDNS frontend
 
 This actor will be created as singleton by the Registrar Actor if mDNS frontend
-is active. It manages the creation and removal of MdnsRedirector Actors.
+is active. It manages the creation and removal of MdnsAdvertiserActors.
 
 Created
     2022-05-05

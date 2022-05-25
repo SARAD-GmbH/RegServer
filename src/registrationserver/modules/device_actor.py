@@ -82,12 +82,13 @@ class DeviceBaseActor(BaseActor):
         self.app = msg.app
         self.host = msg.host
         self.user = msg.user
+        instr_id = short_id(self.my_id)
         try:
             if self.device_status["Reservation"]["Active"]:
                 if self.device_status["Reservation"]["Host"] == self.host:
-                    return_message = ReservationStatusMsg(Status.OK_UPDATED)
+                    return_message = ReservationStatusMsg(instr_id, Status.OK_UPDATED)
                 else:
-                    return_message = ReservationStatusMsg(Status.OCCUPIED)
+                    return_message = ReservationStatusMsg(instr_id, Status.OCCUPIED)
                 self.send(self.sender_api, return_message)
                 return
         except KeyError:
@@ -125,7 +126,8 @@ class DeviceBaseActor(BaseActor):
         elif success == Status.ERROR:
             logger.critical("%s during reservation", success)
             system_shutdown()
-        self.send(self.sender_api, ReservationStatusMsg(success))
+        instr_id = short_id(self.my_id)
+        self.send(self.sender_api, ReservationStatusMsg(instr_id, success))
 
     def _create_redirector(self) -> bool:
         """Create redirector actor if it does not exist already"""
@@ -138,10 +140,13 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SocketMsg from Redirector Actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        instr_id = short_id(self.my_id)
         try:
             assert msg.status in (Status.OK, Status.OK_SKIPPED)
         except AssertionError:
-            self.send(self.sender_api, ReservationStatusMsg(Status.UNKNOWN_PORT))
+            self.send(
+                self.sender_api, ReservationStatusMsg(instr_id, Status.UNKNOWN_PORT)
+            )
             return
         # Write Reservation section into device status
         reservation = {
@@ -155,7 +160,7 @@ class DeviceBaseActor(BaseActor):
         }
         self.device_status["Reservation"] = reservation
         logger.debug("Reservation state updated: %s", self.device_status)
-        self.send(self.sender_api, ReservationStatusMsg(Status.OK))
+        self.send(self.sender_api, ReservationStatusMsg(instr_id, Status.OK))
         self._publish_status_change()
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
@@ -163,6 +168,7 @@ class DeviceBaseActor(BaseActor):
         """Handler for FreeDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.sender_api = sender
+        instr_id = short_id(self.my_id)
         try:
             if self.device_status["Reservation"]["Active"]:
                 self.device_status["Reservation"]["Active"] = False
@@ -171,12 +177,12 @@ class DeviceBaseActor(BaseActor):
                 self.device_status["Reservation"]["Timestamp"] = (
                     datetime.utcnow().isoformat(timespec="seconds") + "Z"
                 )
-                return_message = ReservationStatusMsg(Status.OK)
+                return_message = ReservationStatusMsg(instr_id, Status.OK)
             else:
-                return_message = ReservationStatusMsg(Status.OK_SKIPPED)
+                return_message = ReservationStatusMsg(instr_id, Status.OK_SKIPPED)
         except KeyError:
             logger.debug("Instr. was not reserved before.")
-            return_message = ReservationStatusMsg(Status.OK_SKIPPED)
+            return_message = ReservationStatusMsg(instr_id, Status.OK_SKIPPED)
         self.send(self.sender_api, return_message)
         self._forward_to_children(KillMsg())
         self._publish_status_change()

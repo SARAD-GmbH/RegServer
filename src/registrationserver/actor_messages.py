@@ -281,9 +281,11 @@ class ReservationStatusMsg:
     """Message to inform about the result of the ReserveDeviceMsg.
 
     Args:
+        instr_id (str): instrument id
         status: either OK, OK_SKIPPED or OCCUPIED
     """
 
+    instr_id: str
     status: Status
 
 

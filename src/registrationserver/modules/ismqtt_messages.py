@@ -12,6 +12,7 @@ from decimal import Decimal
 from enum import Enum, auto
 from typing import NamedTuple
 
+from registrationserver.actor_messages import Status
 from registrationserver.logger import logger
 
 
@@ -46,6 +47,7 @@ class Reservation(NamedTuple):
     app: str = ""
     host: str = ""
     user: str = ""
+    status: Status = Status.OK
 
 
 class ControlType(Enum):
@@ -97,7 +99,6 @@ def get_instr_control(json_data, old_reservation) -> Control:
     """Converting received MQTT payload into Control object"""
     nodata = Reservation(0, False, "", "", "")
     data = json.loads(json_data.payload)
-    logger.debug("Payload: %s", data)
     if not "Req" in data:
         logger.error("No 'Req' in payload.")
         return Control(ctype=ControlType.UNKNOWN, data=nodata)
@@ -128,5 +129,5 @@ def get_instr_control(json_data, old_reservation) -> Control:
                 timestamp=time.time(),
             ),
         )
-    logger.error("Unknown control message received.")
+    logger.error("Unknown control message received. %s", data)
     return Control(ControlType.UNKNOWN, nodata)
