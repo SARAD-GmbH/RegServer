@@ -172,8 +172,10 @@ class DeviceBaseActor(BaseActor):
         try:
             if self.device_status["Reservation"]["Active"]:
                 self.device_status["Reservation"]["Active"] = False
-                self.device_status["Reservation"].pop("IP")
-                self.device_status["Reservation"].pop("Port")
+                if self.device_status["Reservation"].get("IP") is not None:
+                    self.device_status["Reservation"].pop("IP")
+                if self.device_status["Reservation"].get("Port") is not None:
+                    self.device_status["Reservation"].pop("Port")
                 self.device_status["Reservation"]["Timestamp"] = (
                     datetime.utcnow().isoformat(timespec="seconds") + "Z"
                 )
