@@ -94,7 +94,6 @@ class DeviceBaseActor(BaseActor):
         except KeyError:
             logger.debug("First reservation since restart of RegServer")
         self._reserve_at_is()
-        self._publish_status_change()
 
     def _reserve_at_is(self):
         # pylint: disable=unused-argument, no-self-use
