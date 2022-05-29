@@ -79,14 +79,17 @@ def kill_processes(regex):
         try:
             my_pid = os.getpid()
             pids = []
+            index = 0
             for line in (
                 os.popen("wmic process get description, processid").read().split("\n\n")
             ):
-                fields = line.split()
-                process = int(fields[0])
-                pid = int(fields[1])
-                if (pid != my_pid) and (process == "regserver-service.exe"):
-                    pids.append(pid)
+                if index:  # omit header line
+                    fields = line.split()
+                    process = int(fields[0])
+                    pid = int(fields[1])
+                    if (pid != my_pid) and (process == "regserver-service.exe"):
+                        pids.append(pid)
+                index = index + 1
             pids.sort(reverse=True)
             for pid in pids:
                 os.kill(pid, signal.SIGTERM)
