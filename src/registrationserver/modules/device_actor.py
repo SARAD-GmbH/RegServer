@@ -113,9 +113,19 @@ class DeviceBaseActor(BaseActor):
         This function has to be called in the protocol specific modules.
         """
         if success in [Status.OK, Status.OK_UPDATED, Status.OK_SKIPPED]:
-            # create redirector
-            if not self._create_redirector():
-                logger.warning("Tried to create a redirector that already exists.")
+            if Frontend.REST in configuration.frontend_config:
+                # create redirector
+                if not self._create_redirector():
+                    logger.warning("Tried to create a redirector that already exists.")
+            else:
+                reservation = {
+                    "Active": True,
+                    "App": self.app,
+                    "Host": self.host,
+                    "User": self.user,
+                    "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+                }
+                self._update_reservation_status(reservation)
             return
         if success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
             logger.error(
@@ -157,6 +167,10 @@ class DeviceBaseActor(BaseActor):
             "Port": msg.port,
             "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         }
+        self._update_reservation_status(reservation)
+
+    def _update_reservation_status(self, reservation):
+        instr_id = short_id(self.my_id)
         self.device_status["Reservation"] = reservation
         logger.debug("Reservation state updated: %s", self.device_status)
         self.send(self.sender_api, ReservationStatusMsg(instr_id, Status.OK))
