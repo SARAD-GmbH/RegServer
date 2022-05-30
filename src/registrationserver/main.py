@@ -155,10 +155,10 @@ def kill_residual_processes():
     if exception is not None:
         logger.critical(exception)
         logger.critical("There might be residual processes.")
-    if os.name == "posix":
-        logger.info("Consider using 'ps ax' to investigate!")
-    if os.name == "nt":
-        logger.info("Inspect Task Manager to investigate!")
+        if os.name == "posix":
+            logger.info("Consider using 'ps ax' to investigate!")
+        if os.name == "nt":
+            logger.info("Inspect Task Manager to investigate!")
 
 
 def main():
