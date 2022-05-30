@@ -7,6 +7,7 @@ Authors
     Michael Strey <strey@sarad.de>
 """
 import os
+import re
 import signal
 
 from registrationserver.config import home
@@ -83,9 +84,9 @@ def kill_processes(regex):
             for line in (
                 os.popen("wmic process get description, processid").read().split("\n\n")
             ):
-                if index:  # omit header line
-                    fields = line.split()
-                    process = int(fields[0])
+                fields = re.split(r"\s{2,}", line)
+                if index and (fields != [""]):  # omit header and bottom lines
+                    process = fields[0]
                     pid = int(fields[1])
                     if (pid != my_pid) and (process == "regserver-service.exe"):
                         pids.append(pid)

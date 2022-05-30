@@ -131,7 +131,10 @@ def shutdown(startup_tupel, wait_some_time, registrar_is_down):
         response = ActorSystem().ask(
             registrar_actor, KillMsg(), timeout=timedelta(seconds=10)
         )
-        logger.error("KillMsg to Registrar returned with %s", response)
+        if response:
+            logger.debug("Registrar actor terminated successfully")
+        else:
+            logger.error("KillMsg to Registrar returned with %s", response)
     try:
         ActorSystem().shutdown()
     except OSError as exception:
