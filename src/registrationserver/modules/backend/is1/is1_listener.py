@@ -13,7 +13,8 @@ import time
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (SetDeviceStatusMsg,
+from registrationserver.actor_messages import (InstrumentServer1,
+                                               SetDeviceStatusMsg,
                                                SetupIs1ActorMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
@@ -220,12 +221,14 @@ class Is1Listener(BaseActor):
                         this_instrument["instr_id"],
                         this_instrument["port"],
                     )
+                    instrument_server_1 = InstrumentServer1(
+                        host=is_host, port=is_port_id["port"]
+                    )
                     self._create_and_setup_actor(
                         is_port_id["id"],
                         this_instrument["instr_id"],
                         this_instrument["port"],
-                        is_host=is_host,
-                        is_port=is_port_id["port"],
+                        instrument_server=instrument_server_1,
                     )
                     cmd_msg = make_command_msg(self.GET_NEXT_COM)
                     client_socket.sendall(cmd_msg)
@@ -240,7 +243,9 @@ class Is1Listener(BaseActor):
         self.read_list[0].close()
         super().receiveMsg_KillMsg(msg, sender)
 
-    def _create_and_setup_actor(self, host, instr_id, port, is_host, is_port):
+    def _create_and_setup_actor(
+        self, host, instr_id, port, instrument_server: InstrumentServer1
+    ):
         logger.debug("[_create_and_setup_actor]")
         hid = Hashids()
         family_id = hid.decode(instr_id)[0]
@@ -262,7 +267,10 @@ class Is1Listener(BaseActor):
             device_actor = self._create_actor(Is1Actor, actor_id)
             self.send(
                 device_actor,
-                SetupIs1ActorMsg(is_host=is_host, is_port=is_port, com_port=port),
+                SetupIs1ActorMsg(
+                    instrument_server=instrument_server,
+                    com_port=port,
+                ),
             )
         else:
             device_actor = self.child_actors[actor_id]["actor_address"]
