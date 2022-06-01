@@ -135,8 +135,10 @@ class DeviceBaseActor(BaseActor):
         elif success == Status.ERROR:
             logger.critical("%s during reservation", success)
             system_shutdown()
-        instr_id = short_id(self.my_id)
-        self.send(self.sender_api, ReservationStatusMsg(instr_id, success))
+        self.send(
+            self.sender_api,
+            ReservationStatusMsg(instr_id=short_id(self.my_id), status=success),
+        )
 
     def _create_redirector(self) -> bool:
         """Create redirector actor if it does not exist already"""

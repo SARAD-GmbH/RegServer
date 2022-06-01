@@ -15,6 +15,7 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg, ReservationStatusMsg,
                                                Status)
 from registrationserver.config import config
+from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.shutdown import system_shutdown
@@ -147,7 +148,10 @@ class DeviceActor(DeviceBaseActor):
         elif success == Status.ERROR:
             logger.critical("%s during reservation", success)
             system_shutdown()
-        self.send(self.sender_api, ReservationStatusMsg(success))
+        self.send(
+            self.sender_api,
+            ReservationStatusMsg(instr_id=short_id(self.my_id), status=success),
+        )
 
     @overrides
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
