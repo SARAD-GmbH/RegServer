@@ -87,7 +87,7 @@ class InstrumentServer1:
         host (str): IP address of IS1
         port (int): IP port number
         is_id (str): ID of instrument server
-        instruments (list): Set of instr_ids of the instruments detected on this IS
+        instruments (list): Set of device_ids of the instruments detected on this IS
     """
 
     host: str

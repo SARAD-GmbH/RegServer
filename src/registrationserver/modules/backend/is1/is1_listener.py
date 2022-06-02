@@ -19,8 +19,7 @@ from registrationserver.actor_messages import (InstrumentServer1, KillMsg,
                                                SetupIs1ActorMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import app_folder, config, is1_backend_config
-from registrationserver.helpers import (check_message, make_command_msg,
-                                        short_id)
+from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_actor import Is1Actor
 from sarad.sari import SaradInst  # type: ignore
@@ -276,7 +275,7 @@ class Is1Listener(BaseActor):
         """Send KillMsg to all device actors belonging to this instrument server"""
         for device_id, description in self.actor_dict.items():
             if description["is_device_actor"]:
-                if short_id(device_id) in instrument_server.instruments:
+                if device_id in instrument_server.instruments:
                     self.send(description["address"], KillMsg())
 
     @overrides
@@ -291,9 +290,6 @@ class Is1Listener(BaseActor):
         self, instr_id, port, instrument_server: InstrumentServer1
     ):
         logger.debug("[_create_and_setup_actor]")
-        set_of_instruments = set(instrument_server.instruments)
-        set_of_instruments.add(instr_id)
-        instrument_server.instruments = frozenset(set_of_instruments)
         hid = Hashids()
         family_id = hid.decode(instr_id)[0]
         type_id = hid.decode(instr_id)[1]
@@ -309,6 +305,9 @@ class Is1Listener(BaseActor):
             )
             sarad_type = "unknown"
         actor_id = f"{instr_id}.{sarad_type}.is1"
+        set_of_instruments = set(instrument_server.instruments)
+        set_of_instruments.add(actor_id)
+        instrument_server.instruments = frozenset(set_of_instruments)
         if actor_id not in self.child_actors:
             logger.debug("Create actor %s", actor_id)
             device_actor = self._create_actor(Is1Actor, actor_id)
