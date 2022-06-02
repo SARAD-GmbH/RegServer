@@ -16,8 +16,8 @@ mdns = false
 
 [backends]
 usb = true
-mqtt = false
-mdns = true
+mqtt = true
+mdns = false
 is1 = false
 
 [mdns_frontend]
