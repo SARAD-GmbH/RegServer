@@ -11,12 +11,11 @@ import logging
 import logging.handlers
 import os
 
-from registrationserver.config import config
+from registrationserver.config import app_folder, config
 
 LOGLEVEL = config["LEVEL"]
 
 home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
-app_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
 config.setdefault("LEVEL", logging.CRITICAL)
 config.setdefault("LOG_FOLDER", f"{app_folder}log{os.path.sep}")
 config.setdefault("LOG_FILE", "registrationserver.log")

@@ -10,7 +10,7 @@ commands and data within the actor system
 """
 from dataclasses import dataclass
 from enum import Enum, unique
-from typing import Any, ByteString, Dict, List, Union
+from typing import Any, ByteString, Dict, FrozenSet, List, Union
 
 from sarad.sari import FamilyDict  # type: ignore
 from thespian.actors import ActorAddress  # type: ignore
@@ -79,6 +79,23 @@ class Backend(Enum):
     IS1 = 8
 
 
+@dataclass(unsafe_hash=True)
+class InstrumentServer1:
+    """Object identifying an Instrument Server 1.
+
+    Args:
+        host (str): IP address of IS1
+        port (int): IP port number
+        is_id (str): ID of instrument server
+        instruments (list): Set of instr_ids of the instruments detected on this IS
+    """
+
+    host: str
+    port: int
+    is_id: str
+    instruments: FrozenSet[str]
+
+
 @dataclass
 class SetupMsg:
     """Message used to send setup information after actor __init__.
@@ -114,13 +131,11 @@ class SetupIs1ActorMsg:
     The parameters are required to establish the socket connection to the Instrument Server 1.
 
     Args:
-        is_host (str): IP address of IS1.
-        is_port (int): IP port the IS1 is listening on.
+        instrument_server (object): Dataclass object of InstrumentServer1.
         com_port (int): COM port of the instrument.
     """
 
-    is_host: str
-    is_port: int
+    instrument_server: InstrumentServer1
     com_port: int
 
 
@@ -158,7 +173,7 @@ class SetDeviceStatusMsg:
         device_status (dict): Dictionary with status information of the instrument.
     """
 
-    device_status: Dict[str, str]
+    device_status: Dict[str, object]
 
 
 @dataclass
@@ -219,6 +234,13 @@ class SubscribeToActorDictMsg:
 @dataclass
 class UpdateActorDictMsg:
     """Message containing the updated Actor Dictionary from Registrar Actor.
+    {actor_id: {"is_alive": bool,
+                "address": actor address,
+                "parent": actor_address,
+                "is_device_actor": bool,
+                "get_updates": bool,
+               }
+    }
 
     Args:
         actor_dict (dict): Actor Dictionary.

@@ -69,9 +69,6 @@ class BaseActor(ActorTypeDispatcher):
         self.child_actors = {}  # {actor_id: {"actor_address": <actor address>}}
         self.actor_dict = {}
         self.on_kill = False
-        self.allow_child_suicide = (
-            False  # Children commiting suicide shall affect the listener.
-        )
 
     def receiveMsg_SetupMsg(self, msg, sender):
         # pylint: disable=invalid-name

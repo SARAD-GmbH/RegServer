@@ -41,8 +41,8 @@ class Is1Actor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Handler for SetupIs1ActorMsg containing setup information
         that is special to the IS1 device actor"""
-        self._is_port = msg.is_port
-        self._is_host = msg.is_host
+        self._is_port = msg.instrument_server.port
+        self._is_host = msg.instrument_server.host
         self._com_port = msg.com_port
 
     def _establish_socket(self):
