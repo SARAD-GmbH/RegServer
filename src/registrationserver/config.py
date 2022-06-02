@@ -190,6 +190,16 @@ mdns_frontend_config = {
     "MDNS_PORT_RANGE": MDNS_PORT_RANGE,
 }
 
+DEFAULT_REG_PORT = 50002
+if customization.get("is1_backend") is None:
+    is1_backend_config = {"REGISTRATION_PORT": DEFAULT_REG_PORT}
+else:
+    is1_backend_config = {
+        "REG_PORT": customization["is1_backend"].get(
+            "registration_port", DEFAULT_REG_PORT
+        ),
+    }
+
 DEFAULT_SYSTEM_BASE = "multiprocTCPBase"
 DEFAULT_ADMIN_PORT = 1901
 DEFAULT_WINDOWS_METHOD = "spawn"

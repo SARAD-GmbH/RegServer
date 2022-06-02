@@ -23,6 +23,9 @@ is1 = false
 [mdns_frontend]
 port_range = [5560, 5580]
 
+[is1_backend]
+registration_port = 50002
+
 [actor]
 system_base = "multiprocUDPBase"
 admin_port = 1901

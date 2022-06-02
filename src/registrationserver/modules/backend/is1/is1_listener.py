@@ -18,7 +18,7 @@ from registrationserver.actor_messages import (InstrumentServer1, KillMsg,
                                                SetDeviceStatusMsg,
                                                SetupIs1ActorMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import app_folder, config
+from registrationserver.config import app_folder, config, is1_backend_config
 from registrationserver.helpers import (check_message, make_command_msg,
                                         short_id)
 from registrationserver.logger import logger
@@ -36,7 +36,7 @@ class Is1Listener(BaseActor):
 
     GET_FIRST_COM = [b"\xe0", b""]
     GET_NEXT_COM = [b"\xe1", b""]
-    PORTS = [50002]
+    PORTS = [is1_backend_config["REG_PORT"]]
 
     @staticmethod
     def _get_port_and_id(is_id):
