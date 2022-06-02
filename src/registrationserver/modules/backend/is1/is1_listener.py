@@ -7,18 +7,20 @@
     | Michael Strey <strey@sarad.de>
 """
 import datetime
+import pickle
 import select
 import socket
 import time
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (InstrumentServer1,
+from registrationserver.actor_messages import (InstrumentServer1, KillMsg,
                                                SetDeviceStatusMsg,
                                                SetupIs1ActorMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
-from registrationserver.helpers import check_message, make_command_msg
+from registrationserver.helpers import (check_message, make_command_msg,
+                                        short_id)
 from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_actor import Is1Actor
 from sarad.sari import SaradInst  # type: ignore
@@ -111,16 +113,13 @@ class Is1Listener(BaseActor):
         self._client_socket = None
         self._socket_info = None
         self.conn = None
-        self._host = config["MY_IP"]
-        self.allow_child_suicide = (
-            True  # Children commiting suicide shall not affect the listener.
-        )
-        logger.debug("IP address of Registration Server: %s", self._host)
+        my_ip = config["MY_IP"]
+        logger.debug("IP address of Registration Server: %s", my_ip)
         for self._port in self.PORTS:
             try:
                 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                server_socket.bind((self._host, self._port))
+                server_socket.bind((my_ip, self._port))
                 self._port = server_socket.getsockname()[1]
                 break
             except OSError as exception:
@@ -133,12 +132,38 @@ class Is1Listener(BaseActor):
         logger.debug("Server socket: %s", server_socket)
         self.read_list = [server_socket]
         if self._port is not None:
-            logger.info("Socket listening on %s:%d", self._host, self._port)
+            logger.info("Socket listening on %s:%d", my_ip, self._port)
+        self.instrument_servers = set()
+        self.pickle_file_name = "instrument_servers.pickle"
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
+        try:
+            with open(self.pickle_file_name, "rb") as pickle_file:
+                self.instrument_servers = pickle.load(pickle_file)
+        except FileNotFoundError:
+            logger.warning("Cannot find %s", self.pickle_file_name)
+        except AttributeError:
+            logger.error("Error reading persistent instrument server list")
+        for instrument_server in self.instrument_servers:
+            instrument_server.instruments = frozenset([])
+        self._subscribe_to_actor_dict_msg()
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="Connect")
+        self.wakeupAfter(datetime.timedelta(seconds=1), payload="Rescan")
+
+    def receiveMsg_RescanMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for RescanMessage causing a prompt re-scan
+        on all known instrument servers"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        for instrument_server in self.instrument_servers:
+            logger.debug(
+                "Check %s for living instruments",
+                instrument_server.host,
+            )
+            self._scan_is(instrument_server)
+        self.wakeupAfter(datetime.timedelta(seconds=60), payload="Rescan")
 
     def listen(self):
         """Listen for notification from Instrument Server"""
@@ -159,11 +184,13 @@ class Is1Listener(BaseActor):
             logger.error("None of ports in %s available", self.PORTS)
         self.wakeupAfter(datetime.timedelta(seconds=1), payload="Connect")
 
-    def receiveMsg_WakeupMessage(self, msg, _sender):
+    def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
         if msg.payload == "Connect" and not self.on_kill:
             self.listen()
+        if msg.payload == "Rescan" and not self.on_kill:
+            self.receiveMsg_RescanMsg(msg, sender)
 
     def _cmd_handler(self, is_host):
         """Handle a binary SARAD command received via the socket."""
@@ -183,70 +210,90 @@ class Is1Listener(BaseActor):
             is_port_id = self._get_port_and_id(data)
             logger.debug("IS1 port: %d", is_port_id["port"])
             logger.debug("IS1 id: %s", is_port_id["id"])
-            cmd_msg = make_command_msg(self.GET_FIRST_COM)
-            logger.debug("Send GetFirstCOM: %s", cmd_msg)
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-                retry = True
-                counter = 5
-                while retry and counter:
-                    try:
-                        logger.debug(
-                            "Trying to connect %s:%d", is_host, is_port_id["port"]
-                        )
-                        client_socket.connect((is_host, is_port_id["port"]))
-                        retry = False
-                    except ConnectionRefusedError:
-                        counter = counter - 1
-                        logger.debug("%d retries left", counter)
-                        time.sleep(1)
-                if retry:
-                    logger.critical(
-                        "Connection refused on %s:%d", is_host, is_port_id["port"]
-                    )
-                    return False
+            self._scan_is(
+                InstrumentServer1(
+                    is_host,
+                    is_port_id["port"],
+                    is_port_id["id"],
+                    instruments=frozenset([]),
+                )
+            )
+
+    def _scan_is(self, instrument_server: InstrumentServer1):
+        is_host = instrument_server.host
+        is_port = instrument_server.port
+        cmd_msg = make_command_msg(self.GET_FIRST_COM)
+        logger.debug("Send GetFirstCOM: %s", cmd_msg)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            retry = True
+            counter = 5
+            while retry and counter:
                 try:
-                    client_socket.sendall(cmd_msg)
-                    reply = client_socket.recv(1024)
-                except ConnectionResetError as exception:
-                    logger.error("%s. IS1 closed or disconnected.", exception)
-                    return False
+                    logger.debug("Trying to connect %s:%d", is_host, is_port)
+                    client_socket.connect((is_host, is_port))
+                    retry = False
+                except ConnectionRefusedError:
+                    counter = counter - 1
+                    logger.debug("%d retries left", counter)
+                    time.sleep(1)
+                except OSError:
+                    logger.debug("%s:%d not reachable", is_host, is_port)
+                    self._remove_instruments(instrument_server)
+                    return
+            if retry:
+                logger.critical("Connection refused on %s:%d", is_host, is_port)
+                return
+            try:
+                client_socket.sendall(cmd_msg)
+                reply = client_socket.recv(1024)
+            except ConnectionResetError as exception:
+                logger.error("%s. IS1 closed or disconnected.", exception)
+                return
+            checked_reply = check_message(reply, multiframe=False)
+            while checked_reply["is_valid"] and checked_reply["payload"] not in [
+                b"\xe4",
+                b"",
+            ]:
+                this_instrument = self._get_instrument_id(checked_reply["payload"])
+                logger.info(
+                    "Instrument %s on COM port %d",
+                    this_instrument["instr_id"],
+                    this_instrument["port"],
+                )
+                self._create_and_setup_actor(
+                    instr_id=this_instrument["instr_id"],
+                    port=this_instrument["port"],
+                    instrument_server=instrument_server,
+                )
+                cmd_msg = make_command_msg(self.GET_NEXT_COM)
+                client_socket.sendall(cmd_msg)
+                reply = client_socket.recv(1024)
                 checked_reply = check_message(reply, multiframe=False)
-                while checked_reply["is_valid"] and checked_reply["payload"] not in [
-                    b"\xe4",
-                    b"",
-                ]:
-                    this_instrument = self._get_instrument_id(checked_reply["payload"])
-                    logger.info(
-                        "Instrument %s on COM port %d",
-                        this_instrument["instr_id"],
-                        this_instrument["port"],
-                    )
-                    instrument_server_1 = InstrumentServer1(
-                        host=is_host, port=is_port_id["port"]
-                    )
-                    self._create_and_setup_actor(
-                        is_port_id["id"],
-                        this_instrument["instr_id"],
-                        this_instrument["port"],
-                        instrument_server=instrument_server_1,
-                    )
-                    cmd_msg = make_command_msg(self.GET_NEXT_COM)
-                    client_socket.sendall(cmd_msg)
-                    reply = client_socket.recv(1024)
-                    checked_reply = check_message(reply, multiframe=False)
-                client_socket.shutdown(socket.SHUT_WR)
-        return True
+            client_socket.shutdown(socket.SHUT_WR)
+            return
+
+    def _remove_instruments(self, instrument_server: InstrumentServer1):
+        """Send KillMsg to all device actors belonging to this instrument server"""
+        for device_id, description in self.actor_dict.items():
+            if description["is_device_actor"]:
+                if short_id(device_id) in instrument_server.instruments:
+                    self.send(description["address"], KillMsg())
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
         """Handler to exit the redirector actor."""
         self.read_list[0].close()
+        with open(self.pickle_file_name, "wb") as pickle_file:
+            pickle.dump(self.instrument_servers, pickle_file, pickle.HIGHEST_PROTOCOL)
         super().receiveMsg_KillMsg(msg, sender)
 
     def _create_and_setup_actor(
-        self, host, instr_id, port, instrument_server: InstrumentServer1
+        self, instr_id, port, instrument_server: InstrumentServer1
     ):
         logger.debug("[_create_and_setup_actor]")
+        set_of_instruments = set(instrument_server.instruments)
+        set_of_instruments.add(instr_id)
+        instrument_server.instruments = frozenset(set_of_instruments)
         hid = Hashids()
         family_id = hid.decode(instr_id)[0]
         type_id = hid.decode(instr_id)[1]
@@ -280,8 +327,8 @@ class Is1Listener(BaseActor):
                 "Family": family_id,
                 "Type": type_id,
                 "Serial number": serial_number,
-                "Host": host,
-                # "Origin": host,
+                "Host": instrument_server.is_id,
+                # "Origin": instrument_server.is_id,
                 "Origin": "WLAN",
                 "Protocol": sarad_type,
             },
@@ -289,3 +336,5 @@ class Is1Listener(BaseActor):
         }
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
         self.send(device_actor, SetDeviceStatusMsg(device_status))
+        self.instrument_servers.add(instrument_server)
+        logger.debug("Updated set of instrument servers: %s", self.instrument_servers)
