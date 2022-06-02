@@ -18,7 +18,7 @@ from registrationserver.actor_messages import (InstrumentServer1, KillMsg,
                                                SetDeviceStatusMsg,
                                                SetupIs1ActorMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import config
+from registrationserver.config import app_folder, config
 from registrationserver.helpers import (check_message, make_command_msg,
                                         short_id)
 from registrationserver.logger import logger
@@ -134,7 +134,7 @@ class Is1Listener(BaseActor):
         if self._port is not None:
             logger.info("Socket listening on %s:%d", my_ip, self._port)
         self.instrument_servers = set()
-        self.pickle_file_name = "instrument_servers.pickle"
+        self.pickle_file_name = f"{app_folder}wlan_instruments.pickle"
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
