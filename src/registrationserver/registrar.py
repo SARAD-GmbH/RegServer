@@ -121,20 +121,19 @@ class Registrar(BaseActor):
         }
         self._send_updates(self.actor_dict)
         if msg.is_device_actor:
-            logger.debug("Check for local or IS1 version of %s", msg.actor_id)
-            for actor_id in self.actor_dict:
-                if (short_id(actor_id) == short_id(msg.actor_id)) and (
-                    actor_id != msg.actor_id
+            new_device_id = msg.actor_id
+            logger.debug("Check for local or IS1 version of %s", new_device_id)
+            for old_device_id in self.actor_dict:
+                if (short_id(old_device_id) == short_id(new_device_id)) and (
+                    new_device_id != old_device_id
                 ):
-                    if actor_id.split(".")[-1] == "is1":
-                        logger.debug(
-                            "Replace existing device actor by %s", short_id(actor_id)
-                        )
-                        self.send(self.actor_dict[actor_id]["address"], KillMsg())
+                    old_tt = transport_technology(old_device_id)
+                    new_tt = transport_technology(new_device_id)
+                    if (old_tt == "is1") and (new_tt == "local"):
+                        logger.debug("Replace %s by %s", old_device_id, new_device_id)
+                        self.send(self.actor_dict[old_device_id]["address"], KillMsg())
                     else:
-                        logger.debug(
-                            "%s has already a device actor - skip", short_id(actor_id)
-                        )
+                        logger.debug("Keep device actor %s in place.", old_device_id)
                         self.send(sender, KillMsg())
                         return
 
