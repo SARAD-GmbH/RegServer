@@ -127,9 +127,9 @@ class Registrar(BaseActor):
                 if (short_id(old_device_id) == short_id(new_device_id)) and (
                     new_device_id != old_device_id
                 ):
-                    old_tt = transport_technology(old_device_id)
+                    # old_tt = transport_technology(old_device_id)
                     new_tt = transport_technology(new_device_id)
-                    if (old_tt == "is1") and (new_tt == "local"):
+                    if new_tt == "local":
                         logger.debug("Replace %s by %s", old_device_id, new_device_id)
                         self.send(self.actor_dict[old_device_id]["address"], KillMsg())
                     else:
