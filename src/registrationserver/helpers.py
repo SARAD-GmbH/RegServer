@@ -113,6 +113,33 @@ def short_id(device_id: str) -> str:
     return device_id.split(".")[0]
 
 
+def sarad_protocol(device_id: str) -> str:
+    """Get the second part of the device_id designating the SARAD protocol.
+
+    Args:
+        device_id (str): long ID of the instrument that is used
+                         as actor_id of device actor
+
+    Returns:
+        str: the id of the SARAD protocol
+    """
+    return device_id.split(".")[1]
+
+
+def transport_technology(device_id: str) -> str:
+    """Get the last part of the device_id designating the transport technology (tt).
+    This is in ["local", "is1", "mdns", "mqtt"].
+
+    Args:
+        device_id (str): long ID of the instrument that is used
+                         as actor_id of device actor
+
+    Returns:
+        str: the id of the transport technology
+    """
+    return device_id.split(".", 2)[-1]
+
+
 def find(pattern, path):
     """Find a file matching a given pattern in a given path.
 

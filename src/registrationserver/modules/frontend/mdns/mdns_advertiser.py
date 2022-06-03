@@ -66,9 +66,10 @@ class MdnsAdvertiserActor(BaseActor):
             "MODEL_ENC": instr_name,
             "SERIAL_SHORT": service_name,
         }
+        service_type = config["TYPE"]
         self.service = ServiceInfo(
-            "_raw._tcp.local.",
-            f"{service_name}._raw._tcp.local.",
+            service_type,
+            f"{service_name}.{service_type}",
             port=self.tcp_port,
             weight=0,
             priority=0,

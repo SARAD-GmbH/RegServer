@@ -132,7 +132,7 @@ except Exception:  # pylint: disable=broad-except
 
 config = {
     "MDNS_TIMEOUT": customization.get("mdns_timeout", DEFAULT_MDNS_TIMEOUT),
-    "TYPE": customization.get("type", DEFAULT_TYPE),
+    "TYPE": DEFAULT_TYPE,
     "LEVEL": DEBUG_LEVEL,
     "IP_VERSION": IP_VERSION,
     "PORT_RANGE": PORT_RANGE,
