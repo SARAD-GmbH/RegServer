@@ -20,7 +20,8 @@ from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
                                                SetDeviceStatusMsg,
                                                SetupMdnsActorMsg)
 from registrationserver.config import config
-from registrationserver.helpers import get_actor
+from registrationserver.helpers import (get_actor, sarad_protocol, short_id,
+                                        transport_technology)
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mdns.device_actor import DeviceActor
 from registrationserver.shutdown import system_shutdown
@@ -104,9 +105,13 @@ class MdnsListener(ServiceListener):
         with self.lock:
             logger.info("[Add] Found service %s of type %s", name, type_)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
+            if transport_technology(name) == config["TYPE"]:
+                device_id = f"{short_id(name)}.{sarad_protocol(name)}.mdns"
+            else:
+                device_id = name
             if info is not None:
                 logger.info("[Add] %s", info.properties)
-                actor_id = name
+                actor_id = device_id
                 reply = ActorSystem().ask(
                     self.registrar, CreateActorMsg(DeviceActor, actor_id)
                 )

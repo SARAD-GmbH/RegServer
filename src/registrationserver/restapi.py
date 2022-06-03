@@ -36,7 +36,8 @@ from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
                                                ReturnUsbPortsMsg, Status)
 from registrationserver.config import mqtt_config
 from registrationserver.helpers import (get_actor, get_device_status,
-                                        get_device_statuses)
+                                        get_device_statuses,
+                                        transport_technology)
 from registrationserver.logger import logger  # type: ignore
 from registrationserver.shutdown import system_shutdown
 
@@ -176,11 +177,8 @@ class RestApi:
             return json.dumps({"Error": "Wronly formated ID"})
         device_state = get_device_status(registrar_actor, device_id)
         if (
-            not "_raw" in device_id
-            and not "mqtt" in device_id
-            and not "local" in device_id
-            and not "is1" in device_id
-        ) or device_state == {}:
+            transport_technology(device_id) not in ["local", "is1", "mdns", "mqtt"]
+        ) or (device_state == {}):
             logger.error("Requested service not supported by actor system.")
             status = Status.NOT_FOUND
             answer = {"Error code": status.value, "Error": str(status), device_id: {}}

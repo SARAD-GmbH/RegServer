@@ -24,7 +24,7 @@ from registrationserver.actor_messages import (ActorCreatedMsg, Backend,
                                                ReturnDeviceActorMsg,
                                                UpdateActorDictMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.helpers import short_id
+from registrationserver.helpers import short_id, transport_technology
 from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_listener import Is1Listener
 from registrationserver.modules.backend.mqtt.mqtt_listener import MqttListener
