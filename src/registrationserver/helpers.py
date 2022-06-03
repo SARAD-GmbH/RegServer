@@ -8,7 +8,6 @@ Authors
 """
 import fnmatch
 import os
-import socket
 from collections.abc import MutableMapping
 from contextlib import suppress
 from datetime import timedelta

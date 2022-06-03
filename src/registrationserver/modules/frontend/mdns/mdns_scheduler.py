@@ -14,7 +14,7 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg,
                                                SetupMdnsAdvertiserActorMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.helpers import diff_of_dicts, short_id
+from registrationserver.helpers import diff_of_dicts
 from registrationserver.logger import logger
 from registrationserver.modules.frontend.mdns.mdns_advertiser import \
     MdnsAdvertiserActor
@@ -26,13 +26,12 @@ class MdnsSchedulerActor(BaseActor):
     """Actor interacting with a new device"""
 
     @staticmethod
-    def _advertiser(instr_id):
-        return f"advertiser-{instr_id}"
+    def _advertiser(device_id):
+        return f"advertiser-{device_id}"
 
     @overrides
     def __init__(self):
         super().__init__()
-        self.instr_id_actor_dict = {}  # {instr_id: device_actor}
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -41,43 +40,36 @@ class MdnsSchedulerActor(BaseActor):
 
     @overrides
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
+        old_actor_dict = self.actor_dict
         super().receiveMsg_UpdateActorDictMsg(msg, sender)
-        old_instr_id_actor_dict = self.instr_id_actor_dict
-        self.instr_id_actor_dict = {
-            short_id(device_id): dict["address"]
-            for device_id, dict in self.actor_dict.items()
-            if dict["is_device_actor"]
-        }
-        new_instruments = diff_of_dicts(
-            self.instr_id_actor_dict, old_instr_id_actor_dict
-        )
-        logger.debug("New instruments %s", new_instruments)
-        gone_instruments = diff_of_dicts(
-            old_instr_id_actor_dict, self.instr_id_actor_dict
-        )
-        logger.debug("Gone instruments %s", gone_instruments)
-        for instr_id in new_instruments:
-            self._create_instrument(instr_id)
-        for instr_id in gone_instruments:
-            self._remove_instrument(instr_id)
+        new_actors = diff_of_dicts(self.actor_dict, old_actor_dict)
+        logger.debug("New actors %s", new_actors)
+        gone_actors = diff_of_dicts(old_actor_dict, self.actor_dict)
+        logger.debug("Gone actors %s", gone_actors)
+        for actor_id, description in new_actors.items():
+            if description["is_device_actor"]:
+                self._create_instrument(actor_id)
+        for actor_id, description in gone_actors.items():
+            if description["is_device_actor"]:
+                self._remove_instrument(actor_id)
 
-    def _create_instrument(self, instr_id):
+    def _create_instrument(self, device_id):
         """Create advertiser actor if it does not exist already"""
-        logger.debug("Create MdnsAdvertiserActor of %s", instr_id)
+        logger.debug("Create MdnsAdvertiserActor of %s", device_id)
         my_advertiser = self._create_actor(
-            MdnsAdvertiserActor, self._advertiser(instr_id)
+            MdnsAdvertiserActor, self._advertiser(device_id)
         )
         self.send(
             my_advertiser,
             SetupMdnsAdvertiserActorMsg(
-                device_actor=self.instr_id_actor_dict[instr_id]
+                device_actor=self.actor_dict[device_id]["address"]
             ),
         )
 
-    def _remove_instrument(self, instr_id):
+    def _remove_instrument(self, device_id):
         # pylint: disable=invalid-name
         """Remove the advertiser actor for instr_id."""
-        logger.debug("Remove advertiser of %s", instr_id)
+        logger.debug("Remove advertiser of %s", device_id)
         self.send(
-            self.child_actors[self._advertiser(instr_id)]["actor_address"], KillMsg()
+            self.child_actors[self._advertiser(device_id)]["actor_address"], KillMsg()
         )
