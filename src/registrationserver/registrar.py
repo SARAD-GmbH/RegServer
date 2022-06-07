@@ -127,11 +127,18 @@ class Registrar(BaseActor):
                 if (short_id(old_device_id) == short_id(new_device_id)) and (
                     new_device_id != old_device_id
                 ):
-                    # old_tt = transport_technology(old_device_id)
+                    old_tt = transport_technology(old_device_id)
                     new_tt = transport_technology(new_device_id)
                     if new_tt == "local":
                         logger.debug("Replace %s by %s", old_device_id, new_device_id)
                         self.send(self.actor_dict[old_device_id]["address"], KillMsg())
+                    elif (new_tt in ["mdns", "mqtt"]) and (old_tt == "is1"):
+                        logger.debug(
+                            "Keep %s and set the new %s inactive",
+                            new_device_id,
+                            old_device_id,
+                        )
+                        self.actor_dict[new_device_id]["is_device_actor"] = False
                     else:
                         logger.debug("Keep device actor %s in place.", old_device_id)
                         self.send(sender, KillMsg())
@@ -141,6 +148,14 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for UnsubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if self.actor_dict[msg.actor_id]["is_device_actor"]:
+            instr_id = short_id(msg.actor_id)
+            logger.debug("Look for inactive device actor for %s", instr_id)
+            for actor_id, description in self.actor_dict.items():
+                if (not description["is_device_actor"]) and (
+                    short_id(actor_id) == instr_id
+                ):
+                    description["is_device_actor"] = True
         try:
             self.actor_dict.pop(msg.actor_id)
             self._send_updates(self.actor_dict)
