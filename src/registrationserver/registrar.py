@@ -119,12 +119,16 @@ class Registrar(BaseActor):
             "get_updates": msg.get_updates,
             "is_alive": True,
         }
-        self._send_updates(self.actor_dict)
         if msg.is_device_actor:
             new_device_id = msg.actor_id
             for old_device_id in self.actor_dict:
-                if (short_id(old_device_id) == short_id(new_device_id)) and (
-                    new_device_id != old_device_id
+                if (
+                    (short_id(old_device_id) == short_id(new_device_id))
+                    and (new_device_id != old_device_id)
+                    and (
+                        transport_technology(old_device_id)
+                        in ["local", "mdns", "mqtt", "is1"]
+                    )
                 ):
                     old_tt = transport_technology(old_device_id)
                     new_tt = transport_technology(new_device_id)
@@ -147,13 +151,19 @@ class Registrar(BaseActor):
                     else:
                         logger.debug("Keep device actor %s in place.", old_device_id)
                         self.send(sender, KillMsg())
-                        return
+        self._send_updates(self.actor_dict)
+        return
 
     def receiveMsg_UnsubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for UnsubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.actor_dict[msg.actor_id]["is_device_actor"]:
+        try:
+            is_device_actor = self.actor_dict[msg.actor_id]["is_device_actor"]
+        except KeyError:
+            logger.error("%s requested to be unsubscribed doesn't exist", msg.actor_id)
+            is_device_actor = False
+        if is_device_actor:
             instr_id = short_id(msg.actor_id)
             logger.debug("Look for inactive device actor for %s", instr_id)
             for actor_id, description in self.actor_dict.items():
@@ -161,13 +171,14 @@ class Registrar(BaseActor):
                     short_id(actor_id) == instr_id
                 ):
                     description["is_device_actor"] = True
+                    logger.debug("Found and activated %s", actor_id)
         try:
             self.actor_dict.pop(msg.actor_id)
-            self._send_updates(self.actor_dict)
         except KeyError as exception:
             logger.error(
                 "%s. The actor to unsubscribe was not subscribed properly.", exception
             )
+        self._send_updates(self.actor_dict)
 
     def _send_updates(self, actor_dict):
         """Send the updated Actor Dictionary to all subscribers."""
