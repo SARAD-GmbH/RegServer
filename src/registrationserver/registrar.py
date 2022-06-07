@@ -122,21 +122,26 @@ class Registrar(BaseActor):
         self._send_updates(self.actor_dict)
         if msg.is_device_actor:
             new_device_id = msg.actor_id
-            logger.debug("Check for local or IS1 version of %s", new_device_id)
             for old_device_id in self.actor_dict:
                 if (short_id(old_device_id) == short_id(new_device_id)) and (
                     new_device_id != old_device_id
                 ):
                     old_tt = transport_technology(old_device_id)
                     new_tt = transport_technology(new_device_id)
+                    logger.debug("New device_id: %s", new_device_id)
+                    logger.debug("Old device_id: %s", old_device_id)
                     if new_tt == "local":
-                        logger.debug("Replace %s by %s", old_device_id, new_device_id)
-                        self.send(self.actor_dict[old_device_id]["address"], KillMsg())
-                    elif (new_tt in ["mdns", "mqtt"]) and (old_tt == "is1"):
                         logger.debug(
-                            "Keep %s and set the new %s inactive",
+                            "Keep new %s and set the old %s inactive",
                             new_device_id,
                             old_device_id,
+                        )
+                        self.actor_dict[old_device_id]["is_device_actor"] = False
+                    if (new_tt in ["mdns", "mqtt"]) and (old_tt == "is1"):
+                        logger.debug(
+                            "Keep old %s and set the new %s inactive",
+                            old_device_id,
+                            new_device_id,
                         )
                         self.actor_dict[new_device_id]["is_device_actor"] = False
                     else:
