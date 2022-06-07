@@ -137,7 +137,7 @@ class Registrar(BaseActor):
                             old_device_id,
                         )
                         self.actor_dict[old_device_id]["is_device_actor"] = False
-                    if (new_tt in ["mdns", "mqtt"]) and (old_tt == "is1"):
+                    elif (new_tt in ["mdns", "mqtt"]) and (old_tt == "is1"):
                         logger.debug(
                             "Keep old %s and set the new %s inactive",
                             old_device_id,
