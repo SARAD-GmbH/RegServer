@@ -55,7 +55,7 @@ class DeviceActor(DeviceBaseActor):
             logger.error("%s, cannot access REST API of IS", success)
             super().receiveMsg_FreeDeviceMsg(msg, sender)
             return
-        success = Status.IS_NOT_FOUND
+        success = Status.NOT_FOUND
         for device_id, device_desc in list_resp.json().items():
             if device_id.split(".")[0] == self.my_id.split(".")[0]:
                 reservation = device_desc.get("Reservation")
@@ -96,6 +96,7 @@ class DeviceActor(DeviceBaseActor):
             success = Status.IS_NOT_FOUND
             self._forward_reservation(success)
             return
+        success = Status.NOT_FOUND
         for device_id, device_desc in list_resp.json().items():
             if device_id.split(".")[0] == self.my_id.split(".")[0]:
                 reservation = device_desc.get("Reservation")
@@ -176,6 +177,7 @@ class DeviceActor(DeviceBaseActor):
             logger.error(success)
             self.send(self.myAddress, KillMsg())
         else:
+            success = Status.NOT_FOUND
             for device_id, device_desc in list_resp.json().items():
                 if device_id.split(".")[0] == self.my_id.split(".")[0]:
                     self.device_status["Identification"]["Origin"] = device_desc[
