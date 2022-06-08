@@ -29,6 +29,15 @@ class MdnsSchedulerActor(BaseActor):
     def _advertiser(device_id):
         return f"advertiser-{device_id}"
 
+    @staticmethod
+    def _active_device_actors(actor_dict):
+        """Extract only active device actors from actor_dict"""
+        active_device_actor_dict = {}
+        for actor_id, description in actor_dict.items():
+            if description["is_device_actor"]:
+                active_device_actor_dict[actor_id] = description
+        return active_device_actor_dict
+
     @overrides
     def __init__(self):
         super().__init__()
@@ -40,18 +49,17 @@ class MdnsSchedulerActor(BaseActor):
 
     @overrides
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
-        old_actor_dict = self.actor_dict
+        old_actor_dict = self._active_device_actors(self.actor_dict)
         super().receiveMsg_UpdateActorDictMsg(msg, sender)
-        new_actors = diff_of_dicts(self.actor_dict, old_actor_dict)
-        logger.debug("New actors %s", new_actors)
-        gone_actors = diff_of_dicts(old_actor_dict, self.actor_dict)
-        logger.debug("Gone actors %s", gone_actors)
-        for actor_id, description in new_actors.items():
-            if description["is_device_actor"]:
-                self._create_instrument(actor_id)
-        for actor_id, description in gone_actors.items():
-            if description["is_device_actor"]:
-                self._remove_instrument(actor_id)
+        new_actor_dict = self._active_device_actors(self.actor_dict)
+        new_device_actors = diff_of_dicts(new_actor_dict, old_actor_dict)
+        logger.debug("New device actors %s", new_device_actors)
+        gone_device_actors = diff_of_dicts(old_actor_dict, new_actor_dict)
+        logger.debug("Gone device actors %s", gone_device_actors)
+        for actor_id in new_device_actors:
+            self._create_instrument(actor_id)
+        for actor_id in gone_device_actors:
+            self._remove_instrument(actor_id)
 
     def _create_instrument(self, device_id):
         """Create advertiser actor if it does not exist already"""
