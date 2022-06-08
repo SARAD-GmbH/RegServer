@@ -11,7 +11,8 @@ import socket
 import time
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import KillMsg, RxBinaryMsg, Status
+from registrationserver.actor_messages import (AllowRescanMsg, KillMsg,
+                                               RxBinaryMsg, Status)
 from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
@@ -108,6 +109,7 @@ class Is1Actor(DeviceBaseActor):
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for TxBinaryMsg from App to Instrument."""
+        self.send(self.parent.parent_address, AllowRescanMsg(False))
         super().receiveMsg_TxBinaryMsg(msg, sender)
         if not self._establish_socket():
             logger.error("Can't establish the client socket.")
@@ -130,6 +132,7 @@ class Is1Actor(DeviceBaseActor):
             self.send(self.myAddress, KillMsg())
             reply = b""
         self.send(self.redirector_actor, RxBinaryMsg(reply))
+        self.send(self.parent.parent_address, AllowRescanMsg(True))
 
     @overrides
     def _reserve_at_is(self):
