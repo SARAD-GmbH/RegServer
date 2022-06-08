@@ -156,7 +156,8 @@ class Is1Listener(BaseActor):
         """Handler for RescanMessage causing a prompt re-scan
         on all known instrument servers"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        for instrument_server in self.instrument_servers:
+        instrument_servers = list(self.instrument_servers)
+        for instrument_server in instrument_servers:
             logger.debug(
                 "Check %s for living instruments",
                 instrument_server.host,

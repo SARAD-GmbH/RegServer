@@ -96,13 +96,7 @@ class Registrar(BaseActor):
         """Handler for SubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if msg.keep_alive:
-            self.actor_dict[msg.actor_id] = {
-                "address": sender,
-                "parent": msg.parent,
-                "is_device_actor": msg.is_device_actor,
-                "get_updates": msg.get_updates,
-                "is_alive": True,
-            }
+            self.actor_dict[msg.actor_id]["is_alive"] = True
             self._send_updates(self.actor_dict)
             return
         if msg.actor_id in self.actor_dict:
