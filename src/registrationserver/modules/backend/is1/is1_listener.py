@@ -151,14 +151,24 @@ class Is1Listener(BaseActor):
             instrument_server.instruments = frozenset([])
         self._subscribe_to_actor_dict_msg()
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="Connect")
-        self.wakeupAfter(datetime.timedelta(seconds=1), payload="Rescan")
+        self.wakeupAfter(datetime.timedelta(seconds=20), payload="Rescan")
 
     def receiveMsg_RescanMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for RescanMessage causing a prompt re-scan
         on all known instrument servers"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.allow_rescan:
+        time_condition = bool(
+            datetime.datetime.utcnow() - self.last_activity
+            > datetime.timedelta(seconds=10)
+        )
+        allow_rescan = bool(self.allow_rescan and time_condition)
+        logger.debug(
+            "self.allow_rescan = %s, time_condition = %s",
+            self.allow_rescan,
+            time_condition,
+        )
+        if allow_rescan:
             instrument_servers = list(self.instrument_servers)
             for instrument_server in instrument_servers:
                 logger.debug(
@@ -197,17 +207,11 @@ class Is1Listener(BaseActor):
 
     def receiveMsg_AllowRescanMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Allow or forbid performing the self._can_is() function.
+        """Allow or forbid performing the self._scan_is() function.
 
         Workaround for the shortcommings of IS1 implementation on WLAN module."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.allow_rescan = bool(
-            msg.allow
-            and (
-                (datetime.datetime.utcnow() - self.last_activity)
-                > datetime.timedelta(seconds=60)
-            )
-        )
+        self.allow_rescan = msg.allow
         self.last_activity = datetime.datetime.utcnow()
 
     def _cmd_handler(self, is_host):
