@@ -488,3 +488,11 @@ class ReturnDeviceActorMsg:
     requested with GetDeviceActorMsg."""
 
     actor_address: ActorAddress
+
+
+@dataclass
+class AllowRescanMsg:
+    """Message sent from the IS1 device actor to IS1 listener to allow/forbid the
+    re-scan of instrument server"""
+
+    allow: bool

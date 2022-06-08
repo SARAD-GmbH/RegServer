@@ -134,6 +134,8 @@ class Is1Listener(BaseActor):
             logger.info("Socket listening on %s:%d", my_ip, self._port)
         self.instrument_servers = set()
         self.pickle_file_name = f"{app_folder}wlan_instruments.pickle"
+        self.allow_rescan = True
+        self.last_activity = datetime.datetime.utcnow()
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -156,13 +158,14 @@ class Is1Listener(BaseActor):
         """Handler for RescanMessage causing a prompt re-scan
         on all known instrument servers"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        instrument_servers = list(self.instrument_servers)
-        for instrument_server in instrument_servers:
-            logger.debug(
-                "Check %s for living instruments",
-                instrument_server.host,
-            )
-            self._scan_is(instrument_server)
+        if self.allow_rescan:
+            instrument_servers = list(self.instrument_servers)
+            for instrument_server in instrument_servers:
+                logger.debug(
+                    "Check %s for living instruments",
+                    instrument_server.host,
+                )
+                self._scan_is(instrument_server)
         self.wakeupAfter(datetime.timedelta(seconds=60), payload="Rescan")
 
     def listen(self):
@@ -191,6 +194,21 @@ class Is1Listener(BaseActor):
             self.listen()
         if msg.payload == "Rescan" and not self.on_kill:
             self.receiveMsg_RescanMsg(msg, sender)
+
+    def receiveMsg_AllowRescanMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Allow or forbid performing the self._can_is() function.
+
+        Workaround for the shortcommings of IS1 implementation on WLAN module."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.allow_rescan = bool(
+            msg.allow
+            and (
+                (datetime.datetime.utcnow() - self.last_activity)
+                > datetime.timedelta(seconds=60)
+            )
+        )
+        self.last_activity = datetime.datetime.utcnow()
 
     def _cmd_handler(self, is_host):
         """Handle a binary SARAD command received via the socket."""
