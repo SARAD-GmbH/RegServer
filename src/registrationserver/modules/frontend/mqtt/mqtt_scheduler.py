@@ -34,10 +34,19 @@ class MqttSchedulerActor(MqttBaseActor):
 
     MAX_RESERVE_TIME = 300
 
+    @staticmethod
+    def _active_device_actors(actor_dict):
+        """Extract only active device actors from actor_dict"""
+        active_device_actor_dict = {}
+        for actor_id, description in actor_dict.items():
+            if description["is_device_actor"]:
+                active_device_actor_dict[actor_id] = description
+        return active_device_actor_dict
+
     @overrides
     def __init__(self):
         super().__init__()
-        self.reservations = {}  # {instr_id: <reservation object>}
+        self.reservations = {}  # {device_id: <reservation object>}
         # cmd_id to check the correct order of messages
         self.cmd_ids = {}  # {instr_id: <command id>}
         self.msg_id["PUBLISH"] = None
@@ -71,18 +80,17 @@ class MqttSchedulerActor(MqttBaseActor):
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
         if not self.is_connected:
             return
-        old_actor_dict = self.actor_dict
+        old_actor_dict = self._active_device_actors(self.actor_dict)
         super().receiveMsg_UpdateActorDictMsg(msg, sender)
-        new_actors = diff_of_dicts(self.actor_dict, old_actor_dict)
-        logger.debug("New actors %s", new_actors)
-        gone_actors = diff_of_dicts(old_actor_dict, self.actor_dict)
-        logger.debug("Gone actors %s", gone_actors)
-        for actor_id, description in new_actors.items():
-            if description["is_device_actor"]:
-                self._subscribe_to_device_status_msg(description["address"])
-        for actor_id, description in gone_actors.items():
-            if description["is_device_actor"]:
-                self._remove_instrument(short_id(actor_id))
+        new_actor_dict = self._active_device_actors(self.actor_dict)
+        new_device_actors = diff_of_dicts(new_actor_dict, old_actor_dict)
+        logger.debug("New device actors %s", new_device_actors)
+        gone_device_actors = diff_of_dicts(old_actor_dict, new_actor_dict)
+        logger.debug("Gone device actors %s", gone_device_actors)
+        for actor_id, description in new_device_actors.items():
+            self._subscribe_to_device_status_msg(description["address"])
+        for actor_id in gone_device_actors:
+            self._remove_instrument(actor_id)
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -91,8 +99,9 @@ class MqttSchedulerActor(MqttBaseActor):
         Adds a new instrument to the list of available instruments."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         instr_id = short_id(msg.device_id)
+        device_id = msg.device_id
         device_status = msg.device_status
-        if instr_id not in self.reservations:
+        if device_id not in self.reservations:
             logger.debug("Publish %s as new instrument.", instr_id)
             new_subscriptions = [
                 (f"{self.is_id}/{instr_id}/control", 0),
@@ -109,11 +118,11 @@ class MqttSchedulerActor(MqttBaseActor):
         reservation = device_status.get("Reservation")
         if reservation is None:
             logger.debug("%s has never been reserved.", instr_id)
-            self.reservations[instr_id] = Reservation(
+            self.reservations[device_id] = Reservation(
                 status=Status.OK_SKIPPED, timestamp=time.time()
             )
         else:
-            saved_reservation_object = self.reservations.get(instr_id)
+            saved_reservation_object = self.reservations.get(device_id)
             if saved_reservation_object is not None:
                 status = saved_reservation_object.status
             else:
@@ -126,7 +135,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 user=reservation.get("User", ""),
                 status=status,
             )
-            self.reservations[instr_id] = reservation_object
+            self.reservations[device_id] = reservation_object
             if self.pending_control_action == ControlType.RESERVE:
                 logger.debug("Publish reservation")
                 if reservation_object.status in (
@@ -135,7 +144,7 @@ class MqttSchedulerActor(MqttBaseActor):
                     Status.OK_UPDATED,
                 ):
                     reservation_object._replace(active=True)
-                    self.reservations[instr_id] = reservation_object
+                    self.reservations[device_id] = reservation_object
                     reservation_json = get_instr_reservation(reservation_object)
                     topic = f"{self.is_id}/{instr_id}/reservation"
                     logger.debug("Publish %s on %s", reservation_json, topic)
@@ -143,7 +152,7 @@ class MqttSchedulerActor(MqttBaseActor):
                         topic=topic, payload=reservation_json, retain=True
                     )
             elif self.pending_control_action == ControlType.FREE:
-                if self.reservations.get(instr_id) is None:
+                if self.reservations.get(device_id) is None:
                     logger.debug(
                         "[FREE] Instrument is not in the list of reserved instruments."
                     )
@@ -162,27 +171,28 @@ class MqttSchedulerActor(MqttBaseActor):
                     )
             self.pending_control_action = ControlType.UNKNOWN
 
-    def _remove_instrument(self, instr_id):
+    def _remove_instrument(self, device_id):
         # pylint: disable=invalid-name
         """Removes an instrument from the list of available instruments."""
-        logger.debug("Remove %s", instr_id)
-        self.reservations.pop(instr_id, None)
-        gone_subscriptions = [
-            f"{self.is_id}/{instr_id}/control",
-            f"{self.is_id}/{instr_id}/cmd",
-        ]
-        self._unsubscribe_topic(gone_subscriptions)
-        self.mqttc.publish(
-            retain=True,
-            topic=f"{self.is_id}/{instr_id}/meta",
-            payload=json.dumps({"State": 0}),
-        )
+        logger.debug("Remove %s", device_id)
+        if self.reservations.pop(device_id, None) is not None:
+            instr_id = short_id(device_id)
+            gone_subscriptions = [
+                f"{self.is_id}/{instr_id}/control",
+                f"{self.is_id}/{instr_id}/cmd",
+            ]
+            self._unsubscribe_topic(gone_subscriptions)
+            self.mqttc.publish(
+                retain=True,
+                topic=f"{self.is_id}/{instr_id}/meta",
+                payload=json.dumps({"State": 0}),
+            )
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
         for actor_id, description in self.actor_dict.items():
             if description["is_device_actor"]:
-                self._remove_instrument(short_id(actor_id))
+                self._remove_instrument(actor_id)
         self.mqttc.publish(
             retain=True, topic=f"{self.is_id}/meta", payload=json.dumps({"State": 0})
         )
@@ -207,9 +217,9 @@ class MqttSchedulerActor(MqttBaseActor):
         """Event handler for all MQTT messages with control topic."""
         logger.debug("[on_control] %s: %s", message.topic, message.payload)
         instr_id = message.topic[: -len("control") - 1][len(self.is_id) + 1 :]
-        device_actor = self._device_actor(instr_id)
+        device_actor, device_id = self._device_actor(instr_id)
         if device_actor is not None:
-            old_control = self.reservations.get(instr_id)
+            old_control = self.reservations.get(device_id)
             control = get_instr_control(message, old_control)
             logger.debug("Control object: %s", control)
             self.pending_control_action = control.ctype
@@ -230,7 +240,7 @@ class MqttSchedulerActor(MqttBaseActor):
         instr_id = message.topic[: -len("cmd") - 1][len(self.is_id) + 1 :]
         self.cmd_ids[instr_id] = message.payload[0]
         cmd = message.payload[1:]
-        device_actor = self._device_actor(instr_id)
+        device_actor, _device_id = self._device_actor(instr_id)
         if device_actor is not None:
             logger.debug("Forward %s to %s", cmd, instr_id)
             self.send(device_actor, TxBinaryMsg(cmd))
@@ -239,11 +249,12 @@ class MqttSchedulerActor(MqttBaseActor):
         # pylint: disable=invalid-name
         """Handler for ReservationStatusMsg coming back from Device Actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        reservation = self.reservations.get(msg.instr_id)
+        _device_actor, device_id = self._device_actor(msg.instr_id)
+        reservation = self.reservations.get(device_id)
         if reservation is not None:
-            self.reservations[msg.instr_id]._replace(status=msg.status)
+            self.reservations[device_id]._replace(status=msg.status)
         else:
-            self.reservations[msg.instr_id] = Reservation(
+            self.reservations[device_id] = Reservation(
                 status=msg.status, timestamp=time.time()
             )
 
@@ -269,7 +280,7 @@ class MqttSchedulerActor(MqttBaseActor):
             instr_id,
             control,
         )
-        device_actor = self._device_actor(instr_id)
+        device_actor, _device_id = self._device_actor(instr_id)
         if device_actor is not None:
             self.send(
                 device_actor,
@@ -282,7 +293,7 @@ class MqttSchedulerActor(MqttBaseActor):
         """Sub event handler that will be called from the on_message event handler,
         when a MQTT control message with a 'free' request was received
         for a specific instrument ID."""
-        device_actor = self._device_actor(instr_id)
+        device_actor, _device_id = self._device_actor(instr_id)
         if device_actor is not None:
             self.send(device_actor, FreeDeviceMsg())
 
@@ -295,7 +306,7 @@ class MqttSchedulerActor(MqttBaseActor):
         topic_parts = message.topic.split("/")
         instr_id = topic_parts[1]
         payload = json.loads(message.payload)
-        device_actor = self._device_actor(instr_id)
+        device_actor, _device_id = self._device_actor(instr_id)
         if (device_actor is None) and (payload.get("State", 2) in (2, 1)):
             self.mqttc.publish(
                 retain=True,
@@ -304,9 +315,9 @@ class MqttSchedulerActor(MqttBaseActor):
             )
 
     def _device_actor(self, instr_id):
-        """Get device actor address from instr_id"""
+        """Get device actor address and device_id from instr_id"""
         for actor_id, description in self.actor_dict.items():
             if description["is_device_actor"]:
                 if instr_id == short_id(actor_id):
-                    return description["address"]
-        return None
+                    return (description["address"], actor_id)
+        return (None, "")
