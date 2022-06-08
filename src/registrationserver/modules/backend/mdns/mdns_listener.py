@@ -85,6 +85,13 @@ class MdnsListener(ServiceListener):
             },
         }
 
+    @staticmethod
+    def device_id(name):
+        """Convert mDNS name into a proper device_id/actor_id"""
+        if transport_technology(name) == config["TYPE"]:
+            return f"{short_id(name)}.{sarad_protocol(name)}.mdns"
+        return name
+
     def __init__(self, registrar_actor, service_type):
         """
         Initialize a mdns Listener for a specific device group
@@ -105,10 +112,7 @@ class MdnsListener(ServiceListener):
         with self.lock:
             logger.info("[Add] Found service %s of type %s", name, type_)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
-            if transport_technology(name) == config["TYPE"]:
-                device_id = f"{short_id(name)}.{sarad_protocol(name)}.mdns"
-            else:
-                device_id = name
+            device_id = self.device_id(name)
             if info is not None:
                 logger.info("[Add] %s", info.properties)
                 actor_id = device_id
@@ -145,12 +149,13 @@ class MdnsListener(ServiceListener):
             logger.info("[Del] Service %s of type %s", name, type_)
             info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
             logger.debug("[Del] Info: %s", info)
-            device_actor = get_actor(self.registrar, name)
+            device_id = self.device_id(name)
+            device_actor = get_actor(self.registrar, device_id)
             if (device_actor is not None) and (device_actor != {}):
-                logger.debug("Kill device actor %s", name)
+                logger.debug("Kill device actor %s", device_id)
                 ActorSystem().tell(device_actor, ActorExitRequest())
             else:
-                logger.warning("Actor %s does not exist.", name)
+                logger.warning("Actor %s does not exist.", device_id)
 
     def shutdown(self) -> None:
         """Cleanup"""
