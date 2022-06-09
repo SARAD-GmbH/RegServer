@@ -96,7 +96,7 @@ def check_message(answer: bytes, multiframe: bool):
     }
 
 
-def short_id(device_id: str) -> str:
+def short_id(device_id: str, check=True):
     """Get the short instr_id of a connected instrument from its device_id.
     The instr_id is a hash created from instrument family, type and serial number.
     The device_id consists of instr_id, protocol type and service type
@@ -105,11 +105,19 @@ def short_id(device_id: str) -> str:
     Args:
         device_id (str): long ID of the instrument that is used
                          as actor_id of device actor
+        check (bool): optional argument. If True,
+                      check whether device_id is a valid device id with
+                      just 3 elements.
 
     Returns:
         str: the instr_id, that is the first element of the device_id
     """
-    return device_id.split(".")[0]
+    splitted = device_id.split(".")
+    if check:
+        if len(splitted) == 3:
+            return splitted[0]
+        return None
+    return splitted[0]
 
 
 def sarad_protocol(device_id: str) -> str:

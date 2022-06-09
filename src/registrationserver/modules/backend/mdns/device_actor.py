@@ -45,32 +45,26 @@ class DeviceActor(DeviceBaseActor):
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         base_url = f"http://{self._is_host}:{self._api_port}"
         try:
-            list_resp = requests.get(f"{base_url}/list/")
-            error = False
+            list_resp = requests.get(f"{base_url}/list/").json()
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
-            error = True
-        if error or (list_resp.status_code != 200):
             success = Status.IS_NOT_FOUND
             logger.error("%s, cannot access REST API of IS", success)
             super().receiveMsg_FreeDeviceMsg(msg, sender)
             return
         success = Status.NOT_FOUND
-        for device_id, device_desc in list_resp.json().items():
+        for device_id, device_desc in list_resp.items():
             if device_id.split(".")[0] == self.my_id.split(".")[0]:
                 reservation = device_desc.get("Reservation")
                 if (reservation is None) or reservation.get("Active", True):
                     try:
-                        resp = requests.get(f"{base_url}/list/{device_id}/free")
-                        error = False
+                        resp = requests.get(f"{base_url}/list/{device_id}/free").json()
                     except Exception as exception:  # pylint: disable=broad-except
                         logger.error("REST API of IS is not responding. %s", exception)
-                        error = True
-                    if error or (list_resp.status_code != 200):
                         success = Status.IS_NOT_FOUND
                         logger.error("%s, cannot access REST API of IS", success)
                     else:
-                        error_code = resp.json().get("Error code")
+                        error_code = resp.get("Error code")
                         logger.debug("Error code: %d", error_code)
                         if error_code is None:
                             success = Status.ERROR
@@ -87,17 +81,14 @@ class DeviceActor(DeviceBaseActor):
         """Reserve the requested instrument at the instrument server."""
         base_url = f"http://{self._is_host}:{self._api_port}"
         try:
-            list_resp = requests.get(f"{base_url}/list/")
-            error = False
+            list_resp = requests.get(f"{base_url}/list/").json()
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
-            error = True
-        if error or (list_resp.status_code != 200):
             success = Status.IS_NOT_FOUND
             self._forward_reservation(success)
             return
         success = Status.NOT_FOUND
-        for device_id, device_desc in list_resp.json().items():
+        for device_id, device_desc in list_resp.items():
             if device_id.split(".")[0] == self.my_id.split(".")[0]:
                 reservation = device_desc.get("Reservation")
                 if reservation is not None:
@@ -110,19 +101,16 @@ class DeviceActor(DeviceBaseActor):
                     try:
                         resp = requests.get(
                             f"{base_url}/list/{device_id}/reserve", {"who": app}
-                        )
-                        error = False
+                        ).json()
                     except Exception as exception:  # pylint: disable=broad-except
                         logger.error("REST API of IS is not responding. %s", exception)
-                        error = True
-                    if error or (list_resp.status_code != 200):
                         success = Status.IS_NOT_FOUND
                         self._forward_reservation(success)
                         return
-                    self.device_status["Reservation"] = resp.json()[device_id].get(
+                    self.device_status["Reservation"] = resp[device_id].get(
                         "Reservation"
                     )
-                    error_code = resp.json().get("Error code")
+                    error_code = resp.get("Error code")
                     logger.debug("Error code: %d", error_code)
                     if error_code is None:
                         success = Status.ERROR
@@ -167,18 +155,15 @@ class DeviceActor(DeviceBaseActor):
             return
         base_url = f"http://{self._is_host}:{self._api_port}"
         try:
-            list_resp = requests.get(f"{base_url}/list/")
-            error = False
+            list_resp = requests.get(f"{base_url}/list/").json()
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
-            error = True
-        if error or (list_resp.status_code != 200):
             success = Status.IS_NOT_FOUND
             logger.error(success)
             self.send(self.myAddress, KillMsg())
         else:
             success = Status.NOT_FOUND
-            for device_id, device_desc in list_resp.json().items():
+            for device_id, device_desc in list_resp.items():
                 if device_id.split(".")[0] == self.my_id.split(".")[0]:
                     self.device_status["Identification"]["Origin"] = device_desc[
                         "Identification"

@@ -89,7 +89,7 @@ class MdnsListener(ServiceListener):
     def device_id(name):
         """Convert mDNS name into a proper device_id/actor_id"""
         if transport_technology(name) == config["TYPE"]:
-            return f"{short_id(name)}.{sarad_protocol(name)}.mdns"
+            return f"{short_id(name, check=False)}.{sarad_protocol(name)}.mdns"
         return name
 
     def __init__(self, registrar_actor, service_type):
