@@ -92,6 +92,7 @@ class RestApi:
     @api.route("/shutdown", methods=["GET"])
     def shutdown():
         """Allows to shutdown the Registration Server."""
+        logger.debug("Shutdown by user intervention")
         system_shutdown()
         return "Registration Server going down for restart..."
 
@@ -206,12 +207,14 @@ class RestApi:
             Status.OK_UPDATED,
             Status.OCCUPIED,
             Status.NOT_FOUND,
+            Status.IS_NOT_FOUND,
         ):
             answer = {"Error code": status.value, "Error": str(status)}
             answer[device_id] = get_device_status(registrar_actor, device_id)
         else:
             status = Status.CRITICAL
             answer = {"Error code": status.value, "Error": str(status), device_id: {}}
+            logger.critical("%s -> emergency shutdown", answer)
             system_shutdown()
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
