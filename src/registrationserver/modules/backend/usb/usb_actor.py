@@ -51,11 +51,13 @@ class UsbActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Handler for binary message from App to Instrument."""
         super().receiveMsg_TxBinaryMsg(msg, sender)
+        emergency = False
         try:
             reply = self.instrument.get_message_payload(msg.data, timeout=1)
         except (SerialException, OSError):
             logger.error("Connection to %s lost", self.instrument)
             reply = {"is_valid": False, "is_last_frame": True}
+            emergency = True
         logger.debug("Instrument replied %s", reply)
         if reply["is_valid"]:
             self.send(sender, RxBinaryMsg(reply["raw"]))
@@ -66,11 +68,13 @@ class UsbActor(DeviceBaseActor):
                 except (SerialException, OSError):
                     logger.error("Connection to %s lost", self.my_id)
                     reply = {"is_valid": False, "is_last_frame": True}
-        if not reply["is_valid"]:
-            logger.warning(
-                "Invalid binary message from instrument. Removing %s", sender
-            )
+                    emergency = True
+        if emergency:
+            logger.info("Killing myself")
             self.send(self.myAddress, KillMsg())
+        elif not reply["is_valid"]:
+            logger.warning("Invalid binary message from instrument.")
+            self.send(sender, RxBinaryMsg(reply["raw"]))
 
     @overrides
     def _reserve_at_is(self):
