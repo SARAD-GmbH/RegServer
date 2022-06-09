@@ -50,8 +50,7 @@ class Is1Actor(DeviceBaseActor):
         if self._socket is None:
             socket.setdefaulttimeout(5)
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            retry_counter = 5
-            success = False
+            retry_counter = 3
             while retry_counter:
                 try:
                     logger.debug(
@@ -59,20 +58,20 @@ class Is1Actor(DeviceBaseActor):
                     )
                     self._socket.connect((self._is_host, self._is_port))
                     retry_counter = 0
-                    success = True
                     return True
                 except ConnectionRefusedError:
                     retry_counter = retry_counter - 1
-                    logger.debug("%d retries left", retry_counter)
+                    logger.debug("Connection refused. %d retries left", retry_counter)
                     time.sleep(1)
-            if not success:
-                logger.error(
-                    "Connection refused on %s:%d", self._is_host, self._is_port
-                )
-                self.send(self.myAddress, KillMsg())
-                return False
-        else:
-            return True
+                except TimeoutError:
+                    logger.error("Timeout connecting %s", self._is_host)
+                    retry_counter = 0
+                except BlockingIOError:
+                    logger.error("BlockingIOError connecting %s", self._is_host)
+                    retry_counter = 0
+            self.send(self.myAddress, KillMsg())
+            return False
+        return True
 
     def _destroy_socket(self):
         if self._socket is not None:
