@@ -255,12 +255,15 @@ def get_device_statuses(registrar_actor):
     device_statuses = {}
     for _id, device_actor in device_actor_dict.items():
         with ActorSystem().private() as status_sys:
-            result = status_sys.ask(device_actor, GetDeviceStatusMsg())
+            try:
+                result = status_sys.ask(device_actor, GetDeviceStatusMsg())
+            except ConnectionResetError as exception:
+                logger.error("%s", exception)
+            else:
+                device_statuses[result.device_id] = result.device_status
             if not isinstance(result, UpdateDeviceStatusMsg):
                 logger.critical("Emergency shutdown. Wrong reply type: %s", result)
                 system_shutdown()
-                return {}
-            device_statuses[result.device_id] = result.device_status
     return device_statuses
 
 
