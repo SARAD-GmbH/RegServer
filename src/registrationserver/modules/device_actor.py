@@ -85,7 +85,11 @@ class DeviceBaseActor(BaseActor):
         instr_id = short_id(self.my_id)
         try:
             if self.device_status["Reservation"]["Active"]:
-                if self.device_status["Reservation"]["Host"] == self.host:
+                if (
+                    (self.device_status["Reservation"]["Host"] == self.host)
+                    and (self.device_status["Reservation"]["App"] == self.app)
+                    and (self.device_status["Reservation"]["User"] == self.user)
+                ):
                     return_message = ReservationStatusMsg(instr_id, Status.OK_UPDATED)
                 else:
                     return_message = ReservationStatusMsg(instr_id, Status.OCCUPIED)
