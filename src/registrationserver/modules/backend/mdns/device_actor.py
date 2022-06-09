@@ -48,7 +48,8 @@ class DeviceActor(DeviceBaseActor):
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         base_url = f"http://{self._is_host}:{self._api_port}"
-        if datetime.utcnow() - self.time_of_req > timedelta(seconds=1):
+        age = datetime.utcnow() - self.time_of_req
+        if age > timedelta(seconds=1):
             try:
                 self.list_resp = requests.get(f"{base_url}/list/").json()
                 self.time_of_req = datetime.utcnow()
@@ -86,7 +87,8 @@ class DeviceActor(DeviceBaseActor):
     def _reserve_at_is(self):
         """Reserve the requested instrument at the instrument server."""
         base_url = f"http://{self._is_host}:{self._api_port}"
-        if datetime.utcnow() - self.time_of_req > timedelta(seconds=1):
+        age = datetime.utcnow() - self.time_of_req
+        if age > timedelta(seconds=1):
             try:
                 self.list_resp = requests.get(f"{base_url}/list/").json()
                 self.time_of_req = datetime.utcnow()
@@ -162,7 +164,8 @@ class DeviceActor(DeviceBaseActor):
             super().receiveMsg_GetDeviceStatusMsg(msg, sender)
             return
         base_url = f"http://{self._is_host}:{self._api_port}"
-        if datetime.utcnow() - self.time_of_req > timedelta(seconds=1):
+        age = datetime.utcnow() - self.time_of_req
+        if age > timedelta(seconds=1):
             try:
                 self.list_resp = requests.get(f"{base_url}/list/").json()
                 self.time_of_req = datetime.utcnow()
