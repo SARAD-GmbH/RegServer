@@ -82,7 +82,7 @@ class MdnsListener(ServiceListener):
                 "Address": _addr_ip,
                 "Name": name,
                 "API port": info.port,
-                "Device Id": properties.get(b"DEVICE_ID"),
+                "Device Id": properties.get(b"DEVICE_ID").decode("utf-8"),
             },
         }
 
