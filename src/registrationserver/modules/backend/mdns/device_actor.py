@@ -47,7 +47,8 @@ class DeviceActor(DeviceBaseActor):
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         base_url = f"http://{self._is_host}:{self._api_port}"
         try:
-            device_desc = requests.get(f"{base_url}/list/{self.device_id}").json()
+            device_resp = requests.get(f"{base_url}/list/{self.device_id}/").json()
+            device_desc = device_resp[self.device_id]
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
@@ -81,7 +82,8 @@ class DeviceActor(DeviceBaseActor):
         """Reserve the requested instrument at the instrument server."""
         base_url = f"http://{self._is_host}:{self._api_port}"
         try:
-            device_desc = requests.get(f"{base_url}/list/{self.device_id}").json()
+            device_resp = requests.get(f"{base_url}/list/{self.device_id}/").json()
+            device_desc = device_resp[self.device_id]
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
@@ -151,7 +153,8 @@ class DeviceActor(DeviceBaseActor):
             return
         base_url = f"http://{self._is_host}:{self._api_port}"
         try:
-            device_desc = requests.get(f"{base_url}/list/{self.device_id}").json()
+            device_resp = requests.get(f"{base_url}/list/{self.device_id}/").json()
+            device_desc = device_resp[self.device_id]
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
