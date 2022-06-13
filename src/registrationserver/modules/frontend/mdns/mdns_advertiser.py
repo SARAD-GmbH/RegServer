@@ -48,7 +48,7 @@ class MdnsAdvertiserActor(BaseActor):
         sarad_protocol = msg.device_id.split(".")[1]
         instr_name = msg.device_status["Identification"]["Name"]
         service_name = f"{instr_id}.{sarad_protocol}"
-        self.__start_advertising(service_name, instr_name)
+        self.__start_advertising(service_name, instr_name, msg.device_id)
 
     def receiveMsg_KillMsg(self, msg, sender):
         try:
@@ -60,11 +60,12 @@ class MdnsAdvertiserActor(BaseActor):
             )
         super().receiveMsg_KillMsg(msg, sender)
 
-    def __start_advertising(self, service_name, instr_name):
+    def __start_advertising(self, service_name, instr_name, device_id):
         properties = {
             "VENDOR": "SARAD GmbH",
             "MODEL_ENC": instr_name,
             "SERIAL_SHORT": service_name,
+            "DEVICE_ID": device_id,
         }
         service_type = config["TYPE"]
         self.service = ServiceInfo(

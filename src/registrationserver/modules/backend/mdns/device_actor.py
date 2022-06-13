@@ -37,6 +37,7 @@ class DeviceActor(DeviceBaseActor):
         self._api_port = None
         self.list_resp = {}
         self.time_of_req = datetime(1970, 1, 1)
+        self.device_id = None
 
     def receiveMsg_SetupMdnsActorMsg(self, msg, _sender):
         # pylint: disable=invalid-name
@@ -44,6 +45,7 @@ class DeviceActor(DeviceBaseActor):
         that is special to the mDNS device actor"""
         self._is_host = msg.is_host
         self._api_port = msg.api_port
+        self.device_id = msg.device_id
 
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
