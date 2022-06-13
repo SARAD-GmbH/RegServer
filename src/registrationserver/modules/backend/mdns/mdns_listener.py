@@ -82,6 +82,7 @@ class MdnsListener(ServiceListener):
                 "Address": _addr_ip,
                 "Name": name,
                 "API port": info.port,
+                "Device Id": properties.get(b"DEVICE_ID"),
             },
         }
 
@@ -128,8 +129,9 @@ class MdnsListener(ServiceListener):
                     data = self.convert_properties(name=name, info=info)
                     is_host = data["Remote"]["Address"]
                     api_port = data["Remote"]["API port"]
+                    device_id = data["Remote"]["Device Id"]
                     ActorSystem().tell(
-                        device_actor, SetupMdnsActorMsg(is_host, api_port)
+                        device_actor, SetupMdnsActorMsg(is_host, api_port, device_id)
                     )
                     logger.debug("Setup the device actor with %s", data)
                     ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))

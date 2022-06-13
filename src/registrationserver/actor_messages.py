@@ -147,10 +147,12 @@ class SetupMdnsActorMsg:
     Args:
         is_host (str): IP address of IS2.
         api_port (int): Port the REST API of IS2 is on.
+        device_id (str): Device Id at the remote host.
     """
 
     is_host: str
     api_port: int
+    device_id: str
 
 
 @dataclass

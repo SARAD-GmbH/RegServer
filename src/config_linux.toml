@@ -15,7 +15,7 @@ host = "::"  # all hosts IPv6
 is_id = "aranea0003"
 
 [frontends]
-rest = false
+rest = true
 mqtt = false
 mdns = true
 
@@ -27,6 +27,9 @@ is1 = true
 
 [mdns_frontend]
 port_range = [50000, 50500]
+
+[is1_backend]
+registration_port = 50002
 
 [actor]
 system_base = "multiprocUDPBase"
