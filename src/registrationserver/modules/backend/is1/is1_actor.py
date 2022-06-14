@@ -7,11 +7,12 @@ as used in Instrument Server 1
 :Authors:
     | Michael Strey <strey@sarad.de>
 """
+import datetime
 import socket
 import time
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (AllowRescanMsg, KillMsg,
+from registrationserver.actor_messages import (InstrumentServer1, KillMsg,
                                                RxBinaryMsg, Status)
 from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
@@ -23,6 +24,8 @@ logger.debug("%s -> %s", __package__, __file__)
 class Is1Actor(DeviceBaseActor):
     """Actor for dealing with connection to Instrument Server 1"""
 
+    GET_FIRST_COM = [b"\xe0", b""]
+    GET_NEXT_COM = [b"\xe1", b""]
     SELECT_COM = b"\xe2"
     CLOSE_COM_PORT = b"\xe9"
     COM_SELECTED = b"\xe5"
@@ -33,18 +36,39 @@ class Is1Actor(DeviceBaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self._is_port = None
-        self._is_host = None
+        self._is = None
         self._com_port = None
         self._socket = None
+        self.last_activity = datetime.datetime.utcnow()
 
     def receiveMsg_SetupIs1ActorMsg(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for SetupIs1ActorMsg containing setup information
         that is special to the IS1 device actor"""
-        self._is_port = msg.instrument_server.port
-        self._is_host = msg.instrument_server.host
+        self._is = msg.instrument_server
         self._com_port = msg.com_port
+        self.wakeupAfter(datetime.timedelta(seconds=20), payload="Rescan")
+
+    def receiveMsg_WakeupMessage(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for WakeupMessage"""
+        if msg.payload == "Rescan" and not self.on_kill:
+            time_condition = bool(
+                datetime.datetime.utcnow() - self.last_activity
+                > datetime.timedelta(seconds=10)
+            )
+            logger.debug(
+                "time_condition = %s",
+                time_condition,
+            )
+            if time_condition:
+                logger.debug(
+                    "Check %s for living instruments",
+                    self._is.host,
+                )
+                self._scan_is(self._is)
+            self.wakeupAfter(datetime.timedelta(seconds=60), payload="Rescan")
+            self.last_activity = datetime.datetime.utcnow()
 
     def _establish_socket(self):
         if self._socket is None:
@@ -54,9 +78,9 @@ class Is1Actor(DeviceBaseActor):
             while retry_counter:
                 try:
                     logger.debug(
-                        "Trying to connect %s:%d", self._is_host, self._is_port
+                        "Trying to connect %s:%d", self._is.host, self._is.port
                     )
-                    self._socket.connect((self._is_host, self._is_port))
+                    self._socket.connect((self._is.host, self._is.port))
                     retry_counter = 0
                     return True
                 except ConnectionRefusedError:
@@ -64,10 +88,10 @@ class Is1Actor(DeviceBaseActor):
                     logger.debug("Connection refused. %d retries left", retry_counter)
                     time.sleep(1)
                 except TimeoutError:
-                    logger.error("Timeout connecting %s", self._is_host)
+                    logger.error("Timeout connecting %s", self._is.host)
                     retry_counter = 0
                 except BlockingIOError:
-                    logger.error("BlockingIOError connecting %s", self._is_host)
+                    logger.error("BlockingIOError connecting %s", self._is.host)
                     retry_counter = 0
             self.send(self.myAddress, KillMsg())
             return False
@@ -108,7 +132,6 @@ class Is1Actor(DeviceBaseActor):
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for TxBinaryMsg from App to Instrument."""
-        self.send(self.parent.parent_address, AllowRescanMsg(False))
         super().receiveMsg_TxBinaryMsg(msg, sender)
         if not self._establish_socket():
             logger.error("Can't establish the client socket.")
@@ -131,7 +154,7 @@ class Is1Actor(DeviceBaseActor):
             self.send(self.myAddress, KillMsg())
             reply = b""
         self.send(self.redirector_actor, RxBinaryMsg(reply))
-        self.send(self.parent.parent_address, AllowRescanMsg(True))
+        self.last_activity = datetime.datetime.utcnow()
 
     @overrides
     def _reserve_at_is(self):
@@ -178,3 +201,47 @@ class Is1Actor(DeviceBaseActor):
     def receiveMsg_KillMsg(self, msg, sender):
         self._destroy_socket()
         super().receiveMsg_KillMsg(msg, sender)
+
+    def _scan_is(self, instrument_server: InstrumentServer1):
+        is_host = instrument_server.host
+        is_port = instrument_server.port
+        cmd_msg = make_command_msg(self.GET_FIRST_COM)
+        logger.debug("Send GetFirstCOM: %s", cmd_msg)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            retry = True
+            counter = 3
+            while retry and counter:
+                try:
+                    logger.debug("Trying to connect %s:%d", is_host, is_port)
+                    client_socket.connect((is_host, is_port))
+                    retry = False
+                except ConnectionRefusedError:
+                    counter = counter - 1
+                    logger.debug("%d retries left", counter)
+                    time.sleep(1)
+                except OSError:
+                    logger.debug("%s:%d not reachable", is_host, is_port)
+                    self.send(self.myAddress, KillMsg())
+                    return
+            if retry:
+                logger.critical("Connection refused on %s:%d", is_host, is_port)
+                self.send(self.myAddress, KillMsg())
+                return
+            try:
+                client_socket.sendall(cmd_msg)
+                reply = client_socket.recv(1024)
+            except (ConnectionResetError, TimeoutError) as exception:
+                logger.error("%s. IS1 closed or disconnected.", exception)
+                self.send(self.myAddress, KillMsg())
+                return
+            checked_reply = check_message(reply, multiframe=False)
+            while checked_reply["is_valid"] and checked_reply["payload"] not in [
+                b"\xe4",
+                b"",
+            ]:
+                cmd_msg = make_command_msg(self.GET_NEXT_COM)
+                client_socket.sendall(cmd_msg)
+                reply = client_socket.recv(1024)
+                checked_reply = check_message(reply, multiframe=False)
+            client_socket.shutdown(socket.SHUT_WR)
+            return
