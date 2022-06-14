@@ -19,7 +19,8 @@ from registrationserver.actor_messages import (InstrumentServer1, KillMsg,
                                                SetupIs1ActorMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import app_folder, config, is1_backend_config
-from registrationserver.helpers import check_message, make_command_msg
+from registrationserver.helpers import (check_message, make_command_msg,
+                                        short_id)
 from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_actor import Is1Actor
 from sarad.sari import SaradInst  # type: ignore
@@ -133,9 +134,8 @@ class Is1Listener(BaseActor):
         if self._port is not None:
             logger.info("Socket listening on %s:%d", my_ip, self._port)
         self.instrument_servers = set()
+        self.inactive_servers = []
         self.pickle_file_name = f"{app_folder}wlan_instruments.pickle"
-        self.allow_rescan = True
-        self.last_activity = datetime.datetime.utcnow()
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -147,35 +147,12 @@ class Is1Listener(BaseActor):
             logger.warning("Cannot find %s", self.pickle_file_name)
         except AttributeError:
             logger.error("Error reading persistent instrument server list")
-        for instrument_server in self.instrument_servers:
-            instrument_server.instruments = frozenset([])
+        instrument_servers = list(self.instrument_servers)
+        self.inactive_servers = instrument_servers
+        for instrument_server in instrument_servers:
+            self._scan_is(instrument_server)
         self._subscribe_to_actor_dict_msg()
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="Connect")
-        self.wakeupAfter(datetime.timedelta(seconds=20), payload="Rescan")
-
-    def receiveMsg_RescanMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler for RescanMessage causing a prompt re-scan
-        on all known instrument servers"""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        time_condition = bool(
-            datetime.datetime.utcnow() - self.last_activity
-            > datetime.timedelta(seconds=10)
-        )
-        allow_rescan = bool(self.allow_rescan and time_condition)
-        logger.debug(
-            "self.allow_rescan = %s, time_condition = %s",
-            self.allow_rescan,
-            time_condition,
-        )
-        if allow_rescan:
-            instrument_servers = list(self.instrument_servers)
-            for instrument_server in instrument_servers:
-                logger.debug(
-                    "Check %s for living instruments",
-                    instrument_server.host,
-                )
-                self._scan_is(instrument_server)
         self.wakeupAfter(datetime.timedelta(seconds=60), payload="Rescan")
 
     def listen(self):
@@ -197,22 +174,20 @@ class Is1Listener(BaseActor):
             logger.error("None of ports in %s available", self.PORTS)
         self.wakeupAfter(datetime.timedelta(seconds=1), payload="Connect")
 
-    def receiveMsg_WakeupMessage(self, msg, sender):
+    def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
         if msg.payload == "Connect" and not self.on_kill:
             self.listen()
         if msg.payload == "Rescan" and not self.on_kill:
-            self.receiveMsg_RescanMsg(msg, sender)
-
-    def receiveMsg_AllowRescanMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Allow or forbid performing the self._scan_is() function.
-
-        Workaround for the shortcommings of IS1 implementation on WLAN module."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.allow_rescan = msg.allow
-        self.last_activity = datetime.datetime.utcnow()
+            instrument_servers = list(self.inactive_servers)
+            for instrument_server in instrument_servers:
+                logger.debug(
+                    "Check %s for living instruments",
+                    instrument_server.host,
+                )
+                self._scan_is(instrument_server)
+            self.wakeupAfter(datetime.timedelta(seconds=60), payload="Rescan")
 
     def _cmd_handler(self, is_host):
         """Handle a binary SARAD command received via the socket."""
@@ -309,6 +284,16 @@ class Is1Listener(BaseActor):
             pickle.dump(self.instrument_servers, pickle_file, pickle.HIGHEST_PROTOCOL)
         super().receiveMsg_KillMsg(msg, sender)
 
+    @overrides
+    def receiveMsg_ChildActorExited(self, msg, sender):
+        for actor_id, description in self.child_actors.items():
+            if description["actor_address"] == sender:
+                # copy _is from self.instrument_servers to self.inactive_servers
+                instr_id = short_id(actor_id)
+                for instr_server in self.instrument_servers:
+                    if instr_id in instr_server.instruments:
+                        self.inactive_servers.append(instr_server)
+
     def _create_and_setup_actor(
         self, instr_id, port, instrument_server: InstrumentServer1
     ):
@@ -359,4 +344,5 @@ class Is1Listener(BaseActor):
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
         self.send(device_actor, SetDeviceStatusMsg(device_status))
         self.instrument_servers.add(instrument_server)
+        self.inactive_servers.remove(instrument_server)
         logger.debug("Updated set of instrument servers: %s", self.instrument_servers)

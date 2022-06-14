@@ -8,8 +8,6 @@
     | Michael Strey <strey@sarad.de>
 
 """
-
-
 import requests
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg, ReservationStatusMsg,
