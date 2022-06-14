@@ -117,9 +117,10 @@ class MdnsListener(ServiceListener):
             if info is not None:
                 logger.info("[Add] %s", info.properties)
                 actor_id = device_id
-                reply = ActorSystem().ask(
-                    self.registrar, CreateActorMsg(DeviceActor, actor_id)
-                )
+                with ActorSystem().private() as add_ser:
+                    reply = add_ser.ask(
+                        self.registrar, CreateActorMsg(DeviceActor, actor_id)
+                    )
                 if not isinstance(reply, ActorCreatedMsg):
                     logger.critical("Got message object of unexpected type")
                     logger.critical("-> Stop and shutdown system")

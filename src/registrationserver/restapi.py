@@ -231,9 +231,10 @@ class RestApi:
         else:
             device_actor = get_actor(registrar_actor, device_id)
             logger.debug("Ask device actor to FREE...")
-            free_return = ActorSystem().ask(
-                device_actor, FreeDeviceMsg(), timeout=timedelta(seconds=10)
-            )
+            with ActorSystem().private() as free_dev:
+                free_return = free_dev.ask(
+                    device_actor, FreeDeviceMsg(), timeout=timedelta(seconds=10)
+                )
             reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
             if reply_is_corrupted:
                 return reply_is_corrupted
@@ -252,9 +253,10 @@ class RestApi:
         """Lists Local Ports, Used for Testing atm"""
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         cluster_actor = get_actor(registrar_actor, "cluster")
-        reply = ActorSystem().ask(
-            cluster_actor, GetLocalPortsMsg(), timeout=timedelta(seconds=10)
-        )
+        with ActorSystem().private() as get_local_ports:
+            reply = get_local_ports.ask(
+                cluster_actor, GetLocalPortsMsg(), timeout=timedelta(seconds=10)
+            )
         reply_is_corrupted = check_msg(reply, ReturnLocalPortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
@@ -268,9 +270,10 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         cluster_actor = get_actor(registrar_actor, "cluster")
-        reply = ActorSystem().ask(
-            cluster_actor, AddPortToLoopMsg(port), timeout=timedelta(seconds=10)
-        )
+        with ActorSystem().private() as get_loop_port:
+            reply = get_loop_port.ask(
+                cluster_actor, AddPortToLoopMsg(port), timeout=timedelta(seconds=10)
+            )
         reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
@@ -284,9 +287,12 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         cluster_actor = get_actor(registrar_actor, "cluster")
-        reply = ActorSystem().ask(
-            cluster_actor, RemovePortFromLoopMsg(port), timeout=timedelta(seconds=10)
-        )
+        with ActorSystem().private() as get_stop_port:
+            reply = get_stop_port.ask(
+                cluster_actor,
+                RemovePortFromLoopMsg(port),
+                timeout=timedelta(seconds=10),
+            )
         reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
@@ -300,9 +306,10 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         cluster_actor = get_actor(registrar_actor, "cluster")
-        reply = ActorSystem().ask(
-            cluster_actor, GetUsbPortsMsg(), timeout=timedelta(seconds=10)
-        )
+        with ActorSystem().private() as get_usb_ports:
+            reply = get_usb_ports.ask(
+                cluster_actor, GetUsbPortsMsg(), timeout=timedelta(seconds=10)
+            )
         reply_is_corrupted = check_msg(reply, ReturnUsbPortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
@@ -316,9 +323,10 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         cluster_actor = get_actor(registrar_actor, "cluster")
-        reply = ActorSystem().ask(
-            cluster_actor, GetNativePortsMsg(), timeout=timedelta(seconds=10)
-        )
+        with ActorSystem().private() as get_native_ports:
+            reply = get_native_ports.ask(
+                cluster_actor, GetNativePortsMsg(), timeout=timedelta(seconds=10)
+            )
         reply_is_corrupted = check_msg(reply, ReturnNativePortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
@@ -332,11 +340,12 @@ class RestApi:
         """Ask actor system to output actor status to debug log"""
         registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         actor_address = get_actor(registrar_actor, actor_id)
-        reply = ActorSystem().ask(
-            actorAddr=actor_address,
-            msg=Thespian_StatusReq(),
-            timeout=timedelta(seconds=10),
-        )
+        with ActorSystem().private() as get_status:
+            reply = get_status.ask(
+                actorAddr=actor_address,
+                msg=Thespian_StatusReq(),
+                timeout=timedelta(seconds=10),
+            )
         reply_is_corrupted = check_msg(reply, Thespian_ActorStatus)
         if reply_is_corrupted:
             return reply_is_corrupted
