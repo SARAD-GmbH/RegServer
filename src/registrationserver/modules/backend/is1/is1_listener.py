@@ -293,6 +293,7 @@ class Is1Listener(BaseActor):
                 for instr_server in self.instrument_servers:
                     if instr_id in instr_server.instruments:
                         self.inactive_servers.append(instr_server)
+        super().receiveMsg_ChildActorExited(msg, sender)
 
     def _create_and_setup_actor(
         self, instr_id, port, instrument_server: InstrumentServer1
