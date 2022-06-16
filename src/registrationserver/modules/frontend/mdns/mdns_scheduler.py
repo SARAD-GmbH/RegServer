@@ -14,7 +14,7 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg,
                                                SetupMdnsAdvertiserActorMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.helpers import diff_of_dicts
+from registrationserver.helpers import diff_of_dicts, transport_technology
 from registrationserver.logger import logger
 from registrationserver.modules.frontend.mdns.mdns_advertiser import \
     MdnsAdvertiserActor
@@ -57,9 +57,11 @@ class MdnsSchedulerActor(BaseActor):
         gone_device_actors = diff_of_dicts(old_actor_dict, new_actor_dict)
         logger.debug("Gone device actors %s", gone_device_actors)
         for actor_id in new_device_actors:
-            self._create_instrument(actor_id)
+            if transport_technology(actor_id) != "mdns":
+                self._create_instrument(actor_id)
         for actor_id in gone_device_actors:
-            self._remove_instrument(actor_id)
+            if transport_technology(actor_id) != "mdns":
+                self._remove_instrument(actor_id)
 
     def _create_instrument(self, device_id):
         """Create advertiser actor if it does not exist already"""
