@@ -46,11 +46,26 @@ class UsbActor(DeviceBaseActor):
         self.instrument.release_instrument()
         logger.info("Instrument with Id %s detected.", self.my_id)
 
+    def dummy_reply(self, data, sender) -> bool:
+        """Filter TX message and give a dummy reply.
+
+        This function was invented in order to prevent messages destined for
+        the WLAN module to be sent to the instrument.
+        """
+        tx_rx = {b"B\x80\x7f\xe6\xe6\x00E": b"B\x80\x7f\xe7\xe7\x00E"}
+        if data in tx_rx:
+            logger.debug("Reply %s with %s", data, tx_rx[data])
+            self.send(sender, RxBinaryMsg(tx_rx[data]))
+            return True
+        return False
+
     @overrides
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for binary message from App to Instrument."""
         super().receiveMsg_TxBinaryMsg(msg, sender)
+        if self.dummy_reply(msg.data, sender):
+            return
         emergency = False
         try:
             reply = self.instrument.get_message_payload(msg.data, timeout=1)
