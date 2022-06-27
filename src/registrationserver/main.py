@@ -185,20 +185,22 @@ def main():
     while is_flag_set() and retry_counter:
         before = datetime.now()
         with ActorSystem().private() as registrar_status:
-            os_error = True
-            while os_error:
-                try:
-                    reply = registrar_status.ask(
-                        startup_tupel[0],
-                        Thespian_StatusReq(),
-                        timeout=timedelta(seconds=3),
-                    )
-                    os_error = False
-                except OSError as exception:
-                    logger.error("We are offline. %s", exception)
-                    os_error = True
-                    time.sleep(10)
-        if not isinstance(reply, Thespian_ActorStatus):
+            try:
+                reply = registrar_status.ask(
+                    startup_tupel[0],
+                    Thespian_StatusReq(),
+                    timeout=timedelta(seconds=3),
+                )
+            except OSError as exception:
+                logger.critical("We are offline. %s -> Emergency shutdown", exception)
+                set_file_flag(False)
+            except RuntimeError as exception:
+                logger.critical("%s. -> Emergency shutdown", exception)
+                set_file_flag(False)
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.critical("%s. -> Emergency shutdown", exception)
+                set_file_flag(False)
+        if is_flag_set() and not isinstance(reply, Thespian_ActorStatus):
             logger.error("Registrar replied %s instead of Thespian_ActorStatus", reply)
             retry_counter = retry_counter - 1
             if not retry_counter:
