@@ -12,7 +12,7 @@ is_id = "Instrument Server A"
 [frontends]
 rest = true
 mqtt = false
-mdns = false
+mdns = true
 
 [backends]
 usb = true
