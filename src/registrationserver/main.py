@@ -181,8 +181,7 @@ def main():
     logger.debug("Starting the main loop")
     wait_some_time = False
     registrar_is_down = False
-    retry_counter = 3
-    while is_flag_set() and retry_counter:
+    while is_flag_set():
         before = datetime.now()
         with ActorSystem().private() as registrar_status:
             try:
@@ -194,21 +193,22 @@ def main():
             except OSError as exception:
                 logger.critical("We are offline. %s -> Emergency shutdown", exception)
                 set_file_flag(False)
+                registrar_is_down = True
             except RuntimeError as exception:
                 logger.critical("%s. -> Emergency shutdown", exception)
                 set_file_flag(False)
+                registrar_is_down = True
             except Exception as exception:  # pylint: disable=broad-except
                 logger.critical("%s. -> Emergency shutdown", exception)
                 set_file_flag(False)
+                registrar_is_down = True
         if is_flag_set() and not isinstance(reply, Thespian_ActorStatus):
             logger.error("Registrar replied %s instead of Thespian_ActorStatus", reply)
-            retry_counter = retry_counter - 1
-            if not retry_counter:
-                set_file_flag(False)
-                registrar_is_down = True
-                logger.critical(
-                    "No status response from Registrar Actor. Emergency shutdown."
-                )
+            logger.critical(
+                "No status response from Registrar Actor. Emergency shutdown."
+            )
+            set_file_flag(False)
+            registrar_is_down = True
         time.sleep(1)
         after = datetime.now()
         if (after - before).total_seconds() > 10:
