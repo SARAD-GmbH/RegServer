@@ -8,7 +8,6 @@ if ($(Get-NetFirewallRule -DisplayName $firewallRuleName))
 else
 {
     write-host "Firewall rule for '$firewallRuleName' does not exist, creating new rule now..."
-    New-NetFirewallRule -DisplayName $firewallRuleName -Direction Inbound -Action Allow -Protocol TCP -Program "$args[0]\regserver-service.exe" -RemoteAddress LocalSubnet
-    New-NetFirewallRule -DisplayName $firewallRuleName -Direction Inbound -Action Allow -Protocol UDP -Program "$args[0]\regserver-service.exe" -RemoteAddress LocalSubnet
+    New-NetFirewallRule -DisplayName $firewallRuleName -Action Allow -Description "Allow connections to SARAD Registration Server Service" -Direction Inbound -LocalPort 50000-50500,8008 -Protocol TCP -RemoteAddress LocalSubnet -Service SaradRegistrationServer
     write-host "Firewall rule for '$firewallRuleName' created successfully"
 }
