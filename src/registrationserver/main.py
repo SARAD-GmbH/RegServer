@@ -185,7 +185,7 @@ def main():
                 reply = registrar_status.ask(
                     startup_tupel[0],
                     Thespian_StatusReq(),
-                    timeout=timedelta(seconds=3),
+                    timeout=timedelta(seconds=30),
                 )
             except OSError as exception:
                 logger.critical("We are offline. %s -> Emergency shutdown", exception)
