@@ -96,7 +96,6 @@ else:
 DEFAULT_IGNORED_SERIAL_PORTS: List[str] = []
 DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
 DEFAULT_API_PORT = 8008
-DEFAULT_HOST = "::"
 DEFAULT_MY_IP = get_ip(ipv6=False)
 DEFAULT_MY_HOSTNAME = get_hostname(DEFAULT_MY_IP)
 try:
@@ -146,7 +145,6 @@ config = {
         "local_retry_interval", DEFAULT_LOCAL_RETRY_INTERVAL
     ),
     "API_PORT": customization.get("api_port", DEFAULT_API_PORT),
-    "HOST": customization.get("host", DEFAULT_HOST),
     "MY_IP": customization.get("my_ip", DEFAULT_MY_IP),
     "MY_HOSTNAME": customization.get("my_hostname", DEFAULT_MY_HOSTNAME),
     "IS_ID": customization.get("is_id", DEFAULT_IS_ID),

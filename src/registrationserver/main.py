@@ -78,10 +78,7 @@ def startup():
         restapi = RestApi()
         apithread = threading.Thread(
             target=restapi.run,
-            args=(
-                configuration.config["HOST"],
-                configuration.config["API_PORT"],
-            ),
+            args=(configuration.config["API_PORT"],),
             daemon=True,
         )
         apithread.start()

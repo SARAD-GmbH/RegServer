@@ -6,7 +6,6 @@ native_serial_ports = ["COM1"]
 ignored_serial_ports = []
 local_retry_interval = 86400  # in seconds
 api_port = 8008
-host = "::"  # all hosts IPv6
 is_id = "Instrument Server A"
 
 [frontends]
