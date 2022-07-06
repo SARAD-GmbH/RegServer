@@ -77,6 +77,13 @@ class DeviceActor(DeviceBaseActor):
         self._api_port = msg.api_port
         self.device_id = msg.device_id
         self.base_url = f"http://{self._is_host}:{self._api_port}"
+        try:
+            _resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.error("REST API of IS is not responding. %s", exception)
+            success = Status.IS_NOT_FOUND
+            logger.error(success)
+            self.send(self.myAddress, KillMsg())
 
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
