@@ -21,6 +21,7 @@ from thespian.actors import (Actor, ActorSystem,  # type: ignore
                              Thespian_ActorStatus)
 from thespian.system.messages.status import (  # type: ignore
     Thespian_StatusReq, formatStatus)
+from waitress import serve
 
 from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
                                                GetLocalPortsMsg,
@@ -372,7 +373,8 @@ class RestApi:
                 logger.info("Starting API at %s:%d", host, port)
                 std = sys.stdout
                 sys.stdout = RestApi.Dummy
-                self.api.run(host=host, port=port, debug=debug, load_dotenv=load_dotenv)
+                # self.api.run(host=host, port=port, debug=debug, load_dotenv=load_dotenv)
+                serve(self.api, listen=f"*:{port}")
                 sys.stdout = std
                 success = True
             except OSError as exception:

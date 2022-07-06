@@ -29,6 +29,7 @@ pefile = "*"
 pyinstaller = "*"
 toml = "*"
 requests = "*"
+waitress = "*"
 
 [requires]
 python_version = "3"
