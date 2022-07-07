@@ -344,6 +344,8 @@ class Is1Listener(BaseActor):
         }
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
         self.send(device_actor, SetDeviceStatusMsg(device_status))
+        logger.debug("IS list before add: %s", self.instrument_servers)
         self.instrument_servers.add(instrument_server)
+        logger.debug("IS list after add: %s", self.instrument_servers)
         self.inactive_servers.remove(instrument_server)
         logger.debug("Updated set of instrument servers: %s", self.instrument_servers)

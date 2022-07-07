@@ -17,10 +17,31 @@ from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.shutdown import system_shutdown
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger.debug("%s -> %s", __package__, __file__)
 
 CMD_CYCLE_TIMEOUT = 1
+
+DEFAULT_TIMEOUT = 5  # seconds
+
+
+class TimeoutHTTPAdapter(HTTPAdapter):
+    """Class to unify timeouts for all requests"""
+
+    def __init__(self, *args, **kwargs):
+        self.timeout = DEFAULT_TIMEOUT
+        if "timeout" in kwargs:
+            self.timeout = kwargs["timeout"]
+            del kwargs["timeout"]
+        super().__init__(*args, **kwargs)
+
+    def send(self, request, **kwargs):
+        timeout = kwargs.get("timeout")
+        if timeout is None:
+            kwargs["timeout"] = self.timeout
+        return super().send(request, **kwargs)
 
 
 class DeviceActor(DeviceBaseActor):
@@ -32,6 +53,21 @@ class DeviceActor(DeviceBaseActor):
         self._is_host = None
         self._api_port = None
         self.device_id = None
+        self.base_url = ""
+        self.http = requests.Session()
+        assert_status_hook = (
+            lambda response, *args, **kwargs: response.raise_for_status()
+        )
+        self.http.hooks["response"] = [assert_status_hook]
+        retry_strategy = Retry(
+            total=3,
+            status_forcelist=[429, 500, 502, 503, 504],
+            method_whitelist=["HEAD", "GET", "OPTIONS"],
+            backoff_factor=1,
+        )
+        adapter = TimeoutHTTPAdapter(max_retries=retry_strategy)
+        self.http.mount("https://", adapter)
+        self.http.mount("http://", adapter)
 
     def receiveMsg_SetupMdnsActorMsg(self, msg, _sender):
         # pylint: disable=invalid-name
@@ -40,13 +76,19 @@ class DeviceActor(DeviceBaseActor):
         self._is_host = msg.is_host
         self._api_port = msg.api_port
         self.device_id = msg.device_id
+        self.base_url = f"http://{self._is_host}:{self._api_port}"
+        try:
+            _resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.error("REST API of IS is not responding. %s", exception)
+            success = Status.IS_NOT_FOUND
+            logger.error(success)
+            self.send(self.myAddress, KillMsg())
 
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
-        base_url = f"http://{self._is_host}:{self._api_port}"
         try:
-            resp = requests.get(f"{base_url}/list/{self.device_id}/")
-            assert resp.status_code == 200
+            resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
             device_resp = resp.json()
             device_desc = device_resp[self.device_id]
         except Exception as exception:  # pylint: disable=broad-except
@@ -59,8 +101,7 @@ class DeviceActor(DeviceBaseActor):
         reservation = device_desc.get("Reservation")
         if (reservation is None) or reservation.get("Active", True):
             try:
-                resp = requests.get(f"{base_url}/list/{self.device_id}/free")
-                assert resp.status_code == 200
+                resp = self.http.get(f"{self.base_url}/list/{self.device_id}/free")
                 resp_free = resp.json()
             except Exception as exception:  # pylint: disable=broad-except
                 logger.error("REST API of IS is not responding. %s", exception)
@@ -82,10 +123,8 @@ class DeviceActor(DeviceBaseActor):
     @overrides
     def _reserve_at_is(self):
         """Reserve the requested instrument at the instrument server."""
-        base_url = f"http://{self._is_host}:{self._api_port}"
         try:
-            resp = requests.get(f"{base_url}/list/{self.device_id}/")
-            assert resp.status_code == 200
+            resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
             device_resp = resp.json()
             device_desc = device_resp[self.device_id]
         except Exception as exception:  # pylint: disable=broad-except
@@ -103,10 +142,10 @@ class DeviceActor(DeviceBaseActor):
             app = f"{self.app} - {self.user} - {self.host}"
             logger.debug("Try to reserve this instrument for %s.", app)
             try:
-                resp = requests.get(
-                    f"{base_url}/list/{self.device_id}/reserve", {"who": app}
+                resp = self.http.get(
+                    f"{self.base_url}/list/{self.device_id}/reserve",
+                    params={"who": app},
                 )
-                assert resp.status_code == 200
                 resp_reserve = resp.json()
             except Exception as exception:  # pylint: disable=broad-except
                 logger.error("REST API of IS is not responding. %s", exception)
@@ -155,14 +194,12 @@ class DeviceActor(DeviceBaseActor):
         about the device status to the sender.
 
         Sends back a message containing the device_status."""
-        if (self._is_host is None) or (self._api_port is None):
+        if self.base_url == "":
             logger.warning("Actor initialisation incomplete.")
             super().receiveMsg_GetDeviceStatusMsg(msg, sender)
             return
-        base_url = f"http://{self._is_host}:{self._api_port}"
         try:
-            resp = requests.get(f"{base_url}/list/{self.device_id}/")
-            assert resp.status_code == 200
+            resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
             device_resp = resp.json()
             device_desc = device_resp[self.device_id]
         except Exception as exception:  # pylint: disable=broad-except

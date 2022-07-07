@@ -78,10 +78,7 @@ def startup():
         restapi = RestApi()
         apithread = threading.Thread(
             target=restapi.run,
-            args=(
-                configuration.config["HOST"],
-                configuration.config["API_PORT"],
-            ),
+            args=(configuration.config["API_PORT"],),
             daemon=True,
         )
         apithread.start()
@@ -188,7 +185,7 @@ def main():
                 reply = registrar_status.ask(
                     startup_tupel[0],
                     Thespian_StatusReq(),
-                    timeout=timedelta(seconds=3),
+                    timeout=timedelta(seconds=30),
                 )
             except OSError as exception:
                 logger.critical("We are offline. %s -> Emergency shutdown", exception)

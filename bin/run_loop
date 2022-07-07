@@ -1,0 +1,7 @@
+#!/bin/bash
+mydir="$(cd "$(dirname "$BASH_SOURCE")"; pwd)"/../src
+
+until (cd $mydir && pipenv run python sarad_registration_server.py)
+do 
+  sleep 60
+done

@@ -21,6 +21,7 @@ from thespian.actors import (Actor, ActorSystem,  # type: ignore
                              Thespian_ActorStatus)
 from thespian.system.messages.status import (  # type: ignore
     Thespian_StatusReq, formatStatus)
+from waitress import serve
 
 from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
                                                GetLocalPortsMsg,
@@ -363,16 +364,17 @@ class RestApi:
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
-    def run(self, host=None, port=None, debug=None, load_dotenv=True):
+    def run(self, port=None):
         """Start the API"""
         success = False
         retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
         while not success:
             try:
-                logger.info("Starting API at %s:%d", host, port)
+                logger.info("Starting API at port %d", port)
                 std = sys.stdout
                 sys.stdout = RestApi.Dummy
-                self.api.run(host=host, port=port, debug=debug, load_dotenv=load_dotenv)
+                # self.api.run(host=host, port=port)
+                serve(self.api, listen=f"*:{port}")
                 sys.stdout = std
                 success = True
             except OSError as exception:
