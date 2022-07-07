@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [("*.bat", "."), ("network.ico", "."), ("eula.txt", "."), ("*.toml", ".")]
+datas = [("*.bat", "."), ("network.ico", "."), ("eula.txt", "."), ("*.toml", "."), ("*.ps1", ".")]
 binaries = []
 hiddenimports = ["thespian.system.multiprocTCPBase", "thespian.system.multiprocUDPBase", "win32timezone"]
 tmp_ret = collect_all("sarad")
