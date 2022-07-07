@@ -108,15 +108,16 @@ class MdnsListener(ServiceListener):
 
     def update_device_actor(self, device_actor, device_id, name, info):
         """Setup mDNS device actor with updated info"""
-        data = self.convert_properties(name=name, info=info)
-        is_host = data["Remote"]["Address"]
-        api_port = data["Remote"]["API port"]
-        device_id = data["Remote"]["Device Id"]
-        ActorSystem().tell(
-            device_actor, SetupMdnsActorMsg(is_host, api_port, device_id)
-        )
-        logger.debug("Setup the device actor with %s", data)
-        ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))
+        if device_actor is not None:
+            data = self.convert_properties(name=name, info=info)
+            is_host = data["Remote"]["Address"]
+            api_port = data["Remote"]["API port"]
+            device_id = data["Remote"]["Device Id"]
+            ActorSystem().tell(
+                device_actor, SetupMdnsActorMsg(is_host, api_port, device_id)
+            )
+            logger.debug("Setup the device actor with %s", data)
+            ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
