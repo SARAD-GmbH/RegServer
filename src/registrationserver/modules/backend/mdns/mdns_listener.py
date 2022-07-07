@@ -106,6 +106,18 @@ class MdnsListener(ServiceListener):
             )
             _ = ServiceBrowser(self.zeroconf, service_type, self)
 
+    def update_device_actor(self, device_actor, device_id, name, info):
+        """Setup mDNS device actor with updated info"""
+        data = self.convert_properties(name=name, info=info)
+        is_host = data["Remote"]["Address"]
+        api_port = data["Remote"]["API port"]
+        device_id = data["Remote"]["Device Id"]
+        ActorSystem().tell(
+            device_actor, SetupMdnsActorMsg(is_host, api_port, device_id)
+        )
+        logger.debug("Setup the device actor with %s", data)
+        ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))
+
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
         """Hook, being called when a new service
@@ -127,22 +139,17 @@ class MdnsListener(ServiceListener):
                     system_shutdown()
                 else:
                     device_actor = reply.actor_address
-                    data = self.convert_properties(name=name, info=info)
-                    is_host = data["Remote"]["Address"]
-                    api_port = data["Remote"]["API port"]
-                    device_id = data["Remote"]["Device Id"]
-                    ActorSystem().tell(
-                        device_actor, SetupMdnsActorMsg(is_host, api_port, device_id)
-                    )
-                    logger.debug("Setup the device actor with %s", data)
-                    ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))
+                    self.update_device_actor(device_actor, device_id, name, info)
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
         """Hook, being called when a service
         representing a device is being updated"""
         logger.info("[Update] Service %s of type %s", name, type_)
-        self.add_service(zc, type_, name)
+        info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
+        device_id = self.device_id(name)
+        device_actor = get_actor(self.registrar, device_id)
+        self.update_device_actor(device_actor, device_id, name, info)
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
