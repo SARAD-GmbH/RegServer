@@ -91,6 +91,7 @@ class RestApi:
 
     @staticmethod
     @api.route("/shutdown", methods=["GET"])
+    @api.route("/shutdown/", methods=["GET"])
     def shutdown():
         """Allows to shutdown the Registration Server."""
         logger.debug("Shutdown by user intervention")

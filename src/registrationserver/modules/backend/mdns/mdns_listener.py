@@ -108,7 +108,8 @@ class MdnsListener(ServiceListener):
 
     def update_device_actor(self, device_actor, device_id, name, info):
         """Setup mDNS device actor with updated info"""
-        if device_actor is not None:
+        logger.debug("Update %s with %s", device_id, info)
+        if (device_actor is not None) and (info is not None):
             data = self.convert_properties(name=name, info=info)
             is_host = data["Remote"]["Address"]
             api_port = data["Remote"]["API port"]
