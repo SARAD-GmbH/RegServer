@@ -180,27 +180,44 @@ def main():
     registrar_is_down = False
     while is_flag_set():
         before = datetime.now()
-        with ActorSystem().private() as registrar_status:
-            try:
-                reply = registrar_status.ask(
-                    startup_tupel[0],
-                    Thespian_StatusReq(),
-                    timeout=timedelta(seconds=30),
+        retry_counter = 3
+        while retry_counter:
+            with ActorSystem().private() as registrar_status:
+                try:
+                    # logger.debug("Noch da John Maynard?")
+                    reply = registrar_status.ask(
+                        startup_tupel[0],
+                        Thespian_StatusReq(),
+                        timeout=timedelta(seconds=1),
+                    )
+                except OSError as exception:
+                    logger.critical(
+                        "We are offline. %s -> Emergency shutdown", exception
+                    )
+                    set_file_flag(False)
+                    registrar_is_down = True
+                except RuntimeError as exception:
+                    logger.critical("%s. -> Emergency shutdown", exception)
+                    set_file_flag(False)
+                    registrar_is_down = True
+                except Exception as exception:  # pylint: disable=broad-except
+                    logger.critical("%s. -> Emergency shutdown", exception)
+                    set_file_flag(False)
+                    registrar_is_down = True
+            if not isinstance(reply, Thespian_ActorStatus):
+                logger.error(
+                    "Registrar replied %s instead of Thespian_ActorStatus. Retrying %d",
+                    reply,
+                    retry_counter,
                 )
-            except OSError as exception:
-                logger.critical("We are offline. %s -> Emergency shutdown", exception)
-                set_file_flag(False)
-                registrar_is_down = True
-            except RuntimeError as exception:
-                logger.critical("%s. -> Emergency shutdown", exception)
-                set_file_flag(False)
-                registrar_is_down = True
-            except Exception as exception:  # pylint: disable=broad-except
-                logger.critical("%s. -> Emergency shutdown", exception)
-                set_file_flag(False)
-                registrar_is_down = True
-        if is_flag_set() and not isinstance(reply, Thespian_ActorStatus):
-            logger.error("Registrar replied %s instead of Thespian_ActorStatus", reply)
+                time.sleep(0.5)
+                retry_counter = retry_counter - 1
+                registrar_is_dead = True
+            else:
+                # logger.debug("Aye Sir!")
+                retry_counter = 0
+                registrar_is_dead = False
+        if is_flag_set() and registrar_is_dead:
             logger.critical(
                 "No status response from Registrar Actor. Emergency shutdown."
             )
