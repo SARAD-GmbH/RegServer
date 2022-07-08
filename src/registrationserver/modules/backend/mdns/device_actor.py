@@ -209,7 +209,7 @@ class DeviceActor(DeviceBaseActor):
             self.send(self.myAddress, KillMsg())
         else:
             success = Status.NOT_FOUND
-            if self.device_status.get("Identification") is None:
+            if device_desc.get("Identification") is None:
                 logger.warning(
                     "No Identification information available for %s", self.device_id
                 )
