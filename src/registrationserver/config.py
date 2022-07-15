@@ -259,17 +259,16 @@ DEFAULT_MQTT_BROKER = "85.214.243.156"  # Mosquitto running on sarad.de
 DEFAULT_PORT = 1883
 DEFAULT_RETRY_INTERVAL = 5
 DEFAULT_TLS_USE_TLS = False
-
-
+DEFAULT_GROUP = "lan"
 DEFAULT_TLS_CA_FILE = f"{app_folder}tls_cert_sarad.pem"
 DEFAULT_TLS_KEY_FILE = f"{app_folder}tls_key_personal.pem"
 DEFAULT_TLS_CERT_FILE = f"{app_folder}tls_cert_personal.crt"
-
 
 if customization.get("mqtt") is None:
     mqtt_config = {
         "MQTT_CLIENT_ID": unique_id(DEFAULT_MQTT_CLIENT_ID),
         "MQTT_BROKER": DEFAULT_MQTT_BROKER,
+        "GROUP": DEFAULT_GROUP,
         "PORT": DEFAULT_PORT,
         "RETRY_INTERVAL": DEFAULT_RETRY_INTERVAL,
         "TLS_CA_FILE": DEFAULT_TLS_CA_FILE,
@@ -284,6 +283,7 @@ else:
             customization["mqtt"].get("mqtt_client_id", DEFAULT_MQTT_CLIENT_ID)
         ),
         "MQTT_BROKER": customization["mqtt"].get("mqtt_broker", DEFAULT_MQTT_BROKER),
+        "GROUP": customization["mqtt"].get("group", DEFAULT_GROUP),
         "PORT": customization["mqtt"].get("port", DEFAULT_PORT),
         "RETRY_INTERVAL": customization["mqtt"].get(
             "retry_interval", DEFAULT_RETRY_INTERVAL
@@ -302,6 +302,7 @@ else:
             DEFAULT_TLS_KEY_FILE,
         ),
     }
+# TODO Read GROUP from TLS_CERT_FILE
 
 DEFAULT_ISMQTT_DESCRIPTION = "SARAD Instrument Server"
 DEFAULT_ISMQTT_PLACE = "Dresden"

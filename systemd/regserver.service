@@ -1,5 +1,5 @@
 [Unit]
-Description=Instrument Server
+Description=SARAD Registration Server
 After=network-online.target
 Wants=network-online.target
 

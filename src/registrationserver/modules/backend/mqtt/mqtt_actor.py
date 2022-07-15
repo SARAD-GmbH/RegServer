@@ -31,18 +31,18 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
     def __init__(self):
         super().__init__()
         self.allowed_sys_topics = {
-            "CTRL": "/control",
-            "RESERVE": "/reservation",
-            "CMD": "/cmd",
-            "MSG": "/msg",
-            # "META": "/meta",
+            "CTRL": "",
+            "RESERVE": "",
+            "CMD": "",
+            "MSG": "",
+            # "META": "",
         }
         self.allowed_sys_options = {
-            "CTRL": "/control",
-            "RESERVE": "/reservation",
-            "CMD": "/cmd",
-            "MSG": "/msg",
-            # "META": "/meta",
+            "CTRL": "control",
+            "RESERVE": "reservation",
+            "CMD": "cmd",
+            "MSG": "msg",
+            # "META": "meta",
         }
         self.state = {
             "RESERVE": {
@@ -149,7 +149,8 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         self.mqttc.on_publish = self.on_publish
         for k in self.allowed_sys_topics:
             self.allowed_sys_topics[k] = (
-                msg.is_id + "/" + short_id(self.my_id) + self.allowed_sys_options[k]
+                f"{self.group}/{msg.is_id}/"
+                + f"{short_id(self.my_id)}/{self.allowed_sys_options[k]}"
             )
             logger.debug("allowed topic: %s", self.allowed_sys_topics[k])
         self.mqttc.message_callback_add(

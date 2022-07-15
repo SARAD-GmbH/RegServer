@@ -456,6 +456,7 @@ class PrepareMqttActorMsg:
 
     is_id: Union[str, None]
     client_id: str
+    group: str
 
 
 @dataclass

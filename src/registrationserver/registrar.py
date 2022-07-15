@@ -49,6 +49,7 @@ class Registrar(BaseActor):
                 PrepareMqttActorMsg(
                     is_id=None,
                     client_id=configuration.config["IS_ID"],
+                    group=configuration.mqtt_config["GROUP"],
                 ),
             )
         if Frontend.MDNS in configuration.frontend_config:
@@ -62,6 +63,7 @@ class Registrar(BaseActor):
                 PrepareMqttActorMsg(
                     is_id=None,
                     client_id=configuration.mqtt_config["MQTT_CLIENT_ID"],
+                    group=configuration.mqtt_config["GROUP"],
                 ),
             )
         if Backend.IS1 in configuration.backend_config:
@@ -69,7 +71,7 @@ class Registrar(BaseActor):
         self.wakeupAfter(timedelta(minutes=1), payload="keep alive")
 
     def receiveMsg_WakeupMessage(self, msg, sender):
-        # pylint: disable=invalid-name, no-self-use
+        # pylint: disable=invalid-name
         """Handler for WakeupMessage to send the KeepAliveMsg to all children."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if msg.payload == "keep alive":
@@ -85,7 +87,7 @@ class Registrar(BaseActor):
         self.wakeupAfter(timedelta(minutes=10), payload="keep alive")
 
     def receiveMsg_DeadEnvelope(self, msg, sender):
-        # pylint: disable=invalid-name, no-self-use
+        # pylint: disable=invalid-name
         """Handler for all DeadEnvelope messages in the actor system."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         logger.critical("-> Emergency shutdown")

@@ -65,12 +65,14 @@ class MqttSchedulerActor(MqttBaseActor):
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
-        self.mqttc.message_callback_add("+/+/control", self.on_control)
-        self.mqttc.message_callback_add("+/+/cmd", self.on_cmd)
-        self.mqttc.message_callback_add(f"{self.is_id}/+/meta", self.on_instr_meta)
+        self.mqttc.message_callback_add(f"{self.group}/+/+/control", self.on_control)
+        self.mqttc.message_callback_add(f"{self.group}/+/+/cmd", self.on_cmd)
+        self.mqttc.message_callback_add(
+            f"{self.group}/{self.is_id}/+/meta", self.on_instr_meta
+        )
         self.mqttc.will_set(
             retain=True,
-            topic=f"{self.is_id}/meta",
+            topic=f"{self.group}/{self.is_id}/meta",
             payload=get_is_meta(self.is_meta._replace(state=0)),
         )
         if self._connect(self.mqtt_broker, self.port):
@@ -104,14 +106,14 @@ class MqttSchedulerActor(MqttBaseActor):
         if device_id not in self.reservations:
             logger.debug("Publish %s as new instrument.", instr_id)
             new_subscriptions = [
-                (f"{self.is_id}/{instr_id}/control", 0),
-                (f"{self.is_id}/{instr_id}/cmd", 0),
+                (f"{self.group}/{self.is_id}/{instr_id}/control", 0),
+                (f"{self.group}/{self.is_id}/{instr_id}/cmd", 0),
             ]
             self._subscribe_topic(new_subscriptions)
             identification = device_status["Identification"]
             message = {"State": 2, "Identification": identification}
             self.mqttc.publish(
-                topic=f"{self.is_id}/{instr_id}/meta",
+                topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
                 payload=json.dumps(message),
                 retain=True,
             )
@@ -146,7 +148,7 @@ class MqttSchedulerActor(MqttBaseActor):
                     reservation_object._replace(active=True)
                     self.reservations[device_id] = reservation_object
                     reservation_json = get_instr_reservation(reservation_object)
-                    topic = f"{self.is_id}/{instr_id}/reservation"
+                    topic = f"{self.group}/{self.is_id}/{instr_id}/reservation"
                     logger.debug("Publish %s on %s", reservation_json, topic)
                     self.mqttc.publish(
                         topic=topic, payload=reservation_json, retain=True
@@ -165,7 +167,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 ):
                     reservation_object._replace(active=False)
                     self.mqttc.publish(
-                        topic=f"{self.is_id}/{instr_id}/reservation",
+                        topic=f"{self.group}/{self.is_id}/{instr_id}/reservation",
                         payload=get_instr_reservation(reservation_object),
                         retain=True,
                     )
@@ -178,13 +180,13 @@ class MqttSchedulerActor(MqttBaseActor):
         if self.reservations.pop(device_id, None) is not None:
             instr_id = short_id(device_id)
             gone_subscriptions = [
-                f"{self.is_id}/{instr_id}/control",
-                f"{self.is_id}/{instr_id}/cmd",
+                f"{self.group}/{self.is_id}/{instr_id}/control",
+                f"{self.group}/{self.is_id}/{instr_id}/cmd",
             ]
             self._unsubscribe_topic(gone_subscriptions)
             self.mqttc.publish(
                 retain=True,
-                topic=f"{self.is_id}/{instr_id}/meta",
+                topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
                 payload=json.dumps({"State": 0}),
             )
 
@@ -194,7 +196,9 @@ class MqttSchedulerActor(MqttBaseActor):
             if description["is_device_actor"]:
                 self._remove_instrument(actor_id)
         self.mqttc.publish(
-            retain=True, topic=f"{self.is_id}/meta", payload=json.dumps({"State": 0})
+            retain=True,
+            topic=f"{self.group}/{self.is_id}/meta",
+            payload=json.dumps({"State": 0}),
         )
         super().receiveMsg_KillMsg(msg, sender)
 
@@ -204,10 +208,10 @@ class MqttSchedulerActor(MqttBaseActor):
         super().on_connect(client, userdata, flags, result_code)
         self.mqttc.publish(
             retain=True,
-            topic=f"{self.is_id}/meta",
+            topic=f"{self.group}/{self.is_id}/meta",
             payload=get_is_meta(self.is_meta._replace(state=2)),
         )
-        self._subscribe_topic([(f"{self.is_id}/+/meta", 0)])
+        self._subscribe_topic([(f"{self.group}/{self.is_id}/+/meta", 0)])
         self._subscribe_to_actor_dict_msg()
         for actor_id, description in self.actor_dict.items():
             if description["is_device_actor"]:
@@ -216,7 +220,8 @@ class MqttSchedulerActor(MqttBaseActor):
     def on_control(self, _client, _userdata, message):
         """Event handler for all MQTT messages with control topic."""
         logger.debug("[on_control] %s: %s", message.topic, message.payload)
-        instr_id = message.topic[: -len("control") - 1][len(self.is_id) + 1 :]
+        topic_parts = message.topic.split("/")
+        instr_id = topic_parts[2]
         device_actor, device_id = self._device_actor(instr_id)
         if device_actor is not None:
             old_control = self.reservations.get(device_id)
@@ -237,7 +242,8 @@ class MqttSchedulerActor(MqttBaseActor):
     def on_cmd(self, _client, _userdata, message):
         """Event handler for all MQTT messages with cmd topic."""
         logger.debug("[on_cmd] %s: %s", message.topic, message.payload)
-        instr_id = message.topic[: -len("cmd") - 1][len(self.is_id) + 1 :]
+        topic_parts = message.topic.split("/")
+        instr_id = topic_parts[2]
         self.cmd_ids[instr_id] = message.payload[0]
         cmd = message.payload[1:]
         device_actor, _device_id = self._device_actor(instr_id)
@@ -304,13 +310,13 @@ class MqttSchedulerActor(MqttBaseActor):
         its retain flag."""
         logger.debug("[on_instr_meta] %s, %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
-        instr_id = topic_parts[1]
+        instr_id = topic_parts[2]
         payload = json.loads(message.payload)
         device_actor, _device_id = self._device_actor(instr_id)
         if (device_actor is None) and (payload.get("State", 2) in (2, 1)):
             self.mqttc.publish(
                 retain=True,
-                topic=f"{self.is_id}/{instr_id}/meta",
+                topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
                 payload=json.dumps({"State": 0}),
             )
 

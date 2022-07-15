@@ -117,7 +117,7 @@ class MqttListener(MqttBaseActor):
         client_id = f"{device_id}.client"
         self.send(
             device_actor,
-            PrepareMqttActorMsg(is_id, client_id),
+            PrepareMqttActorMsg(is_id, client_id, self.group),
         )
 
     def _rm_instr(self, is_id, instr_id) -> None:
@@ -156,7 +156,7 @@ class MqttListener(MqttBaseActor):
             is_id,
         )
         self._hosts[is_id] = data
-        self._subscribe_topic([(is_id + "/+/meta", 0)])
+        self._subscribe_topic([(f"{self.group}/{is_id}/+/meta", 0)])
         logger.info("[Add Host] IS %s added", is_id)
 
     def _update_host(self, is_id, data) -> None:
@@ -175,7 +175,7 @@ class MqttListener(MqttBaseActor):
 
     def _rm_host(self, is_id) -> None:
         logger.debug("[_rm_host] %s", is_id)
-        self._unsubscribe_topic([is_id + "/+/meta"])
+        self._unsubscribe_topic([f"{self.group}/{is_id}/+/meta"])
         instr_to_remove = []
         for device_id, description in self.child_actors.items():
             if description["host"] == is_id:
@@ -188,7 +188,7 @@ class MqttListener(MqttBaseActor):
     def on_is_meta(self, _client, _userdata, message):
         """Handler for all messages of topic +/meta."""
         topic_parts = message.topic.split("/")
-        is_id = topic_parts[0]
+        is_id = topic_parts[1]
         payload = json.loads(message.payload)
         if "State" not in payload:
             logger.warning(
@@ -233,19 +233,19 @@ class MqttListener(MqttBaseActor):
         """Handler for all messages of topic +/+/meta."""
         logger.debug("[on_instr_meta] %s, %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
-        is_id = topic_parts[0]
-        instr_id = topic_parts[1]
+        is_id = topic_parts[1]
+        instr_id = topic_parts[2]
         payload = json.loads(message.payload)
         if "State" not in payload:
             logger.warning(
-                "[+/+/meta] State of instrument %s missing in meta message from IS %s",
+                "[+/meta] State of instrument %s missing in meta message from IS %s",
                 instr_id,
                 is_id,
             )
             return
         if payload.get("State") is None:
             logger.error(
-                "[+/+/meta] None state of instrument %s in meta message from IS %s",
+                "[+/meta] None state of instrument %s in meta message from IS %s",
                 instr_id,
                 is_id,
             )
@@ -253,7 +253,7 @@ class MqttListener(MqttBaseActor):
         if payload["State"] in (2, 1):
             if is_id in self._hosts:
                 logger.debug(
-                    "[+/+/meta] Store properties of instrument %s",
+                    "[+/meta] Store properties of instrument %s",
                     instr_id,
                 )
                 if self.device_id(instr_id) is not None:
@@ -262,7 +262,7 @@ class MqttListener(MqttBaseActor):
                     self._add_instr(is_id, instr_id, payload)
             else:
                 logger.warning(
-                    "[+/+/meta] Received a meta message of instr. %s from IS %s not added before",
+                    "[+/meta] Received a meta message of instr. %s from IS %s not added before",
                     instr_id,
                     is_id,
                 )
@@ -271,19 +271,19 @@ class MqttListener(MqttBaseActor):
             try:
                 self._rm_instr(is_id, instr_id)
                 logger.debug(
-                    "[+/+/meta] Remove instrument %s from IS %s",
+                    "[+/meta] Remove instrument %s from IS %s",
                     instr_id,
                     is_id,
                 )
             except KeyError:
                 logger.warning(
-                    "[+/+/meta] Subscriber received disconnect of unknown instrument %s from IS %s",
+                    "[+/meta] Subscriber received disconnect of unknown instrument %s from IS %s",
                     instr_id,
                     is_id,
                 )
         else:
             logger.warning(
-                "[+/+/meta] Subscriber received unknown state of unknown instrument %s from IS %s",
+                "[+/meta] Subscriber received unknown state of unknown instrument %s from IS %s",
                 instr_id,
                 is_id,
             )

@@ -39,6 +39,7 @@ class MqttBaseActor(BaseActor):
         self._subscriptions = {}
         self.mqtt_broker = None
         self.port = None
+        self.group = None
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
@@ -60,6 +61,7 @@ class MqttBaseActor(BaseActor):
         self.mqtt_broker = configuration.mqtt_config["MQTT_BROKER"]
         self.port = configuration.mqtt_config["PORT"]
         self.mqttc = MQTT.Client(msg.client_id)
+        self.group = msg.group
         self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
         self.mqttc.on_disconnect = self.on_disconnect

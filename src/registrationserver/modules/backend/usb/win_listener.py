@@ -97,14 +97,14 @@ class UsbListener(BaseListener):
             None,
         )
 
-    def run(self):  # pylint: disable=no-self-use
+    def run(self):
         """Start listening for new devices"""
         self.hwnd = self._create_listener()
         logger.debug("Created listener window with hwnd=%s", self.hwnd)
         logger.info("[Start] Windows USB Listener")
         win32gui.PumpMessages()
 
-    def stop(self):  # pylint: disable=no-self-use
+    def stop(self):
         """Stop listening."""
         win32gui.PostQuitMessage(self.hwnd)
         logger.debug("Stop listening for USB devices.")
