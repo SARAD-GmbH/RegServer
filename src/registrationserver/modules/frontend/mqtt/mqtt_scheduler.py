@@ -274,7 +274,7 @@ class MqttSchedulerActor(MqttBaseActor):
             if description["address"] == sender:
                 instr_id = short_id(actor_id)
                 reply = bytes([self.cmd_ids[instr_id]]) + msg.data
-                self.mqttc.publish(f"{self.is_id}/{instr_id}/msg", reply)
+                self.mqttc.publish(f"{self.group}/{self.is_id}/{instr_id}/msg", reply)
 
     def process_reserve(self, instr_id, control):
         """Sub event handler that will be called from the on_message event handler,

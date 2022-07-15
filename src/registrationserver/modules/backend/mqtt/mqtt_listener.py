@@ -69,8 +69,8 @@ class MqttListener(MqttBaseActor):
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
-        self.mqttc.message_callback_add("+/meta", self.on_is_meta)
-        self.mqttc.message_callback_add("+/+/meta", self.on_instr_meta)
+        self.mqttc.message_callback_add("+/+/meta", self.on_is_meta)
+        self.mqttc.message_callback_add("+/+/+/meta", self.on_instr_meta)
         if self._connect(self.mqtt_broker, self.port):
             self.mqttc.loop_start()
 
@@ -291,4 +291,4 @@ class MqttListener(MqttBaseActor):
     @overrides
     def on_connect(self, client, userdata, flags, result_code):
         super().on_connect(client, userdata, flags, result_code)
-        self._subscribe_topic([("+/meta", 0)])
+        self._subscribe_topic([("+/+/meta", 0)])
