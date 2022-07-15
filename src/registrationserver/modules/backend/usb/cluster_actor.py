@@ -259,7 +259,7 @@ class ClusterActor(BaseActor):
         port_actors = self._switch_to_port_key(self.child_actors)
         old_ports = set(port_actors.keys())
         new_instruments = self._cluster.update_connected_instruments(
-            ports_to_skip=list(old_ports)
+            ports_to_skip=list(sum(old_ports, self.native_ports))
         )
         new_ports = set()
         for instrument in new_instruments:
