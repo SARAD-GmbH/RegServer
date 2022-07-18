@@ -104,6 +104,11 @@ class UsbActor(DeviceBaseActor):
         self.instrument.release_instrument()
         super().receiveMsg_ChildActorExited(msg, sender)
 
+    @overrides
+    def receiveMsg_KillMsg(self, msg, sender):
+        self.instrument.release_instrument()
+        super().receiveMsg_KillMsg(msg, sender)
+
 
 if __name__ == "__main__":
     pass
