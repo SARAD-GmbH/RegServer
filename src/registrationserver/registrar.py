@@ -89,7 +89,7 @@ class Registrar(BaseActor):
     def receiveMsg_DeadEnvelope(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for all DeadEnvelope messages in the actor system."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.critical("%s for %s from %s", msg, self.my_id, sender)
         logger.critical("-> Emergency shutdown")
         self.send(self.registrar, KillMsg())
 
