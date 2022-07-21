@@ -147,6 +147,19 @@ def transport_technology(device_id: str) -> str:
     return device_id.split(".", 2)[-1]
 
 
+def is_device_actor(actor_id: str) -> bool:
+    """Check whether the actor is an device actor.
+    Device actor ids are having the structure instr_id.protocoll.tt
+
+    Args:
+        actor_id (str): if it is a device actor, this is the device_id
+
+    Returns:
+        bool: True if the actor_id has the structure of a device_id
+    """
+    return bool(len(actor_id.split(".")) == 3)
+
+
 def find(pattern, path):
     """Find a file matching a given pattern in a given path.
 
