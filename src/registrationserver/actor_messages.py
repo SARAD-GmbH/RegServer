@@ -104,10 +104,12 @@ class SetupMsg:
         actor_id (str): Unique Id of the actor.
                         Can be used to identify the device if the actor is a device actor.
         parent_id (str): Actor Id if the parent is an actor, actor_system else.
+        registrar (ActorAddress): Actor address of the registrar
     """
 
     actor_id: str
     parent_id: str
+    registrar: ActorAddress
 
 
 @dataclass

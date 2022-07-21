@@ -70,7 +70,7 @@ def startup():
     registrar_actor = system.createActor(Registrar, globalName="registrar")
     system.tell(
         registrar_actor,
-        SetupMsg("registrar", "actor_system"),
+        SetupMsg("registrar", "actor_system", None),
     )
     logger.debug("Actor system started.")
     # The Actor System must be started *before* the RestApi
