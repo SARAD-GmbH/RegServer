@@ -16,6 +16,7 @@ device actors referenced in the dictionary.
 from datetime import timedelta
 
 from overrides import overrides  # type: ignore
+from thespian.actors import ActorExitRequest  # type: ignore
 
 import registrationserver.config as configuration
 from registrationserver.actor_messages import (ActorCreatedMsg, Backend,
@@ -90,9 +91,12 @@ class Registrar(BaseActor):
     def receiveMsg_DeadEnvelope(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for all DeadEnvelope messages in the actor system."""
-        logger.critical("%s for %s from %s", msg, self.my_id, sender)
-        logger.critical("-> Emergency shutdown")
-        self.send(self.registrar, KillMsg())
+        logger.error("%s for %s from %s", msg, self.my_id, sender)
+        if isinstance(msg.deadMessage, (ActorExitRequest, KillMsg)):
+            logger.warning("This should never happen! But it won't destroy anything.")
+        else:
+            logger.critical("-> Emergency shutdown")
+            self.send(self.registrar, KillMsg())
 
     def receiveMsg_SubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name

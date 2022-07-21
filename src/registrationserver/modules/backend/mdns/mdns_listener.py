@@ -17,7 +17,7 @@ import threading
 
 import hashids  # type: ignore
 from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
-                                               SetDeviceStatusMsg,
+                                               KillMsg, SetDeviceStatusMsg,
                                                SetupMdnsActorMsg)
 from registrationserver.config import config
 from registrationserver.helpers import (get_actor, sarad_protocol, short_id,
@@ -25,7 +25,7 @@ from registrationserver.helpers import (get_actor, sarad_protocol, short_id,
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mdns.device_actor import DeviceActor
 from registrationserver.shutdown import system_shutdown
-from thespian.actors import ActorExitRequest, ActorSystem  # type: ignore
+from thespian.actors import ActorSystem  # type: ignore
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
 logger.debug("%s -> %s", __package__, __file__)
@@ -165,7 +165,7 @@ class MdnsListener(ServiceListener):
             device_actor = get_actor(self.registrar, device_id)
             if (device_actor is not None) and (device_actor != {}):
                 logger.debug("Kill device actor %s", device_id)
-                ActorSystem().tell(device_actor, ActorExitRequest())
+                ActorSystem().tell(device_actor, KillMsg())
             else:
                 logger.warning("Actor %s does not exist.", device_id)
 
