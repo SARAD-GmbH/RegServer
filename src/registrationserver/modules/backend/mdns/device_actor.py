@@ -139,6 +139,7 @@ class DeviceActor(DeviceBaseActor):
             reservation.pop("Port", None)
             self.device_status["Reservation"] = reservation
         if (reservation is None) or not reservation.get("Active", False):
+            logger.debug("%s is not reserved yet", self.device_id)
             app = f"{self.app} - {self.user} - {self.host}"
             logger.debug("Try to reserve this instrument for %s.", app)
             try:
@@ -162,6 +163,7 @@ class DeviceActor(DeviceBaseActor):
             else:
                 success = Status(error_code)
         else:
+            logger.debug("%s is already reserved", self.device_id)
             using_host = device_desc["Reservation"]["Host"].split(".")[0]
             my_host = config["MY_HOSTNAME"].split(".")[0]
             if using_host == my_host:
@@ -221,15 +223,18 @@ class DeviceActor(DeviceBaseActor):
             ].get("Origin")
             reservation = device_desc.get("Reservation")
             if reservation is not None:
-                using_host = reservation.get("Host", "").split(".")[0]
-                my_host = config["MY_HOSTNAME"].split(".")[0]
-                if using_host == my_host:
-                    logger.debug("Occupied by me.")
-                    success = Status.OK_SKIPPED
+                if reservation.get("Active", False):
+                    using_host = reservation.get("Host", "").split(".")[0]
+                    my_host = config["MY_HOSTNAME"].split(".")[0]
+                    if using_host == my_host:
+                        logger.debug("Occupied by me.")
+                        success = Status.OK_SKIPPED
+                    else:
+                        logger.debug("Occupied by somebody else.")
+                        success = Status.OCCUPIED
+                        reservation.pop("IP", None)
+                        reservation.pop("Port", None)
+                    self.device_status["Reservation"] = reservation
                 else:
-                    logger.debug("Occupied by somebody else.")
-                    success = Status.OCCUPIED
-                    reservation.pop("IP", None)
-                    reservation.pop("Port", None)
-                self.device_status["Reservation"] = reservation
+                    success = Status.OK
         super().receiveMsg_GetDeviceStatusMsg(msg, sender)
