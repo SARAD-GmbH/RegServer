@@ -210,38 +210,33 @@ class Registrar(BaseActor):
             logger.debug("%s already exists", actor_id)
             actor_address = self.actor_dict[actor_id]["address"]
         else:
+            create_new_actor = True
             if is_device_actor(actor_id):
                 logger.debug(
                     "Check for existing device actor with same instr_id=%s",
                     short_id(actor_id),
                 )
                 new_device_id = msg.actor_id
-                for old_device_id in self.actor_dict:
-                    if (
-                        (short_id(old_device_id) == short_id(new_device_id))
-                        and (new_device_id != old_device_id)
-                        and (
-                            transport_technology(old_device_id)
-                            in ["local", "mdns", "mqtt", "is1"]
+                new_instr_id = short_id(new_device_id)
+                instr_id_list = [
+                    short_id(actor_id)
+                    for actor_id in self.actor_dict
+                    if is_device_actor(actor_id)
+                ]
+                if new_instr_id in instr_id_list:
+                    logger.debug("Found an actor with the same instr_id")
+                    new_tt = transport_technology(new_device_id)
+                    if new_tt in ["local", "is1"]:
+                        logger.debug(
+                            "Old device_actor might disapear when handling SetupMsg"
                         )
-                    ):
-                        logger.debug("Found an actor with the same instr_id")
-                        new_tt = transport_technology(new_device_id)
-                        logger.debug("New device_id: %s", new_device_id)
-                        logger.debug("Old device_id: %s", old_device_id)
-                        if new_tt in ["local", "is1"]:
-                            logger.debug("Create new device_actor %s", actor_id)
-                            logger.debug(
-                                "Old device_actor might disapear when handling SetupMsg"
-                            )
-                            actor_address = self._create_actor(msg.actor_type, actor_id)
-                        else:
-                            logger.debug("Creation of %s skipped", actor_id)
+                        create_new_actor = True
                     else:
-                        logger.debug("Create new device_actor %s", actor_id)
-                        actor_address = self._create_actor(msg.actor_type, actor_id)
-            else:
-                actor_address = self._create_actor(msg.actor_type, actor_id)
+                        logger.debug("Creation of %s skipped", actor_id)
+                        create_new_actor = False
+        if create_new_actor:
+            logger.debug("Create new device_actor %s", actor_id)
+            actor_address = self._create_actor(msg.actor_type, actor_id)
         self.send(sender, ActorCreatedMsg(actor_address))
 
     def receiveMsg_GetDeviceActorMsg(self, msg, sender):
