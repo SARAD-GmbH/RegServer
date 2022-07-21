@@ -206,14 +206,14 @@ def get_actor(registrar_actor, actor_id: str):
     """
     with ActorSystem().private() as db_sys:
         result = db_sys.ask(
-            registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=10)
+            registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=1)
         )
         if not isinstance(result, UpdateActorDictMsg):
             logger.critical(
-                "Emergency shutdown. Ask to Registrar took more than 10 sec."
+                "Emergency shutdown. Ask to Registrar took more than 1 sec."
             )
             system_shutdown()
-            return {}
+            return None
         actor_dict = result.actor_dict
     try:
         return actor_dict[actor_id]["address"]
@@ -239,10 +239,10 @@ def get_device_status(registrar_actor, device_id: str) -> dict:
         return {}
     with ActorSystem().private() as device_sys:
         result = device_sys.ask(
-            device_actor, GetDeviceStatusMsg(), timeout=timedelta(seconds=10)
+            device_actor, GetDeviceStatusMsg(), timeout=timedelta(seconds=1)
         )
         if not isinstance(result, UpdateDeviceStatusMsg):
-            logger.error("Ask to device_actor took more than 10 sec.")
+            logger.error("Ask to device_actor took more than 1 sec.")
             return {}
     return result.device_status
 
@@ -251,11 +251,11 @@ def get_device_statuses(registrar_actor):
     """Return a list of all device ids together with the device status"""
     with ActorSystem().private() as db_sys:
         result = db_sys.ask(
-            registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=10)
+            registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=1)
         )
         if not isinstance(result, UpdateActorDictMsg):
             logger.critical(
-                "Emergency shutdown. Ask to Registrar took more than 10 sec."
+                "Emergency shutdown. Ask to Registrar took more than 1 sec."
             )
             system_shutdown()
             return None
@@ -284,11 +284,11 @@ def get_instr_id_actor_dict(registrar_actor):
     """Return a dictionary of device actor addresses with instr_id as key."""
     with ActorSystem().private() as iid_sys:
         result = iid_sys.ask(
-            registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=10)
+            registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=1)
         )
         if not isinstance(result, UpdateActorDictMsg):
             logger.critical(
-                "Emergency shutdown. Ask to Registrar took more than 10 sec."
+                "Emergency shutdown. Ask to Registrar took more than 1 sec."
             )
             system_shutdown()
             return {}
