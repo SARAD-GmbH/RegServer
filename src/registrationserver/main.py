@@ -70,7 +70,7 @@ def startup():
     registrar_actor = system.createActor(Registrar, globalName="registrar")
     system.tell(
         registrar_actor,
-        SetupMsg("registrar", "actor_system"),
+        SetupMsg("registrar", "actor_system", None),
     )
     logger.debug("Actor system started.")
     # The Actor System must be started *before* the RestApi
@@ -192,16 +192,18 @@ def main():
                     )
                 except OSError as exception:
                     logger.critical(
-                        "We are offline. %s -> Emergency shutdown", exception
+                        "We are offline. OSError: %s. -> Emergency shutdown", exception
                     )
                     set_file_flag(False)
                     registrar_is_down = True
                 except RuntimeError as exception:
-                    logger.critical("%s. -> Emergency shutdown", exception)
+                    logger.critical(
+                        "RuntimeError: %s. -> Emergency shutdown", exception
+                    )
                     set_file_flag(False)
                     registrar_is_down = True
                 except Exception as exception:  # pylint: disable=broad-except
-                    logger.critical("%s. -> Emergency shutdown", exception)
+                    logger.critical("Exception: %s. -> Emergency shutdown", exception)
                     set_file_flag(False)
                     registrar_is_down = True
             if not isinstance(reply, Thespian_ActorStatus):

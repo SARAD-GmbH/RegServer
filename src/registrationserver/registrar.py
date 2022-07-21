@@ -24,7 +24,8 @@ from registrationserver.actor_messages import (ActorCreatedMsg, Backend,
                                                ReturnDeviceActorMsg,
                                                UpdateActorDictMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.helpers import short_id, transport_technology
+from registrationserver.helpers import (is_device_actor, short_id,
+                                        transport_technology)
 from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_listener import Is1Listener
 from registrationserver.modules.backend.mqtt.mqtt_listener import MqttListener
@@ -89,7 +90,7 @@ class Registrar(BaseActor):
     def receiveMsg_DeadEnvelope(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for all DeadEnvelope messages in the actor system."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.critical("%s for %s from %s", msg, self.my_id, sender)
         logger.critical("-> Emergency shutdown")
         self.send(self.registrar, KillMsg())
 
@@ -155,11 +156,11 @@ class Registrar(BaseActor):
         """Handler for UnsubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         try:
-            is_device_actor = self.actor_dict[msg.actor_id]["is_device_actor"]
+            is_device_act = self.actor_dict[msg.actor_id]["is_device_actor"]
         except KeyError:
             logger.error("%s requested to be unsubscribed doesn't exist", msg.actor_id)
-            is_device_actor = False
-        if is_device_actor:
+            is_device_act = False
+        if is_device_act:
             instr_id = short_id(msg.actor_id)
             logger.debug("Look for inactive device actor for %s", instr_id)
             for actor_id, description in self.actor_dict.items():
@@ -204,8 +205,28 @@ class Registrar(BaseActor):
         """Handler for CreateActorMsg. Create a new actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         actor_id = msg.actor_id
+        actor_address = None
         if actor_id not in self.actor_dict:
-            actor_address = self._create_actor(msg.actor_type, actor_id)
+            if is_device_actor(actor_id):
+                # Check for existing device actor
+                new_device_id = msg.actor_id
+                for old_device_id in self.actor_dict:
+                    if (
+                        (short_id(old_device_id) == short_id(new_device_id))
+                        and (new_device_id != old_device_id)
+                        and (
+                            transport_technology(old_device_id)
+                            in ["local", "mdns", "mqtt", "is1"]
+                        )
+                    ):
+                        new_tt = transport_technology(new_device_id)
+                        logger.debug("New device_id: %s", new_device_id)
+                        logger.debug("Old device_id: %s", old_device_id)
+                        if new_tt in ["local", "is1"]:
+                            logger.debug("Create new device_actor %s", actor_id)
+                            actor_address = self._create_actor(msg.actor_type, actor_id)
+            else:
+                actor_address = self._create_actor(msg.actor_type, actor_id)
         else:
             actor_address = self.actor_dict[actor_id]["address"]
         self.send(sender, ActorCreatedMsg(actor_address))

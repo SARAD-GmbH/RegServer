@@ -139,7 +139,7 @@ class MdnsListener(ServiceListener):
                     logger.critical("Got message object of unexpected type")
                     logger.critical("-> Stop and shutdown system")
                     system_shutdown()
-                else:
+                elif reply.actor_address is not None:
                     device_actor = reply.actor_address
                     self.update_device_actor(device_actor, device_id, name, info)
 
