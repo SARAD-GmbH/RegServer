@@ -171,6 +171,7 @@ class DeviceActor(DeviceBaseActor):
                 success = Status.OK_SKIPPED
             else:
                 logger.debug("Occupied by somebody else.")
+                logger.debug("Using host: %s, my host: %s", using_host, my_host)
                 success = Status.OCCUPIED
         self._forward_reservation(success)
 
