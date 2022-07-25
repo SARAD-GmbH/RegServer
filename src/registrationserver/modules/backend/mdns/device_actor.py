@@ -13,7 +13,7 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg, ReservationStatusMsg,
                                                Status)
 from registrationserver.config import config
-from registrationserver.helpers import short_id
+from registrationserver.helpers import sanitize_hn, short_id
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.shutdown import system_shutdown
@@ -140,7 +140,7 @@ class DeviceActor(DeviceBaseActor):
             self.device_status["Reservation"] = reservation
         if (reservation is None) or not reservation.get("Active", False):
             logger.debug("%s is not reserved yet", self.device_id)
-            app = f"{self.app} - {self.user} - {self.host}"
+            app = f"{self.app} - {self.user} - {sanitize_hn(self.host)}"
             logger.debug("Try to reserve this instrument for %s.", app)
             try:
                 resp = self.http.get(
@@ -164,8 +164,8 @@ class DeviceActor(DeviceBaseActor):
                 success = Status(error_code)
         else:
             logger.debug("%s is already reserved", self.device_id)
-            using_host = device_desc["Reservation"]["Host"].split(".")[0]
-            my_host = config["MY_HOSTNAME"].split(".")[0]
+            using_host = sanitize_hn(device_desc["Reservation"]["Host"])
+            my_host = sanitize_hn(config["MY_HOSTNAME"])
             if using_host == my_host:
                 logger.debug("Already occupied by me.")
                 success = Status.OK_SKIPPED
@@ -225,8 +225,8 @@ class DeviceActor(DeviceBaseActor):
             reservation = device_desc.get("Reservation")
             if reservation is not None:
                 if reservation.get("Active", False):
-                    using_host = reservation.get("Host", "").split(".")[0]
-                    my_host = config["MY_HOSTNAME"].split(".")[0]
+                    using_host = sanitize_hn(reservation.get("Host", ""))
+                    my_host = sanitize_hn(config["MY_HOSTNAME"])
                     if using_host == my_host:
                         logger.debug("Occupied by me.")
                         success = Status.OK_SKIPPED
