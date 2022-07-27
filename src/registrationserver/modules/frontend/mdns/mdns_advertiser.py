@@ -14,7 +14,6 @@ Based on work of Riccardo Förster <foerster@sarad.de>.
 """
 import socket
 
-from registrationserver.actor_messages import GetDeviceStatusMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
 from registrationserver.helpers import short_id
@@ -38,7 +37,7 @@ class MdnsAdvertiserActor(BaseActor):
         """Handler for the initialisation message from MdnsScheduler"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.device_actor = msg.device_actor
-        self.send(self.device_actor, GetDeviceStatusMsg())
+        self._subscribe_to_device_status_msg(self.device_actor)
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -48,7 +47,9 @@ class MdnsAdvertiserActor(BaseActor):
         sarad_protocol = msg.device_id.split(".")[1]
         instr_name = msg.device_status["Identification"]["Name"]
         service_name = f"{instr_id}.{sarad_protocol}"
-        self.__start_advertising(service_name, instr_name, msg.device_id)
+        if self.service is None:
+            logger.debug("Start advertising %s", service_name)
+            self.__start_advertising(service_name, instr_name, msg.device_id)
 
     def receiveMsg_KillMsg(self, msg, sender):
         try:

@@ -239,4 +239,5 @@ class DeviceActor(DeviceBaseActor):
                     self.device_status["Reservation"] = reservation
                 else:
                     success = Status.OK
+                    self.device_status.pop("Reservation", None)
         super().receiveMsg_GetDeviceStatusMsg(msg, sender)
