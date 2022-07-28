@@ -56,13 +56,14 @@ class MdnsAdvertiserActor(BaseActor):
             self.__start_advertising(service_name, instr_name, msg.device_id)
 
     def receiveMsg_KillMsg(self, msg, sender):
-        try:
-            self.zeroconf.unregister_service(self.service)
-            self.zeroconf.close()
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.error(
-                "%s raised when trying to unregister Zeroconf service", exception
-            )
+        if self.service is not None:
+            try:
+                self.zeroconf.unregister_service(self.service)
+                self.zeroconf.close()
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.error(
+                    "%s raised when trying to unregister Zeroconf service", exception
+                )
         super().receiveMsg_KillMsg(msg, sender)
 
     def __start_advertising(self, service_name, instr_name, device_id):

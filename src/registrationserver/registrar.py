@@ -98,7 +98,7 @@ class Registrar(BaseActor):
         """Handler for all DeadEnvelope messages in the actor system."""
         logger.error("%s for %s from %s", msg, self.my_id, sender)
         if isinstance(msg.deadMessage, (ActorExitRequest, KillMsg)):
-            logger.warning("This should never happen! But it won't destroy anything.")
+            logger.info("The above error can safely be ignored.")
         else:
             logger.critical("-> Emergency shutdown")
             self.send(self.registrar, KillMsg())
@@ -241,7 +241,7 @@ class Registrar(BaseActor):
                         )
                         create_new_actor = True
                     else:
-                        logger.debug("Creation of %s skipped", actor_id)
+                        logger.info("Creation of %s skipped", actor_id)
                         create_new_actor = False
         if create_new_actor:
             logger.debug("Create new device_actor %s", actor_id)
