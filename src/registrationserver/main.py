@@ -19,9 +19,11 @@ from datetime import datetime, timedelta
 from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
 
-import registrationserver.config as configuration
 from registrationserver.actor_messages import (Backend, Frontend, KillMsg,
                                                SetupMsg)
+from registrationserver.config import (actor_config, backend_config,
+                                       frontend_config, mdns_backend_config,
+                                       rest_frontend_config)
 from registrationserver.logdef import LOGFILENAME, logcfg
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mdns.mdns_listener import MdnsListener
@@ -59,8 +61,8 @@ def startup():
     # =======================
     try:
         system = ActorSystem(
-            systemBase=configuration.actor_config["systemBase"],
-            capabilities=configuration.actor_config["capabilities"],
+            systemBase=actor_config["systemBase"],
+            capabilities=actor_config["capabilities"],
             logDefs=logcfg,
         )
     except Exception as exception:  # pylint: disable=broad-except
@@ -74,15 +76,15 @@ def startup():
     )
     logger.debug("Actor system started.")
     # The Actor System must be started *before* the RestApi
-    if Frontend.REST in configuration.frontend_config:
+    if Frontend.REST in frontend_config:
         restapi = RestApi()
         apithread = threading.Thread(
             target=restapi.run,
-            args=(configuration.config["API_PORT"],),
+            args=(rest_frontend_config["API_PORT"],),
             daemon=True,
         )
         apithread.start()
-    if Backend.USB in configuration.backend_config:
+    if Backend.USB in backend_config:
         usb_listener = UsbListener(registrar_actor)
         usb_listener_thread = threading.Thread(
             target=usb_listener.run,
@@ -91,9 +93,9 @@ def startup():
         usb_listener_thread.start()
     else:
         usb_listener = None
-    if Backend.MDNS in configuration.backend_config:
+    if Backend.MDNS in backend_config:
         mdns_backend = MdnsListener(
-            registrar_actor, service_type=configuration.config["TYPE"]
+            registrar_actor, service_type=mdns_backend_config["TYPE"]
         )
     else:
         mdns_backend = None

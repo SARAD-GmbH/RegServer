@@ -10,8 +10,8 @@
 """
 import time
 
-import registrationserver.config as configuration
 from registrationserver.actor_messages import Frontend
+from registrationserver.config import frontend_config
 from registrationserver.helpers import get_actor
 from registrationserver.shutdown import is_flag_set
 
@@ -23,7 +23,7 @@ class BaseListener:
 
     def __init__(self, registrar_actor):
         """Wait for the Registrar Actor to create the Cluster Actor."""
-        if Frontend.MQTT in configuration.frontend_config:
+        if Frontend.MQTT in frontend_config:
             mqtt_scheduler = None
             while mqtt_scheduler is None and is_flag_set():
                 mqtt_scheduler = get_actor(registrar_actor, "mqtt_scheduler")

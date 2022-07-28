@@ -21,7 +21,7 @@ from registrationserver.actor_messages import (KillMsg, RescanFinishedMsg,
                                                SetDeviceStatusMsg,
                                                SetupUsbActorMsg, Status)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import config
+from registrationserver.config import config, usb_backend_config
 from registrationserver.logger import logger
 from registrationserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.cluster import SaradCluster  # type: ignore
@@ -55,8 +55,8 @@ class ClusterActor(BaseActor):
     @overrides
     def __init__(self):
         self._loop_started: bool = False
-        self.native_ports = set(config.get("NATIVE_SERIAL_PORTS", []))
-        self.ignore_ports = set(config.get("IGNORED_SERIAL_PORTS", []))
+        self.native_ports = set(usb_backend_config["NATIVE_SERIAL_PORTS"])
+        self.ignore_ports = set(usb_backend_config["IGNORED_SERIAL_PORTS"])
         self._looplist: List[str] = list(
             self.native_ports.difference(self.ignore_ports)
         )
@@ -117,7 +117,7 @@ class ClusterActor(BaseActor):
             self._create_and_setup_actor(instrument)
         if not self._loop_started:
             self._loop_started = True
-            self.wakeupAfter(config["LOCAL_RETRY_INTERVAL"])
+            self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
         else:
             logger.info("Stopped Polling")
 
@@ -157,7 +157,7 @@ class ClusterActor(BaseActor):
         else:
             logger.debug("List of native RS-232 interfaces empty. Stop the loop.")
         if self._loop_started and self._looplist:
-            self.wakeupAfter(config["LOCAL_RETRY_INTERVAL"])
+            self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
             return
         self._loop_started = False
 

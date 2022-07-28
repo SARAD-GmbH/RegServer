@@ -1,12 +1,10 @@
-mdns_timeout = 3000
-debug_level = "debug"
-ip_version = "all"
-port_range = [50000, 50500]
-native_serial_ports = ["COM1"]
-ignored_serial_ports = []
-local_retry_interval = 86400  # in seconds
-api_port = 8008
-is_id = "Instrument Server A"
+debug_level = "info"
+# is_id = "Instrument Server A"
+# description = "A longer text describing this Instrument Server"
+# place = "A text describing where the Instrument Controller running this Instrument Server is placed"
+# latitude = 51.0764194  # positive values for North, negative for South
+# longitude = 13.7383917  # positive values for East, negative for West
+# height = 102  # in meters
 
 [frontends]
 rest = true
@@ -19,14 +17,24 @@ mqtt = false
 mdns = true
 is1 = false
 
-[mdns_frontend]
-port_range = [5560, 5580]
+[rest_frontend]
+api_port = 8008
+port_range = [50000, 50500]
+
+[usb_backend]
+native_serial_ports = ["COM1"]
+ignored_serial_ports = []
+local_retry_interval = 30  # in seconds
 
 [is1_backend]
 registration_port = 50002
 
+[mdns_backend]
+mdns_timeout = 3000
+ip_version = "all"
+
 [actor]
-system_base = "multiprocUDPBase"
+system_base = "multiprocTCPBase"
 admin_port = 1901
 process_startup_method = "spawn"
 
@@ -36,10 +44,3 @@ mqtt_broker = "sarad.de"
 port = 8883
 retry_interval = 5
 tls_use_tls = true
-
-[ismqtt]
-description = "A longer text describing this Instrument Server"
-place = "A text describing where the Instrument Controller running this Instrument Server is placed"
-latitude = 51.0764194  # positive values for North, negative for South
-longitude = 13.7383917  # positive values for East, negative for West
-height = 102  # in meters

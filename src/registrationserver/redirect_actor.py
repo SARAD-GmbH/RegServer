@@ -20,7 +20,7 @@ from overrides import overrides  # type: ignore
 
 from registrationserver.actor_messages import SocketMsg, Status, TxBinaryMsg
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import config
+from registrationserver.config import config, rest_frontend_config
 from registrationserver.logger import logger
 
 logger.debug("%s -> %s", __package__, __file__)
@@ -38,7 +38,7 @@ class RedirectorActor(BaseActor):
         self.conn = None
         self._host = config["MY_IP"]
         logger.debug("IP address of Registration Server: %s", self._host)
-        for self._port in config["PORT_RANGE"]:
+        for self._port in rest_frontend_config["PORT_RANGE"]:
             try:
                 server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
                 server_socket.bind((self._host, self._port))
@@ -75,7 +75,7 @@ class RedirectorActor(BaseActor):
         if self._port is None:
             logger.critical(
                 "Cannot open socket in the configured port range %s",
-                config["PORT_RANGE"],
+                rest_frontend_config["PORT_RANGE"],
             )
             return_msg = SocketMsg(ip_address="", port=0, status=Status.UNKNOWN_PORT)
         elif self.my_parent is None:

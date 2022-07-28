@@ -14,7 +14,7 @@ import time
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (FreeDeviceMsg, ReserveDeviceMsg,
                                                Status, TxBinaryMsg)
-from registrationserver.config import config, ismqtt_config
+from registrationserver.config import config
 from registrationserver.helpers import diff_of_dicts, short_id
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
@@ -54,11 +54,11 @@ class MqttSchedulerActor(MqttBaseActor):
         self.is_meta = InstrumentServerMeta(
             state=0,
             host=self.is_id,
-            description=ismqtt_config["DESCRIPTION"],
-            place=ismqtt_config["PLACE"],
-            latitude=ismqtt_config["LATITUDE"],
-            longitude=ismqtt_config["LONGITUDE"],
-            height=ismqtt_config["HEIGHT"],
+            description=config["DESCRIPTION"],
+            place=config["PLACE"],
+            latitude=config["LATITUDE"],
+            longitude=config["LONGITUDE"],
+            height=config["HEIGHT"],
         )
         self.pending_control_action = ControlType.UNKNOWN
 

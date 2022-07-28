@@ -11,12 +11,12 @@
 """
 from datetime import datetime
 
-import registrationserver.config as configuration
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (Frontend, KillMsg,
                                                ReservationStatusMsg, Status,
                                                UpdateDeviceStatusMsg)
 from registrationserver.base_actor import BaseActor
+from registrationserver.config import config, frontend_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.redirect_actor import RedirectorActor
@@ -70,8 +70,8 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.device_status = msg.device_status
         logger.debug("Device status: %s", self.device_status)
-        if Frontend.MQTT in configuration.frontend_config:
-            self.device_status["Identification"]["Host"] = configuration.config["IS_ID"]
+        if Frontend.MQTT in frontend_config:
+            self.device_status["Identification"]["Host"] = config["IS_ID"]
         self._publish_status_change()
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
@@ -100,7 +100,7 @@ class DeviceBaseActor(BaseActor):
         self._reserve_at_is()
 
     def _reserve_at_is(self):
-        # pylint: disable=unused-argument, no-self-use
+        # pylint: disable=unused-argument
         """Request the reservation of an instrument at the Instrument Server. This function has
         to be implemented (overridden) in the protocol specific modules.
 
@@ -111,13 +111,13 @@ class DeviceBaseActor(BaseActor):
         """
 
     def _forward_reservation(self, success: Status):
-        # pylint: disable=unused-argument, no-self-use
+        # pylint: disable=unused-argument
         """Create redirector.
         Forward the reservation state from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
         if success in [Status.OK, Status.OK_UPDATED, Status.OK_SKIPPED]:
-            if Frontend.REST in configuration.frontend_config:
+            if Frontend.REST in frontend_config:
                 # create redirector
                 if not self._create_redirector():
                     logger.warning("Tried to create a redirector that already exists.")

@@ -11,7 +11,7 @@ import logging
 import os
 import socket
 import sys
-from typing import List
+from typing import Dict, List
 from uuid import getnode as get_mac
 
 import toml
@@ -84,24 +84,12 @@ try:
 except OSError:
     customization = {}
 
-DEFAULT_MDNS_TIMEOUT = 3000
-DEFAULT_TYPE = "_raw._tcp.local."
-DEFAULT_LEVEL = logging.INFO
-DEFAULT_IP_VERSION = IPVersion.All
-DEFAULT_PORT_RANGE = range(50000, 50500)
-if os.name == "nt":
-    DEFAULT_NATIVE_SERIAL_PORTS = ["COM1"]
-else:
-    DEFAULT_NATIVE_SERIAL_PORTS = ["/dev/ttyS0"]
-DEFAULT_IGNORED_SERIAL_PORTS: List[str] = []
-DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
-DEFAULT_API_PORT = 8008
-DEFAULT_MY_IP = get_ip(ipv6=False)
-DEFAULT_MY_HOSTNAME = get_hostname(DEFAULT_MY_IP)
-try:
-    DEFAULT_IS_ID = socket.gethostname()
-except Exception:  # pylint: disable=broad-except
-    DEFAULT_IS_ID = "Instrument Server"
+# General configuration
+DEFAULT_DESCRIPTION = "SARAD Instrument Server"
+DEFAULT_PLACE = "Dresden"
+DEFAULT_LATITUDE = 0
+DEFAULT_LONGITUDE = 0
+DEFAULT_HEIGHT = 0
 level_dict = {
     "info": logging.INFO,
     "warning": logging.WARNING,
@@ -110,48 +98,34 @@ level_dict = {
     "debug": logging.DEBUG,
     "fatal": logging.FATAL,
 }
+DEFAULT_LEVEL = logging.INFO
 if customization.get("debug_level") in level_dict:
     DEBUG_LEVEL = level_dict[customization["debug_level"]]
 else:
     DEBUG_LEVEL = DEFAULT_LEVEL
-ip_version_dict = {
-    "all": IPVersion.All,
-    "v4only": IPVersion.V4Only,
-    "v6only": IPVersion.V6Only,
-}
-if customization.get("ip_version") in ip_version_dict:
-    IP_VERSION = ip_version_dict[customization["ip_version"]]
-else:
-    IP_VERSION = DEFAULT_IP_VERSION
 try:
-    port_range_list = customization["port_range"]
-    PORT_RANGE = range(port_range_list[0], port_range_list[-1])
+    DEFAULT_IS_ID = socket.gethostname()
 except Exception:  # pylint: disable=broad-except
-    PORT_RANGE = DEFAULT_PORT_RANGE
+    DEFAULT_IS_ID = "Instrument Server"
+DEFAULT_MY_IP = get_ip(ipv6=False)
+DEFAULT_MY_HOSTNAME = get_hostname(DEFAULT_MY_IP)
 
 config = {
-    "MDNS_TIMEOUT": customization.get("mdns_timeout", DEFAULT_MDNS_TIMEOUT),
-    "TYPE": DEFAULT_TYPE,
     "LEVEL": DEBUG_LEVEL,
-    "IP_VERSION": IP_VERSION,
-    "PORT_RANGE": PORT_RANGE,
-    "NATIVE_SERIAL_PORTS": customization.get(
-        "native_serial_ports", DEFAULT_NATIVE_SERIAL_PORTS
-    ),
-    "IGNORED_SERIAL_PORTS": customization.get(
-        "ignored_serial_ports", DEFAULT_IGNORED_SERIAL_PORTS
-    ),
-    "LOCAL_RETRY_INTERVAL": customization.get(
-        "local_retry_interval", DEFAULT_LOCAL_RETRY_INTERVAL
-    ),
-    "API_PORT": customization.get("api_port", DEFAULT_API_PORT),
+    "IS_ID": customization.get("is_id", DEFAULT_IS_ID),
+    "DESCRIPTION": customization.get("description", DEFAULT_DESCRIPTION),
+    "PLACE": customization.get("place", DEFAULT_PLACE),
+    "LATITUDE": customization.get("latitude", DEFAULT_LATITUDE),
+    "LONGITUDE": customization.get("longitude", DEFAULT_LONGITUDE),
+    "HEIGHT": customization.get("height", DEFAULT_HEIGHT),
     "MY_IP": customization.get("my_ip", DEFAULT_MY_IP),
     "MY_HOSTNAME": customization.get("my_hostname", DEFAULT_MY_HOSTNAME),
-    "IS_ID": customization.get("is_id", DEFAULT_IS_ID),
 }
 
+# Frontend configuration
 frontend_config = set()
 DEFAULT_FRONTENDS = {Frontend.REST}
+
 if customization.get("frontends") is None:
     frontend_config = DEFAULT_FRONTENDS
 else:
@@ -164,8 +138,10 @@ else:
         # REST frontend is part of the mDNS frontend
         frontend_config.add(Frontend.REST)
 
+# Backend configuration
 backend_config = set()
 DEFAULT_BACKENDS = {Backend.USB, Backend.MDNS, Backend.MQTT, Backend.IS1}
+
 if customization.get("backends") is None:
     backend_config = DEFAULT_BACKENDS
 else:
@@ -178,19 +154,105 @@ else:
     if customization["backends"].get("is1", False):
         backend_config.add(Backend.IS1)
 
-DEFAULT_MDNS_PORT_RANGE = range(5560, 5580)
-try:
-    mdns_port_range_list = customization["mdns_frontend"]["port_range"]
-    MDNS_PORT_RANGE = range(mdns_port_range_list[0], mdns_port_range_list[-1])
-except Exception:  # pylint: disable=broad-except
-    MDNS_PORT_RANGE = DEFAULT_MDNS_PORT_RANGE
-mdns_frontend_config = {
-    "MDNS_PORT_RANGE": MDNS_PORT_RANGE,
-}
+# Configuration of REST frontend
+DEFAULT_API_PORT = 8008
+DEFAULT_PORT_RANGE = range(50000, 50500)
 
+if customization.get("rest_frontend") is None:
+    rest_frontend_config = {
+        "API_PORT": DEFAULT_API_PORT,
+        "PORT_RANGE": DEFAULT_PORT_RANGE,
+    }
+else:
+    try:
+        port_range_list = customization["rest_frontend"]["port_range"]
+        PORT_RANGE = range(port_range_list[0], port_range_list[-1])
+    except Exception:  # pylint: disable=broad-except
+        PORT_RANGE = DEFAULT_PORT_RANGE
+    rest_frontend_config = {
+        "API_PORT": customization["rest_frontend"].get("api_port", DEFAULT_API_PORT),
+        "PORT_RANGE": PORT_RANGE,
+    }
+
+# mDNS defaults for frontend and backend
+DEFAULT_TYPE = "_raw._tcp.local."
+ip_version_dict = {
+    "all": IPVersion.All,
+    "v4only": IPVersion.V4Only,
+    "v6only": IPVersion.V6Only,
+}
+DEFAULT_IP_VERSION = IPVersion.All
+
+# mDNS backend configuration
+DEFAULT_MDNS_TIMEOUT = 3000
+
+if customization.get("mdns_backend") is None:
+    mdns_backend_config = {
+        "MDNS_TIMEOUT": DEFAULT_MDNS_TIMEOUT,
+        "TYPE": DEFAULT_TYPE,
+        "IP_VERSION": DEFAULT_IP_VERSION,
+    }
+else:
+    if customization["mdns_backend"].get("ip_version") in ip_version_dict:
+        IP_VERSION = ip_version_dict[customization["ip_version"]]
+    else:
+        IP_VERSION = DEFAULT_IP_VERSION
+    mdns_backend_config = {
+        "MDNS_TIMEOUT": int(
+            customization["mdns_backend"].get("mdns_timeout", DEFAULT_MDNS_TIMEOUT)
+        ),
+        "TYPE": customization["mdns_backend"].get("type", DEFAULT_TYPE),
+        "IP_VERSION": IP_VERSION,
+    }
+
+# mDNS frontend configuration
+if customization.get("mdns_frontend") is None:
+    mdns_frontend_config = {
+        "TYPE": DEFAULT_TYPE,
+        "IP_VERSION": DEFAULT_IP_VERSION,
+    }
+else:
+    if customization["mdns_frontend"].get("ip_version") in ip_version_dict:
+        IP_VERSION = ip_version_dict[customization["ip_version"]]
+    else:
+        IP_VERSION = DEFAULT_IP_VERSION
+    mdns_frontend_config = {
+        "TYPE": customization["mdns_frontend"].get("type", DEFAULT_TYPE),
+        "IP_VERSION": IP_VERSION,
+    }
+
+# USB backend configuration
+if os.name == "nt":
+    DEFAULT_NATIVE_SERIAL_PORTS = ["COM1"]
+else:
+    DEFAULT_NATIVE_SERIAL_PORTS = ["/dev/ttyS0"]
+DEFAULT_IGNORED_SERIAL_PORTS: List[str] = []
+DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
+
+if customization.get("usb_backend") is None:
+    usb_backend_config = {
+        "NATIVE_SERIAL_PORTS": DEFAULT_NATIVE_SERIAL_PORTS,
+        "IGNORED_SERIAL_PORTS": DEFAULT_IGNORED_SERIAL_PORTS,
+        "LOCAL_RETRY_INTERVAL": DEFAULT_LOCAL_RETRY_INTERVAL,
+    }
+else:
+    usb_backend_config = {
+        "NATIVE_SERIAL_PORTS": customization.get(
+            "native_serial_ports", DEFAULT_NATIVE_SERIAL_PORTS
+        ),
+        "IGNORED_SERIAL_PORTS": customization.get(
+            "ignored_serial_ports", DEFAULT_IGNORED_SERIAL_PORTS
+        ),
+        "LOCAL_RETRY_INTERVAL": customization.get(
+            "local_retry_interval", DEFAULT_LOCAL_RETRY_INTERVAL
+        ),
+    }
+
+# IS1 backend configuration
 DEFAULT_REG_PORT = 50002
+
 if customization.get("is1_backend") is None:
-    is1_backend_config = {"REGISTRATION_PORT": DEFAULT_REG_PORT}
+    is1_backend_config = {"REG_PORT": DEFAULT_REG_PORT}
 else:
     is1_backend_config = {
         "REG_PORT": customization["is1_backend"].get(
@@ -198,11 +260,13 @@ else:
         ),
     }
 
+# Configuration of Actor system
 DEFAULT_SYSTEM_BASE = "multiprocTCPBase"
 DEFAULT_ADMIN_PORT = 1901
 DEFAULT_WINDOWS_METHOD = "spawn"
 DEFAULT_LINUX_METHOD = "fork"
 DEFAULT_CONVENTION_ADDRESS = None
+
 if customization.get("actor") is None:
     if os.name == "nt":
         actor_config = {
@@ -254,6 +318,7 @@ else:
             },
         }
 
+# Configuration of MQTT clients used in MQTT frontend and MQTT backend
 DEFAULT_MQTT_CLIENT_ID = "RegistrationServer"
 DEFAULT_MQTT_BROKER = "85.214.243.156"  # Mosquitto running on sarad.de
 DEFAULT_PORT = 1883
@@ -303,27 +368,3 @@ else:
         ),
     }
 # TODO Read GROUP from TLS_CERT_FILE
-
-DEFAULT_ISMQTT_DESCRIPTION = "SARAD Instrument Server"
-DEFAULT_ISMQTT_PLACE = "Dresden"
-DEFAULT_ISMQTT_LATITUDE = 0
-DEFAULT_ISMQTT_LONGITUDE = 0
-DEFAULT_ISMQTT_HEIGHT = 0
-if customization.get("ismqtt") is None:
-    ismqtt_config = {
-        "DESCRIPTION": DEFAULT_ISMQTT_DESCRIPTION,
-        "PLACE": DEFAULT_ISMQTT_PLACE,
-        "LATITUDE": DEFAULT_ISMQTT_LATITUDE,
-        "LONGITUDE": DEFAULT_ISMQTT_LONGITUDE,
-        "HEIGHT": DEFAULT_ISMQTT_HEIGHT,
-    }
-else:
-    ismqtt_config = {
-        "DESCRIPTION": customization["ismqtt"].get(
-            "description", DEFAULT_ISMQTT_DESCRIPTION
-        ),
-        "PLACE": customization["ismqtt"].get("place", DEFAULT_ISMQTT_PLACE),
-        "LATITUDE": customization["ismqtt"].get("latitude", DEFAULT_ISMQTT_LATITUDE),
-        "LONGITUDE": customization["ismqtt"].get("longitude", DEFAULT_ISMQTT_LONGITUDE),
-        "HEIGHT": customization["ismqtt"].get("height", DEFAULT_ISMQTT_HEIGHT),
-    }

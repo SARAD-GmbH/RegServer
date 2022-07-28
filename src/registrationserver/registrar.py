@@ -18,13 +18,14 @@ from datetime import timedelta
 from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
 
-import registrationserver.config as configuration
 from registrationserver.actor_messages import (ActorCreatedMsg, Backend,
                                                Frontend, KeepAliveMsg, KillMsg,
                                                PrepareMqttActorMsg,
                                                ReturnDeviceActorMsg,
                                                UpdateActorDictMsg)
 from registrationserver.base_actor import BaseActor
+from registrationserver.config import (backend_config, config, frontend_config,
+                                       mqtt_config)
 from registrationserver.helpers import (is_device_actor, short_id,
                                         transport_technology)
 from registrationserver.logger import logger
@@ -44,31 +45,31 @@ class Registrar(BaseActor):
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         self.handleDeadLetters(startHandling=True)
-        if Frontend.MQTT in configuration.frontend_config:
+        if Frontend.MQTT in frontend_config:
             mqtt_scheduler = self._create_actor(MqttSchedulerActor, "mqtt_scheduler")
             self.send(
                 mqtt_scheduler,
                 PrepareMqttActorMsg(
                     is_id=None,
-                    client_id=configuration.config["IS_ID"],
-                    group=configuration.mqtt_config["GROUP"],
+                    client_id=config["IS_ID"],
+                    group=mqtt_config["GROUP"],
                 ),
             )
-        if Frontend.MDNS in configuration.frontend_config:
+        if Frontend.MDNS in frontend_config:
             _mdns_scheduler = self._create_actor(MdnsSchedulerActor, "mdns_scheduler")
-        if Backend.USB in configuration.backend_config:
+        if Backend.USB in backend_config:
             self._create_actor(ClusterActor, "cluster")
-        if Backend.MQTT in configuration.backend_config:
+        if Backend.MQTT in backend_config:
             mqtt_listener = self._create_actor(MqttListener, "mqtt_listener")
             self.send(
                 mqtt_listener,
                 PrepareMqttActorMsg(
                     is_id=None,
-                    client_id=configuration.mqtt_config["MQTT_CLIENT_ID"],
-                    group=configuration.mqtt_config["GROUP"],
+                    client_id=mqtt_config["MQTT_CLIENT_ID"],
+                    group=mqtt_config["GROUP"],
                 ),
             )
-        if Backend.IS1 in configuration.backend_config:
+        if Backend.IS1 in backend_config:
             _is1_listener = self._create_actor(Is1Listener, "is1_listener")
         self.wakeupAfter(timedelta(minutes=1), payload="keep alive")
 

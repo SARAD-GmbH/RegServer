@@ -15,7 +15,7 @@ import threading
 
 from zeroconf import IPVersion, ServiceBrowser, ServiceListener, Zeroconf
 
-from registrationserver import config
+from registrationserver import mdns_backend_config
 from registrationserver.helpers import get_ip
 from registrationserver.logger import logger
 
@@ -61,4 +61,4 @@ class MdnsListener(ServiceListener):
 
 if __name__ == "__main__":
 
-    listener = MdnsListener(_type=config["TYPE"])
+    listener = MdnsListener(_type=mdns_backend_config["TYPE"])

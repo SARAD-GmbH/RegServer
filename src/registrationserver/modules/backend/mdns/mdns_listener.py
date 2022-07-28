@@ -19,7 +19,7 @@ import hashids  # type: ignore
 from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
                                                KillMsg, SetDeviceStatusMsg,
                                                SetupMdnsActorMsg)
-from registrationserver.config import config
+from registrationserver.config import config, mdns_backend_config
 from registrationserver.helpers import (get_actor, sarad_protocol, short_id,
                                         transport_technology)
 from registrationserver.logger import logger
@@ -89,7 +89,7 @@ class MdnsListener(ServiceListener):
     @staticmethod
     def device_id(name):
         """Convert mDNS name into a proper device_id/actor_id"""
-        if transport_technology(name) == config["TYPE"]:
+        if transport_technology(name) == mdns_backend_config["TYPE"]:
             return f"{short_id(name, check=False)}.{sarad_protocol(name)}.mdns"
         return name
 
@@ -101,7 +101,7 @@ class MdnsListener(ServiceListener):
         self.lock = threading.Lock()
         with self.lock:
             self.zeroconf = Zeroconf(
-                ip_version=config["IP_VERSION"],
+                ip_version=mdns_backend_config["IP_VERSION"],
                 interfaces=[config["MY_IP"], "127.0.0.1"],
             )
             _ = ServiceBrowser(self.zeroconf, service_type, self)
@@ -126,7 +126,9 @@ class MdnsListener(ServiceListener):
         representing a device is being detected"""
         with self.lock:
             logger.info("[Add] Found service %s of type %s", name, type_)
-            info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
+            info = zc.get_service_info(
+                type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
+            )
             device_id = self.device_id(name)
             if info is not None:
                 logger.info("[Add] %s", info.properties)
@@ -148,7 +150,9 @@ class MdnsListener(ServiceListener):
         """Hook, being called when a service
         representing a device is being updated"""
         logger.info("[Update] Service %s of type %s", name, type_)
-        info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
+        info = zc.get_service_info(
+            type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
+        )
         device_id = self.device_id(name)
         device_actor = get_actor(self.registrar, device_id)
         self.update_device_actor(device_actor, device_id, name, info)
@@ -159,7 +163,9 @@ class MdnsListener(ServiceListener):
         representing a device is being detected"""
         with self.lock:
             logger.info("[Del] Service %s of type %s", name, type_)
-            info = zc.get_service_info(type_, name, timeout=config["MDNS_TIMEOUT"])
+            info = zc.get_service_info(
+                type_, name, timeout=int(mdns_backend_config["MDNS_TIMEOUT"])
+            )
             logger.debug("[Del] Info: %s", info)
             device_id = self.device_id(name)
             device_actor = get_actor(self.registrar, device_id)

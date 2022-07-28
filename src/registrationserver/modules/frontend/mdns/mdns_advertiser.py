@@ -15,7 +15,7 @@ Based on work of Riccardo Förster <foerster@sarad.de>.
 import socket
 
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import config
+from registrationserver.config import config, mdns_frontend_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from zeroconf import ServiceInfo, Zeroconf
@@ -27,10 +27,13 @@ class MdnsAdvertiserActor(BaseActor):
     def __init__(self):
         super().__init__()
         self.device_actor = None
-        self.tcp_port = config["API_PORT"]
+        self.tcp_port = mdns_frontend_config["API_PORT"]
         self.address = config["MY_IP"]
         self.service = None
-        self.zeroconf = Zeroconf()
+        self.zeroconf = Zeroconf(
+            ip_version=mdns_frontend_config["IP_VERSION"],
+            interfaces=[config["MY_IP"], "127.0.0.1"],
+        )
 
     def receiveMsg_SetupMdnsAdvertiserActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -68,7 +71,7 @@ class MdnsAdvertiserActor(BaseActor):
             "SERIAL_SHORT": service_name,
             "DEVICE_ID": device_id,
         }
-        service_type = config["TYPE"]
+        service_type = mdns_frontend_config["TYPE"]
         self.service = ServiceInfo(
             service_type,
             f"{service_name}.{service_type}",
