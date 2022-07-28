@@ -1,4 +1,4 @@
-debug_level = "debug"
+debug_level = "info"
 # is_id = "aranea0003"
 # description = "A longer text describing this Instrument Server"
 # place = "A text describing where the Instrument Controller running this Instrument Server is placed"
@@ -28,6 +28,7 @@ local_retry_interval = 30  # in seconds
 
 [is1_backend]
 registration_port = 50002
+scan_interval = 60  # in seconds
 
 [mdns_backend]
 mdns_timeout = 3000
@@ -37,6 +38,7 @@ ip_version = "all"
 system_base = "multiprocTCPBase"
 admin_port = 1901
 process_startup_method = "fork"
+watchdog_interval = 120  # in minutes
 
 [mqtt]
 group = "iter-0001"

@@ -6,11 +6,11 @@
 :Authors:
     | Michael Strey <strey@sarad.de>
 """
-import datetime
 import pickle
 import select
 import socket
 import time
+from datetime import timedelta
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
@@ -152,8 +152,11 @@ class Is1Listener(BaseActor):
         for instrument_server in instrument_servers:
             self._scan_is(instrument_server)
         self._subscribe_to_actor_dict_msg()
-        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="Connect")
-        self.wakeupAfter(datetime.timedelta(seconds=60), payload="Rescan")
+        self.wakeupAfter(timedelta(seconds=0.01), payload="Connect")
+        self.wakeupAfter(
+            timedelta(seconds=is1_backend_config["SCAN_INTERVAL"]),
+            payload="Rescan",
+        )
 
     def listen(self):
         """Listen for notification from Instrument Server"""
@@ -172,7 +175,7 @@ class Is1Listener(BaseActor):
                     self._cmd_handler(self._socket_info[0])
         except ValueError:
             logger.error("None of ports in %s available", self.PORTS)
-        self.wakeupAfter(datetime.timedelta(seconds=1), payload="Connect")
+        self.wakeupAfter(timedelta(seconds=1), payload="Connect")
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
@@ -182,12 +185,14 @@ class Is1Listener(BaseActor):
         if msg.payload == "Rescan" and not self.on_kill:
             instrument_servers = list(self.inactive_servers)
             for instrument_server in instrument_servers:
-                logger.debug(
+                logger.info(
                     "Check %s for living instruments",
                     instrument_server.host,
                 )
                 self._scan_is(instrument_server)
-            self.wakeupAfter(datetime.timedelta(seconds=60), payload="Rescan")
+            self.wakeupAfter(
+                timedelta(seconds=is1_backend_config["SCAN_INTERVAL"]), payload="Rescan"
+            )
 
     def _cmd_handler(self, is_host):
         """Handle a binary SARAD command received via the socket."""

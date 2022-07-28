@@ -250,13 +250,20 @@ else:
 
 # IS1 backend configuration
 DEFAULT_REG_PORT = 50002
+DEFAULT_SCAN_INTERVAL = 60
 
 if customization.get("is1_backend") is None:
-    is1_backend_config = {"REG_PORT": DEFAULT_REG_PORT}
+    is1_backend_config = {
+        "REG_PORT": DEFAULT_REG_PORT,
+        "SCAN_INTERVAL": DEFAULT_SCAN_INTERVAL,
+    }
 else:
     is1_backend_config = {
         "REG_PORT": customization["is1_backend"].get(
             "registration_port", DEFAULT_REG_PORT
+        ),
+        "SCAN_INTERVAL": customization["is1_backend"].get(
+            "scan_interval", DEFAULT_SCAN_INTERVAL
         ),
     }
 
@@ -277,6 +284,7 @@ if customization.get("actor") is None:
                 "Process Startup Method": DEFAULT_WINDOWS_METHOD,
                 "Convention Address.IPv4": DEFAULT_CONVENTION_ADDRESS,
             },
+            "KEEPALIVE_INTERVAL": DEFAULT_KEEPALIVE_INTERVAL,
         }
     else:
         actor_config = {
@@ -286,8 +294,8 @@ if customization.get("actor") is None:
                 "Process Startup Method": DEFAULT_LINUX_METHOD,
                 "Convention Address.IPv4": DEFAULT_CONVENTION_ADDRESS,
             },
+            "KEEPALIVE_INTERVAL": DEFAULT_KEEPALIVE_INTERVAL,
         }
-    actor_config["KEEPALIVE_INTERVAL"] = DEFAULT_KEEPALIVE_INTERVAL
 else:
     if os.name == "nt":
         actor_config = {

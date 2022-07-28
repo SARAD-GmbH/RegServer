@@ -28,6 +28,7 @@ local_retry_interval = 30  # in seconds
 
 [is1_backend]
 registration_port = 50002
+scan_interval = 60  # in seconds
 
 [mdns_backend]
 mdns_timeout = 3000
