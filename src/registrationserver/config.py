@@ -11,7 +11,7 @@ import logging
 import os
 import socket
 import sys
-from typing import Dict, List
+from typing import List
 from uuid import getnode as get_mac
 
 import toml
@@ -194,7 +194,7 @@ if customization.get("mdns_backend") is None:
     }
 else:
     if customization["mdns_backend"].get("ip_version") in ip_version_dict:
-        IP_VERSION = ip_version_dict[customization["ip_version"]]
+        IP_VERSION = ip_version_dict[customization["mdns_backend"]["ip_version"]]
     else:
         IP_VERSION = DEFAULT_IP_VERSION
     mdns_backend_config = {
@@ -237,13 +237,13 @@ if customization.get("usb_backend") is None:
     }
 else:
     usb_backend_config = {
-        "NATIVE_SERIAL_PORTS": customization.get(
+        "NATIVE_SERIAL_PORTS": customization["usb_backend"].get(
             "native_serial_ports", DEFAULT_NATIVE_SERIAL_PORTS
         ),
-        "IGNORED_SERIAL_PORTS": customization.get(
+        "IGNORED_SERIAL_PORTS": customization["usb_backend"].get(
             "ignored_serial_ports", DEFAULT_IGNORED_SERIAL_PORTS
         ),
-        "LOCAL_RETRY_INTERVAL": customization.get(
+        "LOCAL_RETRY_INTERVAL": customization["usb_backend"].get(
             "local_retry_interval", DEFAULT_LOCAL_RETRY_INTERVAL
         ),
     }
