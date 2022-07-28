@@ -24,8 +24,8 @@ from registrationserver.actor_messages import (ActorCreatedMsg, Backend,
                                                ReturnDeviceActorMsg,
                                                UpdateActorDictMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import (backend_config, config, frontend_config,
-                                       mqtt_config)
+from registrationserver.config import (actor_config, backend_config, config,
+                                       frontend_config, mqtt_config)
 from registrationserver.helpers import (is_device_actor, short_id,
                                         transport_technology)
 from registrationserver.logger import logger
@@ -77,6 +77,7 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage to send the KeepAliveMsg to all children."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.info("Watchdog: start health check")
         if msg.payload == "keep alive":
             for actor_id in self.actor_dict:
                 if not self.actor_dict[actor_id]["is_alive"]:
@@ -87,7 +88,10 @@ class Registrar(BaseActor):
                     self.send(self.registrar, KillMsg())
                 self.actor_dict[actor_id]["is_alive"] = False
             self.send(self.myAddress, KeepAliveMsg())
-        self.wakeupAfter(timedelta(minutes=10), payload="keep alive")
+        logger.info("Watchdog: health check finished")
+        self.wakeupAfter(
+            timedelta(minutes=actor_config["KEEPALIVE_INTERVAL"]), payload="keep alive"
+        )
 
     def receiveMsg_DeadEnvelope(self, msg, sender):
         # pylint: disable=invalid-name

@@ -37,6 +37,7 @@ ip_version = "all"
 system_base = "multiprocTCPBase"
 admin_port = 1901
 process_startup_method = "spawn"
+watchdog_interval = 10  # in minutes
 
 [mqtt]
 group = "Registration Server"

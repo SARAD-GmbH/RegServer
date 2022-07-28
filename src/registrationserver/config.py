@@ -266,6 +266,7 @@ DEFAULT_ADMIN_PORT = 1901
 DEFAULT_WINDOWS_METHOD = "spawn"
 DEFAULT_LINUX_METHOD = "fork"
 DEFAULT_CONVENTION_ADDRESS = None
+DEFAULT_KEEPALIVE_INTERVAL = 10  # in minutes
 
 if customization.get("actor") is None:
     if os.name == "nt":
@@ -286,6 +287,7 @@ if customization.get("actor") is None:
                 "Convention Address.IPv4": DEFAULT_CONVENTION_ADDRESS,
             },
         }
+    actor_config["KEEPALIVE_INTERVAL"] = DEFAULT_KEEPALIVE_INTERVAL
 else:
     if os.name == "nt":
         actor_config = {
@@ -317,6 +319,9 @@ else:
                 "Convention Address.IPv4": DEFAULT_CONVENTION_ADDRESS,
             },
         }
+    actor_config["KEEPALIVE_INTERVAL"] = customization["actor"].get(
+        "watchdog_interval", DEFAULT_KEEPALIVE_INTERVAL
+    )
 
 # Configuration of MQTT clients used in MQTT frontend and MQTT backend
 DEFAULT_MQTT_CLIENT_ID = "RegistrationServer"
