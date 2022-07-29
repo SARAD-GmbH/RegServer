@@ -11,16 +11,15 @@ import select
 import socket
 import time
 from datetime import timedelta
+from typing import List
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (InstrumentServer1, KillMsg,
-                                               SetDeviceStatusMsg,
+from registrationserver.actor_messages import (Is1Address, SetDeviceStatusMsg,
                                                SetupIs1ActorMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import app_folder, config, is1_backend_config
-from registrationserver.helpers import (check_message, make_command_msg,
-                                        short_id)
+from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_actor import Is1Actor
 from sarad.sari import SaradInst  # type: ignore
@@ -41,7 +40,7 @@ class Is1Listener(BaseActor):
     @staticmethod
     def _get_port_and_id(is_id):
         id_string = is_id.decode("utf-8")
-        id_list = id_string.rstrip("\r\n").split("-")
+        id_list = id_string.rstrip("\r\n").split("-", 1)
         return {"port": int(id_list[0]), "id": id_list[1]}
 
     @staticmethod
@@ -107,6 +106,11 @@ class Is1Listener(BaseActor):
                         return instr_type["type_name"]
         return "Unknown"
 
+    @staticmethod
+    def _remove_duplicates(is1_addresses: List[Is1Address]):
+        # TODO
+        return is1_addresses
+
     @overrides
     def __init__(self):
         super().__init__()
@@ -133,8 +137,7 @@ class Is1Listener(BaseActor):
         self.read_list = [server_socket]
         if self._port is not None:
             logger.info("Socket listening on %s:%d", my_ip, self._port)
-        self.instrument_servers = set()
-        self.inactive_servers = []
+        self.is1_addresses = []  # List of Is1Adress
         self.pickle_file_name = f"{app_folder}wlan_instruments.pickle"
 
     @overrides
@@ -142,15 +145,19 @@ class Is1Listener(BaseActor):
         super().receiveMsg_SetupMsg(msg, sender)
         try:
             with open(self.pickle_file_name, "rb") as pickle_file:
-                self.instrument_servers = pickle.load(pickle_file)
+                self.is1_addresses = self._remove_duplicates(pickle.load(pickle_file))
         except FileNotFoundError:
             logger.warning("Cannot find %s", self.pickle_file_name)
         except AttributeError:
             logger.error("Error reading persistent instrument server list")
-        instrument_servers = list(self.instrument_servers)
-        self.inactive_servers = instrument_servers
-        for instrument_server in instrument_servers:
-            self._scan_is(instrument_server)
+        logger.info(
+            "List of formerly used IS1 addresses restored from %s: %s",
+            self.pickle_file_name,
+            self.is1_addresses,
+        )
+        addresses = self.is1_addresses
+        for address in addresses:
+            self._scan_is(address)
         self._subscribe_to_actor_dict_msg()
         self.wakeupAfter(timedelta(seconds=0.01), payload="Connect")
         self.wakeupAfter(
@@ -183,13 +190,13 @@ class Is1Listener(BaseActor):
         if msg.payload == "Connect" and not self.on_kill:
             self.listen()
         if msg.payload == "Rescan" and not self.on_kill:
-            instrument_servers = list(self.inactive_servers)
-            for instrument_server in instrument_servers:
+            addresses = self.is1_addresses
+            for address in addresses:
                 logger.info(
                     "Check %s for living instruments",
-                    instrument_server.host,
+                    address.hostname,
                 )
-                self._scan_is(instrument_server)
+                self._scan_is(address)
             self.wakeupAfter(
                 timedelta(seconds=is1_backend_config["SCAN_INTERVAL"]), payload="Rescan"
             )
@@ -211,19 +218,18 @@ class Is1Listener(BaseActor):
             )
             is_port_id = self._get_port_and_id(data)
             logger.debug("IS1 port: %d", is_port_id["port"])
-            logger.debug("IS1 id: %s", is_port_id["id"])
+            logger.debug("IS1 hostname: %s", is_port_id["id"])
             self._scan_is(
-                InstrumentServer1(
-                    is_host,
-                    is_port_id["port"],
-                    is_port_id["id"],
-                    instruments=frozenset([]),
+                Is1Address(
+                    ip_address=is_host,
+                    port=is_port_id["port"],
+                    hostname=is_port_id["id"],
                 )
             )
 
-    def _scan_is(self, instrument_server: InstrumentServer1):
-        is_host = instrument_server.host
-        is_port = instrument_server.port
+    def _scan_is(self, address: Is1Address):
+        is_host = address.hostname
+        is_port = address.port
         cmd_msg = make_command_msg(self.GET_FIRST_COM)
         logger.debug("Send GetFirstCOM: %s", cmd_msg)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
@@ -231,7 +237,7 @@ class Is1Listener(BaseActor):
             counter = 5
             while retry and counter:
                 try:
-                    logger.debug("Trying to connect %s:%d", is_host, is_port)
+                    logger.debug("Trying to connect %s:%d", address.ip_address, is_port)
                     client_socket.connect((is_host, is_port))
                     retry = False
                 except ConnectionRefusedError:
@@ -240,7 +246,6 @@ class Is1Listener(BaseActor):
                     time.sleep(1)
                 except OSError:
                     logger.debug("%s:%d not reachable", is_host, is_port)
-                    self._remove_instruments(instrument_server)
                     return
             if retry:
                 logger.critical("Connection refused on %s:%d", is_host, is_port)
@@ -265,7 +270,7 @@ class Is1Listener(BaseActor):
                 self._create_and_setup_actor(
                     instr_id=this_instrument["instr_id"],
                     port=this_instrument["port"],
-                    instrument_server=instrument_server,
+                    is1_address=address,
                 )
                 cmd_msg = make_command_msg(self.GET_NEXT_COM)
                 client_socket.sendall(cmd_msg)
@@ -274,35 +279,19 @@ class Is1Listener(BaseActor):
             client_socket.shutdown(socket.SHUT_WR)
             return
 
-    def _remove_instruments(self, instrument_server: InstrumentServer1):
-        """Send KillMsg to all device actors belonging to this instrument server"""
-        for device_id, description in self.actor_dict.items():
-            if description["is_device_actor"]:
-                if device_id in instrument_server.instruments:
-                    self.send(description["address"], KillMsg())
-
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
         """Handler to exit the redirector actor."""
         self.read_list[0].close()
         with open(self.pickle_file_name, "wb") as pickle_file:
-            pickle.dump(self.instrument_servers, pickle_file, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(
+                self._remove_duplicates(self.is1_addresses),
+                pickle_file,
+                pickle.HIGHEST_PROTOCOL,
+            )
         super().receiveMsg_KillMsg(msg, sender)
 
-    @overrides
-    def receiveMsg_ChildActorExited(self, msg, sender):
-        for actor_id, description in self.child_actors.items():
-            if description["actor_address"] == sender:
-                # copy _is from self.instrument_servers to self.inactive_servers
-                instr_id = short_id(actor_id)
-                for instr_server in self.instrument_servers:
-                    if instr_id in instr_server.instruments:
-                        self.inactive_servers.append(instr_server)
-        super().receiveMsg_ChildActorExited(msg, sender)
-
-    def _create_and_setup_actor(
-        self, instr_id, port, instrument_server: InstrumentServer1
-    ):
+    def _create_and_setup_actor(self, instr_id, port, is1_address: Is1Address):
         logger.debug("[_create_and_setup_actor]")
         hid = Hashids()
         family_id = hid.decode(instr_id)[0]
@@ -319,16 +308,15 @@ class Is1Listener(BaseActor):
             )
             sarad_type = "unknown"
         actor_id = f"{instr_id}.{sarad_type}.is1"
-        set_of_instruments = set(instrument_server.instruments)
+        set_of_instruments = set()
         set_of_instruments.add(actor_id)
-        instrument_server.instruments = frozenset(set_of_instruments)
         if actor_id not in self.child_actors:
             logger.debug("Create actor %s", actor_id)
             device_actor = self._create_actor(Is1Actor, actor_id)
             self.send(
                 device_actor,
                 SetupIs1ActorMsg(
-                    instrument_server=instrument_server,
+                    is1_address=is1_address,
                     com_port=port,
                 ),
             )
@@ -340,17 +328,18 @@ class Is1Listener(BaseActor):
                 "Family": family_id,
                 "Type": type_id,
                 "Serial number": serial_number,
-                "Host": instrument_server.is_id,
-                # "Origin": instrument_server.is_id,
-                "Origin": "WLAN",
+                "Host": is1_address.hostname,
+                "Origin": is1_address.hostname,
                 "Protocol": sarad_type,
             },
             "State": 2,
         }
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
         self.send(device_actor, SetDeviceStatusMsg(device_status))
-        logger.debug("IS list before add: %s", self.instrument_servers)
-        self.instrument_servers.add(instrument_server)
-        logger.debug("IS list after add: %s", self.instrument_servers)
-        self.inactive_servers.remove(instrument_server)
-        logger.debug("Updated set of instrument servers: %s", self.instrument_servers)
+        logger.debug("IS1 list before add: %s", self.is1_addresses)
+        is1_hostnames = []
+        for address in self.is1_addresses:
+            is1_hostnames.append(address.hostname)
+        if is1_address.hostname not in is1_hostnames:
+            self.is1_addresses.append(is1_address)
+        logger.debug("Updated IS1 addresses: %s", self.is1_addresses)

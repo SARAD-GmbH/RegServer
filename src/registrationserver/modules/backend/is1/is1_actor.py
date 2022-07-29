@@ -12,7 +12,7 @@ import socket
 import time
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (InstrumentServer1, KillMsg,
+from registrationserver.actor_messages import (Is1Address, KillMsg,
                                                RxBinaryMsg, Status)
 from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
@@ -36,7 +36,7 @@ class Is1Actor(DeviceBaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self._is = None
+        self._is: Is1Address = None
         self._com_port = None
         self._socket = None
         self.last_activity = datetime.datetime.utcnow()
@@ -45,7 +45,7 @@ class Is1Actor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Handler for SetupIs1ActorMsg containing setup information
         that is special to the IS1 device actor"""
-        self._is = msg.instrument_server
+        self._is = msg.is1_address
         self._com_port = msg.com_port
         self.wakeupAfter(datetime.timedelta(seconds=20), payload="Rescan")
 
@@ -64,7 +64,7 @@ class Is1Actor(DeviceBaseActor):
             if time_condition:
                 logger.debug(
                     "Check %s for living instruments",
-                    self._is.host,
+                    self._is.hostname,
                 )
                 self._scan_is(self._is)
             self.wakeupAfter(datetime.timedelta(seconds=60), payload="Rescan")
@@ -78,9 +78,9 @@ class Is1Actor(DeviceBaseActor):
             while retry_counter:
                 try:
                     logger.debug(
-                        "Trying to connect %s:%d", self._is.host, self._is.port
+                        "Trying to connect %s:%d", self._is.ip_address, self._is.port
                     )
-                    self._socket.connect((self._is.host, self._is.port))
+                    self._socket.connect((self._is.hostname, self._is.port))
                     retry_counter = 0
                     return True
                 except ConnectionRefusedError:
@@ -88,10 +88,10 @@ class Is1Actor(DeviceBaseActor):
                     logger.debug("Connection refused. %d retries left", retry_counter)
                     time.sleep(1)
                 except TimeoutError:
-                    logger.error("Timeout connecting %s", self._is.host)
+                    logger.error("Timeout connecting %s", self._is.hostname)
                     retry_counter = 0
                 except BlockingIOError:
-                    logger.error("BlockingIOError connecting %s", self._is.host)
+                    logger.error("BlockingIOError connecting %s", self._is.hostname)
                     retry_counter = 0
             self.send(self.myAddress, KillMsg())
             return False
@@ -158,7 +158,7 @@ class Is1Actor(DeviceBaseActor):
 
     @overrides
     def _reserve_at_is(self):
-        # pylint: disable=unused-argument, no-self-use
+        # pylint: disable=unused-argument
         """Reserve the requested instrument at the instrument server."""
         if not self._establish_socket():
             logger.error("Can't establish the client socket.")
@@ -202,9 +202,9 @@ class Is1Actor(DeviceBaseActor):
         self._destroy_socket()
         super().receiveMsg_KillMsg(msg, sender)
 
-    def _scan_is(self, instrument_server: InstrumentServer1):
-        is_host = instrument_server.host
-        is_port = instrument_server.port
+    def _scan_is(self, is1_address: Is1Address):
+        is_host = is1_address.hostname
+        is_port = is1_address.port
         cmd_msg = make_command_msg(self.GET_FIRST_COM)
         logger.debug("Send GetFirstCOM: %s", cmd_msg)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:

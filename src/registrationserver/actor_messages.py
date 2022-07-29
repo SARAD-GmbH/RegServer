@@ -79,21 +79,19 @@ class Backend(Enum):
     IS1 = 8
 
 
-@dataclass(unsafe_hash=True)
-class InstrumentServer1:
-    """Object identifying an Instrument Server 1.
+@dataclass
+class Is1Address:
+    """Object containing the address information of an Instrument Server 1
 
     Args:
-        host (str): IP address of IS1
+        ip_address (str): IP address of IS1
         port (int): IP port number
-        is_id (str): ID of instrument server
-        instruments (list): Set of device_ids of the instruments detected on this IS
+        hostname (str): hostname of instrument server
     """
 
-    host: str
+    ip_address: str
     port: int
-    is_id: str
-    instruments: FrozenSet[str]
+    hostname: str
 
 
 @dataclass
@@ -133,11 +131,11 @@ class SetupIs1ActorMsg:
     The parameters are required to establish the socket connection to the Instrument Server 1.
 
     Args:
-        instrument_server (object): Dataclass object of InstrumentServer1.
-        com_port (int): COM port of the instrument.
+        is1_address (object): Dataclass object containing the address of Instrument Server 1.
+        com_port (int): Serial COM port of the instrument.
     """
 
-    instrument_server: InstrumentServer1
+    is1_address: Is1Address
     com_port: int
 
 
