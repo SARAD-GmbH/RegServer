@@ -8,9 +8,10 @@ commands and data within the actor system
     | Michael Strey <strey@sarad.de>
 
 """
-from dataclasses import dataclass
+import socket
+from dataclasses import dataclass, field
 from enum import Enum, unique
-from typing import Any, ByteString, Dict, FrozenSet, List, Union
+from typing import Any, ByteString, Dict, List, Union
 
 from sarad.sari import FamilyDict  # type: ignore
 from thespian.actors import ActorAddress  # type: ignore
@@ -79,7 +80,7 @@ class Backend(Enum):
     IS1 = 8
 
 
-@dataclass
+@dataclass(frozen=True)
 class Is1Address:
     """Object containing the address information of an Instrument Server 1
 
@@ -89,9 +90,22 @@ class Is1Address:
         hostname (str): hostname of instrument server
     """
 
-    ip_address: str
+    ip_address: str = field(init=True, repr=False, compare=False)
     port: int
-    hostname: str
+    hostname: str = field(init=True, repr=True, hash=True, compare=True)
+
+    def __post_init__(self):
+        """Check whether the IS can be reached under the hostname.
+        If it cannot, use the ip_address instead.
+        """
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            try:
+                client_socket.connect((self.hostname, self.port))
+            except ConnectionError:
+                return
+            except Exception:  # pylint: disable=broad-except
+                self.hostname = self.ip_address
+        return
 
 
 @dataclass

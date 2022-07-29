@@ -108,8 +108,7 @@ class Is1Listener(BaseActor):
 
     @staticmethod
     def _remove_duplicates(is1_addresses: List[Is1Address]):
-        # TODO
-        return is1_addresses
+        return list(set(is1_addresses))
 
     @overrides
     def __init__(self):
