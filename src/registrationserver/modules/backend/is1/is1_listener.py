@@ -107,7 +107,7 @@ class Is1Listener(BaseActor):
         return "Unknown"
 
     @staticmethod
-    def _remove_duplicates(is1_addresses: List[Is1Address]):
+    def _deduplicate(is1_addresses: List[Is1Address]):
         return list(set(is1_addresses))
 
     @overrides
@@ -118,25 +118,26 @@ class Is1Listener(BaseActor):
         self.conn = None
         my_ip = config["MY_IP"]
         logger.debug("IP address of Registration Server: %s", my_ip)
-        for self._port in self.PORTS:
+        for my_port in self.PORTS:
             try:
                 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                server_socket.bind((my_ip, self._port))
-                self._port = server_socket.getsockname()[1]
+                server_socket.bind((my_ip, my_port))
+                my_port = server_socket.getsockname()[1]
                 break
             except OSError as exception:
-                logger.error("Cannot use port %d. %s", self._port, exception)
+                logger.error("Cannot use port %d. %s", my_port, exception)
                 server_socket.close()
         try:
             server_socket.listen()  # listen(5) maybe???
         except OSError:
-            self._port = None
+            my_port = None
         logger.debug("Server socket: %s", server_socket)
         self.read_list = [server_socket]
-        if self._port is not None:
-            logger.info("Socket listening on %s:%d", my_ip, self._port)
+        if my_port is not None:
+            logger.info("Socket listening on %s:%d", my_ip, my_port)
         self.is1_addresses = []  # List of Is1Adress
+        self.active_is1_addresses = []  # List of Is1Adress with device Actors
         self.pickle_file_name = f"{app_folder}wlan_instruments.pickle"
 
     @overrides
@@ -144,7 +145,7 @@ class Is1Listener(BaseActor):
         super().receiveMsg_SetupMsg(msg, sender)
         try:
             with open(self.pickle_file_name, "rb") as pickle_file:
-                self.is1_addresses = self._remove_duplicates(pickle.load(pickle_file))
+                self.is1_addresses = self._deduplicate(pickle.load(pickle_file))
         except FileNotFoundError:
             logger.warning("Cannot find %s", self.pickle_file_name)
         except AttributeError:
@@ -282,13 +283,18 @@ class Is1Listener(BaseActor):
     def receiveMsg_KillMsg(self, msg, sender):
         """Handler to exit the redirector actor."""
         self.read_list[0].close()
+        super().receiveMsg_KillMsg(msg, sender)
+
+    @overrides
+    def receiveMsg_ActorExitRequest(self, msg, sender):
+        super().receiveMsg_ActorExitRequest(msg, sender)
+        self.is1_addresses.extend(self.active_is1_addresses)
         with open(self.pickle_file_name, "wb") as pickle_file:
             pickle.dump(
-                self._remove_duplicates(self.is1_addresses),
+                self._deduplicate(self.is1_addresses),
                 pickle_file,
                 pickle.HIGHEST_PROTOCOL,
             )
-        super().receiveMsg_KillMsg(msg, sender)
 
     def _create_and_setup_actor(self, instr_id, port, is1_address: Is1Address):
         logger.debug("[_create_and_setup_actor]")
@@ -321,6 +327,9 @@ class Is1Listener(BaseActor):
             )
         else:
             device_actor = self.child_actors[actor_id]["actor_address"]
+        self.active_is1_addresses.append(
+            self.is1_addresses.pop(self.is1_addresses.index(is1_address))
+        )
         device_status = {
             "Identification": {
                 "Name": self._get_name(instr_id),
@@ -342,3 +351,15 @@ class Is1Listener(BaseActor):
         if is1_address.hostname not in is1_hostnames:
             self.is1_addresses.append(is1_address)
         logger.debug("Updated IS1 addresses: %s", self.is1_addresses)
+
+    def receiveMsg_Is1RemoveMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for message informing about the IS1 address
+        belonging to a device actor that is about to be removed."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.is1_addresses.append(
+            self.active_is1_addresses.pop(
+                self.active_is1_addresses.index(msg.is1_address)
+            )
+        )
+        self.is1_addresses = self._deduplicate(self.is1_addresses)

@@ -12,8 +12,8 @@ import socket
 import time
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (Is1Address, KillMsg,
-                                               RxBinaryMsg, Status)
+from registrationserver.actor_messages import (Is1Address, Is1RemoveMsg,
+                                               KillMsg, RxBinaryMsg, Status)
 from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
@@ -41,10 +41,11 @@ class Is1Actor(DeviceBaseActor):
         self._socket = None
         self.last_activity = datetime.datetime.utcnow()
 
-    def receiveMsg_SetupIs1ActorMsg(self, msg, _sender):
+    def receiveMsg_SetupIs1ActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SetupIs1ActorMsg containing setup information
         that is special to the IS1 device actor"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._is = msg.is1_address
         self._com_port = msg.com_port
         self.wakeupAfter(datetime.timedelta(seconds=20), payload="Rescan")
@@ -200,6 +201,7 @@ class Is1Actor(DeviceBaseActor):
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
         self._destroy_socket()
+        self.send(self.parent, Is1RemoveMsg(is1_address=self._is))
         super().receiveMsg_KillMsg(msg, sender)
 
     def _scan_is(self, is1_address: Is1Address):
