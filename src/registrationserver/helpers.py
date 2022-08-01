@@ -16,9 +16,9 @@ from typing import List
 from thespian.actors import ActorSystem  # type: ignore
 
 from registrationserver.actor_messages import (GetActorDictMsg,
-                                               GetDeviceStatusMsg,
+                                               GetDeviceStatusesMsg,
                                                UpdateActorDictMsg,
-                                               UpdateDeviceStatusMsg)
+                                               UpdateDeviceStatusesMsg)
 from registrationserver.logger import logger
 from registrationserver.shutdown import system_shutdown
 
@@ -234,50 +234,29 @@ def get_device_status(registrar_actor, device_id: str) -> dict:
         for the *Identification* of the instrument and it's *Reservation* state
 
     """
-    device_actor = get_actor(registrar_actor, device_id)
-    if device_actor is None:
+    device_statuses = get_device_statuses(registrar_actor)
+    if device_statuses is None:
         return {}
-    with ActorSystem().private() as device_sys:
-        result = device_sys.ask(
-            device_actor, GetDeviceStatusMsg(), timeout=timedelta(seconds=1)
-        )
-        if not isinstance(result, UpdateDeviceStatusMsg):
-            logger.error("Ask to device_actor took more than 1 sec.")
-            return {}
-    return result.device_status
+    return device_statuses.get(device_id, None)
 
 
 def get_device_statuses(registrar_actor):
     """Return a list of all device ids together with the device status"""
     with ActorSystem().private() as db_sys:
         result = db_sys.ask(
-            registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=1)
+            registrar_actor, GetDeviceStatusesMsg(), timeout=timedelta(seconds=5)
         )
-        if not isinstance(result, UpdateActorDictMsg):
+        if result is None:
+            return None
+        if not isinstance(result, UpdateDeviceStatusesMsg):
             logger.critical(
-                "Emergency shutdown. Ask to Registrar took more than 1 sec."
+                "Emergency shutdown. Ask to Registrar took more than 5 sec."
             )
+            logger.debug("Request to registrar delivered: %s", result)
             system_shutdown()
             return None
-        actor_dict = result.actor_dict
-    device_actor_dict = {
-        id: dict["address"]
-        for id, dict in actor_dict.items()
-        if dict["is_device_actor"]
-    }
-    device_statuses = {}
-    for _id, device_actor in device_actor_dict.items():
-        with ActorSystem().private() as status_sys:
-            try:
-                result = status_sys.ask(device_actor, GetDeviceStatusMsg())
-            except ConnectionResetError as exception:
-                logger.error("%s", exception)
-            else:
-                device_statuses[result.device_id] = result.device_status
-            if not isinstance(result, UpdateDeviceStatusMsg):
-                logger.critical("Emergency shutdown. Wrong reply type: %s", result)
-                system_shutdown()
-    return device_statuses
+    logger.debug("Device statuses: %s", result.device_statuses)
+    return result.device_statuses
 
 
 def get_instr_id_actor_dict(registrar_actor):

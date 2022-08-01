@@ -225,7 +225,7 @@ class Is1Actor(DeviceBaseActor):
                     counter = counter - 1
                     logger.debug("%d retries left", counter)
                     time.sleep(1)
-                except OSError:
+                except (OSError, TimeoutError):
                     logger.debug("%s:%d not reachable", is_host, is_port)
                     self.send(self.myAddress, KillMsg())
                     return

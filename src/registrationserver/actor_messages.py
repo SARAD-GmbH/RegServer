@@ -363,6 +363,23 @@ class UpdateDeviceStatusMsg:
 
 
 @dataclass
+class GetDeviceStatusesMsg:
+    """Request to get the dictionary of device statuses
+    for all active connected instruments from Registrar."""
+
+
+@dataclass
+class UpdateDeviceStatusesMsg:
+    """Message with updated device status information for all instruments.
+
+    Args:
+        device_statuses (dict): Dictionary with status information of all instruments.
+    """
+
+    device_statuses: Dict[str, Dict[str, str]]
+
+
+@dataclass
 class SocketMsg:
     """Message sent from the Redirector Actor to the Device Actor after
     establishing a server socket to connect the app.

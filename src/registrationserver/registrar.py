@@ -22,7 +22,8 @@ from registrationserver.actor_messages import (ActorCreatedMsg, Backend,
                                                Frontend, KeepAliveMsg, KillMsg,
                                                PrepareMqttActorMsg,
                                                ReturnDeviceActorMsg,
-                                               UpdateActorDictMsg)
+                                               UpdateActorDictMsg,
+                                               UpdateDeviceStatusesMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import (actor_config, backend_config, config,
                                        frontend_config, mqtt_config)
@@ -40,6 +41,11 @@ from registrationserver.modules.frontend.mqtt.mqtt_scheduler import \
 
 class Registrar(BaseActor):
     """Actor providing a dictionary of devices"""
+
+    @overrides
+    def __init__(self):
+        super().__init__()
+        self.device_statuses = {}  # {device_id: {status_dict}}
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -195,6 +201,8 @@ class Registrar(BaseActor):
                     actor_dict[actor_id]["address"],
                     UpdateActorDictMsg(actor_dict),
                 )
+            if actor_dict[actor_id]["is_device_actor"]:
+                self._subscribe_to_device_status_msg(actor_dict[actor_id]["address"])
 
     def receiveMsg_GetActorDictMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -272,3 +280,19 @@ class Registrar(BaseActor):
             self._send_updates(self.actor_dict)
         else:
             logger.warning("%s not in %s", msg.actor_id, self.actor_dict)
+
+    def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for UpdateDeviceStatusMsg from Device Actor.
+
+        Adds a new instrument to the list of available instruments."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        device_id = msg.device_id
+        device_status = msg.device_status
+        self.device_statuses[device_id] = device_status
+
+    def receiveMsg_GetDeviceStatusesMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handle request to deliver the device statuses of all instruments."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.send(sender, UpdateDeviceStatusesMsg(self.device_statuses))

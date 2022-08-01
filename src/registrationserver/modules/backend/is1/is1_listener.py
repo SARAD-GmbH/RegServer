@@ -245,7 +245,7 @@ class Is1Listener(BaseActor):
                     counter = counter - 1
                     logger.debug("%d retries left", counter)
                     time.sleep(1)
-                except OSError:
+                except (OSError, TimeoutError):
                     logger.debug("%s:%d not reachable", is_host, is_port)
                     return
             if retry:
@@ -254,7 +254,7 @@ class Is1Listener(BaseActor):
             try:
                 client_socket.sendall(cmd_msg)
                 reply = client_socket.recv(1024)
-            except ConnectionResetError as exception:
+            except (OSError, TimeoutError, ConnectionResetError) as exception:
                 logger.error("%s. IS1 closed or disconnected.", exception)
                 return
             checked_reply = check_message(reply, multiframe=False)
