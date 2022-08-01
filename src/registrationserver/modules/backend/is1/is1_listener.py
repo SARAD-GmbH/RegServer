@@ -233,6 +233,7 @@ class Is1Listener(BaseActor):
         cmd_msg = make_command_msg(self.GET_FIRST_COM)
         logger.debug("Send GetFirstCOM: %s", cmd_msg)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            client_socket.settimeout(3)
             retry = True
             counter = 5
             while retry and counter:
@@ -327,9 +328,6 @@ class Is1Listener(BaseActor):
             )
         else:
             device_actor = self.child_actors[actor_id]["actor_address"]
-        self.active_is1_addresses.append(
-            self.is1_addresses.pop(self.is1_addresses.index(is1_address))
-        )
         device_status = {
             "Identification": {
                 "Name": self._get_name(instr_id),
@@ -349,8 +347,13 @@ class Is1Listener(BaseActor):
         for address in self.is1_addresses:
             is1_hostnames.append(address.hostname)
         if is1_address.hostname not in is1_hostnames:
-            self.is1_addresses.append(is1_address)
-        logger.debug("Updated IS1 addresses: %s", self.is1_addresses)
+            self.active_is1_addresses.append(is1_address)
+        else:
+            self.active_is1_addresses.append(
+                self.is1_addresses.pop(self.is1_addresses.index(is1_address))
+            )
+        logger.debug("List of active IS1: %s", self.active_is1_addresses)
+        logger.debug("List of IS1 for next scan: %s", self.is1_addresses)
 
     def receiveMsg_Is1RemoveMsg(self, msg, sender):
         # pylint: disable=invalid-name

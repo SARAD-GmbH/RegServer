@@ -150,8 +150,11 @@ class Is1Actor(DeviceBaseActor):
             except TimeoutError:
                 logger.warning("Timeout on waiting for reply from IS1. Retrying...")
                 retry_counter = retry_counter - 1
+            except ConnectionResetError as exception:
+                logger.error(exception)
+                retry_counter = 0
         if not success:
-            logger.error("Timeout on waiting for reply from IS1")
+            logger.error("Giving up on %s and removing this actor", self.my_id)
             self.send(self.myAddress, KillMsg())
             reply = b""
         self.send(self.redirector_actor, RxBinaryMsg(reply))
@@ -201,7 +204,7 @@ class Is1Actor(DeviceBaseActor):
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
         self._destroy_socket()
-        self.send(self.parent, Is1RemoveMsg(is1_address=self._is))
+        self.send(self.parent.parent_address, Is1RemoveMsg(is1_address=self._is))
         super().receiveMsg_KillMsg(msg, sender)
 
     def _scan_is(self, is1_address: Is1Address):
@@ -210,6 +213,7 @@ class Is1Actor(DeviceBaseActor):
         cmd_msg = make_command_msg(self.GET_FIRST_COM)
         logger.debug("Send GetFirstCOM: %s", cmd_msg)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            client_socket.settimeout(3)
             retry = True
             counter = 3
             while retry and counter:
