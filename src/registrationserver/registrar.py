@@ -201,8 +201,17 @@ class Registrar(BaseActor):
                     actor_dict[actor_id]["address"],
                     UpdateActorDictMsg(actor_dict),
                 )
-            if actor_dict[actor_id]["is_device_actor"]:
-                self._subscribe_to_device_status_msg(actor_dict[actor_id]["address"])
+            if is_device_actor(actor_id):
+                if actor_dict[actor_id]["is_device_actor"]:
+                    self._subscribe_to_device_status_msg(
+                        actor_dict[actor_id]["address"]
+                    )
+                else:
+                    if self.device_statuses.pop(actor_id, None) is not None:
+                        logger.debug("Remove %s from device_statuses dict", actor_id)
+                        self._unsubscribe_from_device_status_msg(
+                            actor_dict[actor_id]["address"]
+                        )
 
     def receiveMsg_GetActorDictMsg(self, msg, sender):
         # pylint: disable=invalid-name

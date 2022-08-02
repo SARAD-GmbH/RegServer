@@ -25,6 +25,7 @@ from thespian.actors import ActorAddress, ActorTypeDispatcher
 from registrationserver.actor_messages import (KillMsg, SetupMsg, SubscribeMsg,
                                                SubscribeToActorDictMsg,
                                                SubscribeToDeviceStatusMsg,
+                                               UnSubscribeFromDeviceStatusMsg,
                                                UnsubscribeMsg)
 from registrationserver.logger import logger
 
@@ -164,6 +165,12 @@ class BaseActor(ActorTypeDispatcher):
     def _subscribe_to_device_status_msg(self, device_actor_address):
         """Subscribe to receive updates of the device status from device actor."""
         self.send(device_actor_address, SubscribeToDeviceStatusMsg(actor_id=self.my_id))
+
+    def _unsubscribe_from_device_status_msg(self, device_actor_address):
+        """Unsubscribe from receiving updates of the device status from device actor."""
+        self.send(
+            device_actor_address, UnSubscribeFromDeviceStatusMsg(actor_id=self.my_id)
+        )
 
     def _create_actor(self, actor_type, actor_id):
         logger.debug("Create %s with parent %s", actor_id, self.my_id)

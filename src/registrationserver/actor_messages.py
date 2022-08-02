@@ -345,6 +345,18 @@ class SubscribeToDeviceStatusMsg:
 
 
 @dataclass
+class UnSubscribeFromDeviceStatusMsg:
+    """Message to unsubscribe the sender from updates of the device status information
+    collected in the Device Actor.
+
+    Args:
+        actor_id (str): Unique Id of the actor that shall receive the updates.
+    """
+
+    actor_id: str
+
+
+@dataclass
 class GetDeviceStatusMsg:
     """Request to get the device status from Device Actor once."""
 
