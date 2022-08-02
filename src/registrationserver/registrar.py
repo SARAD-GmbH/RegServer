@@ -198,7 +198,7 @@ class Registrar(BaseActor):
     def _send_updates(self, actor_dict):
         """Send the updated Actor Dictionary to all subscribers."""
         for actor_id in actor_dict:
-            if actor_dict[actor_id]["get_updates"]:
+            if actor_dict[actor_id]["get_updates"] and not self.on_kill:
                 logger.debug("Send updated actor_dict to %s", actor_id)
                 self.send(
                     actor_dict[actor_id]["address"],
@@ -206,9 +206,10 @@ class Registrar(BaseActor):
                 )
             if is_device_actor(actor_id):
                 if actor_dict[actor_id]["is_device_actor"]:
-                    self._subscribe_to_device_status_msg(
-                        actor_dict[actor_id]["address"]
-                    )
+                    if not self.on_kill:
+                        self._subscribe_to_device_status_msg(
+                            actor_dict[actor_id]["address"]
+                        )
                 else:
                     if self.device_statuses.pop(actor_id, None) is not None:
                         logger.debug(
@@ -297,6 +298,17 @@ class Registrar(BaseActor):
             logger.debug("Set 'get_updates' for %s", msg.actor_id)
             self.actor_dict[msg.actor_id]["get_updates"] = True
             self._send_updates(self.actor_dict)
+        else:
+            logger.warning("%s not in %s", msg.actor_id, self.actor_dict)
+
+    def receiveMsg_UnSubscribeFromActorDictMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Unset the 'get_updates' flag for the requesting sender
+        to not send updated actor dictionaries to it."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if msg.actor_id in self.actor_dict:
+            logger.debug("Unset 'get_updates' for %s", msg.actor_id)
+            self.actor_dict[msg.actor_id]["get_updates"] = False
         else:
             logger.warning("%s not in %s", msg.actor_id, self.actor_dict)
 

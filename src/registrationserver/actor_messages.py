@@ -248,6 +248,18 @@ class SubscribeToActorDictMsg:
 
 
 @dataclass
+class UnSubscribeFromActorDictMsg:
+    """Message to unsubscribe an actor from the Actor Dictionary maintained in the
+    Registrar actor.
+
+    Args:
+        actor_id (str): Unique Id of the actor that shall not receive updates anymore.
+    """
+
+    actor_id: str
+
+
+@dataclass
 class UpdateActorDictMsg:
     """Message containing the updated Actor Dictionary from Registrar Actor.
     {actor_id: {"is_alive": bool,
