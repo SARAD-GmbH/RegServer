@@ -22,6 +22,7 @@ from registrationserver.actor_messages import (ActorCreatedMsg, Backend,
                                                Frontend, KeepAliveMsg, KillMsg,
                                                PrepareMqttActorMsg,
                                                ReturnDeviceActorMsg,
+                                               UnSubscribeFromDeviceStatusMsg,
                                                UpdateActorDictMsg,
                                                UpdateDeviceStatusesMsg)
 from registrationserver.base_actor import BaseActor
@@ -103,7 +104,9 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for all DeadEnvelope messages in the actor system."""
         logger.error("%s for %s from %s", msg, self.my_id, sender)
-        if isinstance(msg.deadMessage, (ActorExitRequest, KillMsg)):
+        if isinstance(
+            msg.deadMessage, (ActorExitRequest, KillMsg, UnSubscribeFromDeviceStatusMsg)
+        ):
             logger.info("The above error can safely be ignored.")
         else:
             logger.critical("-> Emergency shutdown")
@@ -208,10 +211,17 @@ class Registrar(BaseActor):
                     )
                 else:
                     if self.device_statuses.pop(actor_id, None) is not None:
-                        logger.debug("Remove %s from device_statuses dict", actor_id)
+                        logger.debug(
+                            "Remove inactive %s from device_statuses dict", actor_id
+                        )
                         self._unsubscribe_from_device_status_msg(
                             actor_dict[actor_id]["address"]
                         )
+        device_statuses = self.device_statuses.copy()
+        for device_id in device_statuses:
+            if device_id not in actor_dict:
+                self.device_statuses.pop(device_id, None)
+                logger.debug("Remove %s from device_statuses dict.", device_id)
 
     def receiveMsg_GetActorDictMsg(self, msg, sender):
         # pylint: disable=invalid-name

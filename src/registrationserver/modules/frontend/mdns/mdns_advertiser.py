@@ -64,6 +64,7 @@ class MdnsAdvertiserActor(BaseActor):
                 logger.error(
                     "%s raised when trying to unregister Zeroconf service", exception
                 )
+        self._unsubscribe_from_device_status_msg(self.device_actor)
         super().receiveMsg_KillMsg(msg, sender)
 
     def __start_advertising(self, service_name, instr_name, device_id):
