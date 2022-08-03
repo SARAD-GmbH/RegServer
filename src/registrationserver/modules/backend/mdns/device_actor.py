@@ -11,7 +11,7 @@
 import requests
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg, ReservationStatusMsg,
-                                               Status)
+                                               SetupMdnsActorAckMsg, Status)
 from registrationserver.config import config
 from registrationserver.helpers import sanitize_hn, short_id
 from registrationserver.logger import logger
@@ -69,7 +69,7 @@ class DeviceActor(DeviceBaseActor):
         self.http.mount("https://", adapter)
         self.http.mount("http://", adapter)
 
-    def receiveMsg_SetupMdnsActorMsg(self, msg, _sender):
+    def receiveMsg_SetupMdnsActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SetupMdnsActorMsg containing setup information
         that is special to the mDNS device actor"""
@@ -84,6 +84,7 @@ class DeviceActor(DeviceBaseActor):
             success = Status.IS_NOT_FOUND
             logger.error(success)
             self.send(self.myAddress, KillMsg())
+        self.send(sender, SetupMdnsActorAckMsg())
 
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
@@ -154,7 +155,7 @@ class DeviceActor(DeviceBaseActor):
                 self._forward_reservation(success)
                 return
             self.device_status["Reservation"] = resp_reserve[self.device_id].get(
-                "Reservation"
+                "Reservation", {}
             )
             error_code = resp_reserve.get("Error code")
             logger.debug("Error code: %d", error_code)
@@ -233,3 +234,4 @@ class DeviceActor(DeviceBaseActor):
                 else:
                     success = Status.OK
                     self.device_status.pop("Reservation", None)
+        self._publish_status_change()

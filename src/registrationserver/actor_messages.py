@@ -170,6 +170,11 @@ class SetupMdnsActorMsg:
 
 
 @dataclass
+class SetupMdnsActorAckMsg:
+    """Message used to acknoledge the special setup information required for mDNS device Actors."""
+
+
+@dataclass
 class SetupMdnsAdvertiserActorMsg:
     """Message used to send the special setup information required for mDNS Advertiser Actors.
     The parameters are required to advertise the raw socket connection via Zeroconf.

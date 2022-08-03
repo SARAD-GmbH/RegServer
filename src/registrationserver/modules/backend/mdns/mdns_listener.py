@@ -114,9 +114,14 @@ class MdnsListener(ServiceListener):
             is_host = data["Remote"]["Address"]
             api_port = data["Remote"]["API port"]
             device_id = data["Remote"]["Device Id"]
-            ActorSystem().tell(
-                device_actor, SetupMdnsActorMsg(is_host, api_port, device_id)
-            )
+            with ActorSystem().private() as setup_mdns_actor:
+                reply = setup_mdns_actor.ask(
+                    device_actor,
+                    SetupMdnsActorMsg(is_host, api_port, device_id),
+                    timeout=3,
+                )
+            if reply is None:
+                logger.error("Setup of mDNS device actor uncomplete.")
             logger.debug("Setup the device actor with %s", data)
             ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))
 

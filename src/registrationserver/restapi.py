@@ -37,7 +37,7 @@ from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
                                                ReturnUsbPortsMsg, Status)
 from registrationserver.config import mqtt_config
 from registrationserver.helpers import (get_actor, get_device_status,
-                                        get_device_statuses,
+                                        get_device_statuses, sanitize_hn,
                                         transport_technology)
 from registrationserver.logger import logger  # type: ignore
 from registrationserver.shutdown import system_shutdown
@@ -158,7 +158,7 @@ class RestApi:
             attribute_who = request.args.get("who").strip('"')
             app = attribute_who.split(" - ")[0]
             user = attribute_who.split(" - ")[1]
-            request_host = attribute_who.split(" - ")[2]
+            request_host = sanitize_hn(attribute_who.split(" - ")[2])
         except (IndexError, AttributeError):
             logger.error("Reserve request without proper who attribute.")
             status = Status.ATTRIBUTE_ERROR
@@ -232,15 +232,18 @@ class RestApi:
             status = Status.NOT_FOUND
         else:
             device_actor = get_actor(registrar_actor, device_id)
-            logger.debug("Ask device actor to FREE...")
-            with ActorSystem().private() as free_dev:
-                free_return = free_dev.ask(
-                    device_actor, FreeDeviceMsg(), timeout=timedelta(seconds=10)
-                )
-            reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
-            if reply_is_corrupted:
-                return reply_is_corrupted
-            status = free_return.status
+            if device_actor is not None:
+                logger.debug("Ask device actor to FREE...")
+                with ActorSystem().private() as free_dev:
+                    free_return = free_dev.ask(
+                        device_actor, FreeDeviceMsg(), timeout=timedelta(seconds=10)
+                    )
+                reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
+                if reply_is_corrupted:
+                    return reply_is_corrupted
+                status = free_return.status
+            else:
+                status = Status.NOT_FOUND
         answer = {"Error code": status.value, "Error": str(status), device_id: {}}
         if status in (Status.OK, Status.OCCUPIED):
             answer[device_id] = get_device_status(registrar_actor, device_id)
