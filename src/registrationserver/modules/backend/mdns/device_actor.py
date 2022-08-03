@@ -186,21 +186,12 @@ class DeviceActor(DeviceBaseActor):
         elif success == Status.ERROR:
             logger.critical("%s during reservation", success)
             system_shutdown()
-        self.send(
-            self.sender_api,
-            ReservationStatusMsg(instr_id=short_id(self.my_id), status=success),
-        )
+        self._update_reservation_status(self.device_status["Reservation"])
 
     @overrides
-    def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
-        """Handler for GetDeviceStatusMsg asking to send updated information
-        about the device status to the sender.
-
-        Sends back a message containing the device_status."""
-        if self.base_url == "":
-            logger.warning("Actor initialisation incomplete.")
-            super().receiveMsg_GetDeviceStatusMsg(msg, sender)
-            return
+    def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
+        """Handler for SetDeviceStatusMsg initialising the device status information."""
+        super().receiveMsg_SetDeviceStatusMsg(msg, sender)
         try:
             resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
             device_resp = resp.json()
@@ -211,6 +202,8 @@ class DeviceActor(DeviceBaseActor):
             logger.error(success)
             self.send(self.myAddress, KillMsg())
         else:
+            logger.debug("device_resp: %s", device_resp)
+            logger.debug("device_desc: %s", device_desc)
             success = Status.NOT_FOUND
             if device_desc.get("Identification") is None:
                 logger.warning(
@@ -240,4 +233,3 @@ class DeviceActor(DeviceBaseActor):
                 else:
                     success = Status.OK
                     self.device_status.pop("Reservation", None)
-        super().receiveMsg_GetDeviceStatusMsg(msg, sender)
