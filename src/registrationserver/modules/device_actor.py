@@ -232,7 +232,7 @@ class DeviceBaseActor(BaseActor):
         """Handler to unregister a requesting actor from a list of actors
         that are subscribed to receive updates of device status on every change."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.subscribers.pop(msg.actor_id)
+        self.subscribers.pop(msg.actor_id, None)
         logger.debug("Subscribers for DeviceStatusMsg: %s", self.subscribers)
 
     def _publish_status_change(self):

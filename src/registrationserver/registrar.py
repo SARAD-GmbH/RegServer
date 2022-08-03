@@ -22,6 +22,7 @@ from registrationserver.actor_messages import (ActorCreatedMsg, Backend,
                                                Frontend, KeepAliveMsg, KillMsg,
                                                PrepareMqttActorMsg,
                                                ReturnDeviceActorMsg,
+                                               SubscribeToDeviceStatusMsg,
                                                UnSubscribeFromDeviceStatusMsg,
                                                UpdateActorDictMsg,
                                                UpdateDeviceStatusesMsg)
@@ -105,7 +106,13 @@ class Registrar(BaseActor):
         """Handler for all DeadEnvelope messages in the actor system."""
         logger.error("%s for %s from %s", msg, self.my_id, sender)
         if isinstance(
-            msg.deadMessage, (ActorExitRequest, KillMsg, UnSubscribeFromDeviceStatusMsg)
+            msg.deadMessage,
+            (
+                ActorExitRequest,
+                KillMsg,
+                SubscribeToDeviceStatusMsg,
+                UnSubscribeFromDeviceStatusMsg,
+            ),
         ):
             logger.info("The above error can safely be ignored.")
         else:
@@ -207,6 +214,7 @@ class Registrar(BaseActor):
             if is_device_actor(actor_id):
                 if actor_dict[actor_id]["is_device_actor"]:
                     if not self.on_kill:
+                        logger.debug("Subscribe %s to device statuses dict", actor_id)
                         self._subscribe_to_device_status_msg(
                             actor_dict[actor_id]["address"]
                         )
