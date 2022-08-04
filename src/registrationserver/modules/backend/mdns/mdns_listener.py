@@ -130,13 +130,13 @@ class MdnsListener(ServiceListener):
         """Hook, being called when a new service
         representing a device is being detected"""
         with self.lock:
-            logger.info("[Add] Found service %s of type %s", name, type_)
+            logger.debug("[Add] Found service %s of type %s", name, type_)
             info = zc.get_service_info(
                 type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
             )
             device_id = self.device_id(name)
             if info is not None:
-                logger.debug("[Add] %s", info.properties)
+                logger.info("[Add] %s", info.properties)
                 actor_id = device_id
                 with ActorSystem().private() as add_ser:
                     reply = add_ser.ask(
@@ -154,13 +154,15 @@ class MdnsListener(ServiceListener):
         # pylint: disable=invalid-name
         """Hook, being called when a service
         representing a device is being updated"""
-        logger.info("[Update] Service %s of type %s", name, type_)
+        logger.debug("[Update] Service %s of type %s", name, type_)
         info = zc.get_service_info(
             type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
         )
-        device_id = self.device_id(name)
-        device_actor = get_actor(self.registrar, device_id)
-        self.update_device_actor(device_actor, device_id, name, info)
+        if info is not None:
+            logger.info("[Update] %s", info.properties)
+            device_id = self.device_id(name)
+            device_actor = get_actor(self.registrar, device_id)
+            self.update_device_actor(device_actor, device_id, name, info)
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
