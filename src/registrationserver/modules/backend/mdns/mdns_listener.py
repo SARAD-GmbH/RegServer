@@ -136,7 +136,7 @@ class MdnsListener(ServiceListener):
             )
             device_id = self.device_id(name)
             if info is not None:
-                logger.info("[Add] %s", info.properties)
+                logger.debug("[Add] %s", info.properties)
                 actor_id = device_id
                 with ActorSystem().private() as add_ser:
                     reply = add_ser.ask(

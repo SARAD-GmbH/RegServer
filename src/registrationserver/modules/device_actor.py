@@ -206,6 +206,7 @@ class DeviceBaseActor(BaseActor):
             return_message = ReservationStatusMsg(instr_id, Status.OK_SKIPPED)
         self.send(self.sender_api, return_message)
         self._forward_to_children(KillMsg())
+        logger.info("Free %s", self.my_id)
         self._publish_status_change()
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
@@ -225,7 +226,7 @@ class DeviceBaseActor(BaseActor):
         self.subscribers[msg.actor_id] = sender
         logger.debug("Subscribers for DeviceStatusMsg: %s", self.subscribers)
         if self.device_status:
-            self._publish_status_change()
+            self._publish_status([sender])
 
     def receiveMsg_UnSubscribeFromDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -238,6 +239,14 @@ class DeviceBaseActor(BaseActor):
     def _publish_status_change(self):
         """Publish a changed device status to all subscribers."""
         for actor_address in self.subscribers.values():
+            self.send(
+                actor_address,
+                UpdateDeviceStatusMsg(self.my_id, self.device_status),
+            )
+
+    def _publish_status(self, device_actors: list):
+        """Publish a device status to all members of device_actors."""
+        for actor_address in device_actors:
             self.send(
                 actor_address,
                 UpdateDeviceStatusMsg(self.my_id, self.device_status),

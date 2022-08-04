@@ -190,19 +190,22 @@ class RestApi:
             )
         # send RESERVE message to device actor
         device_actor = get_actor(registrar_actor, device_id)
-        with ActorSystem().private() as reserve_sys:
-            reserve_return = reserve_sys.ask(
-                device_actor,
-                ReserveDeviceMsg(request_host, user, app),
-                timeout=timedelta(seconds=10),
-            )
-        if reserve_return is None:
-            status = Status.NOT_FOUND
+        if device_actor is not None:
+            with ActorSystem().private() as reserve_sys:
+                reserve_return = reserve_sys.ask(
+                    device_actor,
+                    ReserveDeviceMsg(request_host, user, app),
+                    timeout=timedelta(seconds=10),
+                )
+            if reserve_return is None:
+                status = Status.NOT_FOUND
+            else:
+                reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
+                if reply_is_corrupted:
+                    return reply_is_corrupted
+                status = reserve_return.status
         else:
-            reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
-            if reply_is_corrupted:
-                return reply_is_corrupted
-            status = reserve_return.status
+            status = Status.NOT_FOUND
         if status in (
             Status.OK,
             Status.OK_SKIPPED,

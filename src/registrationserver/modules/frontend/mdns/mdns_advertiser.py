@@ -51,9 +51,15 @@ class MdnsAdvertiserActor(BaseActor):
         sarad_protocol = msg.device_id.split(".")[1]
         instr_name = msg.device_status["Identification"]["Name"]
         service_name = f"{instr_id}.{sarad_protocol}"
+        if msg.device_status.get("Reservation") is None:
+            occupied = False
+        else:
+            occupied = msg.device_status["Reservation"].get("Active", False)
         if self.service is None:
             logger.debug("Start advertising %s", service_name)
-            self.__start_advertising(service_name, instr_name, msg.device_id)
+            self.__start_advertising(service_name, instr_name, msg.device_id, occupied)
+        else:
+            self.__update_service(occupied)
 
     def receiveMsg_KillMsg(self, msg, sender):
         if self.service is not None:
@@ -67,12 +73,13 @@ class MdnsAdvertiserActor(BaseActor):
         self._unsubscribe_from_device_status_msg(self.device_actor)
         super().receiveMsg_KillMsg(msg, sender)
 
-    def __start_advertising(self, service_name, instr_name, device_id):
+    def __start_advertising(self, service_name, instr_name, device_id, occupied):
         properties = {
             "VENDOR": "SARAD GmbH",
             "MODEL_ENC": instr_name,
             "SERIAL_SHORT": service_name,
             "DEVICE_ID": device_id,
+            "OCCUPIED": occupied,
         }
         service_type = mdns_frontend_config["TYPE"]
         self.service = ServiceInfo(
@@ -85,3 +92,11 @@ class MdnsAdvertiserActor(BaseActor):
             addresses=[socket.inet_aton(self.address)],
         )
         self.zeroconf.register_service(self.service)
+
+    def __update_service(self, occupied):
+        logger.info("Update %s: occupied = %s", self.service.name, occupied)
+        if occupied:
+            self.service.properties["OCCUPIED"] = "True"
+        else:
+            self.service.properties["OCCUPIED"] = "False"
+        self.zeroconf.update_service(self.service)
