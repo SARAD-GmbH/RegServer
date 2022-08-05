@@ -134,7 +134,7 @@ class ClusterActor(BaseActor):
             port_actors = self._switch_to_port_key(self.child_actors)
             active_ports = set(port_actors.keys())
             active_rs232_ports = verified_rs232.intersection(active_ports)
-            logger.debug("Looping over %s of %s", verified_rs232_list, self._looplist)
+            logger.info("Looping over %s of %s", verified_rs232_list, self._looplist)
             self._cluster.update_connected_instruments(
                 ports_to_test=verified_rs232_list
             )

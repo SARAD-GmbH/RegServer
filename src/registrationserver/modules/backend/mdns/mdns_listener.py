@@ -162,7 +162,8 @@ class MdnsListener(ServiceListener):
             logger.info("[Update] %s", info.properties)
             device_id = self.device_id(name)
             device_actor = get_actor(self.registrar, device_id)
-            self.update_device_actor(device_actor, device_id, name, info)
+            if device_actor is not None:
+                self.update_device_actor(device_actor, device_id, name, info)
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
@@ -176,7 +177,7 @@ class MdnsListener(ServiceListener):
             logger.debug("[Del] Info: %s", info)
             device_id = self.device_id(name)
             device_actor = get_actor(self.registrar, device_id)
-            if (device_actor is not None) and (device_actor != {}):
+            if device_actor is not None:
                 logger.debug("Kill device actor %s", device_id)
                 ActorSystem().tell(device_actor, KillMsg())
             else:
