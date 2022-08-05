@@ -35,8 +35,8 @@ mdns_timeout = 3000
 ip_version = "all"
 
 [actor]
-system_base = "multiprocTCPBase"
-admin_port = 1901
+system_base = "multiprocUDPBase"
+admin_port = 1029
 process_startup_method = "spawn"
 watchdog_interval = 10  # in minutes
 
