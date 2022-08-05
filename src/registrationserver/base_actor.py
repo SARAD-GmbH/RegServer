@@ -29,6 +29,7 @@ from registrationserver.actor_messages import (KillMsg, SetupMsg, SubscribeMsg,
                                                UnSubscribeFromDeviceStatusMsg,
                                                UnsubscribeMsg)
 from registrationserver.logger import logger
+from registrationserver.shutdown import system_shutdown
 
 
 @dataclass
@@ -106,12 +107,12 @@ class BaseActor(ActorTypeDispatcher):
         """Handle the KillMsg for this actor"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.on_kill = True
+        if self.get_updates:
+            self._unsubscribe_from_actor_dict_msg()
         if self.child_actors:
             self._forward_to_children(msg)
         else:
             self.send(self.myAddress, ActorExitRequest())
-        if self.get_updates:
-            self._unsubscribe_from_actor_dict_msg()
 
     def receiveMsg_KeepAliveMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
@@ -132,7 +133,7 @@ class BaseActor(ActorTypeDispatcher):
         """Handler for PoisonMessage"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         logger.critical("-> Emergency shutdown.")
-        self.send(self.registrar, KillMsg())
+        system_shutdown()
 
     def receiveMsg_ChildActorExited(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
@@ -158,7 +159,7 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name
         """Handler for messages that do not fit the spec."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.send(self.registrar, KillMsg())
+        system_shutdown()
 
     def _subscribe_to_actor_dict_msg(self):
         """Subscribe to receive updates of the Actor Dictionary from Registrar."""

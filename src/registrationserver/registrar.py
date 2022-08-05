@@ -39,6 +39,7 @@ from registrationserver.modules.frontend.mdns.mdns_scheduler import \
     MdnsSchedulerActor
 from registrationserver.modules.frontend.mqtt.mqtt_scheduler import \
     MqttSchedulerActor
+from registrationserver.shutdown import system_shutdown
 
 
 class Registrar(BaseActor):
@@ -93,7 +94,7 @@ class Registrar(BaseActor):
                         "Actor %s did not respond to KeepAliveMsg.", actor_id
                     )
                     logger.critical("-> Emergency shutdown")
-                    self.send(self.registrar, KillMsg())
+                    system_shutdown()
                 self.actor_dict[actor_id]["is_alive"] = False
             self.send(self.myAddress, KeepAliveMsg())
         logger.info("Watchdog: health check finished")
@@ -117,7 +118,7 @@ class Registrar(BaseActor):
             logger.info("The above error can safely be ignored.")
         else:
             logger.critical("-> Emergency shutdown")
-            self.send(self.registrar, KillMsg())
+            system_shutdown()
 
     def receiveMsg_SubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -132,7 +133,7 @@ class Registrar(BaseActor):
                 "The actor already exists in the system -> emergency shutdown"
             )
             self.send(sender, KillMsg())
-            self.send(self.registrar, KillMsg())
+            system_shutdown()
             return
         self.actor_dict[msg.actor_id] = {
             "address": sender,
