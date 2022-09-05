@@ -250,6 +250,7 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for CreateActorMsg. Create a new actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        create_new_actor = False
         actor_id = msg.actor_id
         actor_address = None
         if actor_id in self.actor_dict:

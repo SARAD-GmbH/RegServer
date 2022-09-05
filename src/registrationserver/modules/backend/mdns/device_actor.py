@@ -10,10 +10,10 @@
 """
 import requests
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (KillMsg, ReservationStatusMsg,
-                                               SetupMdnsActorAckMsg, Status)
+from registrationserver.actor_messages import (KillMsg, SetupMdnsActorAckMsg,
+                                               Status)
 from registrationserver.config import config
-from registrationserver.helpers import sanitize_hn, short_id
+from registrationserver.helpers import sanitize_hn
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.shutdown import system_shutdown
@@ -192,7 +192,9 @@ class DeviceActor(DeviceBaseActor):
     @overrides
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         """Handler for SetDeviceStatusMsg initialising the device status information."""
-        super().receiveMsg_SetDeviceStatusMsg(msg, sender)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.device_status = msg.device_status
+        logger.debug("Device status: %s", self.device_status)
         try:
             resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
             device_resp = resp.json()

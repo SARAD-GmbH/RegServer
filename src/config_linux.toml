@@ -15,7 +15,7 @@ mdns = true
 usb = true
 mqtt = false
 mdns = true
-is1 = false
+is1 = true
 
 [rest_frontend]
 api_port = 8008
@@ -41,7 +41,7 @@ process_startup_method = "fork"
 watchdog_interval = 120  # in minutes
 
 [mqtt]
-group = "iter-0001"
+group = "sarad-0001"
 mqtt_broker = "sarad.de"
 port = 8883
 retry_interval = 5

@@ -16,7 +16,7 @@ from registrationserver.actor_messages import (Frontend, KillMsg,
                                                ReservationStatusMsg, Status,
                                                UpdateDeviceStatusMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import config, frontend_config
+from registrationserver.config import frontend_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.redirect_actor import RedirectorActor
@@ -70,8 +70,6 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.device_status = msg.device_status
         logger.debug("Device status: %s", self.device_status)
-        if Frontend.MQTT in frontend_config:
-            self.device_status["Identification"]["Host"] = config["IS_ID"]
         self._publish_status_change()
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
