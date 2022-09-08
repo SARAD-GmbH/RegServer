@@ -42,7 +42,8 @@ class UsbActor(DeviceBaseActor):
             self.my_id,
             sender,
         )
-        self.instrument = SaradInst(msg.port, msg.family)
+        self.instrument = SaradInst(msg.family)
+        self.instrument.port = msg.port
         self.instrument.release_instrument()
         logger.info("Instrument with Id %s detected.", self.my_id)
 
