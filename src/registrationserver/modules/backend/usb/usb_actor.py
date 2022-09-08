@@ -16,6 +16,9 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import KillMsg, RxBinaryMsg, Status
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
+from sarad.dacm import DacmInst
+from sarad.doseman import DosemanInst
+from sarad.radonscout import RscInst
 from sarad.sari import SaradInst  # type: ignore
 from serial import SerialException  # type: ignore
 
@@ -42,7 +45,17 @@ class UsbActor(DeviceBaseActor):
             self.my_id,
             sender,
         )
-        self.instrument = SaradInst(msg.family)
+        family_id = msg.family["family_id"]
+        if family_id == 1:
+            family_class = DosemanInst
+        elif family_id == 2:
+            family_class = RscInst
+        elif family_id == 5:
+            family_class = DacmInst
+        else:
+            logger.error("Family %s not supported", family_id)
+            return None
+        self.instrument = family_class()
         self.instrument.port = msg.port
         self.instrument.release_instrument()
         logger.info("Instrument with Id %s detected.", self.my_id)
