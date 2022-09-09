@@ -152,7 +152,7 @@ class ClusterActor(BaseActor):
             else:
                 logger.info("Add instruments connected to ports %s", new_ports)
                 for instrument in self._cluster.connected_instruments:
-                    if instrument.port in new_ports:
+                    if instrument.route.port in new_ports:
                         self._create_and_setup_actor(instrument)
         else:
             logger.debug("List of native RS-232 interfaces empty. Stop the loop.")
@@ -230,12 +230,12 @@ class ClusterActor(BaseActor):
                 "Protocol": sarad_type,
                 "Origin": config["IS_ID"],
             },
-            "Serial": instrument.port,
+            "Serial": instrument.route.port,
         }
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
         self.send(device_actor, SetDeviceStatusMsg(device_status))
-        self.child_actors[actor_id]["port"] = instrument.port
-        self.send(device_actor, SetupUsbActorMsg(instrument.port, instrument.family))
+        self.child_actors[actor_id]["port"] = instrument.route.port
+        self.send(device_actor, SetupUsbActorMsg(instrument.route, instrument.family))
 
     def _remove_actor(self, gone_port):
         logger.debug("[_remove_actor]")
@@ -263,10 +263,10 @@ class ClusterActor(BaseActor):
         )
         new_ports = set()
         for instrument in new_instruments:
-            new_ports.add(instrument.port)
+            new_ports.add(instrument.route.port)
         for port in new_ports:
             for instrument in self._cluster.connected_instruments:
-                if instrument.port == port:
+                if instrument.route.port == port:
                     self._create_and_setup_actor(instrument)
 
     def receiveMsg_InstrRemovedMsg(self, msg, sender):
@@ -293,11 +293,11 @@ class ClusterActor(BaseActor):
         port_actors = self._switch_to_port_key(self.child_actors)
         old_ports = set(port_actors.keys())
         for instrument in active_instruments:
-            active_ports.add(instrument.port)
+            active_ports.add(instrument.route.port)
         logger.debug("Current: %s, Old: %s", active_ports, old_ports)
         for port in active_ports.difference(old_ports):
             for instrument in self._cluster.connected_instruments:
-                if instrument.port == port:
+                if instrument.route.port == port:
                     self._create_and_setup_actor(instrument)
         for port in old_ports.difference(active_ports):
             self._remove_actor(port)

@@ -39,8 +39,8 @@ class UsbActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Set the SaradInst object for serial communication."""
         logger.debug(
-            "SetUsbActorMsg(port=%s, family=%d) for %s from %s",
-            msg.port,
+            "SetUsbActorMsg(route=%s, family=%d) for %s from %s",
+            msg.route,
             msg.family["family_id"],
             self.my_id,
             sender,
@@ -56,7 +56,7 @@ class UsbActor(DeviceBaseActor):
             logger.error("Family %s not supported", family_id)
             return None
         self.instrument = family_class()
-        self.instrument.port = msg.port
+        self.instrument.route = msg.route
         self.instrument.release_instrument()
         logger.info("Instrument with Id %s detected.", self.my_id)
 

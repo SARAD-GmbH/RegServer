@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from enum import Enum, unique
 from typing import Any, ByteString, Dict, List, Union
 
-from sarad.sari import FamilyDict  # type: ignore
+from sarad.sari import FamilyDict, Route  # type: ignore
 from thespian.actors import ActorAddress  # type: ignore
 
 
@@ -131,11 +131,12 @@ class SetupUsbActorMsg:
     with the instrument.
 
     Args:
-        port (str): Serial interface port of the instrument.
+        route (Route): Serial interface port, RS-485 bus address and ZigBee
+                       address of the instrument.
         family (FamilyDict): Instrument family from instruments.yaml
     """
 
-    port: str
+    route: Route
     family: FamilyDict
 
 
