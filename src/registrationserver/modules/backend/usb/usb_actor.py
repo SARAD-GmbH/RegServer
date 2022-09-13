@@ -89,11 +89,11 @@ class UsbActor(DeviceBaseActor):
             emergency = True
         logger.debug("Instrument replied %s", reply)
         if reply["is_valid"]:
-            self.send(sender, RxBinaryMsg(reply["raw"]))
+            self.send(sender, RxBinaryMsg(reply["standard_frame"]))
             while not reply["is_last_frame"]:
                 try:
                     reply = self.instrument.get_next_payload(timeout=1)
-                    self.send(sender, RxBinaryMsg(reply["raw"]))
+                    self.send(sender, RxBinaryMsg(reply["standard_frame"]))
                 except (SerialException, OSError):
                     logger.error("Connection to %s lost", self.my_id)
                     reply = {"is_valid": False, "is_last_frame": True}
