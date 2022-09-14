@@ -21,7 +21,8 @@ from registrationserver.actor_messages import (KillMsg, RescanFinishedMsg,
                                                SetDeviceStatusMsg,
                                                SetupUsbActorMsg, Status)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import config, usb_backend_config
+from registrationserver.config import (config, rs485_backend_config,
+                                       usb_backend_config)
 from registrationserver.logger import logger
 from registrationserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.cluster import SaradCluster  # type: ignore
@@ -61,7 +62,9 @@ class ClusterActor(BaseActor):
             self.native_ports.difference(self.ignore_ports)
         )
         self._cluster: SaradCluster = SaradCluster(
-            native_ports=list(self.native_ports), ignore_ports=list(self.ignore_ports)
+            native_ports=list(self.native_ports),
+            ignore_ports=list(self.ignore_ports),
+            rs485_ports=rs485_backend_config,
         )
         super().__init__()
         logger.debug("ClusterActor initialized")

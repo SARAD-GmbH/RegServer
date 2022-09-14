@@ -11,7 +11,7 @@ import logging
 import os
 import socket
 import sys
-from typing import List
+from typing import Any, Dict, List
 from uuid import getnode as get_mac
 
 import toml
@@ -247,6 +247,8 @@ else:
             "local_retry_interval", DEFAULT_LOCAL_RETRY_INTERVAL
         ),
     }
+
+rs485_backend_config = customization.get("rs485_backend", {})
 
 # IS1 backend configuration
 DEFAULT_REG_PORT = 50002
