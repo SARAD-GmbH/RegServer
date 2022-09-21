@@ -124,30 +124,38 @@ class ClusterActor(BaseActor):
         else:
             logger.info("Stopped Polling")
 
-    def _verified_ports(self) -> List[str]:
-        logger.debug("[_verified_ports]")
-        active_ports = [port.device for port in comports()]
-        return [port for port in self._looplist if port in active_ports]
+    def _verified_native_ports(self) -> List[str]:
+        """Verify, which of the ports in self._looplist are really known at
+        this computer.
+
+        Returns:
+            set: native ports that are verified to be accessible"""
+        logger.debug("[_verified_native_ports]")
+        known_ports = [port.device for port in comports()]
+        return {port for port in self._looplist if port in known_ports}
 
     def _continue_loop(self):
         logger.debug("[_continue_loop] Check for instruments on RS-232")
         if self._looplist:
-            verified_rs232_list = self._verified_ports()
-            verified_rs232 = set(verified_rs232_list)
+            verified_native = self._verified_native_ports()
             port_actors = self._switch_to_port_key(self.child_actors)
             active_ports = set(port_actors.keys())
-            active_rs232_ports = verified_rs232.intersection(active_ports)
-            logger.info("Looping over %s of %s", verified_rs232_list, self._looplist)
+            active_native_ports = verified_native.intersection(active_ports)
+            logger.info("Looping over %s of %s", verified_native, self._looplist)
             self._cluster.update_connected_instruments(
-                ports_to_test=verified_rs232_list
+                ports_to_test=list(verified_native)
             )
-            current_active_ports = set(
+            updated_active_ports = set(
                 instr.route.port for instr in self._cluster.connected_instruments
             )
-            current_active_rs232 = current_active_ports.intersection(verified_rs232)
-            new_ports = list(current_active_rs232.difference(active_rs232_ports))
+            updated_active_native_ports = updated_active_ports.intersection(
+                verified_native
+            )
+            new_ports = list(
+                updated_active_native_ports.difference(active_native_ports)
+            )
             if not new_ports:
-                gone_ports = list(active_rs232_ports.difference(current_active_rs232))
+                gone_ports = list(active_native_ports.difference(updated_active_ports))
                 if gone_ports:
                     logger.info("Remove instruments from ports %s", gone_ports)
                     for gone_port in gone_ports:
