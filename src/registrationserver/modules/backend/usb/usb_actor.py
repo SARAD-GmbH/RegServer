@@ -59,6 +59,7 @@ class UsbActor(DeviceBaseActor):
         self.instrument.route = msg.route
         self.instrument.release_instrument()
         logger.info("Instrument with Id %s detected.", self.my_id)
+        return None
 
     def dummy_reply(self, data, sender) -> bool:
         """Filter TX message and give a dummy reply.
@@ -107,7 +108,7 @@ class UsbActor(DeviceBaseActor):
 
     @overrides
     def _reserve_at_is(self):
-        # pylint: disable=unused-argument, no-self-use
+        # pylint: disable=unused-argument
         """Reserve the requested instrument.
         In this dummy we suppose, that the instrument is always available for us.
         """
