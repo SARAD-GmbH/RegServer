@@ -142,7 +142,7 @@ class ClusterActor(BaseActor):
                 ports_to_test=verified_rs232_list
             )
             current_active_ports = set(
-                instr.port for instr in self._cluster.connected_instruments
+                instr.route.port for instr in self._cluster.connected_instruments
             )
             current_active_rs232 = current_active_ports.intersection(verified_rs232)
             new_ports = list(current_active_rs232.difference(active_rs232_ports))

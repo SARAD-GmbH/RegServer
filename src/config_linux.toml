@@ -27,7 +27,7 @@ ignored_serial_ports = []
 local_retry_interval = 30  # in seconds
 
 [rs485_backend]
-"/dev/ttyUSB0" = [1, 3, 120]
+"/dev/ttyUSB0" = [1]
 
 [is1_backend]
 registration_port = 50002

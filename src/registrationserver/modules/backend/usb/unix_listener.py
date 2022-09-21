@@ -47,12 +47,12 @@ class UsbListener(BaseListener):
     def run(self):
         """Start listening and keep listening until SIGTERM or SIGINT or stop()"""
         self._usb_stick_observer.start()
-        logger.debug("Start listening for USB devices.")
+        logger.info("Start listening for USB devices.")
 
     def stop(self):
         """Stop listening."""
         self._usb_stick_observer.stop()
-        logger.debug("Stop listening for USB devices.")
+        logger.info("Stop listening for USB devices.")
 
     def is_valid_device(self, device):
         """Check whether there is a physical device connected to the logical interface."""
@@ -67,7 +67,7 @@ class UsbListener(BaseListener):
         if not self.is_valid_device(device):
             return
         port = device.get("DEVNAME")
-        logger.debug("%s device %s", action, port)
+        logger.info("%s device %s", action, port)
         if action == "add":
             ActorSystem().tell(
                 self.cluster_actor,
