@@ -14,6 +14,7 @@ from typing import Union
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import KillMsg, RxBinaryMsg, Status
+from registrationserver.config import usb_backend_config
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from sarad.dacm import DacmInst
@@ -59,7 +60,25 @@ class UsbActor(DeviceBaseActor):
         self.instrument.route = msg.route
         self.instrument.release_instrument()
         logger.info("Instrument with Id %s detected.", self.my_id)
+        native_ports = set(usb_backend_config["NATIVE_SERIAL_PORTS"])
+        if self.instrument.route.port in native_ports:
+            self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
         return None
+
+    def receiveMsg_WakeupMessage(self, _msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for WakeupMessage"""
+        logger.debug("Wakeup %s", self.my_id)
+        try:
+            is_reserved = self.device_status["Reservation"]["Active"]
+        except KeyError:
+            is_reserved = False
+        if (not self.on_kill) and (not is_reserved):
+            logger.info("Check if %s is still connected", self.my_id)
+            if not self.instrument.get_description():
+                logger.info("Killing myself")
+                self.send(self.myAddress, KillMsg())
+        self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
 
     def dummy_reply(self, data, sender) -> bool:
         """Filter TX message and give a dummy reply.

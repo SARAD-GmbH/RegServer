@@ -126,13 +126,18 @@ class ClusterActor(BaseActor):
 
     def _verified_native_ports(self) -> List[str]:
         """Verify, which of the ports in self._looplist are really known at
-        this computer.
+        this computer and are not already occupied by SARAD instruments.
 
         Returns:
             set: native ports that are verified to be accessible"""
         logger.debug("[_verified_native_ports]")
         known_ports = [port.device for port in comports()]
-        return {port for port in self._looplist if port in known_ports}
+        port_actors = self._switch_to_port_key(self.child_actors)
+        active_ports = set(port_actors.keys())
+        known_ports_in_looplist = {
+            port for port in self._looplist if port in known_ports
+        }
+        return known_ports_in_looplist.difference(active_ports)
 
     def _continue_loop(self):
         logger.debug("[_continue_loop] Check for instruments on RS-232")
@@ -141,7 +146,8 @@ class ClusterActor(BaseActor):
             port_actors = self._switch_to_port_key(self.child_actors)
             active_ports = set(port_actors.keys())
             active_native_ports = verified_native.intersection(active_ports)
-            logger.info("Looping over %s of %s", verified_native, self._looplist)
+            if verified_native:
+                logger.info("Looping over %s of %s", verified_native, self._looplist)
             self._cluster.update_connected_instruments(
                 ports_to_test=list(verified_native)
             )
