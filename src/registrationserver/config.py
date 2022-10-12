@@ -250,8 +250,6 @@ else:
 
 rs485_backend_config = customization.get("rs485_backend", {})
 
-ser2net_backend_config = customization.get("ser2net_backend", {})
-
 # IS1 backend configuration
 DEFAULT_REG_PORT = 50002
 DEFAULT_SCAN_INTERVAL = 60
