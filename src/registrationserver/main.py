@@ -40,6 +40,7 @@ else:
 
 RETRY_DELAY = 2  # in seconds
 
+
 def startup():
     """Starting the RegistrationServer
 
@@ -52,7 +53,7 @@ def startup():
     """
     try:
         with open(LOGFILENAME, "w", encoding="utf8") as _:
-            pass
+            logger.info("Log entries go to %s", LOGFILENAME)
     except Exception:  # pylint: disable=broad-except
         logger.error("Initialization of log file failed.")
     logger.info("Logging system initialized.")
@@ -76,8 +77,8 @@ def startup():
                 capabilities=actor_config["capabilities"],
                 logDefs=logcfg,
             )
-        except:
-            logger.critical(exception)
+        except Exception as inner_exception:  # pylint: disable=broad-except
+            logger.critical(inner_exception)
             return ()
     registrar_actor = system.createActor(Registrar, globalName="registrar")
     system.tell(

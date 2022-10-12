@@ -11,6 +11,7 @@ import re
 import signal
 
 from registrationserver.config import home
+from registrationserver.logger import logger
 
 FLAGFILENAME = f"{home}{os.path.sep}startstop.file"
 
@@ -28,9 +29,11 @@ def set_file_flag(running):
     if running:
         with open(FLAGFILENAME, "w", encoding="utf8") as flag_file:
             flag_file.write("run")
+        logger.info("Write %s", FLAGFILENAME)
     else:
         if os.path.isfile(FLAGFILENAME):
             os.unlink(FLAGFILENAME)
+        logger.info("Remove %s", FLAGFILENAME)
 
 
 def is_flag_set():
