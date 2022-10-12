@@ -28,7 +28,7 @@ from registrationserver.shutdown import system_shutdown
 from thespian.actors import ActorSystem  # type: ignore
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
-logger.debug("%s -> %s", __package__, __file__)
+# logger.debug("%s -> %s", __package__, __file__)
 
 
 class MdnsListener(ServiceListener):

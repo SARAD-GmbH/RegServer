@@ -23,7 +23,7 @@ from sarad.radonscout import RscInst
 from sarad.sari import SaradInst  # type: ignore
 from serial import SerialException  # type: ignore
 
-logger.debug("%s -> %s", __package__, __file__)
+# logger.debug("%s -> %s", __package__, __file__)
 
 
 class UsbActor(DeviceBaseActor):

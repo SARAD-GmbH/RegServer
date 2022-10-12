@@ -18,7 +18,7 @@ from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 
-logger.debug("%s -> %s", __package__, __file__)
+# logger.debug("%s -> %s", __package__, __file__)
 
 
 class Is1Actor(DeviceBaseActor):

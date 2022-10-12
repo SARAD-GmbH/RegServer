@@ -24,7 +24,7 @@ from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_actor import Is1Actor
 from sarad.sari import SaradInst  # type: ignore
 
-logger.debug("%s -> %s", __package__, __file__)
+# logger.debug("%s -> %s", __package__, __file__)
 
 
 class Is1Listener(BaseActor):

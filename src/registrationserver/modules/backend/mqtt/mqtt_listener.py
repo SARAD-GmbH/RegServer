@@ -21,7 +21,7 @@ from registrationserver.modules.backend.mqtt.mqtt_actor import MqttActor
 from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
     MqttBaseActor
 
-logger.debug("%s -> %s", __package__, __file__)
+# logger.debug("%s -> %s", __package__, __file__)
 
 
 class MqttListener(MqttBaseActor):

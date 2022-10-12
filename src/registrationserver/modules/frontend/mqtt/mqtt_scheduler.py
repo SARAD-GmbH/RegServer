@@ -26,7 +26,7 @@ from registrationserver.modules.ismqtt_messages import (ControlType,
                                                         get_instr_reservation,
                                                         get_is_meta)
 
-logger.debug("%s -> %s", __package__, __file__)
+# logger.debug("%s -> %s", __package__, __file__)
 
 
 class MqttSchedulerActor(MqttBaseActor):

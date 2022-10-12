@@ -20,7 +20,7 @@ from registrationserver.config import frontend_config, mqtt_config
 from registrationserver.logger import logger
 from registrationserver.shutdown import is_flag_set, system_shutdown
 
-logger.debug("%s -> %s", __package__, __file__)
+# logger.debug("%s -> %s", __package__, __file__)
 
 
 class MqttBaseActor(BaseActor):

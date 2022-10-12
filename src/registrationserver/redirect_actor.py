@@ -23,7 +23,7 @@ from registrationserver.base_actor import BaseActor
 from registrationserver.config import config, rest_frontend_config
 from registrationserver.logger import logger
 
-logger.debug("%s -> %s", __package__, __file__)
+# logger.debug("%s -> %s", __package__, __file__)
 
 
 class RedirectorActor(BaseActor):

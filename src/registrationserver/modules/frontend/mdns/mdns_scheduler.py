@@ -19,7 +19,7 @@ from registrationserver.logger import logger
 from registrationserver.modules.frontend.mdns.mdns_advertiser import \
     MdnsAdvertiserActor
 
-logger.debug("%s -> %s", __package__, __file__)
+# logger.debug("%s -> %s", __package__, __file__)
 
 
 class MdnsSchedulerActor(BaseActor):

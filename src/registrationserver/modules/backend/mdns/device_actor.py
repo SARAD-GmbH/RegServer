@@ -20,7 +20,7 @@ from registrationserver.shutdown import system_shutdown
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-logger.debug("%s -> %s", __package__, __file__)
+# logger.debug("%s -> %s", __package__, __file__)
 
 CMD_CYCLE_TIMEOUT = 1
 

@@ -22,7 +22,7 @@ from registrationserver.logger import logger
 from registrationserver.redirect_actor import RedirectorActor
 from registrationserver.shutdown import system_shutdown
 
-logger.debug("%s -> %s", __package__, __file__)
+# logger.debug("%s -> %s", __package__, __file__)
 
 
 class DeviceBaseActor(BaseActor):
