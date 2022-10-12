@@ -1,4 +1,4 @@
-debug_level = "debug"
+debug_level = "info"
 # is_id = "aranea0003"
 # description = "A longer text describing this Instrument Server"
 # place = "A text describing where the Instrument Controller running this Instrument Server is placed"
@@ -14,8 +14,9 @@ mdns = true
 [backends]
 usb = true
 mqtt = false
-mdns = false
+mdns = true
 is1 = false
+ser2net = false
 
 [rest_frontend]
 api_port = 8008
@@ -26,8 +27,8 @@ native_serial_ports = []
 ignored_serial_ports = []
 local_retry_interval = 30  # in seconds
 
-[rs485_backend]
-"/dev/ttyUSB0" = [1]
+# [rs485_backend]
+# "/dev/ttyS0" = [1]
 
 [is1_backend]
 registration_port = 50002
@@ -36,6 +37,9 @@ scan_interval = 60  # in seconds
 [mdns_backend]
 mdns_timeout = 3000
 ip_version = "all"
+
+[ser2net_backend]
+"10.47.126.1" = 23  # IP and port, GFZ-Potsdam für fluxtex-0001
 
 [actor]
 system_base = "multiprocUDPBase"
