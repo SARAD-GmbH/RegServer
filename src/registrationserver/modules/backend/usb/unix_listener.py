@@ -18,7 +18,7 @@ from registrationserver.logger import logger
 from registrationserver.modules.backend.usb.base_listener import BaseListener
 from thespian.actors import ActorSystem  # type: ignore
 
-logger.debug("%s -> %s", __package__, __file__)
+# logger.debug("%s -> %s", __package__, __file__)
 
 
 class UsbListener(BaseListener):

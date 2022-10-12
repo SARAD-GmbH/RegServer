@@ -22,7 +22,7 @@ from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.shutdown import system_shutdown
 
-logger.debug("%s -> %s", __package__, __file__)
+# logger.debug("%s -> %s", __package__, __file__)
 
 
 class MqttActor(DeviceBaseActor, MqttBaseActor):

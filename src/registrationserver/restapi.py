@@ -42,7 +42,7 @@ from registrationserver.helpers import (get_actor, get_device_status,
 from registrationserver.logger import logger  # type: ignore
 from registrationserver.shutdown import system_shutdown
 
-logger.debug("%s -> %s", __package__, __file__)
+# logger.debug("%s -> %s", __package__, __file__)
 
 MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 
