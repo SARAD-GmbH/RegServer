@@ -5,4 +5,4 @@ sc.exe failure SaradRegistrationServer reset= 60 actions= restart/5000
 sc.exe failureflag SaradRegistrationServer 1
 .\regserver-service.exe start
 Powershell.exe -executionpolicy remotesigned -File "%~dp0add-firewall-rule.ps1"
-cmd /k
+:: cmd /k
