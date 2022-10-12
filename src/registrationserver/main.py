@@ -38,6 +38,7 @@ else:
     from registrationserver.modules.backend.usb.unix_listener import \
         UsbListener
 
+RETRY_DELAY = 2  # in seconds
 
 def startup():
     """Starting the RegistrationServer
@@ -66,9 +67,18 @@ def startup():
             logDefs=logcfg,
         )
     except Exception as exception:  # pylint: disable=broad-except
-        logger.critical(exception)
-        kill_residual_processes()
-        return ()
+        logger.warning(exception)
+        logger.info("Retry to start Actor System after %d s.", RETRY_DELAY)
+        time.sleep(RETRY_DELAY)
+        try:
+            system = ActorSystem(
+                systemBase=actor_config["systemBase"],
+                capabilities=actor_config["capabilities"],
+                logDefs=logcfg,
+            )
+        except:
+            logger.critical(exception)
+            return ()
     registrar_actor = system.createActor(Registrar, globalName="registrar")
     system.tell(
         registrar_actor,
@@ -158,6 +168,7 @@ def kill_residual_processes():
             logger.info("Consider using 'ps ax' to investigate!")
         if os.name == "nt":
             logger.info("Inspect Task Manager to investigate!")
+    raise SystemExit("Exit with error for automatic restart.")
 
 
 def main():
@@ -170,13 +181,16 @@ def main():
     if start_stop == "start":
         set_file_flag(True)
         startup_tupel = startup()
+        logger.debug(startup_tupel)
+        if startup_tupel == ():
+            time.sleep(30)
+            kill_residual_processes()
+            return None
     elif start_stop == "stop":
         set_file_flag(False)
-        raise SystemExit("Exit with error for automatic restart.")
     else:
         print("Usage: <program> start|stop")
         return None
-
     logger.debug("Starting the main loop")
     wait_some_time = False
     registrar_is_down = False
@@ -234,8 +248,6 @@ def main():
             wait_some_time = True
             set_file_flag(False)
     shutdown(startup_tupel, wait_some_time, registrar_is_down)
-    logger.info("This is the end, my only friend, the end.")
-    raise SystemExit("Exit with error for automatic restart.")
 
 
 if __name__ == "__main__":
