@@ -152,7 +152,7 @@ def shutdown(startup_tupel, wait_some_time, registrar_is_down):
     kill_residual_processes()
 
 
-def kill_residual_processes():
+def kill_residual_processes(end_with_error=True):
     """Kill RegServer processes. OS independent."""
     logger.info("Trying to kill residual processes. Fingers crossed!")
     if os.name == "posix":
@@ -169,12 +169,16 @@ def kill_residual_processes():
             logger.info("Consider using 'ps ax' to investigate!")
         if os.name == "nt":
             logger.info("Inspect Task Manager to investigate!")
-    raise SystemExit("Exit with error for automatic restart.")
+    if end_with_error:
+        raise SystemExit("Exit with error for automatic restart.")
 
 
 def main():
     """Main function of the Registration Server"""
     logger.debug("Entering main()")
+    kill_residual_processes(
+        end_with_error=False
+    )  # maybe there are processes left from last run
     if len(sys.argv) < 2:
         start_stop = "start"
     else:
