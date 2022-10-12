@@ -186,8 +186,7 @@ def main():
     if start_stop == "start":
         set_file_flag(True)
         startup_tupel = startup()
-        logger.debug(startup_tupel)
-        if startup_tupel == ():
+        if not startup_tupel:
             time.sleep(30)
             kill_residual_processes()
             return None
