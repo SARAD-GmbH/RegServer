@@ -88,7 +88,7 @@ class Is1Actor(DeviceBaseActor):
                     retry_counter = retry_counter - 1
                     logger.debug("Connection refused. %d retries left", retry_counter)
                     time.sleep(1)
-                except TimeoutError:
+                except (TimeoutError, socket.timeout):
                     logger.error("Timeout connecting %s", self._is.hostname)
                     retry_counter = 0
                 except BlockingIOError:
@@ -147,7 +147,7 @@ class Is1Actor(DeviceBaseActor):
                 reply = self._socket.recv(1024)
                 retry_counter = 0
                 success = True
-            except TimeoutError:
+            except (TimeoutError, socket.timeout):
                 logger.warning("Timeout on waiting for reply from IS1. Retrying...")
                 retry_counter = retry_counter - 1
             except ConnectionResetError as exception:
@@ -174,7 +174,7 @@ class Is1Actor(DeviceBaseActor):
         self._send_via_socket(cmd_msg)
         try:
             reply = self._socket.recv(1024)
-        except TimeoutError:
+        except (TimeoutError, socket.timeout):
             logger.error("Timeout on waiting for reply to SELECT_COM: %s", cmd_msg)
             self._forward_reservation(Status.IS_NOT_FOUND)
             self._destroy_socket()
@@ -225,7 +225,7 @@ class Is1Actor(DeviceBaseActor):
                     counter = counter - 1
                     logger.debug("%d retries left", counter)
                     time.sleep(1)
-                except (OSError, TimeoutError):
+                except (OSError, TimeoutError, socket.timeout):
                     logger.debug("%s:%d not reachable", is_host, is_port)
                     self.send(self.myAddress, KillMsg())
                     return
@@ -236,7 +236,7 @@ class Is1Actor(DeviceBaseActor):
             try:
                 client_socket.sendall(cmd_msg)
                 reply = client_socket.recv(1024)
-            except (ConnectionResetError, TimeoutError) as exception:
+            except (ConnectionResetError, TimeoutError, socket.timeout) as exception:
                 logger.error("%s. IS1 closed or disconnected.", exception)
                 self.send(self.myAddress, KillMsg())
                 return
