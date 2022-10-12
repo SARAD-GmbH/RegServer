@@ -211,37 +211,36 @@ def main():
                     logger.critical(
                         "We are offline. OSError: %s. -> Emergency shutdown", exception
                     )
-                    set_file_flag(False)
                     registrar_is_down = True
                 except RuntimeError as exception:
                     logger.critical(
                         "RuntimeError: %s. -> Emergency shutdown", exception
                     )
-                    set_file_flag(False)
                     registrar_is_down = True
                 except Exception as exception:  # pylint: disable=broad-except
                     logger.critical("Exception: %s. -> Emergency shutdown", exception)
-                    set_file_flag(False)
                     registrar_is_down = True
-            if not isinstance(reply, Thespian_ActorStatus):
-                logger.error(
-                    "Registrar replied %s instead of Thespian_ActorStatus. Retrying %d",
-                    reply,
-                    retry_counter,
-                )
-                time.sleep(0.5)
-                retry_counter = retry_counter - 1
-                registrar_is_dead = True
+            if registrar_is_down:
+                retry_counter = 0  # don't retry, stop it!
             else:
-                # logger.debug("Aye Sir!")
-                retry_counter = 0
-                registrar_is_dead = False
-        if is_flag_set() and registrar_is_dead:
+                if isinstance(reply, Thespian_ActorStatus):
+                    # logger.debug("Aye Sir!")
+                    retry_counter = 0
+                    registrar_is_down = False
+                else:
+                    logger.error(
+                        "Registrar replied %s instead of Thespian_ActorStatus. Retrying %d",
+                        reply,
+                        retry_counter,
+                    )
+                    time.sleep(0.5)
+                    retry_counter = retry_counter - 1
+                    registrar_is_down = True
+        if registrar_is_down:
             logger.critical(
                 "No status response from Registrar Actor. Emergency shutdown."
             )
             set_file_flag(False)
-            registrar_is_down = True
         time.sleep(1)
         after = datetime.now()
         if (after - before).total_seconds() > 10:
