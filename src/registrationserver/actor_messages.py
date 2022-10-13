@@ -172,7 +172,7 @@ class SetupMdnsActorMsg:
 
 @dataclass
 class SetupMdnsActorAckMsg:
-    """Message used to acknoledge the special setup information required for mDNS device Actors."""
+    """Message used to acknowledge the special setup information required for mDNS device Actors."""
 
 
 @dataclass
