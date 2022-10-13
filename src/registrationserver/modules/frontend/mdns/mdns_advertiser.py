@@ -13,6 +13,7 @@ Based on work of Riccardo Förster <foerster@sarad.de>.
 
 """
 import socket
+from datetime import timedelta
 
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import (config, mdns_frontend_config,
@@ -20,6 +21,8 @@ from registrationserver.config import (config, mdns_frontend_config,
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from zeroconf import ServiceInfo, Zeroconf
+
+UPDATE_INTERVAL = 5  # in minutes
 
 
 class MdnsAdvertiserActor(BaseActor):
@@ -35,6 +38,10 @@ class MdnsAdvertiserActor(BaseActor):
             ip_version=mdns_frontend_config["IP_VERSION"],
             interfaces=[config["MY_IP"], "127.0.0.1"],
         )
+        self.service_name = None
+        self.instr_name = None
+        self.device_id = None
+        self.occupied = False
 
     def receiveMsg_SetupMdnsAdvertiserActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -49,17 +56,26 @@ class MdnsAdvertiserActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         instr_id = short_id(msg.device_id)
         sarad_protocol = msg.device_id.split(".")[1]
-        instr_name = msg.device_status["Identification"]["Name"]
-        service_name = f"{instr_id}.{sarad_protocol}"
+        self.instr_name = msg.device_status["Identification"]["Name"]
+        self.service_name = f"{instr_id}.{sarad_protocol}"
+        self.device_id = msg.device_id
         if msg.device_status.get("Reservation") is None:
-            occupied = False
+            self.occupied = False
         else:
-            occupied = msg.device_status["Reservation"].get("Active", False)
+            self.occupied = msg.device_status["Reservation"].get("Active", False)
+        self._start_or_update()
+
+    def _start_or_update(self):
         if self.service is None:
-            logger.debug("Start advertising %s", service_name)
-            self.__start_advertising(service_name, instr_name, msg.device_id, occupied)
+            self.__start_advertising()
         else:
-            self.__update_service(service_name, instr_name, msg.device_id, occupied)
+            self.__update_service()
+        self.wakeupAfter(timedelta(minutes=UPDATE_INTERVAL), payload="update")
+
+    def receiveMsg_WakeupMessage(self, _msg, _sender):
+        # pylint: disable=invalid-name
+        """Handle WakeupMessage for regular updates"""
+        self._start_or_update()
 
     def receiveMsg_KillMsg(self, msg, sender):
         if self.service is not None:
@@ -73,18 +89,19 @@ class MdnsAdvertiserActor(BaseActor):
         self._unsubscribe_from_device_status_msg(self.device_actor)
         super().receiveMsg_KillMsg(msg, sender)
 
-    def __start_advertising(self, service_name, instr_name, device_id, occupied):
+    def __start_advertising(self):
+        logger.info("Start advertising %s", self.service_name)
         properties = {
             "VENDOR": "SARAD GmbH",
-            "MODEL_ENC": instr_name,
-            "SERIAL_SHORT": service_name,
-            "DEVICE_ID": device_id,
-            "OCCUPIED": occupied,
+            "MODEL_ENC": self.instr_name,
+            "SERIAL_SHORT": self.service_name,
+            "DEVICE_ID": self.device_id,
+            "OCCUPIED": self.occupied,
         }
         service_type = mdns_frontend_config["TYPE"]
         self.service = ServiceInfo(
             service_type,
-            f"{service_name}.{service_type}",
+            f"{self.service_name}.{service_type}",
             port=self.tcp_port,
             weight=0,
             priority=0,
@@ -93,19 +110,19 @@ class MdnsAdvertiserActor(BaseActor):
         )
         self.zeroconf.register_service(self.service)
 
-    def __update_service(self, service_name, instr_name, device_id, occupied):
-        logger.info("Update %s: occupied = %s", self.service.name, occupied)
+    def __update_service(self):
+        logger.info("Update %s: occupied = %s", self.service.name, self.occupied)
         properties = {
             "VENDOR": "SARAD GmbH",
-            "MODEL_ENC": instr_name,
-            "SERIAL_SHORT": service_name,
-            "DEVICE_ID": device_id,
-            "OCCUPIED": occupied,
+            "MODEL_ENC": self.instr_name,
+            "SERIAL_SHORT": self.service_name,
+            "DEVICE_ID": self.device_id,
+            "OCCUPIED": self.occupied,
         }
         service_type = mdns_frontend_config["TYPE"]
         self.service = ServiceInfo(
             service_type,
-            f"{service_name}.{service_type}",
+            f"{self.service_name}.{service_type}",
             port=self.tcp_port,
             weight=0,
             priority=0,
