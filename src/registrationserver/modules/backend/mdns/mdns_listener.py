@@ -115,11 +115,14 @@ class MdnsListener(ServiceListener):
             api_port = data["Remote"]["API port"]
             device_id = data["Remote"]["Device Id"]
             with ActorSystem().private() as setup_mdns_actor:
-                reply = setup_mdns_actor.ask(
-                    device_actor,
-                    SetupMdnsActorMsg(is_host, api_port, device_id),
-                    timeout=3,
-                )
+                try:
+                    reply = setup_mdns_actor.ask(
+                        device_actor,
+                        SetupMdnsActorMsg(is_host, api_port, device_id),
+                        timeout=3,
+                    )
+                except ConnectionResetError:
+                    reply = None
             if reply is None:
                 logger.error("Setup of mDNS device actor uncomplete.")
             logger.debug("Setup the device actor with %s", data)
@@ -139,9 +142,12 @@ class MdnsListener(ServiceListener):
                 logger.info("[Add] %s", info.properties)
                 actor_id = device_id
                 with ActorSystem().private() as add_ser:
-                    reply = add_ser.ask(
-                        self.registrar, CreateActorMsg(DeviceActor, actor_id)
-                    )
+                    try:
+                        reply = add_ser.ask(
+                            self.registrar, CreateActorMsg(DeviceActor, actor_id)
+                        )
+                    except ConnectionResetError:
+                        reply = None
                 if not isinstance(reply, ActorCreatedMsg):
                     logger.critical("Got message object of unexpected type")
                     logger.critical("-> Stop and shutdown system")

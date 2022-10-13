@@ -138,9 +138,12 @@ def shutdown(startup_tupel, wait_some_time, registrar_is_down):
         logger.debug("Registrar actor already died from emergency shutdown")
     else:
         registrar_actor = startup_tupel[0]
-        response = ActorSystem().ask(
-            registrar_actor, KillMsg(), timeout=timedelta(seconds=10)
-        )
+        try:
+            response = ActorSystem().ask(
+                registrar_actor, KillMsg(), timeout=timedelta(seconds=10)
+            )
+        except ConnectionResetError:
+            response = None
         if response:
             logger.debug("Registrar actor terminated successfully")
         else:

@@ -205,9 +205,12 @@ def get_actor(registrar_actor, actor_id: str):
         Actor address
     """
     with ActorSystem().private() as db_sys:
-        result = db_sys.ask(
-            registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=1)
-        )
+        try:
+            result = db_sys.ask(
+                registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=1)
+            )
+        except ConnectionResetError:
+            result = None
         if not isinstance(result, UpdateActorDictMsg):
             logger.critical(
                 "Emergency shutdown. Ask to Registrar took more than 1 sec."
@@ -243,9 +246,12 @@ def get_device_status(registrar_actor, device_id: str) -> dict:
 def get_device_statuses(registrar_actor):
     """Return a list of all device ids together with the device status"""
     with ActorSystem().private() as db_sys:
-        result = db_sys.ask(
-            registrar_actor, GetDeviceStatusesMsg(), timeout=timedelta(seconds=5)
-        )
+        try:
+            result = db_sys.ask(
+                registrar_actor, GetDeviceStatusesMsg(), timeout=timedelta(seconds=5)
+            )
+        except ConnectionResetError:
+            result = None
         if result is None:
             return None
         if not isinstance(result, UpdateDeviceStatusesMsg):
@@ -262,9 +268,12 @@ def get_device_statuses(registrar_actor):
 def get_instr_id_actor_dict(registrar_actor):
     """Return a dictionary of device actor addresses with instr_id as key."""
     with ActorSystem().private() as iid_sys:
-        result = iid_sys.ask(
-            registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=1)
-        )
+        try:
+            result = iid_sys.ask(
+                registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=1)
+            )
+        except ConnectionResetError:
+            result = None
         if not isinstance(result, UpdateActorDictMsg):
             logger.critical(
                 "Emergency shutdown. Ask to Registrar took more than 1 sec."
