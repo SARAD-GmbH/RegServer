@@ -17,13 +17,13 @@ import threading
 
 import hashids  # type: ignore
 from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
-                                               KillMsg, SetDeviceStatusMsg,
-                                               SetupMdnsActorMsg)
+                                               RemoveMdnsActorMsg,
+                                               SetDeviceStatusMsg)
 from registrationserver.config import config, mdns_backend_config
 from registrationserver.helpers import (get_actor, sarad_protocol, short_id,
                                         transport_technology)
 from registrationserver.logger import logger
-from registrationserver.modules.backend.mdns.device_actor import DeviceActor
+from registrationserver.modules.backend.mdns.host_actor import HostActor
 from registrationserver.shutdown import system_shutdown
 from thespian.actors import ActorSystem  # type: ignore
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
@@ -40,9 +40,32 @@ class MdnsListener(ServiceListener):
     """
 
     @staticmethod
-    def convert_properties(info=None, name=""):
+    def device_id(name):
+        """Convert mDNS name into a proper device_id/actor_id"""
+        if transport_technology(name) == mdns_backend_config["TYPE"]:
+            return f"{short_id(name, check=False)}.{sarad_protocol(name)}.mdns"
+        return name
+
+    @staticmethod
+    def get_host_addr(info=None):
+        """Helper function to get the host name from mdns service information"""
+        if info is None:
+            return None
+        try:
+            _addr_ip = ipaddress.IPv4Address(info.addresses[0]).exploded
+            _addr = socket.gethostbyaddr(_addr_ip)[0]
+        except Exception:  # pylint: disable=broad-except
+            logger.critical("Fatal error")
+            system_shutdown()
+        return _addr
+
+    def convert_properties(self, zc, type_, name):
+        # pylint: disable=invalid-name
         """Helper function to convert mdns service information
         to the desired dictionary"""
+        info = zc.get_service_info(
+            type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
+        )
         if not info or not name:
             return None
         properties = info.properties
@@ -70,28 +93,31 @@ class MdnsListener(ServiceListener):
             logger.critical("Fatal error")
             system_shutdown()
         return {
-            "Identification": {
-                "Name": properties[b"MODEL_ENC"].decode("utf-8"),
-                "Family": _ids[0],
-                "Type": _ids[1],
-                "Serial number": _ids[2],
-                "Host": _addr,
-                "Protocol": _sarad_protocol,
-            },
-            "Remote": {
-                "Address": _addr_ip,
-                "Name": name,
-                "API port": info.port,
-                "Device Id": properties.get(b"DEVICE_ID").decode("utf-8"),
-            },
+            self.device_id(name): {
+                "Identification": {
+                    "Name": properties[b"MODEL_ENC"].decode("utf-8"),
+                    "Family": _ids[0],
+                    "Type": _ids[1],
+                    "Serial number": _ids[2],
+                    "Host": _addr,
+                    "Protocol": _sarad_protocol,
+                },
+                "Remote": {
+                    "Address": _addr_ip,
+                    "Name": name,
+                    "API port": info.port,
+                    "Device Id": properties.get(b"DEVICE_ID").decode("utf-8"),
+                },
+            }
         }
 
-    @staticmethod
-    def device_id(name):
-        """Convert mDNS name into a proper device_id/actor_id"""
-        if transport_technology(name) == mdns_backend_config["TYPE"]:
-            return f"{short_id(name, check=False)}.{sarad_protocol(name)}.mdns"
-        return name
+    def _get_host_actor(self, zc, type_, name):
+        # pylint: disable=invalid-name
+        info = zc.get_service_info(
+            type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
+        )
+        hostname = self.get_host_addr(info)
+        return get_actor(self.registrar, hostname), hostname
 
     def __init__(self, registrar_actor, service_type):
         """
@@ -106,45 +132,17 @@ class MdnsListener(ServiceListener):
             )
             _ = ServiceBrowser(self.zeroconf, service_type, self)
 
-    def update_device_actor(self, device_actor, device_id, name, info):
-        """Setup mDNS device actor with updated info"""
-        logger.debug("Update %s with %s", device_id, info)
-        if (device_actor is not None) and (info is not None):
-            data = self.convert_properties(name=name, info=info)
-            is_host = data["Remote"]["Address"]
-            api_port = data["Remote"]["API port"]
-            device_id = data["Remote"]["Device Id"]
-            with ActorSystem().private() as setup_mdns_actor:
-                try:
-                    reply = setup_mdns_actor.ask(
-                        device_actor,
-                        SetupMdnsActorMsg(is_host, api_port, device_id),
-                        timeout=3,
-                    )
-                except ConnectionResetError:
-                    reply = None
-            if reply is None:
-                logger.error("Setup of mDNS device actor uncomplete.")
-            logger.debug("Setup the device actor with %s", data)
-            ActorSystem().tell(device_actor, SetDeviceStatusMsg(data))
-
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
         """Hook, being called when a new service
         representing a device is being detected"""
         with self.lock:
-            logger.debug("[Add] Found service %s of type %s", name, type_)
-            info = zc.get_service_info(
-                type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
-            )
-            device_id = self.device_id(name)
-            if info is not None:
-                logger.info("[Add] %s", info.properties)
-                actor_id = device_id
-                with ActorSystem().private() as add_ser:
+            host_actor, hostname = self._get_host_actor(zc, type_, name)
+            if host_actor is None:
+                with ActorSystem().private() as add_host:
                     try:
-                        reply = add_ser.ask(
-                            self.registrar, CreateActorMsg(DeviceActor, actor_id)
+                        reply = add_host.ask(
+                            self.registrar, CreateActorMsg(HostActor, hostname)
                         )
                     except ConnectionResetError:
                         reply = None
@@ -153,43 +151,28 @@ class MdnsListener(ServiceListener):
                     logger.critical("-> Stop and shutdown system")
                     system_shutdown()
                 elif reply.actor_address is not None:
-                    device_actor = reply.actor_address
-                    self.update_device_actor(device_actor, device_id, name, info)
+                    host_actor = reply.actor_address
+            data = self.convert_properties(zc, type_, name)
+            logger.debug("Command host actor to setup device actor with %s", data)
+            ActorSystem().tell(host_actor, SetDeviceStatusMsg(data))
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
         """Hook, being called when a service
         representing a device is being updated"""
         logger.debug("[Update] Service %s of type %s", name, type_)
-        info = zc.get_service_info(
-            type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
-        )
-        if info is not None:
-            logger.info("[Update] %s", info.properties)
-            device_id = self.device_id(name)
-            device_actor = get_actor(self.registrar, device_id)
-            if device_actor is None:
-                self.add_service(zc, type_, name)
-            else:
-                self.update_device_actor(device_actor, device_id, name, info)
+        self.add_service(zc, type_, name)
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
         """Hook, being called when a regular shutdown of a service
         representing a device is being detected"""
         with self.lock:
-            logger.info("[Del] Service %s of type %s", name, type_)
-            info = zc.get_service_info(
-                type_, name, timeout=int(mdns_backend_config["MDNS_TIMEOUT"])
-            )
-            logger.debug("[Del] Info: %s", info)
-            device_id = self.device_id(name)
-            device_actor = get_actor(self.registrar, device_id)
-            if device_actor is not None:
-                logger.debug("Kill device actor %s", device_id)
-                ActorSystem().tell(device_actor, KillMsg())
+            host_actor, hostname = self._get_host_actor(zc, type_, name)
+            if host_actor is None:
+                logger.warning("Host actor %s does not exist.", hostname)
             else:
-                logger.warning("Actor %s does not exist.", device_id)
+                ActorSystem().tell(host_actor, RemoveMdnsActorMsg(self.device_id(name)))
 
     def shutdown(self) -> None:
         """Cleanup"""

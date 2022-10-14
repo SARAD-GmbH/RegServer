@@ -171,17 +171,23 @@ class SetupMdnsActorMsg:
 
 
 @dataclass
-class SetupMdnsActorAckMsg:
-    """Message used to acknowledge the special setup information required for mDNS device Actors."""
-
-
-@dataclass
 class SetupMdnsAdvertiserActorMsg:
     """Message used to send the special setup information required for mDNS Advertiser Actors.
     The parameters are required to advertise the raw socket connection via Zeroconf.
 
     Args:
         device_actor (ActorAddress): address of the associated device actor
+    """
+
+    device_actor: ActorAddress
+
+
+@dataclass
+class RemoveMdnsActorMsg:
+    """Message used to command the Host Actor to create a Device Actor.
+
+    Args:
+        device_actor (ActorAddress): address of the device actor to remove
     """
 
     device_actor: ActorAddress

@@ -10,8 +10,7 @@
 """
 import requests
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (KillMsg, SetupMdnsActorAckMsg,
-                                               Status)
+from registrationserver.actor_messages import KillMsg, Status
 from registrationserver.config import config
 from registrationserver.helpers import sanitize_hn
 from registrationserver.logger import logger
@@ -84,7 +83,6 @@ class DeviceActor(DeviceBaseActor):
             success = Status.IS_NOT_FOUND
             logger.error(success)
             self.send(self.myAddress, KillMsg())
-        self.send(sender, SetupMdnsActorAckMsg())
 
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
