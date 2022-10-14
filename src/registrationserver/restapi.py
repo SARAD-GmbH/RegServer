@@ -90,6 +90,15 @@ class RestApi:
             """Does Nothing"""
 
     @staticmethod
+    @api.route("/", methods=["GET"])
+    @api.route("/ping", methods=["GET"])
+    @api.route("/ping/", methods=["GET"])
+    def ping():
+        """Send a sign of life to confirm that the host is online."""
+        logger.debug("Ping received")
+        return "pong"
+
+    @staticmethod
     @api.route("/shutdown", methods=["GET"])
     @api.route("/shutdown/", methods=["GET"])
     def shutdown():
