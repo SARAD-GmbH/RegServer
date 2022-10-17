@@ -1,4 +1,4 @@
-debug_level = "debug"
+debug_level = "info"
 # is_id = "aranea0003"
 # description = "A longer text describing this Instrument Server"
 # place = "A text describing where the Instrument Controller running this Instrument Server is placed"
@@ -27,7 +27,7 @@ ignored_serial_ports = []
 local_retry_interval = 30  # in seconds
 
 [rs485_backend]
-"/dev/ttyUSB0" = [1]
+# "/dev/ttyUSB0" = [1]
 
 [is1_backend]
 registration_port = 50002
