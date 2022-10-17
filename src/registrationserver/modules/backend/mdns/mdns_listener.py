@@ -139,6 +139,7 @@ class MdnsListener(ServiceListener):
         with self.lock:
             host_actor, hostname = self._get_host_actor(zc, type_, name)
             if host_actor is None:
+                logger.info("Create new host actor for %s", hostname)
                 with ActorSystem().private() as add_host:
                     try:
                         reply = add_host.ask(
