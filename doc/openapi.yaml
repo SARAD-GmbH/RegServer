@@ -1,0 +1,43 @@
+openapi: 3.0.3
+info:
+  title: SARAD Registration Server - OpenAPI 3.0
+  version: '1.0'
+  description: Test description
+  contact:
+    email: strey@sarad.de
+    name: Michael Strey
+    url: https://sarad.de
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+externalDocs:
+  description: Find out more about Swagger
+  url: http://swagger.io
+servers:
+  - url: https://petstore3.swagger.io/api/v3
+tags:
+  - name: pet
+    description: Everything about your Pets
+    externalDocs:
+      description: Find out more
+      url: http://swagger.io
+  - name: store
+    description: Access to Petstore orders
+    externalDocs:
+      description: Find out more about our store
+      url: http://swagger.io
+  - name: user
+    description: Operations about user
+paths:
+  /instruments:
+    summary: Test summary
+    description: Test description
+    get:
+      summary: Get a list of instruments available on this host.
+      description: >-
+        A verbose explanation of the operation behavior. CommonMark syntax MAY
+        be used for rich text representation.
+      operationId: '0001'
+      responses:
+        default:
+          description: Default error sample response
