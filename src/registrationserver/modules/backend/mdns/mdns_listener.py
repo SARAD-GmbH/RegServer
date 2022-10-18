@@ -116,6 +116,8 @@ class MdnsListener(ServiceListener):
             type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
         )
         hostname = self.get_host_addr(info)
+        if hostname is None:
+            logger.warning("Cannot handle Zeroconf service with info=%s", info)
         return get_actor(self.registrar, hostname), hostname
 
     def __init__(self, registrar_actor, service_type):
@@ -137,6 +139,8 @@ class MdnsListener(ServiceListener):
         representing a device is being detected"""
         with self.lock:
             host_actor, hostname = self._get_host_actor(zc, type_, name)
+            if hostname is None:
+                return
             if host_actor is None:
                 logger.info("Ask Registrar to create Host Actor %s", hostname)
                 with ActorSystem().private() as add_host:
