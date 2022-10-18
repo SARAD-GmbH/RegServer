@@ -200,11 +200,11 @@ def main():
         return None
     logger.debug("Starting the main loop")
     wait_some_time = False
-    registrar_is_down = False
     while is_flag_set():
         before = datetime.now()
         retry_counter = 3
         while retry_counter:
+            registrar_is_down = False
             with ActorSystem().private() as registrar_status:
                 try:
                     # logger.debug("Noch da John Maynard?")
