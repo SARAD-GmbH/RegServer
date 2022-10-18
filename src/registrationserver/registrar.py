@@ -282,7 +282,7 @@ class Registrar(BaseActor):
                         logger.info("Creation of %s skipped", actor_id)
                         create_new_actor = False
         if create_new_actor:
-            logger.debug("Create new device_actor %s", actor_id)
+            logger.debug("Create new actor %s", actor_id)
             actor_address = self._create_actor(msg.actor_type, actor_id)
         self.send(sender, ActorCreatedMsg(actor_address))
 

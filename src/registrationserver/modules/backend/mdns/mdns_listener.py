@@ -17,8 +17,7 @@ import threading
 
 import hashids  # type: ignore
 from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
-                                               RemoveMdnsActorMsg,
-                                               SetDeviceStatusMsg)
+                                               KillMsg, SetDeviceStatusMsg)
 from registrationserver.config import config, mdns_backend_config
 from registrationserver.helpers import (get_actor, sarad_protocol, short_id,
                                         transport_technology)
@@ -139,7 +138,7 @@ class MdnsListener(ServiceListener):
         with self.lock:
             host_actor, hostname = self._get_host_actor(zc, type_, name)
             if host_actor is None:
-                logger.info("Create new host actor for %s", hostname)
+                logger.info("Ask Registrar to create Host Actor %s", hostname)
                 with ActorSystem().private() as add_host:
                     try:
                         reply = add_host.ask(
@@ -154,7 +153,7 @@ class MdnsListener(ServiceListener):
                 elif reply.actor_address is not None:
                     host_actor = reply.actor_address
             data = self.convert_properties(zc, type_, name)
-            logger.debug("Command host actor to setup device actor with %s", data)
+            logger.debug("Tell Host Actor to setup device actor with %s", data)
             ActorSystem().tell(host_actor, SetDeviceStatusMsg(data))
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
@@ -169,11 +168,18 @@ class MdnsListener(ServiceListener):
         """Hook, being called when a regular shutdown of a service
         representing a device is being detected"""
         with self.lock:
-            host_actor, hostname = self._get_host_actor(zc, type_, name)
-            if host_actor is None:
-                logger.warning("Host actor %s does not exist.", hostname)
+            logger.info("[Del] Service %s of type %s", name, type_)
+            info = zc.get_service_info(
+                type_, name, timeout=int(mdns_backend_config["MDNS_TIMEOUT"])
+            )
+            logger.debug("[Del] Info: %s", info)
+            device_id = self.device_id(name)
+            device_actor = get_actor(self.registrar, device_id)
+            if device_actor is None:
+                logger.warning("Actor %s does not exist.", device_id)
             else:
-                ActorSystem().tell(host_actor, RemoveMdnsActorMsg(self.device_id(name)))
+                logger.debug("Kill device actor %s", device_id)
+                ActorSystem().tell(device_actor, KillMsg())
 
     def shutdown(self) -> None:
         """Cleanup"""

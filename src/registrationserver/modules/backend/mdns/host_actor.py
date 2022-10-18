@@ -46,7 +46,6 @@ class HostActor(BaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self.is_device_actor = False
         self.on_kill = True
         self._is_host = None
         self._api_port = None
@@ -85,13 +84,6 @@ class HostActor(BaseActor):
             device_actor = self.child_actors[device_id]["actor_address"]
         self.send(device_actor, SetDeviceStatusMsg(data))
         self._ping()
-
-    def receiveMsg_RemoveMdnsActorMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler for RemoveMdnsActorMsg commanding the Host Actor to remove a Device Actor."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if msg.device_id in self.child_actors:
-            self.send(self.child_actors[msg.device_id]["actor_address"], KillMsg())
 
     def receiveMsg_WakeupMessage(self, _msg, _sender):
         # pylint: disable=invalid-name

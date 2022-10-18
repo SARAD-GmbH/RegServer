@@ -191,6 +191,7 @@ class DeviceActor(DeviceBaseActor):
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         """Handler for SetDeviceStatusMsg initialising the device status information."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.info("Device actor %s created at %s.", self.my_id, self.parent.parent_id)
         self.device_status = msg.device_status
         logger.debug("Device status: %s", self.device_status)
         try:

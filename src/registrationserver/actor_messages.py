@@ -183,17 +183,6 @@ class SetupMdnsAdvertiserActorMsg:
 
 
 @dataclass
-class RemoveMdnsActorMsg:
-    """Message used to command the Host Actor to create a Device Actor.
-
-    Args:
-        device_actor (ActorAddress): address of the device actor to remove
-    """
-
-    device_actor: ActorAddress
-
-
-@dataclass
 class SetDeviceStatusMsg:
     """Message used to send setup information about the device status to a Device Actor.
 
