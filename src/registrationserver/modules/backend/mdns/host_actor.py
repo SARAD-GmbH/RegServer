@@ -65,6 +65,11 @@ class HostActor(BaseActor):
         self.http.mount("https://", adapter)
         self.http.mount("http://", adapter)
 
+    @overrides
+    def receiveMsg_SetupMsg(self, msg, sender):
+        super().receiveMsg_SetupMsg(msg, sender)
+        self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
+
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SetDeviceStatusMsg initialising the device status information."""
@@ -83,7 +88,6 @@ class HostActor(BaseActor):
         else:
             device_actor = self.child_actors[device_id]["actor_address"]
         self.send(device_actor, SetDeviceStatusMsg(data))
-        self._ping()
 
     def receiveMsg_WakeupMessage(self, _msg, _sender):
         # pylint: disable=invalid-name
@@ -97,7 +101,7 @@ class HostActor(BaseActor):
         except Exception as exception:  # pylint: disable=broad-except
             logger.debug("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
-            logger.error("%s: %s", success, self._is_host)
+            logger.error("%s: %s", success, self.my_id)
             self.send(self.myAddress, KillMsg())
         else:
             self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
