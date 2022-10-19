@@ -14,6 +14,7 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg, SetDeviceStatusMsg,
                                                SetupMdnsActorMsg, Status)
 from registrationserver.base_actor import BaseActor
+from registrationserver.config import config
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mdns.device_actor import DeviceActor
 from requests.adapters import HTTPAdapter
@@ -79,15 +80,16 @@ class HostActor(BaseActor):
         self._is_host = data["Remote"]["Address"]
         self._api_port = data["Remote"]["API port"]
         remote_device_id = data["Remote"]["Device Id"]
-        if device_id not in self.child_actors:
-            device_actor = self._create_actor(DeviceActor, device_id)
-            self.send(
-                device_actor,
-                SetupMdnsActorMsg(self._is_host, self._api_port, remote_device_id),
-            )
-        else:
-            device_actor = self.child_actors[device_id]["actor_address"]
-        self.send(device_actor, SetDeviceStatusMsg(data))
+        if self.my_id != config["MY_HOSTNAME"]:
+            if device_id not in self.child_actors:
+                device_actor = self._create_actor(DeviceActor, device_id)
+                self.send(
+                    device_actor,
+                    SetupMdnsActorMsg(self._is_host, self._api_port, remote_device_id),
+                )
+            else:
+                device_actor = self.child_actors[device_id]["actor_address"]
+            self.send(device_actor, SetDeviceStatusMsg(data))
 
     def receiveMsg_WakeupMessage(self, _msg, _sender):
         # pylint: disable=invalid-name

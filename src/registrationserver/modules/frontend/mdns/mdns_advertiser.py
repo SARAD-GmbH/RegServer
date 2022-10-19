@@ -49,6 +49,7 @@ class MdnsAdvertiserActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.device_actor = msg.device_actor
         self._subscribe_to_device_status_msg(self.device_actor)
+        self.wakeupAfter(timedelta(minutes=UPDATE_INTERVAL), payload="update")
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -70,12 +71,12 @@ class MdnsAdvertiserActor(BaseActor):
             self.__start_advertising()
         else:
             self.__update_service()
-        self.wakeupAfter(timedelta(minutes=UPDATE_INTERVAL), payload="update")
 
     def receiveMsg_WakeupMessage(self, _msg, _sender):
         # pylint: disable=invalid-name
         """Handle WakeupMessage for regular updates"""
         self._start_or_update()
+        self.wakeupAfter(timedelta(minutes=UPDATE_INTERVAL), payload="update")
 
     def receiveMsg_KillMsg(self, msg, sender):
         if self.service is not None:

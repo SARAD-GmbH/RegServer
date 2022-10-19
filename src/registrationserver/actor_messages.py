@@ -267,7 +267,7 @@ class UpdateActorDictMsg:
                 "address": actor address,
                 "parent": actor_address,
                 "is_device_actor": bool,
-                "get_updates": bool,
+                "get_updates": bool,  # actually not used in subscribers!
                }
     }
 

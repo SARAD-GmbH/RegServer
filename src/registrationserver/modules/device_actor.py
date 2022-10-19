@@ -175,10 +175,11 @@ class DeviceBaseActor(BaseActor):
 
     def _update_reservation_status(self, reservation):
         instr_id = short_id(self.my_id)
-        self.device_status["Reservation"] = reservation
-        logger.debug("Reservation state updated: %s", self.device_status)
-        self.send(self.sender_api, ReservationStatusMsg(instr_id, Status.OK))
-        self._publish_status_change()
+        if self.device_status.get("Reservation") != reservation:
+            self.device_status["Reservation"] = reservation
+            logger.info("Reservation state updated: %s", self.device_status)
+            self.send(self.sender_api, ReservationStatusMsg(instr_id, Status.OK))
+            self._publish_status_change()
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -186,6 +187,7 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.sender_api = sender
         instr_id = short_id(self.my_id)
+        status = Status.OK
         try:
             if self.device_status["Reservation"]["Active"]:
                 self.device_status["Reservation"]["Active"] = False
@@ -196,16 +198,18 @@ class DeviceBaseActor(BaseActor):
                 self.device_status["Reservation"]["Timestamp"] = (
                     datetime.utcnow().isoformat(timespec="seconds") + "Z"
                 )
-                return_message = ReservationStatusMsg(instr_id, Status.OK)
+                status = Status.OK
             else:
-                return_message = ReservationStatusMsg(instr_id, Status.OK_SKIPPED)
+                status = Status.OK_SKIPPED
         except KeyError:
             logger.debug("Instr. was not reserved before.")
-            return_message = ReservationStatusMsg(instr_id, Status.OK_SKIPPED)
+            status = Status.OK_SKIPPED
+        return_message = ReservationStatusMsg(instr_id, status)
         self.send(self.sender_api, return_message)
         self._forward_to_children(KillMsg())
         logger.info("Free %s", self.my_id)
-        self._publish_status_change()
+        if status == Status.OK:
+            self._publish_status_change()
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -220,10 +224,13 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler to register a requesting actor to a list of actors
         that are subscribed to receive updates of device status on every change."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
         self.subscribers[msg.actor_id] = sender
         logger.debug("Subscribers for DeviceStatusMsg: %s", self.subscribers)
         if self.device_status:
+            logger.info(
+                "_publish_status called by SubscribeToDeviceStatusMsg in %s", self.my_id
+            )
             self._publish_status([sender])
 
     def receiveMsg_UnSubscribeFromDeviceStatusMsg(self, msg, sender):
@@ -242,9 +249,9 @@ class DeviceBaseActor(BaseActor):
                 UpdateDeviceStatusMsg(self.my_id, self.device_status),
             )
 
-    def _publish_status(self, device_actors: list):
+    def _publish_status(self, new_subscribers: list):
         """Publish a device status to all members of device_actors."""
-        for actor_address in device_actors:
+        for actor_address in new_subscribers:
             self.send(
                 actor_address,
                 UpdateDeviceStatusMsg(self.my_id, self.device_status),
