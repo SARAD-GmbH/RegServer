@@ -246,8 +246,17 @@ class Is1Actor(DeviceBaseActor):
                 b"",
             ]:
                 cmd_msg = make_command_msg(self.GET_NEXT_COM)
-                client_socket.sendall(cmd_msg)
-                reply = client_socket.recv(1024)
+                try:
+                    client_socket.sendall(cmd_msg)
+                    reply = client_socket.recv(1024)
+                except (
+                    ConnectionResetError,
+                    TimeoutError,
+                    socket.timeout,
+                ) as exception:
+                    logger.error("%s. IS1 closed or disconnected.", exception)
+                    self.send(self.myAddress, KillMsg())
+                    return
                 checked_reply = check_message(reply, multiframe=False)
             client_socket.shutdown(socket.SHUT_WR)
             return
