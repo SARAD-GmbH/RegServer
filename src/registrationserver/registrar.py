@@ -29,8 +29,7 @@ from registrationserver.actor_messages import (ActorCreatedMsg, Backend,
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import (actor_config, backend_config, config,
                                        frontend_config, mqtt_config)
-from registrationserver.helpers import (is_device_actor, short_id,
-                                        transport_technology)
+from registrationserver.helpers import short_id, transport_technology
 from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_listener import Is1Listener
 from registrationserver.modules.backend.mqtt.mqtt_listener import MqttListener
@@ -143,6 +142,7 @@ class Registrar(BaseActor):
             "is_alive": True,
         }
         if msg.is_device_actor:
+            keep_new_actor = True
             new_device_id = msg.actor_id
             for old_device_id in self.actor_dict:
                 if (
@@ -157,23 +157,23 @@ class Registrar(BaseActor):
                     new_tt = transport_technology(new_device_id)
                     logger.debug("New device_id: %s", new_device_id)
                     logger.debug("Old device_id: %s", old_device_id)
-                    if new_tt == "local":
+                    if (new_tt == "local") or (
+                        (new_tt == "mdns") and (old_tt == "is1")
+                    ):
                         logger.debug(
-                            "Keep new %s and set the old %s inactive",
+                            "Keep new %s and kill the old %s",
                             new_device_id,
                             old_device_id,
                         )
-                        self.actor_dict[old_device_id]["is_device_actor"] = False
-                    elif (new_tt in ["mdns", "mqtt"]) and (old_tt == "is1"):
-                        logger.debug(
-                            "Keep old %s and set the new %s inactive",
-                            old_device_id,
-                            new_device_id,
-                        )
-                        self.actor_dict[new_device_id]["is_device_actor"] = False
+                        keep_new_actor = True
+                        self.send(self.actor_dict[old_device_id]["address"], KillMsg())
                     else:
                         logger.debug("Keep device actor %s in place.", old_device_id)
+                        keep_new_actor = False
                         self.send(sender, KillMsg())
+            if (not self.on_kill) and keep_new_actor:
+                logger.debug("Subscribe %s to device statuses dict", msg.actor_id)
+                self._subscribe_to_device_status_msg(sender)
         self._send_updates(self.actor_dict)
         return
 
@@ -181,26 +181,9 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for UnsubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        try:
-            is_device_act = self.actor_dict[msg.actor_id]["is_device_actor"]
-        except KeyError:
-            logger.error("%s requested to be unsubscribed doesn't exist", msg.actor_id)
-            is_device_act = False
-        if is_device_act:
-            instr_id = short_id(msg.actor_id)
-            logger.debug("Look for inactive device actor for %s", instr_id)
-            for actor_id, description in self.actor_dict.items():
-                if (not description["is_device_actor"]) and (
-                    short_id(actor_id) == instr_id
-                ):
-                    description["is_device_actor"] = True
-                    logger.debug("Found and activated %s", actor_id)
-        try:
-            self.actor_dict.pop(msg.actor_id)
-        except KeyError as exception:
-            logger.error(
-                "%s. The actor to unsubscribe was not subscribed properly.", exception
-            )
+        actor_id = msg.actor_id
+        self.actor_dict.pop(actor_id, None)
+        self.device_statuses.pop(actor_id, None)
         self._send_updates(self.actor_dict)
 
     def _send_updates(self, actor_dict):
@@ -212,26 +195,6 @@ class Registrar(BaseActor):
                     actor_dict[actor_id]["address"],
                     UpdateActorDictMsg(actor_dict),
                 )
-            if is_device_actor(actor_id):
-                if actor_dict[actor_id]["is_device_actor"]:
-                    if not self.on_kill:
-                        logger.debug("Subscribe %s to device statuses dict", actor_id)
-                        self._subscribe_to_device_status_msg(
-                            actor_dict[actor_id]["address"]
-                        )
-                else:
-                    if self.device_statuses.pop(actor_id, None) is not None:
-                        logger.debug(
-                            "Remove inactive %s from device_statuses dict", actor_id
-                        )
-                        self._unsubscribe_from_device_status_msg(
-                            actor_dict[actor_id]["address"]
-                        )
-        device_statuses = self.device_statuses.copy()
-        for device_id in device_statuses:
-            if device_id not in actor_dict:
-                self.device_statuses.pop(device_id, None)
-                logger.debug("Remove %s from device_statuses dict.", device_id)
 
     def receiveMsg_GetActorDictMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -250,40 +213,7 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for CreateActorMsg. Create a new actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        create_new_actor = False
-        actor_id = msg.actor_id
-        actor_address = None
-        if actor_id in self.actor_dict:
-            logger.debug("%s already exists", actor_id)
-            actor_address = self.actor_dict[actor_id]["address"]
-        else:
-            create_new_actor = True
-            if is_device_actor(actor_id):
-                logger.debug(
-                    "Check for existing device actor with same instr_id=%s",
-                    short_id(actor_id),
-                )
-                new_device_id = msg.actor_id
-                new_instr_id = short_id(new_device_id)
-                instr_id_list = [
-                    short_id(actor_id)
-                    for actor_id in self.actor_dict
-                    if is_device_actor(actor_id)
-                ]
-                if new_instr_id in instr_id_list:
-                    logger.debug("Found an actor with the same instr_id")
-                    new_tt = transport_technology(new_device_id)
-                    if new_tt in ["local", "is1"]:
-                        logger.debug(
-                            "Old device_actor might disapear when handling SetupMsg"
-                        )
-                        create_new_actor = True
-                    else:
-                        logger.info("Creation of %s skipped", actor_id)
-                        create_new_actor = False
-        if create_new_actor:
-            logger.debug("Create new actor %s", actor_id)
-            actor_address = self._create_actor(msg.actor_type, actor_id)
+        actor_address = self._create_actor(msg.actor_type, msg.actor_id)
         self.send(sender, ActorCreatedMsg(actor_address))
 
     def receiveMsg_GetDeviceActorMsg(self, msg, sender):
