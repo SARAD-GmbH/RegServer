@@ -224,13 +224,10 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler to register a requesting actor to a list of actors
         that are subscribed to receive updates of device status on every change."""
-        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.subscribers[msg.actor_id] = sender
         logger.debug("Subscribers for DeviceStatusMsg: %s", self.subscribers)
         if self.device_status:
-            logger.info(
-                "_publish_status called by SubscribeToDeviceStatusMsg in %s", self.my_id
-            )
             self._publish_status([sender])
 
     def receiveMsg_UnSubscribeFromDeviceStatusMsg(self, msg, sender):
