@@ -177,7 +177,7 @@ class Is1Listener(BaseActor):
                 if self.conn is server_socket:
                     self._client_socket, self._socket_info = server_socket.accept()
                     self.read_list.append(self._client_socket)
-                    logger.debug("Connection from %s", self._socket_info)
+                    logger.info("Connection from %s", self._socket_info)
                 else:
                     self._cmd_handler(self._socket_info[0])
         except ValueError:
