@@ -83,6 +83,8 @@ class BaseActor(ActorTypeDispatcher):
         if self.registrar is None:
             self.registrar = self.myAddress
         self._subscribe(False)
+        if self.is_device_actor:
+            logger.info("Device actor %s created at %s.", self.my_id, self.parent)
 
     def _subscribe(self, keep_alive):
         """Subscribe at Registrar actor."""
@@ -113,6 +115,8 @@ class BaseActor(ActorTypeDispatcher):
             self._forward_to_children(msg)
         else:
             self.send(self.myAddress, ActorExitRequest())
+            if self.is_device_actor:
+                logger.info("Device actor %s exited at %s.", self.my_id, self.parent)
 
     def receiveMsg_KeepAliveMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument

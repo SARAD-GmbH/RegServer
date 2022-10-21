@@ -167,9 +167,6 @@ class Registrar(BaseActor):
                         )
                         keep_new_actor = True
                         self.send(self.actor_dict[old_device_id]["address"], KillMsg())
-                        logger.info(
-                            "Device actor %s created at %s.", new_device_id, msg.parent
-                        )
                     else:
                         logger.debug("Keep device actor %s in place.", old_device_id)
                         keep_new_actor = False
