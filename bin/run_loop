@@ -3,5 +3,6 @@ mydir="$(cd "$(dirname "$BASH_SOURCE")"; pwd)"/../src
 
 until (cd $mydir && pipenv run python sarad_registration_server.py)
 do 
-  sleep 60
+  sleep 10
+  cp ~/SARAD/log/registrationserver.log ~/SARAD/log/registrationserver.$(date '+%Y-%m-%d_%H-%M-%S').log
 done
