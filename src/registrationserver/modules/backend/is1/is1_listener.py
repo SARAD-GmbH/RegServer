@@ -247,7 +247,6 @@ class Is1Listener(BaseActor):
                     time.sleep(1)
                 except (OSError, TimeoutError, socket.timeout):
                     logger.debug("%s:%d not reachable", is_host, is_port)
-                    client_socket.shutdown(socket.SHUT_WR)
                     return
             if retry:
                 logger.critical("Connection refused on %s:%d", is_host, is_port)
@@ -262,7 +261,6 @@ class Is1Listener(BaseActor):
                 ConnectionResetError,
             ) as exception:
                 logger.error("%s. IS1 closed or disconnected.", exception)
-                client_socket.shutdown(socket.SHUT_WR)
                 return
             checked_reply = check_message(reply, multiframe=False)
             while checked_reply["is_valid"] and checked_reply["payload"] not in [
@@ -291,7 +289,6 @@ class Is1Listener(BaseActor):
                     ConnectionResetError,
                 ) as exception:
                     logger.error("%s. IS1 closed or disconnected.", exception)
-                    client_socket.shutdown(socket.SHUT_WR)
                     return
                 checked_reply = check_message(reply, multiframe=False)
             client_socket.shutdown(socket.SHUT_WR)

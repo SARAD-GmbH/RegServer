@@ -84,7 +84,9 @@ class BaseActor(ActorTypeDispatcher):
             self.registrar = self.myAddress
         self._subscribe(False)
         if self.is_device_actor:
-            logger.info("Device actor %s created at %s.", self.my_id, self.parent)
+            logger.info(
+                "Device actor %s created at %s.", self.my_id, self.parent.parent_id
+            )
 
     def _subscribe(self, keep_alive):
         """Subscribe at Registrar actor."""
@@ -116,7 +118,9 @@ class BaseActor(ActorTypeDispatcher):
         else:
             self.send(self.myAddress, ActorExitRequest())
             if self.is_device_actor:
-                logger.info("Device actor %s exited at %s.", self.my_id, self.parent)
+                logger.info(
+                    "Device actor %s exited at %s.", self.my_id, self.parent.parent_id
+                )
 
     def receiveMsg_KeepAliveMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
