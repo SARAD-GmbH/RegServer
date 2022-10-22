@@ -214,7 +214,10 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for CreateActorMsg. Create a new actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        actor_address = self._create_actor(msg.actor_type, msg.actor_id)
+        if msg.actor_id in self.actor_dict:
+            actor_address = self.actor_dict[msg.actor_id]["address"]
+        else:
+            actor_address = self._create_actor(msg.actor_type, msg.actor_id)
         self.send(sender, ActorCreatedMsg(actor_address))
 
     def receiveMsg_GetDeviceActorMsg(self, msg, sender):
