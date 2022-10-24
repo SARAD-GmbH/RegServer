@@ -214,17 +214,13 @@ def main():
                         timeout=timedelta(seconds=1),
                     )
                 except OSError as exception:
-                    logger.critical(
-                        "We are offline. OSError: %s. -> Emergency shutdown", exception
-                    )
+                    logger.critical("We are offline. OSError: %s.", exception)
                     registrar_is_down = True
                 except RuntimeError as exception:
-                    logger.critical(
-                        "RuntimeError: %s. -> Emergency shutdown", exception
-                    )
+                    logger.critical("RuntimeError: %s.", exception)
                     registrar_is_down = True
                 except Exception as exception:  # pylint: disable=broad-except
-                    logger.critical("Exception: %s. -> Emergency shutdown", exception)
+                    logger.critical("Exception: %s.", exception)
                     registrar_is_down = True
             if registrar_is_down:
                 retry_counter = 0  # don't retry, stop it!
@@ -244,7 +240,7 @@ def main():
                     registrar_is_down = True
         if registrar_is_down:
             logger.critical(
-                "No status response from Registrar Actor. Emergency shutdown."
+                "No status response from Registrar Actor. -> Emergency shutdown."
             )
             set_file_flag(False)
         time.sleep(1)

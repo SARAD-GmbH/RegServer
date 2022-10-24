@@ -175,11 +175,10 @@ class DeviceBaseActor(BaseActor):
 
     def _update_reservation_status(self, reservation):
         instr_id = short_id(self.my_id)
-        if self.device_status.get("Reservation") != reservation:
-            self.device_status["Reservation"] = reservation
-            logger.info("Reservation state updated: %s", self.device_status)
-            self.send(self.sender_api, ReservationStatusMsg(instr_id, Status.OK))
-            self._publish_status_change()
+        self.device_status["Reservation"] = reservation
+        logger.info("Reservation state updated: %s", self.device_status)
+        self.send(self.sender_api, ReservationStatusMsg(instr_id, Status.OK))
+        self._publish_status_change()
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
