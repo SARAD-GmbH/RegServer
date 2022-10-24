@@ -49,6 +49,7 @@ class MdnsListener(ServiceListener):
     def get_host_addr(info=None):
         """Helper function to get the host name from mdns service information"""
         if info is None:
+            logger.error("info in Zeroconf message is None")
             return None
         try:
             _addr_ip = ipaddress.IPv4Address(info.addresses[0]).exploded
@@ -66,23 +67,28 @@ class MdnsListener(ServiceListener):
             type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
         )
         if not info or not name:
+            logger.error("info in Zeroconf message is None")
             return None
         properties = info.properties
         if properties is not None:
             _model = properties.get(b"MODEL_ENC")
             if _model is None:
+                logger.error("_model in Zeroconf message is None")
                 return None
         _model = _model.decode("utf-8")
         _serial_short = properties.get(b"SERIAL_SHORT")
         if _serial_short is None:
+            logger.error("_serial_short is None")
             return None
         _device_id = _serial_short.decode("utf-8").split(".")[0]
         _sarad_protocol = _serial_short.decode("utf-8").split(".")[1]
         hids = hashids.Hashids()
         _ids = hids.decode(_device_id)
         if _ids is None:
+            logger.error("_ids is None")
             return None
         if len(_ids) != 3:
+            logger.error("len(_ids) != 3")
             return None
         _addr = ""
         try:
@@ -157,8 +163,16 @@ class MdnsListener(ServiceListener):
                 elif reply.actor_address is not None:
                     host_actor = reply.actor_address
             data = self.convert_properties(zc, type_, name)
-            logger.debug("Tell Host Actor to setup device actor with %s", data)
-            ActorSystem().tell(host_actor, SetDeviceStatusMsg(data))
+            if data is not None:
+                logger.debug("Tell Host Actor to setup device actor with %s", data)
+                ActorSystem().tell(host_actor, SetDeviceStatusMsg(data))
+            else:
+                logger.error(
+                    "add_service was called with bad parameters: %s, %s, %s",
+                    zc,
+                    type_,
+                    name,
+                )
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
