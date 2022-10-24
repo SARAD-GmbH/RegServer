@@ -104,7 +104,7 @@ class Is1Address:
             except ConnectionError:
                 return
             except Exception:  # pylint: disable=broad-except
-                self.hostname = self.ip_address
+                object.__setattr__(self, "hostname", self.ip_address)
         return
 
 
