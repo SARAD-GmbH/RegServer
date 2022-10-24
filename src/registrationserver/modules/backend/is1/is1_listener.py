@@ -268,29 +268,33 @@ class Is1Listener(BaseActor):
                 b"",
             ]:
                 this_instrument = self._get_instrument_id(checked_reply["payload"])
-                logger.info(
-                    "Instrument %s on COM port %d",
-                    this_instrument["instr_id"],
-                    this_instrument["port"],
-                )
-                self._create_and_setup_actor(
-                    instr_id=this_instrument["instr_id"],
-                    port=this_instrument["port"],
-                    is1_address=address,
-                )
-                cmd_msg = make_command_msg(self.GET_NEXT_COM)
-                try:
-                    client_socket.sendall(cmd_msg)
-                    reply = client_socket.recv(1024)
-                except (
-                    OSError,
-                    TimeoutError,
-                    socket.timeout,
-                    ConnectionResetError,
-                ) as exception:
-                    logger.error("%s. IS1 closed or disconnected.", exception)
+                if this_instrument:
+                    logger.info(
+                        "Instrument %s on COM port %d",
+                        this_instrument["instr_id"],
+                        this_instrument["port"],
+                    )
+                    self._create_and_setup_actor(
+                        instr_id=this_instrument["instr_id"],
+                        port=this_instrument["port"],
+                        is1_address=address,
+                    )
+                    cmd_msg = make_command_msg(self.GET_NEXT_COM)
+                    try:
+                        client_socket.sendall(cmd_msg)
+                        reply = client_socket.recv(1024)
+                    except (
+                        OSError,
+                        TimeoutError,
+                        socket.timeout,
+                        ConnectionResetError,
+                    ) as exception:
+                        logger.error("%s. IS1 closed or disconnected.", exception)
+                        return
+                    checked_reply = check_message(reply, multiframe=False)
+                else:
+                    logger.error("Error parsing payload received from instrument")
                     return
-                checked_reply = check_message(reply, multiframe=False)
             client_socket.shutdown(socket.SHUT_WR)
             return
 
