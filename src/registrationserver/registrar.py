@@ -48,6 +48,8 @@ class Registrar(BaseActor):
     def __init__(self):
         super().__init__()
         self.device_statuses = {}  # {device_id: {status_dict}}
+        # a list of actors that are already created but not yet subscribed
+        self.pending = []
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -123,6 +125,8 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if msg.actor_id in self.pending:
+            self.pending.remove(msg.actor_id)
         if msg.keep_alive:
             self.actor_dict[msg.actor_id]["is_alive"] = True
             self._send_updates(self.actor_dict)
@@ -214,10 +218,11 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for CreateActorMsg. Create a new actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if msg.actor_id in self.actor_dict:
+        if (msg.actor_id in self.actor_dict) or (msg.actor_id in self.pending):
             actor_address = self.actor_dict[msg.actor_id]["address"]
         else:
             actor_address = self._create_actor(msg.actor_type, msg.actor_id)
+            self.pending.append(self.my_id)
         self.send(sender, ActorCreatedMsg(actor_address))
 
     def receiveMsg_GetDeviceActorMsg(self, msg, sender):
