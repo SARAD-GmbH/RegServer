@@ -251,7 +251,7 @@ class RestApi:
         else:
             device_actor = get_actor(registrar_actor, device_id)
             if device_actor is not None:
-                logger.debug("Ask device actor to FREE...")
+                logger.info("Ask %s to FREE...", device_id)
                 with ActorSystem().private() as free_dev:
                     try:
                         free_return = free_dev.ask(
@@ -259,14 +259,17 @@ class RestApi:
                         )
                     except ConnectionResetError:
                         free_return = None
-                reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
-                if reply_is_corrupted:
-                    return reply_is_corrupted
-                status = free_return.status
+                if free_return is None:
+                    status = Status.NOT_FOUND
+                else:
+                    reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
+                    if reply_is_corrupted:
+                        return reply_is_corrupted
+                    status = free_return.status
             else:
                 status = Status.NOT_FOUND
         answer = {"Error code": status.value, "Error": str(status), device_id: {}}
-        if status in (Status.OK, Status.OCCUPIED):
+        if status in (Status.OK, Status.OCCUPIED, Status.OK_SKIPPED):
             answer[device_id] = get_device_status(registrar_actor, device_id)
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
