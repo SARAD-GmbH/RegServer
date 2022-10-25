@@ -13,6 +13,7 @@
 # this file (in all subfolders)
 !.gitignore
 !.git*
+!.dir-locals.el
 # Pipenv
 !Pipfile
 !Pipfile.lock
