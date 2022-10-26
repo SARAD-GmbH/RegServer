@@ -14,7 +14,7 @@
 import re
 import sys
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from flask import Flask, Response, json, request
 from thespian.actors import (Actor, ActorSystem,  # type: ignore
@@ -45,6 +45,7 @@ from registrationserver.shutdown import system_shutdown
 # logger.debug("%s -> %s", __package__, __file__)
 
 MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
+STARTTIME = datetime.utcnow()
 
 
 def check_msg(return_message, message_object_type):
@@ -96,7 +97,10 @@ class RestApi:
     def ping():
         """Send a sign of life to confirm that the host is online."""
         logger.debug("Ping received")
-        return "pong"
+        response = {"service": "SARAD Registration Server", "running_since": STARTTIME}
+        return Response(
+            response=json.dumps(response), status=200, mimetype="application/json"
+        )
 
     @staticmethod
     @api.route("/shutdown", methods=["GET"])
