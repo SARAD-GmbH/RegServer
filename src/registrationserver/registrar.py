@@ -15,6 +15,7 @@ device actors referenced in the dictionary.
 
 from datetime import timedelta
 
+from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
 
@@ -132,11 +133,13 @@ class Registrar(BaseActor):
             self._send_updates(self.actor_dict)
             return
         if msg.actor_id in self.actor_dict:
-            logger.critical(
-                "The actor already exists in the system -> emergency shutdown"
-            )
+            logger.critical("The actor %s already exists in the system.", msg.actor_id)
+            hid = Hashids()
+            serial_number = hid.decode(short_id(msg.actor_id))[2]
             self.send(sender, KillMsg())
-            system_shutdown()
+            if serial_number != 65535:
+                logger.critical("SN %d != 65535 -> Emergency shutdown", serial_number)
+                system_shutdown()
             return
         self.actor_dict[msg.actor_id] = {
             "address": sender,
