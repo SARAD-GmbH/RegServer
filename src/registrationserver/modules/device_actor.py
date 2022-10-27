@@ -177,8 +177,8 @@ class DeviceBaseActor(BaseActor):
         instr_id = short_id(self.my_id)
         self.device_status["Reservation"] = reservation
         logger.info("Reservation state updated: %s", self.device_status)
-        self.send(self.sender_api, ReservationStatusMsg(instr_id, Status.OK))
         self._publish_status_change()
+        self.send(self.sender_api, ReservationStatusMsg(instr_id, Status.OK))
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -189,6 +189,7 @@ class DeviceBaseActor(BaseActor):
         status = Status.OK
         try:
             if self.device_status["Reservation"]["Active"]:
+                logger.info("Free active %s", self.my_id)
                 self.device_status["Reservation"]["Active"] = False
                 if self.device_status["Reservation"].get("IP") is not None:
                     self.device_status["Reservation"].pop("IP")
@@ -203,12 +204,12 @@ class DeviceBaseActor(BaseActor):
         except KeyError:
             logger.debug("Instr. was not reserved before.")
             status = Status.OK_SKIPPED
-        return_message = ReservationStatusMsg(instr_id, status)
-        self.send(self.sender_api, return_message)
         self._forward_to_children(KillMsg())
-        logger.info("Free %s", self.my_id)
         if status == Status.OK:
             self._publish_status_change()
+        return_message = ReservationStatusMsg(instr_id, status)
+        self.send(self.sender_api, return_message)
+        logger.info("Free %s", self.my_id)
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
