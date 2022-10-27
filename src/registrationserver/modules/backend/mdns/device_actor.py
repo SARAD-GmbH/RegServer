@@ -85,9 +85,10 @@ class DeviceActor(DeviceBaseActor):
             success = Status.IS_NOT_FOUND
             logger.error(success)
             self.send(self.myAddress, KillMsg())
-        if device_desc is None:
-            logger.error("%s not available", self.device_id)
-            self.send(self.myAddress, KillMsg())
+        else:
+            if device_desc is None:
+                logger.error("%s not available", self.device_id)
+                self.send(self.myAddress, KillMsg())
 
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
