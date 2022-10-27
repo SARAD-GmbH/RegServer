@@ -276,7 +276,7 @@ DEFAULT_WINDOWS_METHOD = "spawn"
 DEFAULT_LINUX_METHOD = "fork"
 DEFAULT_CONVENTION_ADDRESS = None
 DEFAULT_KEEPALIVE_INTERVAL = 10  # in minutes
-DEFAULT_WAIT_BEFORE_CHECK = 10  # in seconds, min is 2x3 = 6 s!
+DEFAULT_WAIT_BEFORE_CHECK = 20  # in seconds, min. is set by cluster_actor
 
 if customization.get("actor") is None:
     if os.name == "nt":

@@ -39,6 +39,7 @@ system_base = "multiprocUDPBase"
 admin_port = 1029
 process_startup_method = "spawn"
 watchdog_interval = 10  # in minutes
+watchdog_wait = 20  # in seconds, has to be encreased for multiple native RS-232 ports
 
 [mqtt]
 group = "Registration Server"
