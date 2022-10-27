@@ -100,6 +100,7 @@ class HostActor(BaseActor):
     def _ping(self):
         self.base_url = f"http://{self._is_host}:{self._api_port}"
         try:
+            # TODO: Replace with /ping/
             _resp = self.http.get(f"{self.base_url}/list/")
         except Exception as exception:  # pylint: disable=broad-except
             logger.debug("REST API of IS is not responding. %s", exception)
