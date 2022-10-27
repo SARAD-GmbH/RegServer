@@ -234,8 +234,10 @@ class Registrar(BaseActor):
         """Handler for CreateActorMsg. Create a new actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         logger.info("Pending actors: %s", self.pending)
-        if (msg.actor_id in self.actor_dict) or (msg.actor_id in self.pending):
+        if msg.actor_id in self.actor_dict:
             actor_address = self.actor_dict[msg.actor_id]["address"]
+        elif msg.actor_id in self.pending:
+            actor_address = None
         else:
             actor_address = self._create_actor(msg.actor_type, msg.actor_id)
             self.pending.append(msg.actor_id)

@@ -160,7 +160,9 @@ class MdnsListener(ServiceListener):
                     logger.critical("Got message object of unexpected type")
                     logger.critical("-> Stop and shutdown system")
                     system_shutdown()
-                elif reply.actor_address is not None:
+                elif reply.actor_address is None:
+                    return
+                else:
                     host_actor = reply.actor_address
             data = self.convert_properties(zc, type_, name)
             if data is not None:
