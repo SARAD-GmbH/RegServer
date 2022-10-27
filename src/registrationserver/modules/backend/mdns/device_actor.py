@@ -22,8 +22,8 @@ from urllib3.util.retry import Retry
 # logger.debug("%s -> %s", __package__, __file__)
 
 CMD_CYCLE_TIMEOUT = 1
-
 DEFAULT_TIMEOUT = 3  # seconds
+RETRY = 1  # number of retries for HTTP requests
 
 
 class TimeoutHTTPAdapter(HTTPAdapter):
@@ -59,7 +59,7 @@ class DeviceActor(DeviceBaseActor):
         )
         self.http.hooks["response"] = [assert_status_hook]
         retry_strategy = Retry(
-            total=1,
+            total=RETRY,
             status_forcelist=[429, 500, 502, 503, 504],
             allowed_methods=["HEAD", "GET", "OPTIONS"],
             backoff_factor=1,

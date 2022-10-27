@@ -11,7 +11,7 @@ import logging
 import os
 import socket
 import sys
-from typing import Any, Dict, List
+from typing import List
 from uuid import getnode as get_mac
 
 import toml
@@ -276,6 +276,7 @@ DEFAULT_WINDOWS_METHOD = "spawn"
 DEFAULT_LINUX_METHOD = "fork"
 DEFAULT_CONVENTION_ADDRESS = None
 DEFAULT_KEEPALIVE_INTERVAL = 10  # in minutes
+DEFAULT_WAIT_BEFORE_CHECK = 10  # in seconds, min is 2x3 = 6 s!
 
 if customization.get("actor") is None:
     if os.name == "nt":
@@ -287,6 +288,7 @@ if customization.get("actor") is None:
                 "Convention Address.IPv4": DEFAULT_CONVENTION_ADDRESS,
             },
             "KEEPALIVE_INTERVAL": DEFAULT_KEEPALIVE_INTERVAL,
+            "WAIT_BEFORE_CHECK": DEFAULT_WAIT_BEFORE_CHECK,
         }
     else:
         actor_config = {
@@ -297,6 +299,7 @@ if customization.get("actor") is None:
                 "Convention Address.IPv4": DEFAULT_CONVENTION_ADDRESS,
             },
             "KEEPALIVE_INTERVAL": DEFAULT_KEEPALIVE_INTERVAL,
+            "WAIT_BEFORE_CHECK": DEFAULT_WAIT_BEFORE_CHECK,
         }
 else:
     if os.name == "nt":
@@ -331,6 +334,9 @@ else:
         }
     actor_config["KEEPALIVE_INTERVAL"] = customization["actor"].get(
         "watchdog_interval", DEFAULT_KEEPALIVE_INTERVAL
+    )
+    actor_config["WAIT_BEFORE_CHECK"] = customization["actor"].get(
+        "watchdog_wait", DEFAULT_WAIT_BEFORE_CHECK
     )
 
 # Configuration of MQTT clients used in MQTT frontend and MQTT backend

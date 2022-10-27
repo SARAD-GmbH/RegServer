@@ -88,8 +88,15 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage to send the KeepAliveMsg to all children."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        logger.info("Watchdog: start health check")
         if msg.payload == "keep alive":
+            logger.info("Watchdog: start health check")
+            for actor_id in self.actor_dict:
+                self.actor_dict[actor_id]["is_alive"] = False
+            self.send(self.myAddress, KeepAliveMsg())
+            self.wakeupAfter(
+                timedelta(seconds=actor_config["WAIT_BEFORE_CHECK"]), payload="check"
+            )
+        elif msg.payload == "check":
             for actor_id in self.actor_dict:
                 if not self.actor_dict[actor_id]["is_alive"]:
                     logger.critical(
@@ -97,12 +104,11 @@ class Registrar(BaseActor):
                     )
                     logger.critical("-> Emergency shutdown")
                     system_shutdown()
-                self.actor_dict[actor_id]["is_alive"] = False
-            self.send(self.myAddress, KeepAliveMsg())
-        logger.info("Watchdog: health check finished")
-        self.wakeupAfter(
-            timedelta(minutes=actor_config["KEEPALIVE_INTERVAL"]), payload="keep alive"
-        )
+            logger.info("Watchdog: health check finished successfully")
+            self.wakeupAfter(
+                timedelta(minutes=actor_config["KEEPALIVE_INTERVAL"]),
+                payload="keep alive",
+            )
 
     def receiveMsg_DeadEnvelope(self, msg, sender):
         # pylint: disable=invalid-name
