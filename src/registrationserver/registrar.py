@@ -140,11 +140,17 @@ class Registrar(BaseActor):
             return
         if msg.actor_id in self.actor_dict:
             logger.critical("The actor %s already exists in the system.", msg.actor_id)
-            hid = Hashids()
-            serial_number = hid.decode(short_id(msg.actor_id))[2]
             self.send(sender, KillMsg())
-            if serial_number != 65535:
-                logger.critical("SN %d != 65535 -> Emergency shutdown", serial_number)
+            if msg.is_device_actor:
+                hid = Hashids()
+                serial_number = hid.decode(short_id(msg.actor_id))[2]
+                if serial_number != 65535:
+                    logger.critical(
+                        "SN %d != 65535 -> Emergency shutdown", serial_number
+                    )
+                    system_shutdown()
+            else:
+                logger.critical("-> Emergency shutdown")
                 system_shutdown()
             return
         self.actor_dict[msg.actor_id] = {
@@ -227,11 +233,12 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for CreateActorMsg. Create a new actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.info("Pending actors: %s", self.pending)
         if (msg.actor_id in self.actor_dict) or (msg.actor_id in self.pending):
             actor_address = self.actor_dict[msg.actor_id]["address"]
         else:
             actor_address = self._create_actor(msg.actor_type, msg.actor_id)
-            self.pending.append(self.my_id)
+            self.pending.append(msg.actor_id)
         self.send(sender, ActorCreatedMsg(actor_address))
 
     def receiveMsg_GetDeviceActorMsg(self, msg, sender):
