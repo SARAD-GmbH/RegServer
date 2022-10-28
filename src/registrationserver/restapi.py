@@ -107,9 +107,43 @@ class RestApi:
     @api.route("/shutdown/", methods=["GET"])
     def shutdown():
         """Allows to shutdown the Registration Server."""
-        logger.debug("Shutdown by user intervention")
-        system_shutdown()
-        return "Registration Server going down for restart..."
+        remote_addr = request.remote_addr
+        remote_user = request.remote_user
+        try:
+            attribute_who = request.args.get("who").strip('"')
+        except (IndexError, AttributeError):
+            status = Status.ATTRIBUTE_ERROR
+        else:
+            if attribute_who in ("Michael", "Riccardo"):
+                status = Status.OK
+            else:
+                status = Status.ATTRIBUTE_ERROR
+        answer = {}
+        if status == Status.OK:
+            logger.info(
+                "Shutdown by user intervention from %s @ %s",
+                attribute_who,
+                remote_addr,
+            )
+            system_shutdown()
+            answer = {
+                "Notification": "Registration Server going down for restart.",
+                "Requester": attribute_who,
+            }
+        elif status == Status.ATTRIBUTE_ERROR:
+            logger.warning(
+                "%s requesting shutdown without proper attribute", remote_addr
+            )
+        else:
+            logger.error("Unexpected error in shutdown by user.")
+            status = Status.ERROR
+        answer["Error code"] = status.value
+        answer["Error"] = str(status)
+        answer["Remote addr"] = remote_addr
+        answer["Remote user"] = remote_user
+        return Response(
+            response=json.dumps(answer), status=200, mimetype="application/json"
+        )
 
     @staticmethod
     @api.route("/list", methods=["GET"])
@@ -176,7 +210,7 @@ class RestApi:
             user = attribute_who.split(" - ")[1]
             request_host = sanitize_hn(attribute_who.split(" - ")[2])
         except (IndexError, AttributeError):
-            logger.error("Reserve request without proper who attribute.")
+            logger.warning("Reserve request without proper who attribute.")
             status = Status.ATTRIBUTE_ERROR
             answer = {
                 "Error code": status.value,
