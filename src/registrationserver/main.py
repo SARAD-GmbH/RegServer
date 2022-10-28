@@ -89,12 +89,12 @@ def startup():
     # The Actor System must be started *before* the RestApi
     if Frontend.REST in frontend_config:
         restapi = RestApi()
-        apithread = threading.Thread(
+        api_thread = threading.Thread(
             target=restapi.run,
             args=(rest_frontend_config["API_PORT"],),
             daemon=True,
         )
-        apithread.start()
+        api_thread.start()
     if Backend.USB in backend_config:
         usb_listener = UsbListener(registrar_actor)
         usb_listener_thread = threading.Thread(
@@ -176,6 +176,55 @@ def kill_residual_processes(end_with_error=True):
         raise SystemExit("Exit with error for automatic restart.")
 
 
+def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
+    """Checks the existance of the Registrar Actor.
+
+    Args:
+       registrar_address: Actor address of the Registrar
+       number_of_trials: number of attempts to reach the Actor
+
+    Returns:
+       True if the Registrar is alive.
+    """
+    registrar_is_down = False
+    while number_of_trials:
+        registrar_is_down = False
+        with ActorSystem().private() as registrar_status:
+            try:
+                # logger.debug("Noch da John Maynard?")
+                reply = registrar_status.ask(
+                    registrar_address,
+                    Thespian_StatusReq(),
+                    timeout=timedelta(seconds=1),
+                )
+            except OSError as exception:
+                logger.critical("We are offline. OSError: %s.", exception)
+                registrar_is_down = True
+            except RuntimeError as exception:
+                logger.critical("RuntimeError: %s.", exception)
+                registrar_is_down = True
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.critical("Exception: %s.", exception)
+                registrar_is_down = True
+        if registrar_is_down:
+            number_of_trials = 0  # don't retry, stop it!
+        else:
+            if isinstance(reply, Thespian_ActorStatus):
+                # logger.debug("Aye Sir!")
+                number_of_trials = 0
+                registrar_is_down = False
+            else:
+                logger.error(
+                    "Registrar replied %s instead of Thespian_ActorStatus. Retrying %d",
+                    reply,
+                    number_of_trials,
+                )
+                time.sleep(0.5)
+                number_of_trials = number_of_trials - 1
+                registrar_is_down = True
+    return not registrar_is_down
+
+
 def main():
     """Main function of the Registration Server"""
     logger.debug("Entering main()")
@@ -202,42 +251,7 @@ def main():
     wait_some_time = False
     while is_flag_set():
         before = datetime.now()
-        retry_counter = 3
-        while retry_counter:
-            registrar_is_down = False
-            with ActorSystem().private() as registrar_status:
-                try:
-                    # logger.debug("Noch da John Maynard?")
-                    reply = registrar_status.ask(
-                        startup_tupel[0],
-                        Thespian_StatusReq(),
-                        timeout=timedelta(seconds=1),
-                    )
-                except OSError as exception:
-                    logger.critical("We are offline. OSError: %s.", exception)
-                    registrar_is_down = True
-                except RuntimeError as exception:
-                    logger.critical("RuntimeError: %s.", exception)
-                    registrar_is_down = True
-                except Exception as exception:  # pylint: disable=broad-except
-                    logger.critical("Exception: %s.", exception)
-                    registrar_is_down = True
-            if registrar_is_down:
-                retry_counter = 0  # don't retry, stop it!
-            else:
-                if isinstance(reply, Thespian_ActorStatus):
-                    # logger.debug("Aye Sir!")
-                    retry_counter = 0
-                    registrar_is_down = False
-                else:
-                    logger.error(
-                        "Registrar replied %s instead of Thespian_ActorStatus. Retrying %d",
-                        reply,
-                        retry_counter,
-                    )
-                    time.sleep(0.5)
-                    retry_counter = retry_counter - 1
-                    registrar_is_down = True
+        registrar_is_down = not outer_watchdog(startup_tupel[0], number_of_trials=0)
         if registrar_is_down:
             logger.critical(
                 "No status response from Registrar Actor. -> Emergency shutdown."
