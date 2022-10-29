@@ -249,9 +249,18 @@ def main():
         return None
     logger.debug("Starting the main loop")
     wait_some_time = False
+    interval = actor_config["OUTER_WATCHDOG_INTERVAl"]
+    last_trial = datetime.now()
     while is_flag_set():
         before = datetime.now()
-        registrar_is_down = not outer_watchdog(startup_tupel[0], number_of_trials=0)
+        if (before - last_trial).total_seconds() > interval:
+            logger.debug("Run outer watchdog")
+            registrar_is_down = not outer_watchdog(
+                startup_tupel[0], number_of_trials=actor_config["OUTER_WATCHDOG_TRIALS"]
+            )
+            last_trial = before
+        else:
+            registrar_is_down = False
         if registrar_is_down:
             logger.critical(
                 "No status response from Registrar Actor. -> Emergency shutdown."

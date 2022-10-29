@@ -277,6 +277,8 @@ DEFAULT_LINUX_METHOD = "fork"
 DEFAULT_CONVENTION_ADDRESS = None
 DEFAULT_KEEPALIVE_INTERVAL = 10  # in minutes
 DEFAULT_WAIT_BEFORE_CHECK = 20  # in seconds, min. is set by cluster_actor
+DEFAULT_OUTER_WATCHDOG_INTERVAL = 30  # in seconds
+DEFAULT_OUTER_WATCHDOG_TRIALS = 3  # number of attempts to check Registrar
 
 if customization.get("actor") is None:
     if os.name == "nt":
@@ -289,6 +291,8 @@ if customization.get("actor") is None:
             },
             "KEEPALIVE_INTERVAL": DEFAULT_KEEPALIVE_INTERVAL,
             "WAIT_BEFORE_CHECK": DEFAULT_WAIT_BEFORE_CHECK,
+            "OUTER_WATCHDOG_INTERVAl": DEFAULT_OUTER_WATCHDOG_INTERVAL,
+            "OUTER_WATCHDOG_TRIALS": DEFAULT_OUTER_WATCHDOG_TRIALS,
         }
     else:
         actor_config = {
@@ -300,6 +304,8 @@ if customization.get("actor") is None:
             },
             "KEEPALIVE_INTERVAL": DEFAULT_KEEPALIVE_INTERVAL,
             "WAIT_BEFORE_CHECK": DEFAULT_WAIT_BEFORE_CHECK,
+            "OUTER_WATCHDOG_INTERVAl": DEFAULT_OUTER_WATCHDOG_INTERVAL,
+            "OUTER_WATCHDOG_TRIALS": DEFAULT_OUTER_WATCHDOG_TRIALS,
         }
 else:
     if os.name == "nt":
@@ -337,6 +343,12 @@ else:
     )
     actor_config["WAIT_BEFORE_CHECK"] = customization["actor"].get(
         "watchdog_wait", DEFAULT_WAIT_BEFORE_CHECK
+    )
+    actor_config["OUTER_WATCHDOG_INTERVAl"] = customization["actor"].get(
+        "outer_watchdog_interval", DEFAULT_OUTER_WATCHDOG_INTERVAL
+    )
+    actor_config["OUTER_WATCHDOG_TRIALS"] = customization["actor"].get(
+        "outer_watchdog_trials", DEFAULT_OUTER_WATCHDOG_TRIALS
     )
 
 # Configuration of MQTT clients used in MQTT frontend and MQTT backend
