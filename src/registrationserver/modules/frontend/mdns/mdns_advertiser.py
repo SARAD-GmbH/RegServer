@@ -22,8 +22,6 @@ from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from zeroconf import ServiceInfo, Zeroconf
 
-UPDATE_INTERVAL = 5  # in minutes
-
 
 class MdnsAdvertiserActor(BaseActor):
     """Actor to advertise a listening server socket via mDNS"""
@@ -42,6 +40,7 @@ class MdnsAdvertiserActor(BaseActor):
         self.instr_name = None
         self.device_id = None
         self.occupied = False
+        self.setup = True
 
     def receiveMsg_SetupMdnsAdvertiserActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -49,7 +48,6 @@ class MdnsAdvertiserActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.device_actor = msg.device_actor
         self._subscribe_to_device_status_msg(self.device_actor)
-        self.wakeupAfter(timedelta(minutes=UPDATE_INTERVAL), payload="update")
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -64,19 +62,10 @@ class MdnsAdvertiserActor(BaseActor):
             self.occupied = False
         else:
             self.occupied = msg.device_status["Reservation"].get("Active", False)
-        self._start_or_update()
-
-    def _start_or_update(self):
-        if self.service is None:
+            if self.occupied:
+                self.__update_service()
+        if self.setup:
             self.__start_advertising()
-        else:
-            self.__update_service()
-
-    def receiveMsg_WakeupMessage(self, _msg, _sender):
-        # pylint: disable=invalid-name
-        """Handle WakeupMessage for regular updates"""
-        self._start_or_update()
-        self.wakeupAfter(timedelta(minutes=UPDATE_INTERVAL), payload="update")
 
     def receiveMsg_KillMsg(self, msg, sender):
         if self.service is not None:

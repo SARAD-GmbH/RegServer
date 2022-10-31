@@ -8,6 +8,8 @@
     | Michael Strey <strey@sarad.de>
 
 """
+from datetime import timedelta
+
 import requests
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import KillMsg, Status
@@ -24,6 +26,7 @@ from urllib3.util.retry import Retry
 CMD_CYCLE_TIMEOUT = 1
 DEFAULT_TIMEOUT = 3  # seconds
 RETRY = 1  # number of retries for HTTP requests
+UPDATE_INTERVAL = 3  # in seconds
 
 
 class TimeoutHTTPAdapter(HTTPAdapter):
@@ -67,8 +70,9 @@ class DeviceActor(DeviceBaseActor):
         adapter = TimeoutHTTPAdapter(max_retries=retry_strategy)
         self.http.mount("https://", adapter)
         self.http.mount("http://", adapter)
+        self.occupied = False  # Is device occupied by somebody else?
 
-    def receiveMsg_SetupMdnsActorMsg(self, msg, sender):
+    def receiveMsg_SetupMdnsActorMsg(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for SetupMdnsActorMsg containing setup information
         that is special to the mDNS device actor"""
@@ -89,6 +93,37 @@ class DeviceActor(DeviceBaseActor):
             if device_desc is None:
                 logger.error("%s not available", self.device_id)
                 self.send(self.myAddress, KillMsg())
+        self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
+
+    def receiveMsg_WakeupMessage(self, _msg, _sender):
+        # pylint: disable=invalid-name
+        """Handle WakeupMessage for regular updates"""
+        if self.occupied:
+            try:
+                logger.debug(
+                    "Check whether %s still occupies %s.",
+                    self.device_status["Reservation"]["Host"],
+                    self.device_id,
+                )
+            except KeyError:
+                logger.error("%s occupied, but we don't know by whom", self.device_id)
+            try:
+                resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
+                device_resp = resp.json()
+                device_desc = device_resp[self.device_id]
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.error("REST API of IS is not responding. %s", exception)
+            else:
+                if device_desc is not None:
+                    reservation = device_desc.get("Reservation")
+                    if reservation is None:
+                        active = False
+                    else:
+                        active = reservation.get("Active", False)
+                    self.device_status["Reservation"]["Active"] = active
+                    if not active:
+                        self.occupied = False
+        self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
 
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
@@ -129,6 +164,7 @@ class DeviceActor(DeviceBaseActor):
     @overrides
     def _reserve_at_is(self):
         """Reserve the requested instrument at the instrument server."""
+        self.occupied = False
         try:
             resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
             device_resp = resp.json()
@@ -182,6 +218,7 @@ class DeviceActor(DeviceBaseActor):
                 logger.debug("Occupied by somebody else.")
                 logger.debug("Using host: %s, my host: %s", using_host, my_host)
                 success = Status.OCCUPIED
+                self.occupied = True
         self._forward_reservation(success)
 
     @overrides
@@ -201,6 +238,7 @@ class DeviceActor(DeviceBaseActor):
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         """Handler for SetDeviceStatusMsg initialising the device status information."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.occupied = False
         self.device_status = msg.device_status
         logger.debug("Device status: %s", self.device_status)
         try:
@@ -238,6 +276,7 @@ class DeviceActor(DeviceBaseActor):
                         logger.debug("Occupied by somebody else.")
                         logger.debug("Using host: %s, my host: %s", using_host, my_host)
                         success = Status.OCCUPIED
+                        self.occupied = True
                         reservation.pop("IP", None)
                         reservation.pop("Port", None)
                     self.device_status["Reservation"] = reservation
