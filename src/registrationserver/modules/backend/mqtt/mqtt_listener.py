@@ -111,7 +111,7 @@ class MqttListener(MqttBaseActor):
             instr_id,
             device_id,
         )
-        device_actor = self._create_actor(MqttActor, device_id)
+        device_actor = self._create_actor(MqttActor, device_id, None)
         self.child_actors[device_id]["host"] = is_id
         self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
         client_id = f"{device_id}.client"

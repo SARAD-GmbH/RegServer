@@ -57,7 +57,9 @@ class Registrar(BaseActor):
         super().receiveMsg_SetupMsg(msg, sender)
         self.handleDeadLetters(startHandling=True)
         if Frontend.MQTT in frontend_config:
-            mqtt_scheduler = self._create_actor(MqttSchedulerActor, "mqtt_scheduler")
+            mqtt_scheduler = self._create_actor(
+                MqttSchedulerActor, "mqtt_scheduler", None
+            )
             self.send(
                 mqtt_scheduler,
                 PrepareMqttActorMsg(
@@ -67,11 +69,13 @@ class Registrar(BaseActor):
                 ),
             )
         if Frontend.MDNS in frontend_config:
-            _mdns_scheduler = self._create_actor(MdnsSchedulerActor, "mdns_scheduler")
+            _mdns_scheduler = self._create_actor(
+                MdnsSchedulerActor, "mdns_scheduler", None
+            )
         if Backend.USB in backend_config:
-            self._create_actor(ClusterActor, "cluster")
+            self._create_actor(ClusterActor, "cluster", None)
         if Backend.MQTT in backend_config:
-            mqtt_listener = self._create_actor(MqttListener, "mqtt_listener")
+            mqtt_listener = self._create_actor(MqttListener, "mqtt_listener", None)
             self.send(
                 mqtt_listener,
                 PrepareMqttActorMsg(
@@ -81,7 +85,7 @@ class Registrar(BaseActor):
                 ),
             )
         if Backend.IS1 in backend_config:
-            _is1_listener = self._create_actor(Is1Listener, "is1_listener")
+            _is1_listener = self._create_actor(Is1Listener, "is1_listener", None)
         self.wakeupAfter(timedelta(minutes=1), payload="keep alive")
 
     def receiveMsg_WakeupMessage(self, msg, sender):
@@ -234,14 +238,9 @@ class Registrar(BaseActor):
         """Handler for CreateActorMsg. Create a new actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         logger.info("Pending actors: %s", self.pending)
-        if msg.actor_id in self.actor_dict:
-            actor_address = self.actor_dict[msg.actor_id]["address"]
-        elif msg.actor_id in self.pending:
-            actor_address = None
-        else:
-            actor_address = self._create_actor(msg.actor_type, msg.actor_id)
+        if (msg.actor_id not in self.actor_dict) and (msg.actor_id not in self.pending):
+            _actor_address = self._create_actor(msg.actor_type, msg.actor_id, sender)
             self.pending.append(msg.actor_id)
-        self.send(sender, ActorCreatedMsg(actor_address))
 
     def receiveMsg_GetDeviceActorMsg(self, msg, sender):
         # pylint: disable=invalid-name

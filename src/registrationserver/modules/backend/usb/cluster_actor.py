@@ -236,7 +236,7 @@ class ClusterActor(BaseActor):
             sarad_type = "unknown"
         actor_id = f"{device_id}.{sarad_type}.local"
         logger.debug("Create actor %s", actor_id)
-        device_actor = self._create_actor(UsbActor, actor_id)
+        device_actor = self._create_actor(UsbActor, actor_id, None)
         device_status = {
             "Identification": {
                 "Name": instrument.type_name,

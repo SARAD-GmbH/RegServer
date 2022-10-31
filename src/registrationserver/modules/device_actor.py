@@ -145,7 +145,7 @@ class DeviceBaseActor(BaseActor):
     def _create_redirector(self) -> bool:
         """Create redirector actor if it does not exist already"""
         if not self.child_actors:
-            self._create_actor(RedirectorActor, short_id(self.my_id))
+            self._create_actor(RedirectorActor, short_id(self.my_id), None)
             return True
         return False
 

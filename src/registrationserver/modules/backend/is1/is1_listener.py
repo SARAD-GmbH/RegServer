@@ -336,7 +336,7 @@ class Is1Listener(BaseActor):
         set_of_instruments.add(actor_id)
         if actor_id not in self.child_actors:
             logger.debug("Create actor %s", actor_id)
-            device_actor = self._create_actor(Is1Actor, actor_id)
+            device_actor = self._create_actor(Is1Actor, actor_id, None)
             self.send(
                 device_actor,
                 SetupIs1ActorMsg(

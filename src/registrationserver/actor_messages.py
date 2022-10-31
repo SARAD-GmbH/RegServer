@@ -117,11 +117,14 @@ class SetupMsg:
                         Can be used to identify the device if the actor is a device actor.
         parent_id (str): Actor Id if the parent is an actor, actor_system else.
         registrar (ActorAddress): Actor address of the registrar
+        asys_address (ActorAddress): Address of the ActorSystem endpoint
+                                     that initiated the creation of this Actor
     """
 
     actor_id: str
     parent_id: str
     registrar: ActorAddress
+    asys_address: ActorAddress
 
 
 @dataclass

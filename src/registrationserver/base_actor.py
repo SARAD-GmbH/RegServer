@@ -166,7 +166,12 @@ class BaseActor(ActorTypeDispatcher):
     def receiveUnrecognizedMessage(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for messages that do not fit the spec."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.critical(
+            "Unrecognized %s for %s from %s -> Emergency shutdown",
+            msg,
+            self.my_id,
+            sender,
+        )
         system_shutdown()
 
     def _subscribe_to_actor_dict_msg(self):
@@ -189,9 +194,12 @@ class BaseActor(ActorTypeDispatcher):
             device_actor_address, UnSubscribeFromDeviceStatusMsg(actor_id=self.my_id)
         )
 
-    def _create_actor(self, actor_type, actor_id):
+    def _create_actor(self, actor_type, actor_id, asys_address):
         logger.debug("Create %s with parent %s", actor_id, self.my_id)
         new_actor_address = self.createActor(actor_type)
-        self.send(new_actor_address, SetupMsg(actor_id, self.my_id, self.registrar))
+        self.send(
+            new_actor_address,
+            SetupMsg(actor_id, self.my_id, self.registrar, asys_address),
+        )
         self.child_actors[actor_id] = {"actor_address": new_actor_address}
         return new_actor_address

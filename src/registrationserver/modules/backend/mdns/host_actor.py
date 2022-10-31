@@ -11,7 +11,8 @@ from datetime import timedelta
 
 import requests
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (KillMsg, SetDeviceStatusMsg,
+from registrationserver.actor_messages import (ActorCreatedMsg, KillMsg,
+                                               SetDeviceStatusMsg,
                                                SetupMdnsActorMsg, Status)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
@@ -49,9 +50,10 @@ class HostActor(BaseActor):
     def __init__(self):
         super().__init__()
         self.on_kill = True
-        self._is_host = None
-        self._api_port = None
         self.base_url = ""
+        self.get_updates = True
+        self._virgin = True
+        self._asys = None
         self.http = requests.Session()
         assert_status_hook = (
             lambda response, *args, **kwargs: response.raise_for_status()
@@ -70,7 +72,16 @@ class HostActor(BaseActor):
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
+        self._asys = msg.asys_address
         self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
+
+    @overrides
+    def receiveMsg_UpdateActorDictMsg(self, msg, sender):
+        super().receiveMsg_UpdateActorDictMsg(msg, sender)
+        if self.my_id in msg.actor_dict:
+            if self._virgin:
+                self.send(self._asys, ActorCreatedMsg(self.myAddress))
+                self._virgin = False
 
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -78,15 +89,16 @@ class HostActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         device_id = list(msg.device_status)[0]
         data = msg.device_status[device_id]
-        self._is_host = data["Remote"]["Address"]
-        self._api_port = data["Remote"]["API port"]
+        is_host = data["Remote"]["Address"]
+        api_port = data["Remote"]["API port"]
+        self.base_url = f"http://{is_host}:{api_port}"
         remote_device_id = data["Remote"]["Device Id"]
         if self.my_id != config["MY_HOSTNAME"]:
             if device_id not in self.child_actors:
-                device_actor = self._create_actor(DeviceActor, device_id)
+                device_actor = self._create_actor(DeviceActor, device_id, None)
                 self.send(
                     device_actor,
-                    SetupMdnsActorMsg(self._is_host, self._api_port, remote_device_id),
+                    SetupMdnsActorMsg(is_host, api_port, remote_device_id),
                 )
             else:
                 device_actor = self.child_actors[device_id]["actor_address"]
@@ -98,7 +110,6 @@ class HostActor(BaseActor):
         self._ping()
 
     def _ping(self):
-        self.base_url = f"http://{self._is_host}:{self._api_port}"
         try:
             # TODO: Replace with /ping/
             _resp = self.http.get(f"{self.base_url}/list/")
