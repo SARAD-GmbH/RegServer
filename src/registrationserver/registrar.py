@@ -19,10 +19,10 @@ from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
 
-from registrationserver.actor_messages import (ActorCreatedMsg, Backend,
-                                               Frontend, KeepAliveMsg, KillMsg,
-                                               PrepareMqttActorMsg,
+from registrationserver.actor_messages import (Backend, Frontend, KeepAliveMsg,
+                                               KillMsg, PrepareMqttActorMsg,
                                                ReturnDeviceActorMsg,
+                                               SetDeviceStatusMsg,
                                                SubscribeToDeviceStatusMsg,
                                                UnSubscribeFromDeviceStatusMsg,
                                                UpdateActorDictMsg,
@@ -125,6 +125,8 @@ class Registrar(BaseActor):
                 KillMsg,
                 SubscribeToDeviceStatusMsg,
                 UnSubscribeFromDeviceStatusMsg,
+                UpdateActorDictMsg,
+                SetDeviceStatusMsg,
             ),
         ):
             logger.info("The above error can safely be ignored.")
