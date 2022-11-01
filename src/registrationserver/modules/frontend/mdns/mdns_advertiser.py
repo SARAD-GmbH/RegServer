@@ -40,7 +40,7 @@ class MdnsAdvertiserActor(BaseActor):
         self.instr_name = None
         self.device_id = None
         self.occupied = False
-        self.setup = True
+        self.virgin = True
 
     def receiveMsg_SetupMdnsAdvertiserActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -62,9 +62,9 @@ class MdnsAdvertiserActor(BaseActor):
             self.occupied = False
         else:
             self.occupied = msg.device_status["Reservation"].get("Active", False)
-            if self.occupied:
+            if self.occupied and (not self.virgin):
                 self.__update_service()
-        if self.setup:
+        if self.virgin:
             self.__start_advertising()
 
     def receiveMsg_KillMsg(self, msg, sender):
@@ -99,6 +99,7 @@ class MdnsAdvertiserActor(BaseActor):
             addresses=[socket.inet_aton(self.address)],
         )
         self.zeroconf.register_service(self.service)
+        self.virgin = False
 
     def __update_service(self):
         logger.info("Update %s: occupied = %s", self.service.name, self.occupied)
