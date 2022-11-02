@@ -76,6 +76,10 @@ class MdnsListener(ServiceListener):
                 logger.error("_model in Zeroconf message is None")
                 return None
         _model = _model.decode("utf-8")
+        if properties.get(b"OCCUPIED").decode("utf-8") == "True":
+            occupied = True
+        else:
+            occupied = False
         _serial_short = properties.get(b"SERIAL_SHORT")
         if _serial_short is None:
             logger.error("_serial_short is None")
@@ -112,6 +116,10 @@ class MdnsListener(ServiceListener):
                     "Name": name,
                     "API port": info.port,
                     "Device Id": properties.get(b"DEVICE_ID").decode("utf-8"),
+                },
+                "Reservation": {
+                    "Active": occupied,
+                    "Host": "unknown",
                 },
             }
         }
