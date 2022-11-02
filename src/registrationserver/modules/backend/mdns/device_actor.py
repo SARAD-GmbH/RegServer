@@ -121,6 +121,8 @@ class DeviceActor(DeviceBaseActor):
                     else:
                         active = reservation.get("Active", False)
                     self.device_status["Reservation"]["Active"] = active
+                    logger.debug("%s reservation active: %s", self.device_id, active)
+                    self._publish_status_change()
                     if not active:
                         self.occupied = False
         self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
