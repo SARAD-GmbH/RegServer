@@ -10,7 +10,7 @@ Covers as well USB ports as native RS-232 ports.
 
 """
 
-from typing import List
+from typing import List, Set
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg, RescanFinishedMsg,
@@ -124,7 +124,7 @@ class ClusterActor(BaseActor):
         else:
             logger.info("Stopped Polling")
 
-    def _verified_native_ports(self) -> List[str]:
+    def _verified_native_ports(self) -> Set[str]:
         """Verify, which of the ports in self._looplist are really known at
         this computer and are not already occupied by SARAD instruments.
 
