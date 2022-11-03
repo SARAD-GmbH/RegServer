@@ -75,7 +75,7 @@ class UsbActor(DeviceBaseActor):
             is_reserved = False
         if (not self.on_kill) and (not is_reserved):
             logger.info("Check if %s is still connected", self.my_id)
-            if not self.instrument.get_description():
+            if not self.instrument._get_description():
                 logger.info("Killing myself")
                 self.send(self.myAddress, KillMsg())
         self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
