@@ -17,9 +17,9 @@ from registrationserver.actor_messages import KillMsg, RxBinaryMsg, Status
 from registrationserver.config import usb_backend_config
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
-from sarad.dacm import DacmInst
-from sarad.doseman import DosemanInst
-from sarad.radonscout import RscInst
+from sarad.dacm import DacmInst  # type: ignore
+from sarad.doseman import DosemanInst  # type: ignore
+from sarad.radonscout import RscInst  # type: ignore
 from sarad.sari import SaradInst  # type: ignore
 from serial import SerialException  # type: ignore
 

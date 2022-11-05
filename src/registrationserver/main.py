@@ -188,6 +188,7 @@ def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
     """
     registrar_is_down = False
     while number_of_trials:
+        logger.debug("Run outer watchdog")
         registrar_is_down = False
         with ActorSystem().private() as registrar_status:
             try:
@@ -254,7 +255,6 @@ def main():
     while is_flag_set():
         before = datetime.now()
         if (before - last_trial).total_seconds() > interval:
-            logger.debug("Run outer watchdog")
             registrar_is_down = not outer_watchdog(
                 startup_tupel[0], number_of_trials=actor_config["OUTER_WATCHDOG_TRIALS"]
             )
