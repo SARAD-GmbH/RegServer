@@ -86,7 +86,8 @@ class Registrar(BaseActor):
             )
         if Backend.IS1 in backend_config:
             _is1_listener = self._create_actor(Is1Listener, "is1_listener", None)
-        self.wakeupAfter(timedelta(minutes=1), payload="keep alive")
+        if actor_config["KEEPALIVE_INTERVAL"]:
+            self.wakeupAfter(timedelta(minutes=1), payload="keep alive")
 
     def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name
