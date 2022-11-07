@@ -458,7 +458,7 @@ class RestApi:
                 std = sys.stdout
                 sys.stdout = RestApi.Dummy
                 # self.api.run(host=host, port=port)
-                serve(self.api, listen=f"*:{port}")
+                serve(self.api, listen=f"*:{port}", threads=12)
                 sys.stdout = std
                 success = True
             except OSError as exception:
