@@ -7,7 +7,6 @@ it indirectly to the device). It unifies how devices are accessed, and makes it
 independent of the protocol used by the Instrument Server 2.
 
 ```plantuml
-@startuml
 actor "Trucy" as user
 control "Sarad App" as app
 box "Registration Server 2" #pink
@@ -54,7 +53,6 @@ end
 group timeout reached
 	deviceactor->device:sends free
 end
-@enduml
 ```
 
 ## Installation and usage ##
