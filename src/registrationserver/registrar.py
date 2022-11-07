@@ -86,7 +86,8 @@ class Registrar(BaseActor):
             )
         if Backend.IS1 in backend_config:
             _is1_listener = self._create_actor(Is1Listener, "is1_listener", None)
-        self.wakeupAfter(timedelta(minutes=1), payload="keep alive")
+        if actor_config["KEEPALIVE_INTERVAL"]:
+            self.wakeupAfter(timedelta(minutes=1), payload="keep alive")
 
     def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name
@@ -117,7 +118,7 @@ class Registrar(BaseActor):
     def receiveMsg_DeadEnvelope(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for all DeadEnvelope messages in the actor system."""
-        logger.error("%s for %s from %s", msg, self.my_id, sender)
+        logger.warning("%s for %s from %s", msg, self.my_id, sender)
         if isinstance(
             msg.deadMessage,
             (
@@ -129,7 +130,14 @@ class Registrar(BaseActor):
                 SetDeviceStatusMsg,
             ),
         ):
-            logger.info("The above error can safely be ignored.")
+            actor_dict = self.actor_dict.copy()
+            for actor in actor_dict:
+                if actor["address"] == msg.deadAddress:
+                    self.actor_dict.pop(actor, None)
+                    logger.warning(
+                        "Remove not existing actor %s from self.actor_dict", actor
+                    )
+            logger.info("The above warning can safely be ignored.")
         else:
             logger.critical("-> Emergency shutdown")
             system_shutdown()
@@ -208,9 +216,10 @@ class Registrar(BaseActor):
         """Handler for UnsubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         actor_id = msg.actor_id
-        self.actor_dict.pop(actor_id, None)
         self.device_statuses.pop(actor_id, None)
-        self._send_updates(self.actor_dict)
+        removed_actor = self.actor_dict.pop(actor_id, None)
+        if removed_actor is not None:
+            self._send_updates(self.actor_dict)
 
     def _send_updates(self, actor_dict):
         """Send the updated Actor Dictionary to all subscribers."""

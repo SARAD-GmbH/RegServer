@@ -25,7 +25,7 @@ from urllib3.util.retry import Retry
 
 CMD_CYCLE_TIMEOUT = 1
 DEFAULT_TIMEOUT = 3  # seconds
-RETRY = 1  # number of retries for HTTP requests
+RETRY = 0  # number of retries for HTTP requests
 UPDATE_INTERVAL = 3  # in seconds
 
 

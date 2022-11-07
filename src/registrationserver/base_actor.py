@@ -116,6 +116,7 @@ class BaseActor(ActorTypeDispatcher):
         if self.child_actors:
             self._forward_to_children(msg)
         else:
+            self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
             self.send(self.myAddress, ActorExitRequest())
             if self.is_device_actor:
                 logger.info(
@@ -148,6 +149,7 @@ class BaseActor(ActorTypeDispatcher):
         """Handler for ChildActorExited"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         actor_id = self._get_actor_id(msg.childAddress, self.child_actors)
+        self.send(self.registrar, UnsubscribeMsg(actor_id))
         self.child_actors.pop(actor_id, None)
         logger.debug(
             "List of child actors after removal of %s: %s", actor_id, self.child_actors
@@ -161,7 +163,6 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name
         """Handler for ActorExitRequest"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
 
     def receiveUnrecognizedMessage(self, msg, sender):
         # pylint: disable=invalid-name
