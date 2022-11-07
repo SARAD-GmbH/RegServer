@@ -6,6 +6,7 @@ It's task is to connect the SARAD® App with the Instrument Server 2 ( and over
 it indirectly to the device). It unifies how devices are accessed, and makes it
 independent of the protocol used by the Instrument Server 2.
 
+```language-plantuml
 	@startuml
 	actor "Trucy" as user
 	control "Sarad App" as app
@@ -54,6 +55,7 @@ independent of the protocol used by the Instrument Server 2.
 		deviceactor->device:sends free
 	end
 	@enduml
+```
 
 ## Installation and usage ##
 
@@ -79,12 +81,12 @@ during the development (for instance test), use
 
     pipenv install --dev --ignore-pipfile
 
-### Ussage ###
+### Usage ###
 
 Make sure that port 8008 is not used by any other application.
 
     cd src
-    python -m registrationserver.main
+    python sarad_registration_server.py
 
 to start the program.
 
@@ -96,6 +98,14 @@ With your webbrower pointing to http://localhost:8008/list/, you should see a
 JSON list of attached SARAD instruments with identification information like
 Family, Type, Serial number.
 
+### Documentation ###
+Refer to http://http://intranet.hq.sarad.de/spc-sarad_network.pdf (SARAD
+internal) for the specification.
+
+The SPHINX documentation of the implementation details is in the subdirectory
+`doc`. Run `make` this directory to compile a document.
+http://intranet.hq.sarad.de/regserver/html/index.html (SARAD internal) contains
+a compiled HTML version of the documentation.
 
 ## TODO:
 - [ ] automatic unit test cases
