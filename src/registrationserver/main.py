@@ -252,6 +252,7 @@ def main():
     wait_some_time = False
     interval = actor_config["OUTER_WATCHDOG_INTERVAl"]
     last_trial = datetime.now()
+    registrar_is_down = False
     while is_flag_set():
         before = datetime.now()
         if (before - last_trial).total_seconds() > interval:
