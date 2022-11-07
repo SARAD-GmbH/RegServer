@@ -22,7 +22,7 @@ api_port = 8008
 port_range = [50000, 50500]
 
 [usb_backend]
-native_serial_ports = []
+native_serial_ports = ["/dev/ttyS0"]
 ignored_serial_ports = []
 local_retry_interval = 30  # in seconds
 
@@ -49,10 +49,10 @@ system_base = "multiprocTCPBase"
 admin_port = 1900
 
 process_startup_method = "fork"
-watchdog_interval = 120  # in minutes
+watchdog_interval = 0  # in minutes. 0 = inner watchdog switched off
 watchdog_wait = 20  # in seconds, has to be encreased for multiple native RS-232 ports
-outer_watchdog_interval = 5  # in seconds
-outer_watchdog_trials = 3  # number of attempts to check Registrar
+outer_watchdog_interval = 60  # in seconds
+outer_watchdog_trials = 0  # number of attempts to check Registrar
 
 [mqtt]
 group = "sarad-0001"

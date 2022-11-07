@@ -46,10 +46,10 @@ system_base = "multiprocTCPBase"
 admin_port = 1900
 
 process_startup_method = "spawn"
-watchdog_interval = 10  # in minutes
+watchdog_interval = 0  # in minutes. 0 = inner watchdog switched off
 watchdog_wait = 20  # in seconds, has to be encreased for multiple native RS-232 ports
-outer_watchdog_interval = 30  # in seconds
-outer_watchdog_trials = 3  # number of attempts to check Registrar
+outer_watchdog_interval = 60  # in seconds
+outer_watchdog_trials = 0  # number of attempts to check Registrar
 
 [mqtt]
 group = "Registration Server"
