@@ -140,7 +140,7 @@ class BaseActor(ActorTypeDispatcher):
     def receiveMsg_PoisonMessage(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for PoisonMessage"""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.critical("%s for %s from %s", msg, self.my_id, sender)
         logger.critical("-> Emergency shutdown.")
         system_shutdown()
 

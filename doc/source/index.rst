@@ -16,6 +16,7 @@ Contents
    backend_mqtt
    backend_usb
    frontend_mqtt
+   frontend_modbus
    folder_structure
    actor_registrar
    error_handling

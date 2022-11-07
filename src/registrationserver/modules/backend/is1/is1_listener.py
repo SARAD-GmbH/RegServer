@@ -378,9 +378,13 @@ class Is1Listener(BaseActor):
         """Handler for message informing about the IS1 address
         belonging to a device actor that is about to be removed."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.is1_addresses.append(
-            self.active_is1_addresses.pop(
-                self.active_is1_addresses.index(msg.is1_address)
+        try:
+            self.is1_addresses.append(
+                self.active_is1_addresses.pop(
+                    self.active_is1_addresses.index(msg.is1_address)
+                )
             )
-        )
-        self.is1_addresses = self._deduplicate(self.is1_addresses)
+            self.is1_addresses = self._deduplicate(self.is1_addresses)
+        except ValueError:
+            logger.error("%s not in self.active_is1_addresses.", msg.is1_address)
+            logger.info("Hopefully this error can be ignored.")

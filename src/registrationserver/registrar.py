@@ -132,7 +132,7 @@ class Registrar(BaseActor):
         ):
             actor_dict = self.actor_dict.copy()
             for actor in actor_dict:
-                if actor["address"] == msg.deadAddress:
+                if actor_dict[actor]["address"] == msg.deadAddress:
                     self.actor_dict.pop(actor, None)
                     logger.warning(
                         "Remove not existing actor %s from self.actor_dict", actor
@@ -153,12 +153,16 @@ class Registrar(BaseActor):
             self._send_updates(self.actor_dict)
             return
         if msg.actor_id in self.actor_dict:
-            logger.critical("The actor %s already exists in the system.", msg.actor_id)
+            logger.error("The actor %s already exists in the system.", msg.actor_id)
             self.send(sender, KillMsg())
             if msg.is_device_actor:
                 hid = Hashids()
                 serial_number = hid.decode(short_id(msg.actor_id))[2]
-                if serial_number != 65535:
+                if serial_number == 65535:
+                    logger.info(
+                        "Someone has attached a virgin SARAD instrument. Ignore it!"
+                    )
+                else:
                     logger.critical(
                         "SN %d != 65535 -> Emergency shutdown", serial_number
                     )
