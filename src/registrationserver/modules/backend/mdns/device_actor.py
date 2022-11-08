@@ -267,7 +267,12 @@ class DeviceActor(DeviceBaseActor):
                 "Identification"
             ].get("Origin")
             reservation = device_desc.get("Reservation")
-            if reservation is not None:
+            if reservation is None:
+                logger.debug(
+                    "API reply from % has no Reservation section", self.device_id
+                )
+                self.device_status.pop("Reservation", None)
+            else:
                 if reservation.get("Active", False):
                     using_host = sanitize_hn(reservation.get("Host", ""))
                     my_host = sanitize_hn(config["MY_HOSTNAME"])
