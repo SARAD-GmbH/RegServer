@@ -17,8 +17,8 @@ import time
 from datetime import datetime, timedelta
 
 from flask import Flask, Response, json, request
-from thespian.actors import (Actor, ActorSystem,  # type: ignore
-                             Thespian_ActorStatus)
+from thespian.actors import ActorSystem  # type: ignore
+from thespian.actors import Actor, ActorSystemFailure, Thespian_ActorStatus
 from thespian.system.messages.status import (  # type: ignore
     Thespian_StatusReq, formatStatus)
 from waitress import serve
@@ -150,9 +150,22 @@ class RestApi:
     @api.route("/list/", methods=["GET"])
     def get_list():
         """Path for getting the list of active devices"""
-        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        try:
+            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        except ActorSystemFailure:
+            status = Status.CRITICAL
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+        else:
+            answer = get_device_statuses(registrar_actor)
         return Response(
-            response=json.dumps(get_device_statuses(registrar_actor)),
+            response=json.dumps(answer),
             status=200,
             mimetype="application/json",
         )
@@ -162,22 +175,34 @@ class RestApi:
     @api.route("/scan/", methods=["GET"])
     def scan_for_new_instr():
         """Refresh the list of active devices"""
-        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        cluster_actor = get_actor(registrar_actor, "cluster")
-        with ActorSystem().private() as scan_sys:
-            try:
-                reply = scan_sys.ask(
-                    cluster_actor, RescanMsg(), timeout=timedelta(seconds=60)
-                )
-            except ConnectionResetError:
-                reply = None
-        reply_is_corrupted = check_msg(reply, RescanFinishedMsg)
-        if reply_is_corrupted:
-            return reply_is_corrupted
-        answer = {
-            "Error code": reply.status.value,
-            "Error": str(reply.status),
-        }
+        try:
+            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        except ActorSystemFailure:
+            status = Status.CRITICAL
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+        else:
+            cluster_actor = get_actor(registrar_actor, "cluster")
+            with ActorSystem().private() as scan_sys:
+                try:
+                    reply = scan_sys.ask(
+                        cluster_actor, RescanMsg(), timeout=timedelta(seconds=60)
+                    )
+                except ConnectionResetError:
+                    reply = None
+            reply_is_corrupted = check_msg(reply, RescanFinishedMsg)
+            if reply_is_corrupted:
+                return reply_is_corrupted
+            answer = {
+                "Error code": reply.status.value,
+                "Error": str(reply.status),
+            }
         return Response(
             response=json.dumps(answer),
             status=200,
@@ -189,11 +214,24 @@ class RestApi:
     @api.route("/list/<device_id>/", methods=["GET"])
     def get_device(device_id):
         """Path for getting information for a single active device"""
-        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        if not MATCHID.fullmatch(device_id):
-            return json.dumps({"Error": "Wronly formated ID"})
-        answer = {}
-        answer[device_id] = get_device_status(registrar_actor, device_id)
+        try:
+            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        except ActorSystemFailure:
+            status = Status.CRITICAL
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            answer[device_id] = None
+        else:
+            if not MATCHID.fullmatch(device_id):
+                return json.dumps({"Error": "Wronly formated ID"})
+            answer = {}
+            answer[device_id] = get_device_status(registrar_actor, device_id)
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -203,77 +241,98 @@ class RestApi:
     def reserve_device(device_id):
         """Path for reserving a single active device"""
         # Collect information about who sent the request.
-        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
         try:
-            attribute_who = request.args.get("who").strip('"')
-            app = attribute_who.split(" - ")[0]
-            user = attribute_who.split(" - ")[1]
-            request_host = sanitize_hn(attribute_who.split(" - ")[2])
-        except (IndexError, AttributeError):
-            logger.warning("Reserve request without proper who attribute.")
-            status = Status.ATTRIBUTE_ERROR
+            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        except ActorSystemFailure:
+            status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
                 "Error": str(status),
                 device_id: {},
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
             }
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
-        logger.info(
-            "Request reservation of %s for %s@%s",
-            device_id,
-            attribute_who,
-            request_host,
-        )
-        if not MATCHID.fullmatch(device_id):
-            return json.dumps({"Error": "Wronly formated ID"})
-        device_state = get_device_status(registrar_actor, device_id)
-        if (
-            transport_technology(device_id) not in ["local", "is1", "mdns", "mqtt"]
-        ) or (device_state == {}):
-            logger.error("Requested service not supported by actor system.")
-            status = Status.NOT_FOUND
-            answer = {"Error code": status.value, "Error": str(status), device_id: {}}
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
-        # send RESERVE message to device actor
-        device_actor = get_actor(registrar_actor, device_id)
-        if device_actor is not None:
-            with ActorSystem().private() as reserve_sys:
-                try:
-                    reserve_return = reserve_sys.ask(
-                        device_actor,
-                        ReserveDeviceMsg(request_host, user, app),
-                        timeout=timedelta(seconds=10),
-                    )
-                except ConnectionResetError:
-                    reserve_return = None
-            if reserve_return is None:
-                status = Status.NOT_FOUND
-            else:
-                reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
-                if reply_is_corrupted:
-                    return reply_is_corrupted
-                status = reserve_return.status
-        else:
-            status = Status.NOT_FOUND
-        if status in (
-            Status.OK,
-            Status.OK_SKIPPED,
-            Status.OK_UPDATED,
-            Status.OCCUPIED,
-            Status.NOT_FOUND,
-            Status.IS_NOT_FOUND,
-        ):
-            answer = {"Error code": status.value, "Error": str(status)}
-            answer[device_id] = get_device_status(registrar_actor, device_id)
-        else:
-            status = Status.CRITICAL
-            answer = {"Error code": status.value, "Error": str(status), device_id: {}}
-            logger.critical("%s -> emergency shutdown", answer)
+            logger.critical("No response from Actor System. -> Emergency shutdown")
             system_shutdown()
+        else:
+            try:
+                attribute_who = request.args.get("who").strip('"')
+                app = attribute_who.split(" - ")[0]
+                user = attribute_who.split(" - ")[1]
+                request_host = sanitize_hn(attribute_who.split(" - ")[2])
+            except (IndexError, AttributeError):
+                logger.warning("Reserve request without proper who attribute.")
+                status = Status.ATTRIBUTE_ERROR
+                answer = {
+                    "Error code": status.value,
+                    "Error": str(status),
+                    device_id: {},
+                }
+                return Response(
+                    response=json.dumps(answer), status=200, mimetype="application/json"
+                )
+            logger.info(
+                "Request reservation of %s for %s@%s",
+                device_id,
+                attribute_who,
+                request_host,
+            )
+            if not MATCHID.fullmatch(device_id):
+                return json.dumps({"Error": "Wronly formated ID"})
+            device_state = get_device_status(registrar_actor, device_id)
+            if (
+                transport_technology(device_id) not in ["local", "is1", "mdns", "mqtt"]
+            ) or (device_state == {}):
+                logger.error("Requested service not supported by actor system.")
+                status = Status.NOT_FOUND
+                answer = {
+                    "Error code": status.value,
+                    "Error": str(status),
+                    device_id: {},
+                }
+                return Response(
+                    response=json.dumps(answer), status=200, mimetype="application/json"
+                )
+            # send RESERVE message to device actor
+            device_actor = get_actor(registrar_actor, device_id)
+            if device_actor is not None:
+                with ActorSystem().private() as reserve_sys:
+                    try:
+                        reserve_return = reserve_sys.ask(
+                            device_actor,
+                            ReserveDeviceMsg(request_host, user, app),
+                            timeout=timedelta(seconds=10),
+                        )
+                    except ConnectionResetError:
+                        reserve_return = None
+                if reserve_return is None:
+                    status = Status.NOT_FOUND
+                else:
+                    reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
+                    if reply_is_corrupted:
+                        return reply_is_corrupted
+                    status = reserve_return.status
+            else:
+                status = Status.NOT_FOUND
+            if status in (
+                Status.OK,
+                Status.OK_SKIPPED,
+                Status.OK_UPDATED,
+                Status.OCCUPIED,
+                Status.NOT_FOUND,
+                Status.IS_NOT_FOUND,
+            ):
+                answer = {"Error code": status.value, "Error": str(status)}
+                answer[device_id] = get_device_status(registrar_actor, device_id)
+            else:
+                status = Status.CRITICAL
+                answer = {
+                    "Error code": status.value,
+                    "Error": str(status),
+                    device_id: {},
+                }
+                logger.critical("%s -> emergency shutdown", answer)
+                system_shutdown()
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -282,33 +341,49 @@ class RestApi:
     @api.route("/list/<device_id>/free", methods=["GET"])
     def free_device(device_id):
         """Path for freeing a single active device"""
-        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        device_state = get_device_status(registrar_actor, device_id)
-        if device_state == {}:
-            status = Status.NOT_FOUND
+        try:
+            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        except ActorSystemFailure:
+            status = Status.CRITICAL
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
         else:
-            device_actor = get_actor(registrar_actor, device_id)
-            if device_actor is not None:
-                logger.info("Ask %s to FREE...", device_id)
-                with ActorSystem().private() as free_dev:
-                    try:
-                        free_return = free_dev.ask(
-                            device_actor, FreeDeviceMsg(), timeout=timedelta(seconds=10)
-                        )
-                    except ConnectionResetError:
-                        free_return = None
-                if free_return is None:
-                    status = Status.NOT_FOUND
-                else:
-                    reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
-                    if reply_is_corrupted:
-                        return reply_is_corrupted
-                    status = free_return.status
-            else:
+            device_state = get_device_status(registrar_actor, device_id)
+            if device_state == {}:
                 status = Status.NOT_FOUND
-        answer = {"Error code": status.value, "Error": str(status), device_id: {}}
-        if status in (Status.OK, Status.OCCUPIED, Status.OK_SKIPPED):
-            answer[device_id] = get_device_status(registrar_actor, device_id)
+            else:
+                device_actor = get_actor(registrar_actor, device_id)
+                if device_actor is not None:
+                    logger.info("Ask %s to FREE...", device_id)
+                    with ActorSystem().private() as free_dev:
+                        try:
+                            free_return = free_dev.ask(
+                                device_actor,
+                                FreeDeviceMsg(),
+                                timeout=timedelta(seconds=10),
+                            )
+                        except ConnectionResetError:
+                            free_return = None
+                    if free_return is None:
+                        status = Status.NOT_FOUND
+                    else:
+                        reply_is_corrupted = check_msg(
+                            free_return, ReservationStatusMsg
+                        )
+                        if reply_is_corrupted:
+                            return reply_is_corrupted
+                        status = free_return.status
+                else:
+                    status = Status.NOT_FOUND
+            answer = {"Error code": status.value, "Error": str(status), device_id: {}}
+            if status in (Status.OK, Status.OCCUPIED, Status.OK_SKIPPED):
+                answer[device_id] = get_device_status(registrar_actor, device_id)
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
@@ -318,132 +393,213 @@ class RestApi:
     @api.route("/ports/", methods=["GET"])
     def getlocalports():
         """Lists Local Ports, Used for Testing atm"""
-        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        cluster_actor = get_actor(registrar_actor, "cluster")
-        with ActorSystem().private() as get_local_ports:
-            try:
-                reply = get_local_ports.ask(
-                    cluster_actor, GetLocalPortsMsg(), timeout=timedelta(seconds=10)
-                )
-            except ConnectionResetError:
-                reply = None
-        reply_is_corrupted = check_msg(reply, ReturnLocalPortsMsg)
-        if reply_is_corrupted:
-            return reply_is_corrupted
+        try:
+            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        except ActorSystemFailure:
+            status = Status.CRITICAL
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+        else:
+            cluster_actor = get_actor(registrar_actor, "cluster")
+            with ActorSystem().private() as get_local_ports:
+                try:
+                    reply = get_local_ports.ask(
+                        cluster_actor, GetLocalPortsMsg(), timeout=timedelta(seconds=10)
+                    )
+                except ConnectionResetError:
+                    reply = None
+            reply_is_corrupted = check_msg(reply, ReturnLocalPortsMsg)
+            if reply_is_corrupted:
+                return reply_is_corrupted
+            answer = reply.ports
         return Response(
-            response=json.dumps(reply.ports), status=200, mimetype="application/json"
+            response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
     @staticmethod
     @api.route("/ports/<port>/loop", methods=["GET"])
     def getloopport(port):
         """Loops Local Ports, Used for Testing"""
-        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        cluster_actor = get_actor(registrar_actor, "cluster")
-        with ActorSystem().private() as get_loop_port:
-            try:
-                reply = get_loop_port.ask(
-                    cluster_actor, AddPortToLoopMsg(port), timeout=timedelta(seconds=10)
-                )
-            except ConnectionResetError:
-                reply = None
-        reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
-        if reply_is_corrupted:
-            return reply_is_corrupted
+        try:
+            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        except ActorSystemFailure:
+            status = Status.CRITICAL
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+        else:
+            cluster_actor = get_actor(registrar_actor, "cluster")
+            with ActorSystem().private() as get_loop_port:
+                try:
+                    reply = get_loop_port.ask(
+                        cluster_actor,
+                        AddPortToLoopMsg(port),
+                        timeout=timedelta(seconds=10),
+                    )
+                except ConnectionResetError:
+                    reply = None
+            reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
+            if reply_is_corrupted:
+                return reply_is_corrupted
+            answer = reply.ports
         return Response(
-            response=json.dumps(reply.ports), status=200, mimetype="application/json"
+            response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
     @staticmethod
     @api.route("/ports/<port>/stop", methods=["GET"])
     def getstopport(port):
         """Loops Local Ports, Used for Testing"""
-        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        cluster_actor = get_actor(registrar_actor, "cluster")
-        with ActorSystem().private() as get_stop_port:
-            try:
-                reply = get_stop_port.ask(
-                    cluster_actor,
-                    RemovePortFromLoopMsg(port),
-                    timeout=timedelta(seconds=10),
-                )
-            except ConnectionResetError:
-                reply = None
-        reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
-        if reply_is_corrupted:
-            return reply_is_corrupted
+        try:
+            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        except ActorSystemFailure:
+            status = Status.CRITICAL
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+        else:
+            cluster_actor = get_actor(registrar_actor, "cluster")
+            with ActorSystem().private() as get_stop_port:
+                try:
+                    reply = get_stop_port.ask(
+                        cluster_actor,
+                        RemovePortFromLoopMsg(port),
+                        timeout=timedelta(seconds=10),
+                    )
+                except ConnectionResetError:
+                    reply = None
+            reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
+            if reply_is_corrupted:
+                return reply_is_corrupted
+            answer = reply.ports
         return Response(
-            response=json.dumps(reply.ports), status=200, mimetype="application/json"
+            response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
     @staticmethod
     @api.route("/ports/list-usb", methods=["GET"])
     def getusbports():
         """Loops Local Ports, Used for Testing"""
-        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        cluster_actor = get_actor(registrar_actor, "cluster")
-        with ActorSystem().private() as get_usb_ports:
-            try:
-                reply = get_usb_ports.ask(
-                    cluster_actor, GetUsbPortsMsg(), timeout=timedelta(seconds=10)
-                )
-            except ConnectionResetError:
-                reply = None
-        reply_is_corrupted = check_msg(reply, ReturnUsbPortsMsg)
-        if reply_is_corrupted:
-            return reply_is_corrupted
+        try:
+            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        except ActorSystemFailure:
+            status = Status.CRITICAL
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+        else:
+            cluster_actor = get_actor(registrar_actor, "cluster")
+            with ActorSystem().private() as get_usb_ports:
+                try:
+                    reply = get_usb_ports.ask(
+                        cluster_actor, GetUsbPortsMsg(), timeout=timedelta(seconds=10)
+                    )
+                except ConnectionResetError:
+                    reply = None
+            reply_is_corrupted = check_msg(reply, ReturnUsbPortsMsg)
+            if reply_is_corrupted:
+                return reply_is_corrupted
+            answer = reply.ports
         return Response(
-            response=json.dumps(reply.ports), status=200, mimetype="application/json"
+            response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
     @staticmethod
     @api.route("/ports/list-native", methods=["GET"])
     def getnativeports():
         """Loops Local Ports, Used for Testing"""
-        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        cluster_actor = get_actor(registrar_actor, "cluster")
-        with ActorSystem().private() as get_native_ports:
-            try:
-                reply = get_native_ports.ask(
-                    cluster_actor, GetNativePortsMsg(), timeout=timedelta(seconds=10)
-                )
-            except ConnectionResetError:
-                reply = None
-        reply_is_corrupted = check_msg(reply, ReturnNativePortsMsg)
-        if reply_is_corrupted:
-            return reply_is_corrupted
+        try:
+            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        except ActorSystemFailure:
+            status = Status.CRITICAL
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+        else:
+            cluster_actor = get_actor(registrar_actor, "cluster")
+            with ActorSystem().private() as get_native_ports:
+                try:
+                    reply = get_native_ports.ask(
+                        cluster_actor,
+                        GetNativePortsMsg(),
+                        timeout=timedelta(seconds=10),
+                    )
+                except ConnectionResetError:
+                    reply = None
+            reply_is_corrupted = check_msg(reply, ReturnNativePortsMsg)
+            if reply_is_corrupted:
+                return reply_is_corrupted
+            answer = reply.ports
         return Response(
-            response=json.dumps(reply.ports), status=200, mimetype="application/json"
+            response=json.dumps(answer), status=200, mimetype="application/json"
         )
 
     @staticmethod
     @api.route("/status/<actor_id>", methods=["GET"])
     def getstatus(actor_id):
         """Ask actor system to output actor status to debug log"""
-        registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        actor_address = get_actor(registrar_actor, actor_id)
-        with ActorSystem().private() as get_status:
-            try:
-                reply = get_status.ask(
-                    actorAddr=actor_address,
-                    msg=Thespian_StatusReq(),
-                    timeout=timedelta(seconds=10),
-                )
-            except ConnectionResetError:
-                reply = None
-        reply_is_corrupted = check_msg(reply, Thespian_ActorStatus)
-        if reply_is_corrupted:
-            return reply_is_corrupted
+        try:
+            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        except ActorSystemFailure:
+            status = Status.CRITICAL
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+        else:
+            actor_address = get_actor(registrar_actor, actor_id)
+            with ActorSystem().private() as get_status:
+                try:
+                    reply = get_status.ask(
+                        actorAddr=actor_address,
+                        msg=Thespian_StatusReq(),
+                        timeout=timedelta(seconds=10),
+                    )
+                except ConnectionResetError:
+                    reply = None
+            reply_is_corrupted = check_msg(reply, Thespian_ActorStatus)
+            if reply_is_corrupted:
+                return reply_is_corrupted
 
-        class Temp:
-            # pylint: disable=too-few-public-methods
-            """Needed for formatStatus"""
+            class Temp:
+                # pylint: disable=too-few-public-methods
+                """Needed for formatStatus"""
 
-            write = logger.debug
+                write = logger.debug
 
-        formatStatus(reply, tofd=Temp())
-        status = Status.OK
-        answer = {"Error code": status.value, "Error": str(status)}
+            formatStatus(reply, tofd=Temp())
+            status = Status.OK
+            answer = {"Error code": status.value, "Error": str(status)}
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
