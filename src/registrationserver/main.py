@@ -270,7 +270,7 @@ def main():
         time.sleep(1)
         after = datetime.now()
         if (after - before).total_seconds() > 10:
-            logger.debug("Wakeup from suspension.")
+            logger.info("Wakeup from suspension.")
             wait_some_time = True
             set_file_flag(False)
     shutdown(startup_tupel, wait_some_time, registrar_is_down)

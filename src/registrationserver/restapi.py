@@ -152,7 +152,7 @@ class RestApi:
         """Path for getting the list of active devices"""
         try:
             registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except ActorSystemFailure:
+        except (ActorSystemFailure, RuntimeError):
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -177,7 +177,7 @@ class RestApi:
         """Refresh the list of active devices"""
         try:
             registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except ActorSystemFailure:
+        except (ActorSystemFailure, RuntimeError):
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -216,7 +216,7 @@ class RestApi:
         """Path for getting information for a single active device"""
         try:
             registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except ActorSystemFailure:
+        except (ActorSystemFailure, RuntimeError):
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -243,7 +243,7 @@ class RestApi:
         # Collect information about who sent the request.
         try:
             registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except ActorSystemFailure:
+        except (ActorSystemFailure, RuntimeError):
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -343,7 +343,7 @@ class RestApi:
         """Path for freeing a single active device"""
         try:
             registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except ActorSystemFailure:
+        except (ActorSystemFailure, RuntimeError):
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -395,7 +395,7 @@ class RestApi:
         """Lists Local Ports, Used for Testing atm"""
         try:
             registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except ActorSystemFailure:
+        except (ActorSystemFailure, RuntimeError):
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -428,7 +428,7 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         try:
             registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except ActorSystemFailure:
+        except (ActorSystemFailure, RuntimeError):
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -463,7 +463,7 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         try:
             registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except ActorSystemFailure:
+        except (ActorSystemFailure, RuntimeError):
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -498,7 +498,7 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         try:
             registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except ActorSystemFailure:
+        except (ActorSystemFailure, RuntimeError):
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -531,7 +531,7 @@ class RestApi:
         """Loops Local Ports, Used for Testing"""
         try:
             registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except ActorSystemFailure:
+        except (ActorSystemFailure, RuntimeError):
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -566,7 +566,7 @@ class RestApi:
         """Ask actor system to output actor status to debug log"""
         try:
             registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except ActorSystemFailure:
+        except (ActorSystemFailure, RuntimeError):
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
