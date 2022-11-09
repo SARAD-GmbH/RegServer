@@ -306,7 +306,18 @@ class RestApi:
                     except ConnectionResetError:
                         reserve_return = None
                 if reserve_return is None:
-                    status = Status.NOT_FOUND
+                    status = Status.CRITICAL
+                    answer = {
+                        "Error code": status.value,
+                        "Error": str(status),
+                        device_id: {},
+                        "Notification": "Registration Server going down for restart.",
+                        "Requester": "Emergency shutdown",
+                    }
+                    logger.critical(
+                        "No response from Actor System. -> Emergency shutdown"
+                    )
+                    system_shutdown()
                 else:
                     reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
                     if reply_is_corrupted:
@@ -371,7 +382,18 @@ class RestApi:
                         except ConnectionResetError:
                             free_return = None
                     if free_return is None:
-                        status = Status.NOT_FOUND
+                        status = Status.CRITICAL
+                        answer = {
+                            "Error code": status.value,
+                            "Error": str(status),
+                            device_id: {},
+                            "Notification": "Registration Server going down for restart.",
+                            "Requester": "Emergency shutdown",
+                        }
+                        logger.critical(
+                            "No response from Actor System. -> Emergency shutdown"
+                        )
+                        system_shutdown()
                     else:
                         reply_is_corrupted = check_msg(
                             free_return, ReservationStatusMsg
