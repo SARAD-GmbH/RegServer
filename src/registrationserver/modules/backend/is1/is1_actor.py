@@ -88,7 +88,7 @@ class Is1Actor(DeviceBaseActor):
                     retry_counter = retry_counter - 1
                     logger.debug("Connection refused. %d retries left", retry_counter)
                     time.sleep(1)
-                except (TimeoutError, socket.timeout):
+                except (TimeoutError, socket.timeout, ConnectionResetError):
                     logger.error("Timeout connecting %s", self._is.hostname)
                     retry_counter = 0
                 except BlockingIOError:
@@ -174,7 +174,7 @@ class Is1Actor(DeviceBaseActor):
         self._send_via_socket(cmd_msg)
         try:
             reply = self._socket.recv(1024)
-        except (TimeoutError, socket.timeout):
+        except (TimeoutError, socket.timeout, ConnectionResetError):
             logger.error("Timeout on waiting for reply to SELECT_COM: %s", cmd_msg)
             self._forward_reservation(Status.IS_NOT_FOUND)
             self._destroy_socket()
