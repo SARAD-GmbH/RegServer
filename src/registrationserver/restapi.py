@@ -11,7 +11,6 @@
 
 """
 
-import re
 import sys
 import time
 from datetime import datetime, timedelta
@@ -26,7 +25,8 @@ from waitress import serve
 from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
                                                GetLocalPortsMsg,
                                                GetNativePortsMsg,
-                                               GetUsbPortsMsg,
+                                               GetRecentValueMsg,
+                                               GetUsbPortsMsg, RecentValueMsg,
                                                RemovePortFromLoopMsg,
                                                RescanFinishedMsg, RescanMsg,
                                                ReservationStatusMsg,
@@ -44,7 +44,6 @@ from registrationserver.shutdown import system_shutdown
 
 # logger.debug("%s -> %s", __package__, __file__)
 
-MATCHID = re.compile(r"^[0-9a-zA-Z]+[0-9a-zA-Z_\.-]*$")
 STARTTIME = datetime.utcnow()
 
 
@@ -228,8 +227,6 @@ class RestApi:
             system_shutdown()
             answer[device_id] = None
         else:
-            if not MATCHID.fullmatch(device_id):
-                return json.dumps({"Error": "Wronly formated ID"})
             answer = {}
             answer[device_id] = get_device_status(registrar_actor, device_id)
         return Response(
@@ -238,6 +235,7 @@ class RestApi:
 
     @staticmethod
     @api.route("/list/<device_id>/reserve", methods=["GET"])
+    @api.route("/list/<device_id>/reserve/", methods=["GET"])
     def reserve_device(device_id):
         """Path for reserving a single active device"""
         # Collect information about who sent the request.
@@ -277,8 +275,6 @@ class RestApi:
                 attribute_who,
                 request_host,
             )
-            if not MATCHID.fullmatch(device_id):
-                return json.dumps({"Error": "Wronly formated ID"})
             device_state = get_device_status(registrar_actor, device_id)
             if (
                 transport_technology(device_id) not in ["local", "is1", "mdns", "mqtt"]
@@ -350,6 +346,7 @@ class RestApi:
 
     @staticmethod
     @api.route("/list/<device_id>/free", methods=["GET"])
+    @api.route("/list/<device_id>/free/", methods=["GET"])
     def free_device(device_id):
         """Path for freeing a single active device"""
         try:
@@ -406,6 +403,133 @@ class RestApi:
             answer = {"Error code": status.value, "Error": str(status), device_id: {}}
             if status in (Status.OK, Status.OCCUPIED, Status.OK_SKIPPED):
                 answer[device_id] = get_device_status(registrar_actor, device_id)
+        return Response(
+            response=json.dumps(answer), status=200, mimetype="application/json"
+        )
+
+    @staticmethod
+    @api.route("/values/<device_id>", methods=["GET"])
+    @api.route("/values/<device_id>/", methods=["GET"])
+    def get_recent_value(device_id):
+        """Path to get values of a special device"""
+        error = False
+        answer = {}
+        try:
+            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
+        except (ActorSystemFailure, RuntimeError):
+            status = Status.CRITICAL
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            error = True
+        else:
+            try:
+                component_id = int(request.args.get("component").strip('"'))
+                sensor_id = int(request.args.get("sensor").strip('"'))
+                measurand_id = int(request.args.get("measurand").strip('"'))
+            except (IndexError, AttributeError):
+                logger.warning("Get recent values request without proper attributes.")
+                status = Status.ATTRIBUTE_ERROR
+                notification = "Requires component, sensor, measurand."
+                answer = {
+                    "Error code": status.value,
+                    "Error": str(status),
+                    "Notification": notification,
+                }
+                error = True
+        if error:
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        logger.info(
+            "Request value %d/%d/%d of %s",
+            component_id,
+            sensor_id,
+            measurand_id,
+            device_id,
+        )
+        device_state = get_device_status(registrar_actor, device_id)
+        if (
+            (device_state == {})
+            or (transport_technology(device_id) not in ["local"])
+            or ("sarad-dacm" not in device_id)
+        ):
+            logger.error("Request only supported for local DACM instruments.")
+            status = Status.NOT_FOUND
+            notification = "Only supported for local DACM instruments"
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": notification,
+            }
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        # send GetRecentValueMsg to device actor
+        device_actor = get_actor(registrar_actor, device_id)
+        if device_actor is None:
+            status = Status.NOT_FOUND
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+            }
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        with ActorSystem().private() as value_sys:
+            try:
+                value_return = value_sys.ask(
+                    device_actor,
+                    GetRecentValueMsg(component_id, sensor_id, measurand_id),
+                    timeout=timedelta(seconds=10),
+                )
+            except ConnectionResetError:
+                status = Status.CRITICAL
+                answer = {
+                    "Error code": status.value,
+                    "Error": str(status),
+                    "Notification": "Registration Server going down for restart.",
+                    "Requester": "Emergency shutdown",
+                }
+                logger.critical("No response from Actor System. -> Emergency shutdown")
+                system_shutdown()
+                return Response(
+                    response=json.dumps(answer), status=200, mimetype="application/json"
+                )
+        reply_is_corrupted = check_msg(value_return, RecentValueMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
+        if value_return.status == Status.INDEX_ERROR:
+            answer = {
+                "Error code": value_return.status.value,
+                "Error": str(value_return.status),
+                "Notification": "The requested measurand is not available.",
+            }
+        else:
+            answer = {
+                "Device Id": device_id,
+                "Component name": value_return.component_name,
+                "Sensor name": value_return.sensor_name,
+                "Measurand Id": value_return.measurand_id,
+                "Measurand": value_return.measurand,
+                "Operator": value_return.operator,
+                "Value": value_return.value,
+                "Unit": value_return.unit,
+                "Timestamp": value_return.timestamp.isoformat(timespec="seconds") + "Z",
+                "Fetched": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+                "GPS": {
+                    "Valid": value_return.gps.valid,
+                    "Latitude": value_return.gps.latitude,
+                    "Longitude": value_return.gps.longitude,
+                    "Altitude": value_return.gps.altitude,
+                    "Deviation": value_return.gps.deviation,
+                },
+            }
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )

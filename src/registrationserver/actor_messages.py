@@ -10,6 +10,7 @@ commands and data within the actor system
 """
 import socket
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum, unique
 from typing import Any, ByteString, Dict, List, Union
 
@@ -33,6 +34,7 @@ class Status(Enum):
     SUBSCRIBE = 34
     UNSUBSCRIBE = 35
     UNKNOWN_PORT = 40
+    INDEX_ERROR = 97
     ERROR = 98
     CRITICAL = 99
 
@@ -49,6 +51,7 @@ class Status(Enum):
             34: "Error when subscribing to an MQTT topic",
             35: "Error when unsubscribing from an MQTT topic",
             40: "Port does not exist.",
+            97: "Index error",
             98: "Unknown error",
             99: "Critical error. Stop and shutdown system.",
         }
@@ -558,3 +561,59 @@ class Is1RemoveMsg:
     that the resp. device actor is about to be killed."""
 
     is1_address: Is1Address
+
+
+@dataclass
+class GetRecentValueMsg:
+    """Message sent from REST API or Modbus Actor to Device Actor in order to
+    initiate a get_recent_value command on a DACM instrument.
+
+    Args:
+        component (int): Index of the DACM component
+        sensor (int): Index of the DACM sensor/actor
+        measurand (int): Index of the DACM measurand
+    """
+
+    component: int
+    sensor: int
+    measurand: int
+
+
+@dataclass
+class Gps:
+    """GPS data"""
+
+    valid: bool
+    latitude: float = 0
+    longitude: float = 0
+    altitude: float = 0
+    deviation: float = 0
+
+
+@dataclass
+class RecentValueMsg:
+    """Message sent from the Device Actor of an DACM instrument as reply to a GetRecentValueMsg.
+
+    Args:
+        status (Status): Error status
+        component_name (str): Name of the DACM component
+        sensor_name (str): Name of the sensor within the DACM component
+        measurand_id (int): Name of the measurand delivered by the sensor
+        measurand (str): Complete measurand (value and unit) as string
+        operator (str): Operator associated (i.e. < or >)
+        value (float): Value of the measurand
+        unit (str): Measuring unit for this value
+        timestamp (datetime): date and time of the measuring (end of integration interval)
+        gps (Gps): Parameters from builtin GPS receiver
+    """
+
+    status: Status
+    component_name: str = ""
+    sensor_name: str = ""
+    measurand_id: int = 0
+    measurand: str = ""
+    operator: str = ""
+    value: float = 0
+    unit: str = ""
+    timestamp: Union[datetime, None] = None
+    gps: Union[Gps, None] = None

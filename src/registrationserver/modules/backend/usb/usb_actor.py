@@ -13,7 +13,8 @@
 from typing import Union
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import KillMsg, RxBinaryMsg, Status
+from registrationserver.actor_messages import (Gps, KillMsg, RecentValueMsg,
+                                               RxBinaryMsg, Status)
 from registrationserver.config import usb_backend_config
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
@@ -132,6 +133,49 @@ class UsbActor(DeviceBaseActor):
         In this dummy we suppose, that the instrument is always available for us.
         """
         self._forward_reservation(Status.OK)
+
+    def receiveMsg_GetRecentValueMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Get a value from a DACM instrument."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        try:
+            reply = self.instrument.get_recent_value(
+                msg.component, msg.sensor, msg.measurand
+            )
+        except IndexError:
+            answer = RecentValueMsg(status=Status.INDEX_ERROR)
+            self.send(sender, answer)
+            return
+        logger.debug(
+            "get_recent_value(%d, %d, %d) came back with %s",
+            msg.component,
+            msg.sensor,
+            msg.measurand,
+            reply,
+        )
+        if reply.get("gps") is None:
+            gps = Gps(valid=False)
+        else:
+            gps = Gps(
+                valid=reply["gps"]["valid"],
+                latitude=reply["gps"]["latitude"],
+                longitude=reply["gps"]["longitude"],
+                altitude=reply["gps"]["altitude"],
+                deviation=reply["gps"]["deviation"],
+            )
+        answer = RecentValueMsg(
+            component_name=reply["component_name"],
+            sensor_name=reply["sensor_name"],
+            measurand_id=reply["measurand_id"],
+            measurand=reply["measurand"],
+            operator=reply["measurand_operator"],
+            value=reply["value"],
+            unit=reply["measurand_unit"],
+            timestamp=reply["datetime"],
+            gps=gps,
+            status=Status.OK,
+        )
+        self.send(sender, answer)
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
