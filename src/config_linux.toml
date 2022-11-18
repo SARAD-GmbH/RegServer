@@ -9,21 +9,28 @@ debug_level = "info"
 [frontends]
 rest = true
 mqtt = false
-mdns = true
+mdns = false
+modbus_rtu = true
 
 [backends]
 usb = true
 mqtt = false
-mdns = true
+mdns = false
 is1 = false
 
 [rest_frontend]
 api_port = 8008
 port_range = [50000, 50500]
 
+[modbus_rtu_frontend]
+slave_address = 1
+port = "/dev/serial/by-id/usb-FTDI_Atil_UD-101i_USB__-__RS422_485-if00-port0"
+baudrate = 19200
+parity = "N"  # N: none, O: odd, E: even
+
 [usb_backend]
 native_serial_ports = ["/dev/ttyS0"]
-ignored_serial_ports = []
+ignored_serial_ports = ["/dev/serial/by-id/usb-FTDI_Atil_UD-101i_USB__-__RS422_485-if00-port0"]
 local_retry_interval = 30  # in seconds
 
 [rs485_backend]

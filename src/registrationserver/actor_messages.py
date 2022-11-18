@@ -68,6 +68,7 @@ class Frontend(Enum):
     REST = 1
     MDNS = 2
     MQTT = 4
+    MODBUS_RTU = 8
 
 
 class Backend(Enum):

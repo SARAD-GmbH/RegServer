@@ -17,27 +17,24 @@ import modbus_tk
 import modbus_tk.defines as cst
 from BitVector import BitVector  # type: ignore
 from modbus_tk import hooks, modbus_rtu
-from serial import PARITY_NONE, Serial  # type: ignore
+from registrationserver.config import modbus_rtu_frontend_config
+from serial import Serial  # type: ignore
 
-PORT = "/dev/ttyUSB0"
-BAUDRATE = 19200
-PARITY = PARITY_NONE
+SLAVE_ADDRESS = modbus_rtu_frontend_config["SLAVE_ADDRESS"]
+PORT = modbus_rtu_frontend_config["PORT"]
+BAUDRATE = modbus_rtu_frontend_config["BAUDRATE"]
+PARITY = modbus_rtu_frontend_config["PARITY"]
 STOPBITS = 1
 TIMEOUT = 0.1
 RETURN_VALUE = 13.2
 
 
-def indexes_2_address(indexes):
-    """Convert a trio of DACM indexes into a Modbus start address"""
-    pass
-
-
 def address_2_indexes(address):
     """Convert a Modbus start address into a trio of DACM indexes"""
     bv = BitVector(intVal=address, size=16)
-    component_id = int(bv[0:7])
-    sensor_id = int(bv[7:12])
-    measurand_id = int(bv[12:15])
+    measurand_id = int(bv[0:3])
+    sensor_id = int(bv[3:8])
+    component_id = int(bv[8:15])
     return (component_id, sensor_id, measurand_id)
 
 
@@ -84,7 +81,7 @@ def main():
         logger.info("running...")
         logger.info("enter 'quit' for closing the server")
         server.start()
-        slave_1 = server.add_slave(1)
+        slave_1 = server.add_slave(SLAVE_ADDRESS)
         slave_1.add_block("0", cst.HOLDING_REGISTERS, 0, 65536)
         while True:
             cmd = sys.stdin.readline()

@@ -137,10 +137,12 @@ else:
         frontend_config.add(Frontend.MDNS)
         # REST frontend is part of the mDNS frontend
         frontend_config.add(Frontend.REST)
+    if customization["frontends"].get("modbus_rtu", False):
+        frontend_config.add(Frontend.MODBUS_RTU)
 
 # Backend configuration
 backend_config = set()
-DEFAULT_BACKENDS = {Backend.USB, Backend.MDNS, Backend.MQTT, Backend.IS1}
+DEFAULT_BACKENDS = {Backend.USB, Backend.MDNS}
 
 if customization.get("backends") is None:
     backend_config = DEFAULT_BACKENDS
@@ -172,6 +174,30 @@ else:
     rest_frontend_config = {
         "API_PORT": customization["rest_frontend"].get("api_port", DEFAULT_API_PORT),
         "PORT_RANGE": PORT_RANGE,
+    }
+
+# Configuration of Modbus RTU frontend
+DEFAULT_SLAVE_ADDRESS = 1
+DEFAULT_PORT = "/dev/serial/by-id/usb-FTDI_Atil_UD-101i_USB__-__RS422_485-if00-port0"
+DEFAULT_BAUDRATE = 9600
+DEFAULT_PARITY = "N"
+if customization.get("modbus_rtu_frontend") is None:
+    modbus_rtu_frontend_config = {
+        "SLAVE_ADDRESS": DEFAULT_SLAVE_ADDRESS,
+        "PORT": DEFAULT_PORT,
+        "BAUDRATE": DEFAULT_BAUDRATE,
+        "PARITY": DEFAULT_PARITY,
+    }
+else:
+    modbus_rtu_frontend_config = {
+        "SLAVE_ADDRESS": customization["modbus_rtu_frontend"].get(
+            "slave_address", DEFAULT_SLAVE_ADDRESS
+        ),
+        "PORT": customization["modbus_rtu_frontend"].get("port", DEFAULT_PORT),
+        "BAUDRATE": customization["modbus_rtu_frontend"].get(
+            "baudrate", DEFAULT_BAUDRATE
+        ),
+        "PARITY": customization["modbus_rtu_frontend"].get("parity", DEFAULT_PARITY),
     }
 
 # mDNS defaults for frontend and backend
