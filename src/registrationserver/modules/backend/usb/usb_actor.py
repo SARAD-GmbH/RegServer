@@ -10,6 +10,7 @@
 .. uml :: uml-usb_actor.puml
 """
 
+from datetime import datetime
 from typing import Union
 
 from overrides import overrides  # type: ignore
@@ -153,28 +154,35 @@ class UsbActor(DeviceBaseActor):
             msg.measurand,
             reply,
         )
-        if reply.get("gps") is None:
-            gps = Gps(valid=False)
-        else:
-            gps = Gps(
-                valid=reply["gps"]["valid"],
-                latitude=reply["gps"]["latitude"],
-                longitude=reply["gps"]["longitude"],
-                altitude=reply["gps"]["altitude"],
-                deviation=reply["gps"]["deviation"],
+        if reply:
+            if reply.get("gps") is None:
+                gps = Gps(valid=False)
+            else:
+                gps = Gps(
+                    valid=reply["gps"]["valid"],
+                    latitude=reply["gps"]["latitude"],
+                    longitude=reply["gps"]["longitude"],
+                    altitude=reply["gps"]["altitude"],
+                    deviation=reply["gps"]["deviation"],
+                )
+            if msg.measurand:
+                timestamp = reply["datetime"]
+            else:
+                timestamp = datetime.utcnow()
+            answer = RecentValueMsg(
+                component_name=reply["component_name"],
+                sensor_name=reply["sensor_name"],
+                measurand_name=reply["measurand_name"],
+                measurand=reply["measurand"],
+                operator=reply["measurand_operator"],
+                value=reply["value"],
+                unit=reply["measurand_unit"],
+                timestamp=timestamp,
+                gps=gps,
+                status=Status.OK,
             )
-        answer = RecentValueMsg(
-            component_name=reply["component_name"],
-            sensor_name=reply["sensor_name"],
-            measurand_id=reply["measurand_id"],
-            measurand=reply["measurand"],
-            operator=reply["measurand_operator"],
-            value=reply["value"],
-            unit=reply["measurand_unit"],
-            timestamp=reply["datetime"],
-            gps=gps,
-            status=Status.OK,
-        )
+        else:
+            answer = RecentValueMsg(status=Status.INDEX_ERROR)
         self.send(sender, answer)
 
     @overrides

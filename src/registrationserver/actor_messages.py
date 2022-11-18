@@ -597,8 +597,8 @@ class RecentValueMsg:
     Args:
         status (Status): Error status
         component_name (str): Name of the DACM component
-        sensor_name (str): Name of the sensor within the DACM component
-        measurand_id (int): Name of the measurand delivered by the sensor
+        sensor_name (str): Name of the sensor within the DACM component (derived from Result Index)
+        measurand_name (str): Name of the measurand delivered by the sensor (derived from Item Index)
         measurand (str): Complete measurand (value and unit) as string
         operator (str): Operator associated (i.e. < or >)
         value (float): Value of the measurand
@@ -610,7 +610,7 @@ class RecentValueMsg:
     status: Status
     component_name: str = ""
     sensor_name: str = ""
-    measurand_id: int = 0
+    measurand_name: str = ""
     measurand: str = ""
     operator: str = ""
     value: float = 0

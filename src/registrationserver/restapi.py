@@ -511,16 +511,21 @@ class RestApi:
                 "Notification": "The requested measurand is not available.",
             }
         else:
+            timestamp = (
+                value_return.timestamp.isoformat(timespec="seconds") + "Z"
+                if value_return.timestamp is not None
+                else None
+            )
             answer = {
                 "Device Id": device_id,
                 "Component name": value_return.component_name,
                 "Sensor name": value_return.sensor_name,
-                "Measurand Id": value_return.measurand_id,
+                "Measurand name": value_return.measurand_name,
                 "Measurand": value_return.measurand,
                 "Operator": value_return.operator,
                 "Value": value_return.value,
                 "Unit": value_return.unit,
-                "Timestamp": value_return.timestamp.isoformat(timespec="seconds") + "Z",
+                "Timestamp": timestamp,
                 "Fetched": datetime.utcnow().isoformat(timespec="seconds") + "Z",
                 "GPS": {
                     "Valid": value_return.gps.valid,
