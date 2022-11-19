@@ -27,6 +27,7 @@ from registrationserver.config import (actor_config, backend_config,
 from registrationserver.logdef import LOGFILENAME, logcfg
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mdns.mdns_listener import MdnsListener
+from registrationserver.modules.frontend.modbus.modbus_rtu import ModbusRtu
 from registrationserver.registrar import Registrar
 from registrationserver.restapi import RestApi
 from registrationserver.shutdown import (is_flag_set, kill_processes,
@@ -96,6 +97,9 @@ def startup():
             daemon=True,
         )
         api_thread.start()
+    if Frontend.MODBUS_RTU in frontend_config:
+        modbus_rtu = ModbusRtu(registrar_actor)
+        modbus_rtu.start()
     if Backend.USB in backend_config:
         usb_listener = UsbListener(registrar_actor)
         usb_listener_thread = threading.Thread(
@@ -111,7 +115,7 @@ def startup():
         )
     else:
         mdns_backend = None
-    return (registrar_actor, mdns_backend, usb_listener)
+    return (registrar_actor, mdns_backend, usb_listener, modbus_rtu)
 
 
 def shutdown(startup_tupel, wait_some_time, registrar_is_down):
@@ -129,6 +133,13 @@ def shutdown(startup_tupel, wait_some_time, registrar_is_down):
         logger.debug("Terminate UsbListener")
         try:
             usb_listener.stop()
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.critical(exception)
+    modbus_rtu = startup_tupel[3]
+    if modbus_rtu is not None:
+        logger.debug("Terminate ModbusRtu")
+        try:
+            modbus_rtu.stop()
         except Exception as exception:  # pylint: disable=broad-except
             logger.critical(exception)
     if wait_some_time:
