@@ -47,6 +47,7 @@ def startup():
     * starts the actor system by importing registrationserver
     * starts the API thread
     * starts the MdnsListener
+    * starts the Modbus RTU frontend
 
     Returns:
         Tuple of Registrar Actor, MdnsListener, and UsbListener

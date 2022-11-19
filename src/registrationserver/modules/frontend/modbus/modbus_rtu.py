@@ -1,20 +1,19 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
- Example demonstrating the dynamic change of a value
- depending on the Modbus address and the usage of Hooks
+""" Modbus RTU frontend module
 
- (C)2022 - Michael Strey - strey@sarad.de
- (C)2022 - SARAD GmbH - https://sarad.de
+Provides measuring values from a local DACM instrument via Modbus RTU.
 
- This is distributed under GNU LGPL license, see license.txt
+:Created:
+    2022-11-19
+
+:Authors:
+    | Michael Strey <strey@sarad.de>
 """
 
 import struct
 import sys
 
-import modbus_tk
-import modbus_tk.defines as cst
+import modbus_tk  # type: ignore
+import modbus_tk.defines as cst  # type: ignore
 from BitVector import BitVector  # type: ignore
 from modbus_tk import hooks, modbus_rtu
 from registrationserver.config import modbus_rtu_frontend_config
@@ -31,10 +30,10 @@ RETURN_VALUE = 13.2
 
 def address_2_indexes(address):
     """Convert a Modbus start address into a trio of DACM indexes"""
-    bv = BitVector(intVal=address, size=16)
-    measurand_id = int(bv[0:3])
-    sensor_id = int(bv[3:8])
-    component_id = int(bv[8:15])
+    address_bits = BitVector(intVal=address, size=16)
+    measurand_id = int(address_bits[0:3])
+    sensor_id = int(address_bits[3:8])
+    component_id = int(address_bits[8:15])
     return (component_id, sensor_id, measurand_id)
 
 
@@ -45,24 +44,21 @@ def main():
     def on_read_holding_registers_request(args):
         slave = args[0]
         request_pdu = args[1]
-        (starting_address, quantity_of_x) = struct.unpack(">HH", request_pdu[1:5])
+        (starting_address, _quantity_of_x) = struct.unpack(">HH", request_pdu[1:5])
         logger.info("starting_address = %d", starting_address)
         component_id, sensor_id, measurand_id = address_2_indexes(starting_address)
         logger.info("DACM trio: %d/%d/%d", component_id, sensor_id, measurand_id)
         # Here we will have to hook in to get the value from instrument
         my_value = RETURN_VALUE
         my_bytes = struct.pack("!f", my_value)
-        try:
-            slave.set_values(
-                "0",
-                starting_address,
-                [
-                    int.from_bytes(my_bytes[2:4], "big"),
-                    int.from_bytes(my_bytes[0:2], "big"),
-                ],
-            )
-        except Exception as exception:
-            logger.info(exception)
+        slave.set_values(
+            "0",
+            starting_address,
+            [
+                int.from_bytes(my_bytes[2:4], "big"),
+                int.from_bytes(my_bytes[0:2], "big"),
+            ],
+        )
 
     hooks.install_hook(
         "modbus.Slave.handle_read_holding_registers_request",
@@ -89,7 +85,7 @@ def main():
             if cmd.find("quit") == 0:
                 sys.stdout.write("bye-bye\r\n")
                 break
-            sys.stdout.write("unknown command %s\r\n" % (args[0]))
+            sys.stdout.write(f"unknown command {args[0]}\r\n")
     finally:
         server.stop()
 
