@@ -52,12 +52,14 @@ class MdnsListener(ServiceListener):
             logger.error("info in Zeroconf message is None")
             return None
         try:
-            _addr_ip = ipaddress.IPv4Address(info.addresses[0]).exploded
-            _addr = socket.gethostbyaddr(_addr_ip)[0]
+            addr_ip = ipaddress.IPv4Address(info.addresses[0]).exploded
+            return socket.gethostbyaddr(addr_ip)[0]
+        except socket.herror:
+            logger.error("No network connection.")
         except Exception:  # pylint: disable=broad-except
-            logger.critical("Fatal error")
+            logger.critical("Fatal error -> Emergency shutdown")
             system_shutdown()
-        return _addr
+        return None
 
     def convert_properties(self, zc, type_, name):
         # pylint: disable=invalid-name
@@ -71,33 +73,33 @@ class MdnsListener(ServiceListener):
             return None
         properties = info.properties
         if properties is not None:
-            _model = properties.get(b"MODEL_ENC")
-            if _model is None:
-                logger.error("_model in Zeroconf message is None")
+            model = properties.get(b"MODEL_ENC")
+            if model is None:
+                logger.error("model in Zeroconf message is None")
                 return None
-        _model = _model.decode("utf-8")
-        if properties.get(b"OCCUPIED").decode("utf-8") == "True":
-            occupied = True
-        else:
-            occupied = False
-        _serial_short = properties.get(b"SERIAL_SHORT")
-        if _serial_short is None:
+        model = model.decode("utf-8")
+        occupied = bool(properties.get(b"OCCUPIED").decode("utf-8") == "True")
+        serial_short = properties.get(b"SERIAL_SHORT")
+        if serial_short is None:
             logger.error("_serial_short is None")
             return None
-        _device_id = _serial_short.decode("utf-8").split(".")[0]
-        _sarad_protocol = _serial_short.decode("utf-8").split(".")[1]
+        device_id = serial_short.decode("utf-8").split(".")[0]
+        sarad_protocol_ = serial_short.decode("utf-8").split(".")[1]
         hids = hashids.Hashids()
-        _ids = hids.decode(_device_id)
-        if _ids is None:
-            logger.error("_ids is None")
+        ids = hids.decode(device_id)
+        if ids is None:
+            logger.error("ids is None")
             return None
-        if len(_ids) != 3:
-            logger.error("len(_ids) != 3")
+        if len(ids) != 3:
+            logger.error("len(ids) != 3")
             return None
-        _addr = ""
+        addr = ""
         try:
-            _addr_ip = ipaddress.IPv4Address(info.addresses[0]).exploded
-            _addr = socket.gethostbyaddr(_addr_ip)[0]
+            addr_ip = ipaddress.IPv4Address(info.addresses[0]).exploded
+            addr = socket.gethostbyaddr(addr_ip)[0]
+        except socket.herror:
+            logger.error("No network connection.")
+            addr_ip = info.addresses[0]
         except Exception:  # pylint: disable=broad-except
             logger.critical("Fatal error")
             system_shutdown()
@@ -105,14 +107,14 @@ class MdnsListener(ServiceListener):
             self.device_id(name): {
                 "Identification": {
                     "Name": properties[b"MODEL_ENC"].decode("utf-8"),
-                    "Family": _ids[0],
-                    "Type": _ids[1],
-                    "Serial number": _ids[2],
-                    "Host": _addr,
-                    "Protocol": _sarad_protocol,
+                    "Family": ids[0],
+                    "Type": ids[1],
+                    "Serial number": ids[2],
+                    "Host": addr,
+                    "Protocol": sarad_protocol_,
                 },
                 "Remote": {
-                    "Address": _addr_ip,
+                    "Address": addr_ip,
                     "Name": name,
                     "API port": info.port,
                     "Device Id": properties.get(b"DEVICE_ID").decode("utf-8"),
@@ -132,7 +134,10 @@ class MdnsListener(ServiceListener):
         hostname = self.get_host_addr(info)
         if hostname is None:
             logger.warning("Cannot handle Zeroconf service with info=%s", info)
-        return get_actor(self.registrar, hostname), hostname
+            host_actor = None
+        else:
+            host_actor = get_actor(self.registrar, hostname)
+        return host_actor, hostname
 
     def __init__(self, registrar_actor, service_type):
         """
