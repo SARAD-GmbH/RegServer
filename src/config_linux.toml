@@ -27,6 +27,7 @@ slave_address = 1
 port = "/dev/serial/by-id/usb-FTDI_Atil_UD-101i_USB__-__RS422_485-if00-port0"
 baudrate = 19200
 parity = "N"  # N: none, O: odd, E: even
+device_id = "z6tRhXB.sarad-dacm.local"
 
 [usb_backend]
 native_serial_ports = ["/dev/ttyS0"]

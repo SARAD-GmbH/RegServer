@@ -181,12 +181,14 @@ DEFAULT_SLAVE_ADDRESS = 1
 DEFAULT_PORT = "/dev/serial/by-id/usb-FTDI_Atil_UD-101i_USB__-__RS422_485-if00-port0"
 DEFAULT_BAUDRATE = 9600
 DEFAULT_PARITY = "N"
+DEFAULT_DEVICE_ID = None
 if customization.get("modbus_rtu_frontend") is None:
     modbus_rtu_frontend_config = {
         "SLAVE_ADDRESS": DEFAULT_SLAVE_ADDRESS,
         "PORT": DEFAULT_PORT,
         "BAUDRATE": DEFAULT_BAUDRATE,
         "PARITY": DEFAULT_PARITY,
+        "DEVICE_ID": DEFAULT_DEVICE_ID,
     }
 else:
     modbus_rtu_frontend_config = {
@@ -198,6 +200,9 @@ else:
             "baudrate", DEFAULT_BAUDRATE
         ),
         "PARITY": customization["modbus_rtu_frontend"].get("parity", DEFAULT_PARITY),
+        "DEVICE_ID": customization["modbus_rtu_frontend"].get(
+            "device_id", DEFAULT_DEVICE_ID
+        ),
     }
 
 # mDNS defaults for frontend and backend

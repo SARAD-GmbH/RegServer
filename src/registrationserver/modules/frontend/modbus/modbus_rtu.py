@@ -10,14 +10,19 @@ Provides measuring values from a local DACM instrument via Modbus RTU.
 """
 
 import struct
-import sys
+from datetime import timedelta
 
-import modbus_tk  # type: ignore
 import modbus_tk.defines as cst  # type: ignore
 from BitVector import BitVector  # type: ignore
 from modbus_tk import hooks, modbus_rtu
+from registrationserver.actor_messages import (GetRecentValueMsg,
+                                               RecentValueMsg, Status)
 from registrationserver.config import modbus_rtu_frontend_config
+from registrationserver.helpers import (get_actor, get_device_status,
+                                        transport_technology)
 from registrationserver.logger import logger  # type: ignore
+from registrationserver.restapi import check_msg
+from registrationserver.shutdown import system_shutdown
 from serial import Serial  # type: ignore
 from thespian.actors import ActorSystem  # type: ignore
 
@@ -25,9 +30,11 @@ SLAVE_ADDRESS = modbus_rtu_frontend_config["SLAVE_ADDRESS"]
 PORT = modbus_rtu_frontend_config["PORT"]
 BAUDRATE = modbus_rtu_frontend_config["BAUDRATE"]
 PARITY = modbus_rtu_frontend_config["PARITY"]
+DEVICE_ID = modbus_rtu_frontend_config["DEVICE_ID"]
 STOPBITS = 1
 TIMEOUT = 0.1
 RETURN_VALUE = 13.2
+MAX_FLOAT = 340282350000000000000000000000000000000
 
 
 class ModbusRtu:
@@ -58,6 +65,40 @@ class ModbusRtu:
     def start(self):
         """Start Modbus RTU server and handle Modbus requests"""
 
+        def get_value(component_id, sensor_id, measurand_id):
+            # Here we will have to hook in to get the value from instrument
+            device_state = get_device_status(self.registrar, DEVICE_ID)
+            if (
+                (device_state == {})
+                or (transport_technology(DEVICE_ID) not in ["local"])
+                or ("sarad-dacm" not in DEVICE_ID)
+            ):
+                logger.error("Request only supported for local DACM instruments.")
+                return MAX_FLOAT
+            device_actor = get_actor(self.registrar, DEVICE_ID)
+            with ActorSystem().private() as modbus_sys:
+                try:
+                    value_return = modbus_sys.ask(
+                        device_actor,
+                        GetRecentValueMsg(component_id, sensor_id, measurand_id),
+                        timeout=timedelta(seconds=10),
+                    )
+                except ConnectionResetError:
+                    logger.critical(
+                        "No response from Actor System. -> Emergency shutdown"
+                    )
+                    system_shutdown()
+                    return MAX_FLOAT
+            reply_is_corrupted = check_msg(value_return, RecentValueMsg)
+            if reply_is_corrupted:
+                return MAX_FLOAT
+            if value_return.status == Status.INDEX_ERROR:
+                logger.error(
+                    "The requested value is not available. %s", value_return.status
+                )
+                return MAX_FLOAT
+            return value_return.value
+
         def on_read_holding_registers_request(args):
             slave = args[0]
             request_pdu = args[1]
@@ -67,8 +108,7 @@ class ModbusRtu:
                 starting_address
             )
             logger.debug("DACM trio: %d/%d/%d", component_id, sensor_id, measurand_id)
-            # Here we will have to hook in to get the value from instrument
-            my_value = RETURN_VALUE
+            my_value = get_value(component_id, sensor_id, measurand_id)
             my_bytes = struct.pack("!f", my_value)
             slave.set_values(
                 "0",
