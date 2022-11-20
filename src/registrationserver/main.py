@@ -16,6 +16,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 
+from serial.serialutil import SerialException
 from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
 
@@ -98,8 +99,12 @@ def startup():
         )
         api_thread.start()
     if Frontend.MODBUS_RTU in frontend_config:
-        modbus_rtu = ModbusRtu(registrar_actor)
-        modbus_rtu.start()
+        try:
+            modbus_rtu = ModbusRtu(registrar_actor)
+            modbus_rtu.start()
+        except SerialException as exception:
+            logger.error("Modbus RTU not functional: %s", exception)
+            modbus_rtu = None
     if Backend.USB in backend_config:
         usb_listener = UsbListener(registrar_actor)
         usb_listener_thread = threading.Thread(
