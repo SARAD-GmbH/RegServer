@@ -10,6 +10,7 @@ Covers as well USB ports as native RS-232 ports.
 
 """
 
+import os
 from typing import List, Set
 
 from overrides import overrides  # type: ignore
@@ -56,8 +57,13 @@ class ClusterActor(BaseActor):
     @overrides
     def __init__(self):
         self._loop_started: bool = False
-        self.native_ports = set(usb_backend_config["NATIVE_SERIAL_PORTS"])
-        self.ignore_ports = set(usb_backend_config["IGNORED_SERIAL_PORTS"])
+        self.native_ports = {
+            os.path.realpath(path) for path in usb_backend_config["NATIVE_SERIAL_PORTS"]
+        }
+        self.ignore_ports = {
+            os.path.realpath(path)
+            for path in usb_backend_config["IGNORED_SERIAL_PORTS"]
+        }
         self._looplist: List[str] = list(
             self.native_ports.difference(self.ignore_ports)
         )

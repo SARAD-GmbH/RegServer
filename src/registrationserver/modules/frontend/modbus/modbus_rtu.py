@@ -123,7 +123,9 @@ class ModbusRtu:
             "modbus.Slave.handle_read_holding_registers_request",
             on_read_holding_registers_request,
         )
-        logger.info("Modbus RTU frontend running")
+        logger.info(
+            "Modbus RTU frontend running at %d Bd, parity = %s", BAUDRATE, PARITY
+        )
         self.server.start()
         slave_1 = self.server.add_slave(SLAVE_ADDRESS)
         slave_1.add_block("0", cst.HOLDING_REGISTERS, 0, 65536)
