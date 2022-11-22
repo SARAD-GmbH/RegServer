@@ -119,10 +119,16 @@ class ModbusRtu:
                 ],
             )
 
+        def on_error(_args):
+            logger.critical("Emergency shutdown")
+            system_shutdown()
+            self.server.stop()
+
         hooks.install_hook(
             "modbus.Slave.handle_read_holding_registers_request",
             on_read_holding_registers_request,
         )
+        hooks.install_hook("modbus_rtu.RtuServer.on_error", on_error)
         logger.info(
             "Modbus RTU frontend running at %d Bd, parity = %s", BAUDRATE, PARITY
         )
