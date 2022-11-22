@@ -90,6 +90,9 @@ def startup():
     )
     logger.debug("Actor system started.")
     # The Actor System must be started *before* the RestApi
+    modbus_rtu = None
+    usb_listener = None
+    mdns_backend = None
     if Frontend.REST in frontend_config:
         restapi = RestApi()
         api_thread = threading.Thread(
@@ -104,7 +107,6 @@ def startup():
             modbus_rtu.start()
         except SerialException as exception:
             logger.error("Modbus RTU not functional: %s", exception)
-            modbus_rtu = None
     if Backend.USB in backend_config:
         usb_listener = UsbListener(registrar_actor)
         usb_listener_thread = threading.Thread(
@@ -112,14 +114,10 @@ def startup():
             daemon=True,
         )
         usb_listener_thread.start()
-    else:
-        usb_listener = None
     if Backend.MDNS in backend_config:
         mdns_backend = MdnsListener(
             registrar_actor, service_type=mdns_backend_config["TYPE"]
         )
-    else:
-        mdns_backend = None
     return (registrar_actor, mdns_backend, usb_listener, modbus_rtu)
 
 
