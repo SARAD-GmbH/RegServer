@@ -6,9 +6,8 @@ Wants=network-online.target
 [Service]
 WorkingDirectory=/home/pi/RegServer/src
 ExecStart=/usr/local/bin/start-regserver
-ExecStop=/usr/local/bin/stop-regserver
 Restart=always
-RestartSec=10
+RestartSec=0.1
 
 [Install]
 WantedBy=default.target
