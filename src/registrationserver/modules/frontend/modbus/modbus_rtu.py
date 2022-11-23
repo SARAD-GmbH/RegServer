@@ -34,7 +34,7 @@ DEVICE_ID = modbus_rtu_frontend_config["DEVICE_ID"]
 STOPBITS = 1
 TIMEOUT = 0.1
 RETURN_VALUE = 13.2
-MAX_FLOAT = 340282350000000000000000000000000000000
+MAX_FLOAT = 3.4028235e38
 
 
 class ModbusRtu:
@@ -119,11 +119,19 @@ class ModbusRtu:
                 ],
             )
 
+        def on_error(_args):
+            logger.critical("Emergency shutdown")
+            system_shutdown()
+            self.server.stop()
+
         hooks.install_hook(
             "modbus.Slave.handle_read_holding_registers_request",
             on_read_holding_registers_request,
         )
-        logger.info("Modbus RTU frontend running")
+        hooks.install_hook("modbus_rtu.RtuServer.on_error", on_error)
+        logger.info(
+            "Modbus RTU frontend running at %d Bd, parity = %s", BAUDRATE, PARITY
+        )
         self.server.start()
         slave_1 = self.server.add_slave(SLAVE_ADDRESS)
         slave_1.add_block("0", cst.HOLDING_REGISTERS, 0, 65536)
