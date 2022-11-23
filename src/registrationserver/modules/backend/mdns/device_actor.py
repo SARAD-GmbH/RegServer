@@ -32,6 +32,7 @@ UPDATE_INTERVAL = 3  # in seconds
 class TimeoutHTTPAdapter(HTTPAdapter):
     """Class to unify timeouts for all requests"""
 
+    @overrides
     def __init__(self, *args, **kwargs):
         self.timeout = DEFAULT_TIMEOUT
         if "timeout" in kwargs:
@@ -39,11 +40,14 @@ class TimeoutHTTPAdapter(HTTPAdapter):
             del kwargs["timeout"]
         super().__init__(*args, **kwargs)
 
-    def send(self, request, **kwargs):
-        timeout = kwargs.get("timeout")
+    @overrides
+    def send(
+        self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None
+    ):
+        # pylint: disable=too-many-arguments
         if timeout is None:
-            kwargs["timeout"] = self.timeout
-        return super().send(request, **kwargs)
+            timeout = self.timeout
+        return super().send(request, stream, timeout, verify, cert, proxies)
 
 
 class DeviceActor(DeviceBaseActor):
@@ -57,10 +61,9 @@ class DeviceActor(DeviceBaseActor):
         self.device_id = None
         self.base_url = ""
         self.http = requests.Session()
-        assert_status_hook = (
+        self.http.hooks["response"] = [
             lambda response, *args, **kwargs: response.raise_for_status()
-        )
-        self.http.hooks["response"] = [assert_status_hook]
+        ]
         retry_strategy = Retry(
             total=RETRY,
             status_forcelist=[429, 500, 502, 503, 504],
