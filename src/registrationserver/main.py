@@ -260,6 +260,7 @@ def main():
             return None
     elif start_stop == "stop":
         set_file_flag(False)
+        return None
     else:
         print("Usage: <program> start|stop")
         return None
