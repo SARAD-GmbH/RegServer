@@ -92,6 +92,7 @@ class DeviceBaseActor(BaseActor):
                 return
         except KeyError:
             logger.debug("First reservation since restart of RegServer")
+        self.return_message = ReservationStatusMsg(instr_id, Status.NOT_FOUND)
         self._reserve_at_is()
 
     def _reserve_at_is(self):
@@ -132,6 +133,9 @@ class DeviceBaseActor(BaseActor):
         elif success == Status.ERROR:
             logger.critical("%s during reservation", success)
             system_shutdown()
+        self.return_message = (
+            ReservationStatusMsg(instr_id=short_id(self.my_id), status=success),
+        )
         self.send(
             self.sender_api,
             ReservationStatusMsg(instr_id=short_id(self.my_id), status=success),
@@ -173,7 +177,9 @@ class DeviceBaseActor(BaseActor):
         self.device_status["Reservation"] = reservation
         logger.info("Reservation state updated: %s", self.device_status)
         self._publish_status_change()
-        self.send(self.sender_api, ReservationStatusMsg(instr_id, Status.OK))
+        self.return_message = ReservationStatusMsg(instr_id, Status.OK)
+        self.send(self.sender_api, self.return_message)
+        self.return_message = None
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -260,3 +266,9 @@ class DeviceBaseActor(BaseActor):
         if self.return_message is not None:
             self.send(self.sender_api, self.return_message)
             self.return_message = None
+
+    @overrides
+    def receiveMsg_KillMsg(self, msg, sender):
+        if self.return_message is not None:
+            self.send(self.sender_api, self.return_message)
+        super().receiveMsg_KillMsg(msg, sender)
