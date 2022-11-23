@@ -186,13 +186,15 @@ class DeviceActor(DeviceBaseActor):
             reservation.pop("Port", None)
             self.device_status["Reservation"] = reservation
         if (reservation is None) or not reservation.get("Active", False):
-            logger.debug("%s is not reserved yet", self.device_id)
-            app = f"{self.app} - {self.user} - {sanitize_hn(self.host)}"
-            logger.debug("Try to reserve this instrument for %s.", app)
+            app = self.reserve_device_msg.app
+            user = self.reserve_device_msg.user
+            host = sanitize_hn(self.reserve_device_msg.host)
+            who = f"{app} - {user} - {host}"
+            logger.debug("Try to reserve %s for %s.", self.device_id, who)
             try:
                 resp = self.http.get(
                     f"{self.base_url}/list/{self.device_id}/reserve",
-                    params={"who": app},
+                    params={"who": who},
                 )
                 resp_reserve = resp.json()
             except Exception as exception:  # pylint: disable=broad-except
@@ -217,8 +219,7 @@ class DeviceActor(DeviceBaseActor):
                 logger.debug("Already occupied by me.")
                 success = Status.OK_SKIPPED
             else:
-                logger.debug("Occupied by somebody else.")
-                logger.debug("Using host: %s, my host: %s", using_host, my_host)
+                logger.debug("Occupied by: %s, my host: %s", using_host, my_host)
                 success = Status.OCCUPIED
                 self.occupied = True
         self._forward_reservation(success)

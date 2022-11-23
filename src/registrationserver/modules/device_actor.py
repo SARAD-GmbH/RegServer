@@ -57,12 +57,11 @@ class DeviceBaseActor(BaseActor):
         super().__init__()
         self.device_status = {}
         self.subscribers = {}
-        self.app = None
-        self.user = None
-        self.host = None
+        self.reserve_device_msg = None
         self.sender_api = None
         self.is_device_actor = True
         self.redirector_actor = None
+        self.return_message = None
 
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -77,16 +76,14 @@ class DeviceBaseActor(BaseActor):
         """Handler for ReserveDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.sender_api = sender
-        self.app = msg.app
-        self.host = msg.host
-        self.user = msg.user
+        self.reserve_device_msg = msg
         instr_id = short_id(self.my_id)
         try:
             if self.device_status["Reservation"]["Active"]:
                 if (
-                    (self.device_status["Reservation"]["Host"] == self.host)
-                    and (self.device_status["Reservation"]["App"] == self.app)
-                    and (self.device_status["Reservation"]["User"] == self.user)
+                    (self.device_status["Reservation"]["Host"] == msg.host)
+                    and (self.device_status["Reservation"]["App"] == msg.app)
+                    and (self.device_status["Reservation"]["User"] == msg.user)
                 ):
                     return_message = ReservationStatusMsg(instr_id, Status.OK_UPDATED)
                 else:
@@ -103,9 +100,7 @@ class DeviceBaseActor(BaseActor):
         to be implemented (overridden) in the protocol specific modules.
 
         Args:
-            self.app: String identifying the requesting app.
-            self.host: String identifying the host running the app.
-            self.user: String identifying the user of the app.
+            self.reserve_device_msg: Dataclass identifying the requesting app, host and user.
         """
 
     def _forward_reservation(self, success: Status):
@@ -122,9 +117,9 @@ class DeviceBaseActor(BaseActor):
             else:
                 reservation = {
                     "Active": True,
-                    "App": self.app,
-                    "Host": self.host,
-                    "User": self.user,
+                    "App": self.reserve_device_msg.app,
+                    "Host": self.reserve_device_msg.host,
+                    "User": self.reserve_device_msg.user,
                     "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
                 }
                 self._update_reservation_status(reservation)
@@ -164,9 +159,9 @@ class DeviceBaseActor(BaseActor):
         # Write Reservation section into device status
         reservation = {
             "Active": True,
-            "App": self.app,
-            "Host": self.host,
-            "User": self.user,
+            "App": self.reserve_device_msg.app,
+            "Host": self.reserve_device_msg.host,
+            "User": self.reserve_device_msg.user,
             "IP": msg.ip_address,
             "Port": msg.port,
             "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
@@ -207,8 +202,7 @@ class DeviceBaseActor(BaseActor):
         self._forward_to_children(KillMsg())
         if status == Status.OK:
             self._publish_status_change()
-        return_message = ReservationStatusMsg(instr_id, status)
-        self.send(self.sender_api, return_message)
+        self.return_message = ReservationStatusMsg(instr_id, status)
         logger.info("Free %s", self.my_id)
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
@@ -259,3 +253,10 @@ class DeviceBaseActor(BaseActor):
         """Handler for TxBinaryMsg from App to Instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.redirector_actor = sender
+
+    @overrides
+    def receiveMsg_ChildActorExited(self, msg, sender):
+        super().receiveMsg_ChildActorExited(msg, sender)
+        if self.return_message is not None:
+            self.send(self.sender_api, self.return_message)
+            self.return_message = None

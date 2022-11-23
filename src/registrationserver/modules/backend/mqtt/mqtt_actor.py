@@ -109,9 +109,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         """Request the reservation of an instrument at the Instrument Server.
 
         Args:
-            self.app: String identifying the requesting app.
-            self.host: String identifying the host running the app.
-            self.user: String identifying the user of the app.
+            self.reserve_device_msg: Dataclass identifying the requesting app, host and user.
         """
         if not self.state["RESERVE"]["Pending"]:
             _msg = {
@@ -119,9 +117,9 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                 "payload": json.dumps(
                     {
                         "Req": "reserve",
-                        "App": self.app,
-                        "Host": self.host,
-                        "User": self.user,
+                        "App": self.reserve_device_msg.app,
+                        "Host": self.reserve_device_msg.host,
+                        "User": self.reserve_device_msg.user,
                     }
                 ),
                 "qos": 0,
@@ -197,9 +195,9 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             timestamp = reservation.get("Timestamp")
             if (
                 (instr_status)
-                and (app == self.app)
-                and (host == self.host)
-                and (user == self.user)
+                and (app == self.reserve_device_msg.app)
+                and (host == self.reserve_device_msg.host)
+                and (user == self.reserve_device_msg.user)
             ):
                 logger.debug(
                     "MQTT actor receives permission for reservation on instrument %s",
