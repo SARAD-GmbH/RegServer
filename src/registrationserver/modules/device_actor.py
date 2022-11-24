@@ -206,9 +206,12 @@ class DeviceBaseActor(BaseActor):
             logger.debug("Instr. was not reserved before.")
             status = Status.OK_SKIPPED
         self._forward_to_children(KillMsg())
+        self.return_message = ReservationStatusMsg(instr_id, status)
         if status == Status.OK:
             self._publish_status_change()
-        self.return_message = ReservationStatusMsg(instr_id, status)
+        if not self.child_actors:
+            self.send(self.sender_api, self.return_message)
+            self.return_message = None
         logger.info("Free %s", self.my_id)
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
