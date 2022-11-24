@@ -19,7 +19,7 @@ def signal_handler(_sig, _frame):
 
     The signal handler removes the flag file. This will cause the main MQTT
     loop to stop and call the cleanup function."""
-    system_shutdown()
+    system_shutdown(with_error=False)
 
 
 def main():

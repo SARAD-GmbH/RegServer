@@ -16,7 +16,7 @@ from registrationserver.logger import logger
 FLAGFILENAME = f"{home}{os.path.sep}stop.file"
 
 
-def set_file_flag(running):
+def set_file_flag(running, with_error=False):
     """Function to create a file that is used as flag in order to detect that the
     Instrument Server should be stopped.
 
@@ -32,7 +32,7 @@ def set_file_flag(running):
         logger.info("Remove %s", FLAGFILENAME)
     else:
         with open(FLAGFILENAME, "w", encoding="utf8") as flag_file:
-            flag_file.write("run")
+            flag_file.write(str(with_error))
         logger.info("Write %s", FLAGFILENAME)
 
 
@@ -41,18 +41,35 @@ def is_flag_set():
     be stopped was set.
 
     Returns:
-        bool: True if the programm was started and shall stay running.
+        {bool, bool}: 1st: True if the programm was started and shall stay running.
               False if the system shall be stopped by the main program.
+              2nd: True if the system shall be terminated with error
     """
-    return not os.path.isfile(FLAGFILENAME)
+    if os.path.isfile(FLAGFILENAME):
+        with open(FLAGFILENAME, "r", encoding="utf8") as flag_file:
+            with_error_str = flag_file.read(4)
+            if with_error_str == "True":
+                with_error = True
+            elif with_error_str == "Fals":
+                with_error = False
+            else:
+                logger.error("Stop file corrupted: %s", with_error_str)
+                with_error = True
+    else:
+        with_error = False
+    return not os.path.isfile(FLAGFILENAME), with_error
 
 
-def system_shutdown():
+def system_shutdown(with_error=True):
     """Initiate the shutdown process
 
     This is only a wrapper for set_file_flag()
-    that was introduced in order to improve the readability of code"""
-    set_file_flag(False)
+    that was introduced in order to improve the readability of code
+
+    Args:
+       with_error (bool): True indicates that the programm shall be terminated with error
+    """
+    set_file_flag(running=False, with_error=with_error)
 
 
 def kill_processes(regex):

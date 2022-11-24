@@ -32,7 +32,7 @@ from registrationserver.modules.frontend.modbus.modbus_rtu import ModbusRtu
 from registrationserver.registrar import Registrar
 from registrationserver.restapi import RestApi
 from registrationserver.shutdown import (is_flag_set, kill_processes,
-                                         set_file_flag)
+                                         set_file_flag, system_shutdown)
 
 if os.name == "nt":
     from registrationserver.modules.backend.usb.win_listener import UsbListener
@@ -121,7 +121,7 @@ def startup():
     return (registrar_actor, mdns_backend, usb_listener, modbus_rtu)
 
 
-def shutdown(startup_tupel, wait_some_time, registrar_is_down):
+def shutdown(startup_tupel, wait_some_time, registrar_is_down, with_error=True):
     # pylint: disable=too-many-branches
     """Shutdown application"""
     mdns_listener = startup_tupel[1]
@@ -167,12 +167,15 @@ def shutdown(startup_tupel, wait_some_time, registrar_is_down):
         ActorSystem().shutdown()
     except OSError as exception:
         logger.critical(exception)
-    kill_residual_processes()
+    kill_residual_processes(end_with_error=with_error)
 
 
 def kill_residual_processes(end_with_error=True):
     """Kill RegServer processes. OS independent."""
-    logger.info("Trying to kill residual processes. Fingers crossed!")
+    if end_with_error:
+        logger.info("Trying to kill residual processes. Fingers crossed!")
+    else:
+        logger.info("RegServer ended gracefully")
     if os.name == "posix":
         process_regex = "python.sarad_registration_server"
     elif os.name == "nt":
@@ -256,10 +259,10 @@ def main():
         startup_tupel = startup()
         if not startup_tupel:
             time.sleep(30)
-            kill_residual_processes()
+            kill_residual_processes(end_with_error=True)
             return None
     elif start_stop == "stop":
-        set_file_flag(False)
+        system_shutdown(with_error=False)
         return None
     else:
         print("Usage: <program> start|stop")
@@ -269,7 +272,7 @@ def main():
     interval = actor_config["OUTER_WATCHDOG_INTERVAl"]
     last_trial = datetime.now()
     registrar_is_down = False
-    while is_flag_set():
+    while is_flag_set()[0]:
         before = datetime.now()
         if (before - last_trial).total_seconds() > interval:
             registrar_is_down = not outer_watchdog(
@@ -282,14 +285,16 @@ def main():
             logger.critical(
                 "No status response from Registrar Actor. -> Emergency shutdown."
             )
-            set_file_flag(False)
+            system_shutdown()
         time.sleep(1)
         after = datetime.now()
         if (after - before).total_seconds() > 10:
             logger.info("Wakeup from suspension.")
             wait_some_time = True
-            set_file_flag(False)
-    shutdown(startup_tupel, wait_some_time, registrar_is_down)
+            system_shutdown()
+    shutdown(
+        startup_tupel, wait_some_time, registrar_is_down, with_error=is_flag_set()[1]
+    )
 
 
 if __name__ == "__main__":

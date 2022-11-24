@@ -77,7 +77,7 @@ class MqttBaseActor(BaseActor):
         Give up, if TLS files are not available.
         """
         retry_interval = mqtt_config["RETRY_INTERVAL"]
-        while self.ungr_disconn > 0 and is_flag_set():
+        while self.ungr_disconn > 0 and is_flag_set()[0]:
             try:
                 logger.info(
                     "Attempting to connect to broker %s: %s",
@@ -123,7 +123,7 @@ class MqttBaseActor(BaseActor):
             except OSError as exception:  # pylint: disable=broad-except
                 logger.error("%s. Check port in config_<os>.toml!", exception)
                 connect_exception = exception
-            if is_flag_set():
+            if is_flag_set()[0]:
                 logger.error(
                     "I will be retrying after %d seconds: %s",
                     retry_interval,
