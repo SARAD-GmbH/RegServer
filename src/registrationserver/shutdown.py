@@ -13,7 +13,7 @@ import signal
 from registrationserver.config import home
 from registrationserver.logger import logger
 
-FLAGFILENAME = f"{home}{os.path.sep}startstop.file"
+FLAGFILENAME = f"{home}{os.path.sep}stop.file"
 
 
 def set_file_flag(running):
@@ -21,30 +21,30 @@ def set_file_flag(running):
     Instrument Server should be stopped.
 
     Args:
-        running (bool): If False, the system shall be shutdown.
+        running (bool): If False, the file will be created and the system shall be shutdown.
 
     Returns:
         None
     """
     if running:
-        with open(FLAGFILENAME, "w", encoding="utf8") as flag_file:
-            flag_file.write("run")
-        logger.info("Write %s", FLAGFILENAME)
-    else:
         if os.path.isfile(FLAGFILENAME):
             os.unlink(FLAGFILENAME)
         logger.info("Remove %s", FLAGFILENAME)
+    else:
+        with open(FLAGFILENAME, "w", encoding="utf8") as flag_file:
+            flag_file.write("run")
+        logger.info("Write %s", FLAGFILENAME)
 
 
 def is_flag_set():
-    """Function to detect whether the flag indicating that the RegServer/InstrServer shall
-    proceed to run was set.
+    """Function to detect whether the flag indicating that the RegServer shall
+    be stopped was set.
 
     Returns:
         bool: True if the programm was started and shall stay running.
               False if the system shall be stopped by the main program.
     """
-    return os.path.isfile(FLAGFILENAME)
+    return not os.path.isfile(FLAGFILENAME)
 
 
 def system_shutdown():

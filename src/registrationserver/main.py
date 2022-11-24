@@ -16,7 +16,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 
-from serial.serialutil import SerialException
+from serial.serialutil import SerialException  # type: ignore
 from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
 
