@@ -305,7 +305,7 @@ DEFAULT_SYSTEM_BASE = "multiprocTCPBase"
 DEFAULT_ADMIN_PORT = 1901
 DEFAULT_WINDOWS_METHOD = "spawn"
 DEFAULT_LINUX_METHOD = "fork"
-DEFAULT_CONVENTION_ADDRESS = "127.0.0.1"
+DEFAULT_CONVENTION_ADDRESS = None
 DEFAULT_KEEPALIVE_INTERVAL = 10  # in minutes
 DEFAULT_WAIT_BEFORE_CHECK = 20  # in seconds, min. is set by cluster_actor
 DEFAULT_OUTER_WATCHDOG_INTERVAL = 30  # in seconds
@@ -351,7 +351,9 @@ else:
                 "Process Startup Method": customization["actor"].get(
                     "process_startup_method", DEFAULT_WINDOWS_METHOD
                 ),
-                "Convention Address.IPv4": DEFAULT_CONVENTION_ADDRESS,
+                "Convention Address.IPv4": customization["actor"].get(
+                    "convention_address", DEFAULT_CONVENTION_ADDRESS
+                ),
             },
         }
     else:
@@ -366,7 +368,9 @@ else:
                 "Process Startup Method": customization["actor"].get(
                     "process_startup_method", DEFAULT_LINUX_METHOD
                 ),
-                "Convention Address.IPv4": DEFAULT_CONVENTION_ADDRESS,
+                "Convention Address.IPv4": customization["actor"].get(
+                    "convention_address", DEFAULT_CONVENTION_ADDRESS
+                ),
             },
         }
     actor_config["KEEPALIVE_INTERVAL"] = customization["actor"].get(

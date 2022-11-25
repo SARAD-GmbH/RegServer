@@ -55,6 +55,7 @@ ip_version = "all"
 ## C) TCP based messages
 system_base = "multiprocTCPBase"
 admin_port = 1900
+convention_address = "127.0.0.1"
 
 process_startup_method = "fork"
 watchdog_interval = 0  # in minutes. 0 = inner watchdog switched off
