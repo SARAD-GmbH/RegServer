@@ -249,7 +249,7 @@ class Is1Listener(BaseActor):
                     logger.debug("%s:%d not reachable", is_host, is_port)
                     return
             if retry:
-                logger.critical("Connection refused on %s:%d", is_host, is_port)
+                logger.error("Connection refused on %s:%d", is_host, is_port)
                 return
             try:
                 client_socket.sendall(cmd_msg)

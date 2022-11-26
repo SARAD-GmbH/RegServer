@@ -21,6 +21,7 @@ from thespian.actors import ActorExitRequest  # type: ignore
 
 from registrationserver.actor_messages import (Backend, Frontend, KeepAliveMsg,
                                                KillMsg, PrepareMqttActorMsg,
+                                               ReservationStatusMsg,
                                                ReturnDeviceActorMsg,
                                                SetDeviceStatusMsg,
                                                SubscribeToDeviceStatusMsg,
@@ -128,6 +129,7 @@ class Registrar(BaseActor):
                 UnSubscribeFromDeviceStatusMsg,
                 UpdateActorDictMsg,
                 SetDeviceStatusMsg,
+                ReservationStatusMsg,
             ),
         ):
             actor_dict = self.actor_dict.copy()

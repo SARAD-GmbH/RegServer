@@ -136,10 +136,7 @@ class DeviceBaseActor(BaseActor):
         self.return_message = (
             ReservationStatusMsg(instr_id=short_id(self.my_id), status=success),
         )
-        self.send(
-            self.sender_api,
-            ReservationStatusMsg(instr_id=short_id(self.my_id), status=success),
-        )
+        self.send(self.sender_api, self.return_message)
 
     def _create_redirector(self) -> bool:
         """Create redirector actor if it does not exist already"""
