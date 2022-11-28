@@ -85,10 +85,14 @@ class DeviceBaseActor(BaseActor):
                     and (self.device_status["Reservation"]["App"] == msg.app)
                     and (self.device_status["Reservation"]["User"] == msg.user)
                 ):
-                    return_message = ReservationStatusMsg(instr_id, Status.OK_UPDATED)
+                    self.return_message = ReservationStatusMsg(
+                        instr_id, Status.OK_UPDATED
+                    )
                 else:
-                    return_message = ReservationStatusMsg(instr_id, Status.OCCUPIED)
-                self.send(self.sender_api, return_message)
+                    self.return_message = ReservationStatusMsg(
+                        instr_id, Status.OCCUPIED
+                    )
+                self._send_reservation_status_msg()
                 return
         except KeyError:
             logger.debug("First reservation since restart of RegServer")
@@ -110,6 +114,9 @@ class DeviceBaseActor(BaseActor):
         Forward the reservation state from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
+        self.return_message = ReservationStatusMsg(
+            instr_id=short_id(self.my_id), status=success
+        )
         if success in [Status.OK, Status.OK_UPDATED, Status.OK_SKIPPED]:
             if Frontend.REST in frontend_config:
                 # create redirector
@@ -133,10 +140,7 @@ class DeviceBaseActor(BaseActor):
         elif success == Status.ERROR:
             logger.critical("%s during reservation", success)
             system_shutdown()
-        self.return_message = (
-            ReservationStatusMsg(instr_id=short_id(self.my_id), status=success),
-        )
-        self.send(self.sender_api, self.return_message)
+        self._send_reservation_status_msg()
 
     def _create_redirector(self) -> bool:
         """Create redirector actor if it does not exist already"""
@@ -153,9 +157,8 @@ class DeviceBaseActor(BaseActor):
         try:
             assert msg.status in (Status.OK, Status.OK_SKIPPED)
         except AssertionError:
-            self.send(
-                self.sender_api, ReservationStatusMsg(instr_id, Status.UNKNOWN_PORT)
-            )
+            self.return_message = ReservationStatusMsg(instr_id, Status.UNKNOWN_PORT)
+            self._send_reservation_status_msg()
             return
         # Write Reservation section into device status
         reservation = {
@@ -170,13 +173,15 @@ class DeviceBaseActor(BaseActor):
         self._update_reservation_status(reservation)
 
     def _update_reservation_status(self, reservation):
-        instr_id = short_id(self.my_id)
         self.device_status["Reservation"] = reservation
         logger.info("Reservation state updated: %s", self.device_status)
         self._publish_status_change()
-        self.return_message = ReservationStatusMsg(instr_id, Status.OK)
-        self.send(self.sender_api, self.return_message)
-        self.return_message = None
+        self._send_reservation_status_msg()
+
+    def _send_reservation_status_msg(self):
+        if self.return_message is not None:
+            self.send(self.sender_api, self.return_message)
+            self.return_message = None
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -207,8 +212,7 @@ class DeviceBaseActor(BaseActor):
         if status == Status.OK:
             self._publish_status_change()
         if not self.child_actors:
-            self.send(self.sender_api, self.return_message)
-            self.return_message = None
+            self._send_reservation_status_msg()
         logger.info("Free %s", self.my_id)
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
@@ -263,12 +267,9 @@ class DeviceBaseActor(BaseActor):
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
         super().receiveMsg_ChildActorExited(msg, sender)
-        if self.return_message is not None:
-            self.send(self.sender_api, self.return_message)
-            self.return_message = None
+        self._send_reservation_status_msg()
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
-        if self.return_message is not None:
-            self.send(self.sender_api, self.return_message)
+        self._send_reservation_status_msg()
         super().receiveMsg_KillMsg(msg, sender)
