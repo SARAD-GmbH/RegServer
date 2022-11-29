@@ -105,7 +105,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         logger.debug("[SEND] send status is %s", self.state["SEND"]["Pending"])
 
     @overrides
-    def _reserve_at_is(self):
+    def _request_reserve_at_is(self):
         """Request the reservation of an instrument at the Instrument Server.
 
         Args:
@@ -224,7 +224,9 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             )
             self.state["RESERVE"]["Active"] = reservation_active
             logger.debug("Reservation status: %s", reservation_status)
-            self._forward_reservation(reservation_status)  # create redirector actor
+            self._handle_reserve_reply_from_is(
+                reservation_status
+            )  # create redirector actor
             self.state["RESERVE"]["Pending"] = False
             return
         logger.warning(

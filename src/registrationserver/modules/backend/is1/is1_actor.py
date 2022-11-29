@@ -161,12 +161,12 @@ class Is1Actor(DeviceBaseActor):
         self.last_activity = datetime.datetime.utcnow()
 
     @overrides
-    def _reserve_at_is(self):
+    def _request_reserve_at_is(self):
         # pylint: disable=unused-argument
         """Reserve the requested instrument at the instrument server."""
         if not self._establish_socket():
             logger.error("Can't establish the client socket.")
-            self._forward_reservation(Status.IS_NOT_FOUND)
+            self._handle_reserve_reply_from_is(Status.IS_NOT_FOUND)
             return
         cmd_msg = make_command_msg(
             [self.SELECT_COM, (self._com_port).to_bytes(1, byteorder="little")]
@@ -176,7 +176,7 @@ class Is1Actor(DeviceBaseActor):
             reply = self._socket.recv(1024)
         except (TimeoutError, socket.timeout, ConnectionResetError):
             logger.error("Timeout on waiting for reply to SELECT_COM: %s", cmd_msg)
-            self._forward_reservation(Status.IS_NOT_FOUND)
+            self._handle_reserve_reply_from_is(Status.IS_NOT_FOUND)
             self._destroy_socket()
             return
         checked_reply = check_message(reply, multiframe=False)
@@ -186,14 +186,14 @@ class Is1Actor(DeviceBaseActor):
             and checked_reply["payload"][0].to_bytes(1, byteorder="little")
             == self.COM_SELECTED
         ):
-            self._forward_reservation(Status.OK)
+            self._handle_reserve_reply_from_is(Status.OK)
         elif (
             checked_reply["is_valid"]
             and checked_reply["payload"] == self.COM_NOT_AVAILABLE
         ):
             self.send(self.myAddress, KillMsg())
         else:
-            self._forward_reservation(Status.NOT_FOUND)
+            self._handle_reserve_reply_from_is(Status.NOT_FOUND)
         self._destroy_socket()
 
     @overrides

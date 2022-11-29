@@ -102,9 +102,9 @@ class DeviceBaseActor(BaseActor):
         except KeyError:
             logger.debug("First reservation since restart of RegServer")
         self.return_message = ReservationStatusMsg(self.instr_id, Status.NOT_FOUND)
-        self._reserve_at_is()
+        self._request_reserve_at_is()
 
-    def _reserve_at_is(self):
+    def _request_reserve_at_is(self):
         # pylint: disable=unused-argument
         """Request the reservation of an instrument at the Instrument Server. This function has
         to be implemented (overridden) in the protocol specific modules.
@@ -113,7 +113,7 @@ class DeviceBaseActor(BaseActor):
             self.reserve_device_msg: Dataclass identifying the requesting app, host and user.
         """
 
-    def _forward_reservation(self, success: Status):
+    def _handle_reserve_reply_from_is(self, success: Status):
         # pylint: disable=unused-argument
         """Create redirector.
         Forward the reservation state from the Instrument Server to the REST API.

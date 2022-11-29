@@ -167,7 +167,7 @@ class DeviceActor(DeviceBaseActor):
         super().receiveMsg_FreeDeviceMsg(msg, sender)
 
     @overrides
-    def _reserve_at_is(self):
+    def _request_reserve_at_is(self):
         """Reserve the requested instrument at the instrument server."""
         self.occupied = False
         try:
@@ -177,11 +177,11 @@ class DeviceActor(DeviceBaseActor):
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
-            self._forward_reservation(success)
+            self._handle_reserve_reply_from_is(success)
             return
         success = Status.NOT_FOUND
         if device_desc is None:
-            self._forward_reservation(success)
+            self._handle_reserve_reply_from_is(success)
             return
         reservation = device_desc.get("Reservation")
         if reservation is not None:
@@ -203,7 +203,7 @@ class DeviceActor(DeviceBaseActor):
             except Exception as exception:  # pylint: disable=broad-except
                 logger.error("REST API of IS is not responding. %s", exception)
                 success = Status.IS_NOT_FOUND
-                self._forward_reservation(success)
+                self._handle_reserve_reply_from_is(success)
                 return
             self.device_status["Reservation"] = resp_reserve[self.device_id].get(
                 "Reservation", {}
@@ -225,10 +225,10 @@ class DeviceActor(DeviceBaseActor):
                 logger.debug("Occupied by: %s, my host: %s", using_host, my_host)
                 success = Status.OCCUPIED
                 self.occupied = True
-        self._forward_reservation(success)
+        self._handle_reserve_reply_from_is(success)
 
     @overrides
-    def _forward_reservation(self, success: Status):
+    def _handle_reserve_reply_from_is(self, success: Status):
         """Forward the reservation state from the Instrument Server to the REST API."""
         if success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
             logger.error(

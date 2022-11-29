@@ -128,12 +128,12 @@ class UsbActor(DeviceBaseActor):
             self.send(sender, RxBinaryMsg(reply["raw"]))
 
     @overrides
-    def _reserve_at_is(self):
+    def _request_reserve_at_is(self):
         # pylint: disable=unused-argument
         """Reserve the requested instrument.
         In this dummy we suppose, that the instrument is always available for us.
         """
-        self._forward_reservation(Status.OK)
+        self._handle_reserve_reply_from_is(Status.OK)
 
     def receiveMsg_GetRecentValueMsg(self, msg, sender):
         # pylint: disable=invalid-name
