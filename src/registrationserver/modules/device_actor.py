@@ -26,6 +26,7 @@ from registrationserver.shutdown import system_shutdown
 
 
 class DeviceBaseActor(BaseActor):
+    # pylint: disable=too-many-instance-attributes
     """Base class for protocol specific device actors.
 
     Implements all methods that all device actors have in common.
@@ -101,7 +102,6 @@ class DeviceBaseActor(BaseActor):
                 return
         except KeyError:
             logger.debug("First reservation since restart of RegServer")
-        self.return_message = ReservationStatusMsg(self.instr_id, Status.NOT_FOUND)
         self._request_reserve_at_is()
 
     def _request_reserve_at_is(self):

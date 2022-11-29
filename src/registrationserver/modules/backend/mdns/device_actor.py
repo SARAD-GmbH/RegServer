@@ -12,7 +12,8 @@ from datetime import timedelta
 
 import requests
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import KillMsg, Status
+from registrationserver.actor_messages import (KillMsg, ReservationStatusMsg,
+                                               Status)
 from registrationserver.config import config
 from registrationserver.helpers import sanitize_hn
 from registrationserver.logger import logger
@@ -51,6 +52,7 @@ class TimeoutHTTPAdapter(HTTPAdapter):
 
 
 class DeviceActor(DeviceBaseActor):
+    # pylint: disable=too-many-instance-attributes
     """Actor for dealing with raw socket connections between App and IS2"""
 
     @overrides
@@ -230,6 +232,9 @@ class DeviceActor(DeviceBaseActor):
     @overrides
     def _handle_reserve_reply_from_is(self, success: Status):
         """Forward the reservation state from the Instrument Server to the REST API."""
+        self.return_message = ReservationStatusMsg(
+            instr_id=self.instr_id, status=success
+        )
         if success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
             logger.error(
                 "Reservation failed with %s. Removing device from list.", success
