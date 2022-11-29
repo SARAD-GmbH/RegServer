@@ -1,7 +1,7 @@
 """mDNS Advertiser -- actor to advertise instruments via mDNS (Zeroconf)
 
-The mDNS Scheduler creates one pair of Advertiser/Redirector for every
-connected instrument.
+The mDNS Scheduler creates one Advertiser for every connected instrument.
+The associated Redirector will be created by the Device Actor on Reservation.
 
 :Created:
     2022-05-06
@@ -13,7 +13,6 @@ Based on work of Riccardo Förster <foerster@sarad.de>.
 
 """
 import socket
-from datetime import timedelta
 
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import (config, mdns_frontend_config,
@@ -24,6 +23,7 @@ from zeroconf import ServiceInfo, Zeroconf
 
 
 class MdnsAdvertiserActor(BaseActor):
+    # pylint: disable=too-many-instance-attributes
     """Actor to advertise a listening server socket via mDNS"""
 
     def __init__(self):
