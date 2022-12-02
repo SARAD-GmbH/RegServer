@@ -230,7 +230,7 @@ class Is1Actor(DeviceBaseActor):
                     self.send(self.myAddress, KillMsg())
                     return
             if retry:
-                logger.critical("Connection refused on %s:%d", is_host, is_port)
+                logger.error("Connection refused on %s:%d", is_host, is_port)
                 self.send(self.myAddress, KillMsg())
                 return
             try:
