@@ -34,6 +34,8 @@ class Status(Enum):
     SUBSCRIBE = 34
     UNSUBSCRIBE = 35
     UNKNOWN_PORT = 40
+    RESERVE_PENDING = 95
+    FREE_PENDING = 96
     INDEX_ERROR = 97
     ERROR = 98
     CRITICAL = 99

@@ -291,7 +291,9 @@ class RestApi:
                 )
             # send RESERVE message to device actor
             device_actor = get_actor(registrar_actor, device_id)
-            if device_actor is not None:
+            if device_actor is None:
+                status = Status.NOT_FOUND
+            else:
                 with ActorSystem().private() as reserve_sys:
                     try:
                         reserve_return = reserve_sys.ask(
@@ -318,9 +320,13 @@ class RestApi:
                     reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
                     if reply_is_corrupted:
                         return reply_is_corrupted
-                    status = reserve_return.status
-            else:
-                status = Status.NOT_FOUND
+                    if reserve_return.status in [
+                        Status.RESERVE_PENDING,
+                        Status.FREE_PENDING,
+                    ]:
+                        status = Status.NOT_FOUND
+                    else:
+                        status = reserve_return.status
             if status in (
                 Status.OK,
                 Status.OK_SKIPPED,
@@ -367,7 +373,9 @@ class RestApi:
                 status = Status.NOT_FOUND
             else:
                 device_actor = get_actor(registrar_actor, device_id)
-                if device_actor is not None:
+                if device_actor is None:
+                    status = Status.NOT_FOUND
+                else:
                     logger.info("Ask %s to FREE...", device_id)
                     with ActorSystem().private() as free_dev:
                         try:
@@ -376,7 +384,8 @@ class RestApi:
                                 FreeDeviceMsg(),
                                 timeout=timedelta(seconds=10),
                             )
-                        except ConnectionResetError:
+                        except ConnectionResetError as exception:
+                            logger.error(exception)
                             free_return = None
                     if free_return is None:
                         status = Status.CRITICAL
@@ -397,9 +406,13 @@ class RestApi:
                         )
                         if reply_is_corrupted:
                             return reply_is_corrupted
-                        status = free_return.status
-                else:
-                    status = Status.NOT_FOUND
+                        if free_return.status in [
+                            Status.RESERVE_PENDING,
+                            Status.FREE_PENDING,
+                        ]:
+                            status = Status.NOT_FOUND
+                        else:
+                            status = free_return.status
             answer = {"Error code": status.value, "Error": str(status), device_id: {}}
             if status in (Status.OK, Status.OCCUPIED, Status.OK_SKIPPED):
                 answer[device_id] = get_device_status(registrar_actor, device_id)

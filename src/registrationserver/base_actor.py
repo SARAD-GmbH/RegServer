@@ -22,7 +22,7 @@ from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import ActorAddress, ActorTypeDispatcher
 
-from registrationserver.actor_messages import (KillMsg, SetupMsg, SubscribeMsg,
+from registrationserver.actor_messages import (SetupMsg, SubscribeMsg,
                                                SubscribeToActorDictMsg,
                                                SubscribeToDeviceStatusMsg,
                                                UnSubscribeFromActorDictMsg,
@@ -41,6 +41,7 @@ class Parent:
 
 
 class BaseActor(ActorTypeDispatcher):
+    # pylint: disable=too-many-instance-attributes
     """Basic class for all actors created in the actor system of the Registration
     Server"""
 
@@ -156,7 +157,8 @@ class BaseActor(ActorTypeDispatcher):
         )
         logger.debug("self.on_kill is %s", self.on_kill)
         if (not self.child_actors) and self.on_kill:
-            logger.debug("Send ActorExitRequest to myself")
+            logger.debug("Unsubscribe and send ActorExitRequest to myself")
+            self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
             self.send(self.myAddress, ActorExitRequest())
 
     def receiveMsg_ActorExitRequest(self, msg, sender):

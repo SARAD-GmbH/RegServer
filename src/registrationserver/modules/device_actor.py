@@ -82,6 +82,9 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for ReserveDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.return_message = ReservationStatusMsg(
+            self.instr_id, Status.RESERVE_PENDING
+        )
         self.sender_api = sender
         self.reserve_device_msg = msg
         try:
@@ -193,6 +196,7 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for FreeDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.return_message = ReservationStatusMsg(self.instr_id, Status.FREE_PENDING)
         self.sender_api = sender
         status = Status.OK
         try:
