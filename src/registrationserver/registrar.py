@@ -13,6 +13,9 @@ device actors referenced in the dictionary.
 
 """
 
+import gettext
+import locale
+import os
 from datetime import timedelta
 
 from hashids import Hashids  # type: ignore
@@ -30,7 +33,8 @@ from registrationserver.actor_messages import (Backend, Frontend, KeepAliveMsg,
                                                UpdateDeviceStatusesMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import (actor_config, backend_config, config,
-                                       frontend_config, mqtt_config)
+                                       config_path, frontend_config,
+                                       mqtt_config, rest_frontend_config)
 from registrationserver.helpers import short_id, transport_technology
 from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_listener import Is1Listener
@@ -42,9 +46,54 @@ from registrationserver.modules.frontend.mqtt.mqtt_scheduler import \
     MqttSchedulerActor
 from registrationserver.shutdown import system_shutdown
 
+if os.name == "nt":
+    import ctypes
+
+    from winotify import Notification  # type: ignore
+
+
+# Setup gettext environment
+LOCALEDIR = os.path.join(config_path, "locales")
+de = gettext.translation("regserver", LOCALEDIR, languages=["de"])
+en = gettext.translation("regserver", LOCALEDIR, languages=["en"])
+# Find your language
+if os.name == "nt":
+    windll = ctypes.windll.kernel32
+    lang = locale.windows_locale[windll.GetUserDefaultUILanguage()]
+    lang_short = lang.split("_")[0]
+else:
+    lang = os.environ["LANG"]
+    lang_short = lang.split("_")[0]
+if lang_short == "de":
+    de.install()
+    _ = de.gettext  # German
+else:
+    en.install()
+    _ = en.gettext  # English
+
 
 class Registrar(BaseActor):
     """Actor providing a dictionary of devices"""
+
+    @staticmethod
+    def show_notification(device_status, active):
+        """Show Windows notification about availability of instrument"""
+        name = device_status["Identification"]["Name"]
+        serial_number = device_status["Identification"]["Serial number"]
+        origin = device_status["Identification"]["Origin"]
+        app_icon = os.path.join(config_path, "network.ico")
+        if active:
+            Notification(
+                app_id=f"{name}, {serial_number}",
+                title=_("detected at {}").format(origin),
+                icon=app_icon,
+            ).show()
+        else:
+            Notification(
+                app_id=f"{name}, {serial_number}",
+                title=_("removed from {}").format(origin),
+                icon=app_icon,
+            ).show()
 
     @overrides
     def __init__(self):
@@ -52,6 +101,7 @@ class Registrar(BaseActor):
         self.device_statuses = {}  # {device_id: {status_dict}}
         # a list of actors that are already created but not yet subscribed
         self.pending = []
+        self.notify = rest_frontend_config["NOTIFICATION"]
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -222,7 +272,9 @@ class Registrar(BaseActor):
         """Handler for UnsubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         actor_id = msg.actor_id
-        self.device_statuses.pop(actor_id, None)
+        device_status = self.device_statuses.pop(actor_id, None)
+        if self.notify and (os.name == "nt"):
+            self.show_notification(device_status, active=True)
         removed_actor = self.actor_dict.pop(actor_id, None)
         if removed_actor is not None:
             self._send_updates(self.actor_dict)
@@ -304,6 +356,8 @@ class Registrar(BaseActor):
         device_id = msg.device_id
         device_status = msg.device_status
         self.device_statuses[device_id] = device_status
+        if self.notify and (os.name == "nt"):
+            self.show_notification(device_status, active=False)
 
     def receiveMsg_GetDeviceStatusesMsg(self, msg, sender):
         # pylint: disable=invalid-name

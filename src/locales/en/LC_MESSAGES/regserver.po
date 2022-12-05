@@ -1,0 +1,24 @@
+# i18n for RegServer English.
+# Copyright (C) 2022
+# This file is distributed under the same license as the RegServer package.
+# Michael Strey <strey@sarad.de>, 2022.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"POT-Creation-Date: 2022-04-29 15:57+0200\n"
+"PO-Revision-Date: 2022-04-29 17:45+0200\n"
+"Last-Translator: Michael Strey <strey@sarad.de\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: registrationserver/registrar.py:90
+msgid "detected at {}"
+msgstr "detected at {}"
+
+#: registrationserver/registrar.py:96
+msgid "removed from {}"
+msgstr "removed from {}"

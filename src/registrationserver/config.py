@@ -158,12 +158,14 @@ else:
 
 # Configuration of REST frontend
 DEFAULT_API_PORT = 8008
-DEFAULT_PORT_RANGE = range(50000, 50500)
+DEFAULT_PORT_RANGE = range(50001, 50500)
+DEFAULT_NOTIFICATION = False
 
 if customization.get("rest_frontend") is None:
     rest_frontend_config = {
         "API_PORT": DEFAULT_API_PORT,
         "PORT_RANGE": DEFAULT_PORT_RANGE,
+        "NOTIFICATION": DEFAULT_NOTIFICATION,
     }
 else:
     try:
@@ -174,6 +176,9 @@ else:
     rest_frontend_config = {
         "API_PORT": customization["rest_frontend"].get("api_port", DEFAULT_API_PORT),
         "PORT_RANGE": PORT_RANGE,
+        "NOTIFICATION": customization["rest_frontend"].get(
+            "notification", DEFAULT_NOTIFICATION
+        ),
     }
 
 # Configuration of Modbus RTU frontend

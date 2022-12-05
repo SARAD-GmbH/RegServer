@@ -21,6 +21,7 @@ is1 = false
 [rest_frontend]
 api_port = 8008
 port_range = [50001, 50500]
+notification = True
 
 [usb_backend]
 native_serial_ports = ["COM1"]
