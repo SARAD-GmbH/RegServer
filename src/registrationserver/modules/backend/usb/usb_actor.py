@@ -102,6 +102,9 @@ class UsbActor(DeviceBaseActor):
         super().receiveMsg_TxBinaryMsg(msg, sender)
         if self.dummy_reply(msg.data, sender):
             return
+        if not self.instrument.check_cmd(msg.data):
+            logger.error("Command %s from app is invalid", msg.data)
+            self.send(sender, RxBinaryMsg(b""))
         emergency = False
         try:
             reply = self.instrument.get_message_payload(msg.data, timeout=1)
