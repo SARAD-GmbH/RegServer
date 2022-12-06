@@ -273,8 +273,8 @@ class Registrar(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         actor_id = msg.actor_id
         device_status = self.device_statuses.pop(actor_id, None)
-        if self.notify and (os.name == "nt"):
-            self.show_notification(device_status, active=True)
+        if self.notify and (os.name == "nt") and (device_status is not None):
+            self.show_notification(device_status, active=False)
         removed_actor = self.actor_dict.pop(actor_id, None)
         if removed_actor is not None:
             self._send_updates(self.actor_dict)
@@ -357,7 +357,7 @@ class Registrar(BaseActor):
         device_status = msg.device_status
         self.device_statuses[device_id] = device_status
         if self.notify and (os.name == "nt"):
-            self.show_notification(device_status, active=False)
+            self.show_notification(device_status, active=True)
 
     def receiveMsg_GetDeviceStatusesMsg(self, msg, sender):
         # pylint: disable=invalid-name
