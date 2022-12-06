@@ -9,7 +9,7 @@
 #define Source "Y:\Software\Sarad_dev\regserver-service"
 #define Destination "{commonpf64}\SARAD\RegServer-Service"
 #define Distribution "\\server\system\distribution"
-#define DriverExeName "CDM212362_Setup.exe"
+#define DriverExeName "CDM212364_Setup.exe"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
