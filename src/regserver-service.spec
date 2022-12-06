@@ -7,6 +7,7 @@ datas = [
     ("eula.txt", "."),
     ("*.toml", "."),
     ("*.ps1", "."),
+    ("locales", "locales"),
 ]
 binaries = []
 hiddenimports = [
