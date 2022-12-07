@@ -42,7 +42,7 @@ class UsbActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Set the SaradInst object for serial communication."""
         logger.debug(
-            "SetUsbActorMsg(route=%s, family=%d) for %s from %s",
+            "SetupUsbActorMsg(route=%s, family=%d) for %s from %s",
             msg.route,
             msg.family["family_id"],
             self.my_id,
