@@ -37,7 +37,19 @@ class RedirectorActor(BaseActor):
         self._socket_info = None
         self.conn = None
         self._host = config["MY_IP"]
-        logger.debug("IP address of Registration Server: %s", self._host)
+        self._port = None
+        self.read_list = None
+
+    def receiveMsg_WakeupMessage(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for WakeupMessage"""
+        if msg.payload == "loop" and not self.on_kill:
+            self._loop()
+
+    @overrides
+    def receiveMsg_SetupMsg(self, msg, sender):
+        logger.debug("Setup redirector actor")
+        super().receiveMsg_SetupMsg(msg, sender)
         for self._port in rest_frontend_config["PORT_RANGE"]:
             try:
                 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -59,19 +71,6 @@ class RedirectorActor(BaseActor):
             self._port = None
         logger.debug("Server socket: %s", server_socket)
         self.read_list = [server_socket]
-        if self._port is not None:
-            logger.info("Socket listening on %s:%d", self._host, self._port)
-
-    def receiveMsg_WakeupMessage(self, msg, _sender):
-        # pylint: disable=invalid-name
-        """Handler for WakeupMessage"""
-        if msg.payload == "loop" and not self.on_kill:
-            self._loop()
-
-    @overrides
-    def receiveMsg_SetupMsg(self, msg, sender):
-        logger.debug("Setup redirector actor")
-        super().receiveMsg_SetupMsg(msg, sender)
         if self._port is None:
             logger.critical(
                 "Cannot open socket in the configured port range %s",
