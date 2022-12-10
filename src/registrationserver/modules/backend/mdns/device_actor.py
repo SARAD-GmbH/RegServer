@@ -62,6 +62,12 @@ class DeviceActor(DeviceBaseActor):
         self._api_port = None
         self.device_id = None
         self.base_url = ""
+        self.occupied = False  # Is device occupied by somebody else?
+        self.http = None
+
+    @overrides
+    def receiveMsg_SetupMsg(self, msg, sender):
+        super().receiveMsg_SetupMsg(msg, sender)
         self.http = requests.Session()
         self.http.hooks["response"] = [
             lambda response, *args, **kwargs: response.raise_for_status()
@@ -75,7 +81,6 @@ class DeviceActor(DeviceBaseActor):
         adapter = TimeoutHTTPAdapter(max_retries=retry_strategy)
         self.http.mount("https://", adapter)
         self.http.mount("http://", adapter)
-        self.occupied = False  # Is device occupied by somebody else?
 
     def receiveMsg_SetupMdnsActorMsg(self, msg, _sender):
         # pylint: disable=invalid-name

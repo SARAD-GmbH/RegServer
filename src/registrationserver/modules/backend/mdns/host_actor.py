@@ -58,6 +58,11 @@ class HostActor(BaseActor):
         self.get_updates = True
         self._virgin = True
         self._asys = None
+        self.http = None
+
+    @overrides
+    def receiveMsg_SetupMsg(self, msg, sender):
+        super().receiveMsg_SetupMsg(msg, sender)
         self.http = requests.Session()
         self.http.hooks["response"] = [
             lambda response, *args, **kwargs: response.raise_for_status()
@@ -71,10 +76,6 @@ class HostActor(BaseActor):
         adapter = TimeoutHTTPAdapter(max_retries=retry_strategy)
         self.http.mount("https://", adapter)
         self.http.mount("http://", adapter)
-
-    @overrides
-    def receiveMsg_SetupMsg(self, msg, sender):
-        super().receiveMsg_SetupMsg(msg, sender)
         self._asys = msg.asys_address
         self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
