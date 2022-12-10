@@ -75,7 +75,7 @@ class Is1Actor(DeviceBaseActor):
         if self._socket is None:
             socket.setdefaulttimeout(5)
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            retry_counter = 3
+            retry_counter = 2
             while retry_counter:
                 try:
                     logger.debug(
@@ -108,8 +108,8 @@ class Is1Actor(DeviceBaseActor):
             self._socket = None
             logger.debug("Socket shutdown and closed.")
 
-    def _send_via_socket(self, msg):
-        retry_counter = 5
+    def _send_via_socket(self, msg) -> bool:
+        retry_counter = 2
         success = False
         while retry_counter:
             try:
@@ -125,9 +125,7 @@ class Is1Actor(DeviceBaseActor):
                 retry_counter = retry_counter - 1
                 logger.debug("%d retries left", retry_counter)
                 time.sleep(1)
-        if not success:
-            logger.error("Cannot send to IS1")
-            self.send(self.myAddress, KillMsg())
+        return success
 
     @overrides
     def receiveMsg_TxBinaryMsg(self, msg, sender):
@@ -139,20 +137,20 @@ class Is1Actor(DeviceBaseActor):
             return
         # Dirty workaround for bug in SARAD instruments
         # Sometimes an instrument just doesn't answer.
-        retry_counter = 5
+        retry_counter = 2
         success = False
         while retry_counter:
-            self._send_via_socket(msg.data)
-            try:
-                reply = self._socket.recv(1024)
-                retry_counter = 0
-                success = True
-            except (TimeoutError, socket.timeout):
-                logger.warning("Timeout on waiting for reply from IS1. Retrying...")
-                retry_counter = retry_counter - 1
-            except ConnectionResetError as exception:
-                logger.error(exception)
-                retry_counter = 0
+            if self._send_via_socket(msg.data):
+                try:
+                    reply = self._socket.recv(1024)
+                    retry_counter = 0
+                    success = True
+                except (TimeoutError, socket.timeout):
+                    logger.warning("Timeout on waiting for reply from IS1. Retrying...")
+                    retry_counter = retry_counter - 1
+                except ConnectionResetError as exception:
+                    logger.error(exception)
+                    retry_counter = 0
         if not success:
             logger.error("Giving up on %s and removing this actor", self.my_id)
             self.send(self.myAddress, KillMsg())
@@ -171,29 +169,26 @@ class Is1Actor(DeviceBaseActor):
         cmd_msg = make_command_msg(
             [self.SELECT_COM, (self._com_port).to_bytes(1, byteorder="little")]
         )
-        self._send_via_socket(cmd_msg)
-        try:
-            reply = self._socket.recv(1024)
-        except (TimeoutError, socket.timeout, ConnectionResetError):
-            logger.error("Timeout on waiting for reply to SELECT_COM: %s", cmd_msg)
-            self._handle_reserve_reply_from_is(Status.IS_NOT_FOUND)
-            self._destroy_socket()
-            return
-        checked_reply = check_message(reply, multiframe=False)
-        logger.debug("Reserve at IS1 replied %s", checked_reply)
-        if (
-            checked_reply["is_valid"]
-            and checked_reply["payload"][0].to_bytes(1, byteorder="little")
-            == self.COM_SELECTED
-        ):
-            self._handle_reserve_reply_from_is(Status.OK)
-        elif (
-            checked_reply["is_valid"]
-            and checked_reply["payload"] == self.COM_NOT_AVAILABLE
-        ):
-            self.send(self.myAddress, KillMsg())
+        if self._send_via_socket(cmd_msg):
+            try:
+                reply = self._socket.recv(1024)
+            except (TimeoutError, socket.timeout, ConnectionResetError):
+                logger.error("Timeout on waiting for reply to SELECT_COM: %s", cmd_msg)
+                status = Status.IS_NOT_FOUND
+            else:
+                checked_reply = check_message(reply, multiframe=False)
+                logger.debug("Reserve at IS1 replied %s", checked_reply)
+                if (
+                    checked_reply["is_valid"]
+                    and checked_reply["payload"][0].to_bytes(1, byteorder="little")
+                    == self.COM_SELECTED
+                ):
+                    status = Status.OK
+                else:
+                    status = Status.NOT_FOUND
         else:
-            self._handle_reserve_reply_from_is(Status.NOT_FOUND)
+            status = Status.IS_NOT_FOUND
+        self._handle_reserve_reply_from_is(status)
         self._destroy_socket()
 
     @overrides
