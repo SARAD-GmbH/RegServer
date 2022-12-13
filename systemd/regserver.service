@@ -8,6 +8,8 @@ WorkingDirectory=/home/pi/RegServer/src
 ExecStart=/usr/local/bin/start-regserver
 Restart=always
 RestartSec=0.1
+TimeoutStopSec=7
+KillMode=mixed
 
 [Install]
 WantedBy=default.target
