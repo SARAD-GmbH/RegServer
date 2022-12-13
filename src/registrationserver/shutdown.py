@@ -26,9 +26,8 @@ def set_file_flag(running, with_error=False):
     Returns:
         None
     """
-    if running:
-        if os.path.isfile(FLAGFILENAME):
-            os.unlink(FLAGFILENAME)
+    if running and os.path.isfile(FLAGFILENAME):
+        os.unlink(FLAGFILENAME)
         logger.info("Remove %s", FLAGFILENAME)
     else:
         with open(FLAGFILENAME, "w", encoding="utf8") as flag_file:
