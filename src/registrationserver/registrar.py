@@ -116,34 +116,6 @@ class Registrar(BaseActor):
                 payload="keep alive",
             )
 
-    def receiveMsg_DeadEnvelope(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler for all DeadEnvelope messages in the actor system."""
-        logger.warning("%s for %s from %s", msg, self.my_id, sender)
-        if isinstance(
-            msg.deadMessage,
-            (
-                ActorExitRequest,
-                KillMsg,
-                SubscribeToDeviceStatusMsg,
-                UnSubscribeFromDeviceStatusMsg,
-                UpdateActorDictMsg,
-                SetDeviceStatusMsg,
-                ReservationStatusMsg,
-            ),
-        ):
-            actor_dict = self.actor_dict.copy()
-            for actor in actor_dict:
-                if actor_dict[actor]["address"] == msg.deadAddress:
-                    self.actor_dict.pop(actor, None)
-                    logger.warning(
-                        "Remove not existing actor %s from self.actor_dict", actor
-                    )
-            logger.info("The above warning can safely be ignored.")
-        else:
-            logger.critical("-> Emergency shutdown")
-            system_shutdown()
-
     def receiveMsg_SubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SubscribeMsg from any actor."""

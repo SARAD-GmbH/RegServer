@@ -22,12 +22,15 @@ from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import ActorAddress, ActorTypeDispatcher
 
-from registrationserver.actor_messages import (SetupMsg, SubscribeMsg,
+from registrationserver.actor_messages import (KillMsg, ReservationStatusMsg,
+                                               SetDeviceStatusMsg, SetupMsg,
+                                               SubscribeMsg,
                                                SubscribeToActorDictMsg,
                                                SubscribeToDeviceStatusMsg,
                                                UnSubscribeFromActorDictMsg,
                                                UnSubscribeFromDeviceStatusMsg,
-                                               UnsubscribeMsg)
+                                               UnsubscribeMsg,
+                                               UpdateActorDictMsg)
 from registrationserver.logger import logger
 from registrationserver.shutdown import system_shutdown
 
@@ -165,6 +168,44 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name
         """Handler for ActorExitRequest"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+
+    def receiveMsg_DeadEnvelope(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for all DeadEnvelope messages in the actor system.
+
+        Placing this handler here is a workaround for an error in dead letter
+        handling in the multiprocQueueBase implementation of Thespian Actor
+        System. Actually it belongs to the Registrar Actor that was ordained
+        for dead letter handling. This did work well with multiprocUDPBase and
+        multiprocTCPBase but didn't with multiprocQueueBase. In the last case
+        the Cluster actor received a DeadEnvelope message causing a failure.
+        See #210.
+
+        """
+        logger.warning("%s for %s from %s", msg, self.my_id, sender)
+        if isinstance(
+            msg.deadMessage,
+            (
+                ActorExitRequest,
+                KillMsg,
+                SubscribeToDeviceStatusMsg,
+                UnSubscribeFromDeviceStatusMsg,
+                UpdateActorDictMsg,
+                SetDeviceStatusMsg,
+                ReservationStatusMsg,
+            ),
+        ):
+            actor_dict = self.actor_dict.copy()
+            for actor in actor_dict:
+                if actor_dict[actor]["address"] == msg.deadAddress:
+                    self.actor_dict.pop(actor, None)
+                    logger.warning(
+                        "Remove not existing actor %s from self.actor_dict", actor
+                    )
+            logger.info("The above warning can safely be ignored.")
+        else:
+            logger.critical("-> Emergency shutdown")
+            system_shutdown()
 
     def receiveUnrecognizedMessage(self, msg, sender):
         # pylint: disable=invalid-name
