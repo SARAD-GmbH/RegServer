@@ -23,8 +23,8 @@ from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import ActorAddress, ActorTypeDispatcher
 
 from registrationserver.actor_messages import (KillMsg, ReservationStatusMsg,
-                                               SetDeviceStatusMsg, SetupMsg,
-                                               SubscribeMsg,
+                                               RxBinaryMsg, SetDeviceStatusMsg,
+                                               SetupMsg, SubscribeMsg,
                                                SubscribeToActorDictMsg,
                                                SubscribeToDeviceStatusMsg,
                                                UnSubscribeFromActorDictMsg,
@@ -193,6 +193,7 @@ class BaseActor(ActorTypeDispatcher):
                 UpdateActorDictMsg,
                 SetDeviceStatusMsg,
                 ReservationStatusMsg,
+                RxBinaryMsg,
             ),
         ):
             actor_dict = self.actor_dict.copy()
