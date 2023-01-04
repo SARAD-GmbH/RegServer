@@ -13,7 +13,8 @@ from contextlib import suppress
 from datetime import timedelta
 from typing import List
 
-from thespian.actors import ActorSystem  # type: ignore
+from thespian.actors import (Actor, ActorSystem,  # type: ignore
+                             ActorSystemFailure)
 
 from registrationserver.actor_messages import (GetActorDictMsg,
                                                GetDeviceStatusesMsg,
@@ -192,6 +193,16 @@ def get_key(val, my_dict):
         if val == value:
             return key
     return None
+
+
+def get_registrar_actor():
+    """Function to return the registrar_actor of the Actor system"""
+    try:
+        return ActorSystem().createActor(Actor, globalName="registrar")
+    except (ActorSystemFailure, RuntimeError):
+        logger.critical("No response from Actor System. -> Emergency shutdown")
+        system_shutdown()
+        return None
 
 
 def get_actor(registrar_actor, actor_id: str):

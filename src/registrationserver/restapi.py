@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 
 from flask import Flask, Response, json, request
 from thespian.actors import ActorSystem  # type: ignore
-from thespian.actors import Actor, ActorSystemFailure, Thespian_ActorStatus
+from thespian.actors import Thespian_ActorStatus
 from thespian.system.messages.status import (  # type: ignore
     Thespian_StatusReq, formatStatus)
 from waitress import serve
@@ -37,7 +37,8 @@ from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
                                                ReturnUsbPortsMsg, Status)
 from registrationserver.config import mqtt_config
 from registrationserver.helpers import (get_actor, get_device_status,
-                                        get_device_statuses, sanitize_hn,
+                                        get_device_statuses,
+                                        get_registrar_actor, sanitize_hn,
                                         transport_technology)
 from registrationserver.logger import logger  # type: ignore
 from registrationserver.shutdown import system_shutdown
@@ -149,9 +150,7 @@ class RestApi:
     @api.route("/list/", methods=["GET"])
     def get_list():
         """Path for getting the list of active devices"""
-        try:
-            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except (ActorSystemFailure, RuntimeError):
+        if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -174,9 +173,7 @@ class RestApi:
     @api.route("/scan/", methods=["GET"])
     def scan_for_new_instr():
         """Refresh the list of active devices"""
-        try:
-            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except (ActorSystemFailure, RuntimeError):
+        if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -213,9 +210,7 @@ class RestApi:
     @api.route("/list/<device_id>/", methods=["GET"])
     def get_device(device_id):
         """Path for getting information for a single active device"""
-        try:
-            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except (ActorSystemFailure, RuntimeError):
+        if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -239,9 +234,7 @@ class RestApi:
     def reserve_device(device_id):
         """Path for reserving a single active device"""
         # Collect information about who sent the request.
-        try:
-            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except (ActorSystemFailure, RuntimeError):
+        if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -355,9 +348,7 @@ class RestApi:
     @api.route("/list/<device_id>/free/", methods=["GET"])
     def free_device(device_id):
         """Path for freeing a single active device"""
-        try:
-            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except (ActorSystemFailure, RuntimeError):
+        if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -427,9 +418,7 @@ class RestApi:
         """Path to get values of a special device"""
         error = False
         answer = {}
-        try:
-            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except (ActorSystemFailure, RuntimeError):
+        if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -557,9 +546,7 @@ class RestApi:
     @api.route("/ports/", methods=["GET"])
     def getlocalports():
         """Lists Local Ports, Used for Testing atm"""
-        try:
-            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except (ActorSystemFailure, RuntimeError):
+        if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -590,9 +577,7 @@ class RestApi:
     @api.route("/ports/<port>/loop", methods=["GET"])
     def getloopport(port):
         """Loops Local Ports, Used for Testing"""
-        try:
-            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except (ActorSystemFailure, RuntimeError):
+        if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -660,9 +645,7 @@ class RestApi:
     @api.route("/ports/list-usb", methods=["GET"])
     def getusbports():
         """Loops Local Ports, Used for Testing"""
-        try:
-            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except (ActorSystemFailure, RuntimeError):
+        if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -693,9 +676,7 @@ class RestApi:
     @api.route("/ports/list-native", methods=["GET"])
     def getnativeports():
         """Loops Local Ports, Used for Testing"""
-        try:
-            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except (ActorSystemFailure, RuntimeError):
+        if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
@@ -728,9 +709,7 @@ class RestApi:
     @api.route("/status/<actor_id>", methods=["GET"])
     def getstatus(actor_id):
         """Ask actor system to output actor status to debug log"""
-        try:
-            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except (ActorSystemFailure, RuntimeError):
+        if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
