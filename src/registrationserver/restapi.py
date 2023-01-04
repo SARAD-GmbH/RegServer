@@ -346,6 +346,40 @@ class RestApi:
         """Path for freeing a single active device"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
+        else:
+            device_state = get_device_status(registrar_actor, device_id)
+            if (device_state == {}) or (
+                device_actor := get_actor(registrar_actor, device_id)
+            ) is None:
+                status = Status.NOT_FOUND
+            else:
+                logger.info("Ask %s to FREE...", device_id)
+                with ActorSystem().private() as free_dev:
+                    try:
+                        free_return = free_dev.ask(
+                            device_actor,
+                            FreeDeviceMsg(),
+                            timeout=timedelta(seconds=10),
+                        )
+                    except ConnectionResetError as exception:
+                        logger.error(exception)
+                        free_return = None
+                        status = Status.CRITICAL
+                if free_return is not None:
+                    reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
+                    if reply_is_corrupted:
+                        return reply_is_corrupted
+                    if free_return.status in [
+                        Status.RESERVE_PENDING,
+                        Status.FREE_PENDING,
+                    ]:
+                        status = Status.NOT_FOUND
+                    else:
+                        status = free_return.status
+        answer = {"Error code": status.value, "Error": str(status), device_id: {}}
+        if status in (Status.OK, Status.OCCUPIED, Status.OK_SKIPPED):
+            answer[device_id] = get_device_status(registrar_actor, device_id)
+        elif status == Status.CRITICAL:
             answer = {
                 "Error code": status.value,
                 "Error": str(status),
@@ -354,55 +388,6 @@ class RestApi:
             }
             logger.critical("No response from Actor System. -> Emergency shutdown")
             system_shutdown()
-        else:
-            device_state = get_device_status(registrar_actor, device_id)
-            if device_state == {}:
-                status = Status.NOT_FOUND
-            else:
-                device_actor = get_actor(registrar_actor, device_id)
-                if device_actor is None:
-                    status = Status.NOT_FOUND
-                else:
-                    logger.info("Ask %s to FREE...", device_id)
-                    with ActorSystem().private() as free_dev:
-                        try:
-                            free_return = free_dev.ask(
-                                device_actor,
-                                FreeDeviceMsg(),
-                                timeout=timedelta(seconds=10),
-                            )
-                        except ConnectionResetError as exception:
-                            logger.error(exception)
-                            free_return = None
-                    if free_return is None:
-                        status = Status.CRITICAL
-                        answer = {
-                            "Error code": status.value,
-                            "Error": str(status),
-                            device_id: {},
-                            "Notification": "Registration Server going down for restart.",
-                            "Requester": "Emergency shutdown",
-                        }
-                        logger.critical(
-                            "No response from Actor System. -> Emergency shutdown"
-                        )
-                        system_shutdown()
-                    else:
-                        reply_is_corrupted = check_msg(
-                            free_return, ReservationStatusMsg
-                        )
-                        if reply_is_corrupted:
-                            return reply_is_corrupted
-                        if free_return.status in [
-                            Status.RESERVE_PENDING,
-                            Status.FREE_PENDING,
-                        ]:
-                            status = Status.NOT_FOUND
-                        else:
-                            status = free_return.status
-            answer = {"Error code": status.value, "Error": str(status), device_id: {}}
-            if status in (Status.OK, Status.OCCUPIED, Status.OK_SKIPPED):
-                answer[device_id] = get_device_status(registrar_actor, device_id)
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
