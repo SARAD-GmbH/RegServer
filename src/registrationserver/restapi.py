@@ -610,9 +610,7 @@ class RestApi:
     @api.route("/ports/<port>/stop", methods=["GET"])
     def getstopport(port):
         """Loops Local Ports, Used for Testing"""
-        try:
-            registrar_actor = ActorSystem().createActor(Actor, globalName="registrar")
-        except (ActorSystemFailure, RuntimeError):
+        if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             answer = {
                 "Error code": status.value,
