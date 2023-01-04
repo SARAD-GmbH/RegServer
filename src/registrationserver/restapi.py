@@ -234,6 +234,7 @@ class RestApi:
     def reserve_device(device_id):
         """Path for reserving a single active device"""
         # Collect information about who sent the request.
+        error = False
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             answer = {
@@ -245,6 +246,7 @@ class RestApi:
             }
             logger.critical("No response from Actor System. -> Emergency shutdown")
             system_shutdown()
+            error = True
         else:
             try:
                 attribute_who = request.args.get("who").strip('"')
@@ -259,86 +261,80 @@ class RestApi:
                     "Error": str(status),
                     device_id: {},
                 }
-                return Response(
-                    response=json.dumps(answer), status=200, mimetype="application/json"
-                )
-            logger.info(
-                "Request reservation of %s for %s@%s",
-                device_id,
-                attribute_who,
-                request_host,
+                error = True
+        if error:
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
             )
-            device_state = get_device_status(registrar_actor, device_id)
-            if (
-                transport_technology(device_id) not in ["local", "is1", "mdns", "mqtt"]
-            ) or (device_state == {}):
-                logger.error("Requested service not supported by actor system.")
-                status = Status.NOT_FOUND
-                answer = {
-                    "Error code": status.value,
-                    "Error": str(status),
-                    device_id: {},
-                }
-                return Response(
-                    response=json.dumps(answer), status=200, mimetype="application/json"
-                )
-            # send RESERVE message to device actor
-            device_actor = get_actor(registrar_actor, device_id)
-            if device_actor is None:
-                status = Status.NOT_FOUND
-            else:
-                with ActorSystem().private() as reserve_sys:
-                    try:
-                        reserve_return = reserve_sys.ask(
-                            device_actor,
-                            ReserveDeviceMsg(request_host, user, app),
-                            timeout=timedelta(seconds=10),
-                        )
-                    except ConnectionResetError:
-                        reserve_return = None
-                if reserve_return is None:
-                    status = Status.CRITICAL
-                    answer = {
-                        "Error code": status.value,
-                        "Error": str(status),
-                        device_id: {},
-                        "Notification": "Registration Server going down for restart.",
-                        "Requester": "Emergency shutdown",
-                    }
-                    logger.critical(
-                        "No response from Actor System. -> Emergency shutdown"
+        logger.info(
+            "Request reservation of %s for %s@%s",
+            device_id,
+            attribute_who,
+            request_host,
+        )
+        device_state = get_device_status(registrar_actor, device_id)
+        if (
+            transport_technology(device_id) not in ["local", "is1", "mdns", "mqtt"]
+        ) or (device_state == {}):
+            logger.error("Requested service not supported by actor system.")
+            status = Status.NOT_FOUND
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+                device_id: {},
+            }
+            return Response(
+                response=json.dumps(answer), status=200, mimetype="application/json"
+            )
+        # send RESERVE message to device actor
+        device_actor = get_actor(registrar_actor, device_id)
+        if device_actor is None:
+            status = Status.NOT_FOUND
+        else:
+            with ActorSystem().private() as reserve_sys:
+                try:
+                    reserve_return = reserve_sys.ask(
+                        device_actor,
+                        ReserveDeviceMsg(request_host, user, app),
+                        timeout=timedelta(seconds=10),
                     )
-                    system_shutdown()
-                else:
-                    reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
-                    if reply_is_corrupted:
-                        return reply_is_corrupted
-                    if reserve_return.status in [
-                        Status.RESERVE_PENDING,
-                        Status.FREE_PENDING,
-                    ]:
-                        status = Status.NOT_FOUND
-                    else:
-                        status = reserve_return.status
-            if status in (
-                Status.OK,
-                Status.OK_SKIPPED,
-                Status.OK_UPDATED,
-                Status.OCCUPIED,
-                Status.NOT_FOUND,
-                Status.IS_NOT_FOUND,
-            ):
-                answer = {"Error code": status.value, "Error": str(status)}
-                answer[device_id] = get_device_status(registrar_actor, device_id)
-            else:
+                except ConnectionResetError:
+                    reserve_return = None
+            if reserve_return is None:
                 status = Status.CRITICAL
-                answer = {
-                    "Error code": status.value,
-                    "Error": str(status),
-                    device_id: {},
-                }
-                logger.critical("%s -> emergency shutdown", answer)
-                system_shutdown()
+                logger.error("No response from Actor System.")
+            else:
+                reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
+                if reply_is_corrupted:
+                    return reply_is_corrupted
+                if reserve_return.status in [
+                    Status.RESERVE_PENDING,
+                    Status.FREE_PENDING,
+                ]:
+                    status = Status.NOT_FOUND
+                else:
+                    status = reserve_return.status
+        if status in (
+            Status.OK,
+            Status.OK_SKIPPED,
+            Status.OK_UPDATED,
+            Status.OCCUPIED,
+            Status.NOT_FOUND,
+            Status.IS_NOT_FOUND,
+        ):
+            answer = {"Error code": status.value, "Error": str(status)}
+            answer[device_id] = get_device_status(registrar_actor, device_id)
+        else:
+            status = Status.CRITICAL
+            answer = {
+                "Error code": status.value,
+                "Error": str(status),
+                device_id: {},
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+            logger.critical(answer)
+            system_shutdown()
         return Response(
             response=json.dumps(answer), status=200, mimetype="application/json"
         )
