@@ -96,7 +96,10 @@ def send_reserve_message(device_id, registrar_actor, request_host, user, app) ->
         except ConnectionResetError:
             reserve_return = None
     if reserve_return is None:
-        logger.error("No response from Actor System.")
+        logger.error("No response from Device Actor.")
+        device_actor = get_actor(registrar_actor, device_id)
+        if device_actor is None:
+            return Status.NOT_FOUND
         return Status.CRITICAL
     reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
     if reply_is_corrupted:
@@ -136,6 +139,9 @@ def send_free_message(device_id, registrar_actor) -> Status:
             logger.error(exception)
             free_return = None
     if free_return is None:
+        device_actor = get_actor(registrar_actor, device_id)
+        if device_actor is None:
+            return Status.NOT_FOUND
         return Status.CRITICAL
     reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
     if reply_is_corrupted:
