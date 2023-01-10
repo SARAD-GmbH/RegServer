@@ -366,6 +366,8 @@ class RestApi:
             status = send_reserve_message(
                 device_id, registrar_actor, request_host, user, app
             )
+        if status == Status.CRITICAL:
+            status = Status.IS_NOT_FOUND
         if status in (
             Status.OK,
             Status.OK_SKIPPED,
@@ -399,9 +401,18 @@ class RestApi:
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
         else:
-            status = send_free_message(device_id, registrar_actor)
+            is_status = send_free_message(device_id, registrar_actor)
+            if is_status == Status.CRITICAL:
+                status = Status.IS_NOT_FOUND
+            else:
+                status = is_status
         answer = {"Error code": status.value, "Error": str(status), device_id: {}}
-        if status in (Status.OK, Status.OCCUPIED, Status.OK_SKIPPED):
+        if status in (
+            Status.OK,
+            Status.OCCUPIED,
+            Status.OK_SKIPPED,
+            Status.IS_NOT_FOUND,
+        ):
             answer[device_id] = get_device_status(registrar_actor, device_id)
         elif status == Status.CRITICAL:
             answer = {
