@@ -28,16 +28,18 @@ def get_ip(ipv6=False):
     Returns:
         string: IP address
     """
-    my_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-    my_socket.settimeout(0)
-    try:
-        # doesn't even have to be reachable
-        my_socket.connect(("fe80::b630:531e:1381:33a3", 1))
-        ipv6_address = my_socket.getsockname()[0]
-    except Exception:  # pylint: disable=broad-except
-        ipv6_address = "::1"
-    finally:
-        my_socket.close()
+    if ipv6:
+        my_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        my_socket.settimeout(0)
+        try:
+            # doesn't even have to be reachable
+            my_socket.connect(("fe80::b630:531e:1381:33a3", 1))
+            ipv6_address = my_socket.getsockname()[0]
+        except Exception:  # pylint: disable=broad-except
+            ipv6_address = "::1"
+        finally:
+            my_socket.close()
+        return ipv6_address
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     my_socket.settimeout(0)
     try:
@@ -48,8 +50,6 @@ def get_ip(ipv6=False):
         ipv4_address = "127.0.0.1"
     finally:
         my_socket.close()
-    if ipv6:
-        return ipv6_address
     return ipv4_address
 
 
@@ -389,7 +389,7 @@ else:
 # Configuration of MQTT clients used in MQTT frontend and MQTT backend
 DEFAULT_MQTT_CLIENT_ID = "RegistrationServer"
 DEFAULT_MQTT_BROKER = "85.214.243.156"  # Mosquitto running on sarad.de
-DEFAULT_PORT = 1883
+DEFAULT_MQTT_PORT = 1883
 DEFAULT_RETRY_INTERVAL = 5
 DEFAULT_TLS_USE_TLS = False
 DEFAULT_GROUP = "lan"
@@ -402,7 +402,7 @@ if customization.get("mqtt") is None:
         "MQTT_CLIENT_ID": unique_id(DEFAULT_MQTT_CLIENT_ID),
         "MQTT_BROKER": DEFAULT_MQTT_BROKER,
         "GROUP": DEFAULT_GROUP,
-        "PORT": DEFAULT_PORT,
+        "PORT": DEFAULT_MQTT_PORT,
         "RETRY_INTERVAL": DEFAULT_RETRY_INTERVAL,
         "TLS_CA_FILE": DEFAULT_TLS_CA_FILE,
         "TLS_CERT_FILE": DEFAULT_TLS_CERT_FILE,
@@ -417,7 +417,7 @@ else:
         ),
         "MQTT_BROKER": customization["mqtt"].get("mqtt_broker", DEFAULT_MQTT_BROKER),
         "GROUP": customization["mqtt"].get("group", DEFAULT_GROUP),
-        "PORT": customization["mqtt"].get("port", DEFAULT_PORT),
+        "PORT": customization["mqtt"].get("port", DEFAULT_MQTT_PORT),
         "RETRY_INTERVAL": customization["mqtt"].get(
             "retry_interval", DEFAULT_RETRY_INTERVAL
         ),
