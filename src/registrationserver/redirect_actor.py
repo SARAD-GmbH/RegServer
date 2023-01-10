@@ -39,6 +39,7 @@ class RedirectorActor(BaseActor):
         self._host = config["MY_IP"]
         self._port = None
         self.read_list = None
+        logger.info("Redirector Actor initialized")
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
