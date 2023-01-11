@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "RegServer-Service"
-#define MyAppVersion "2.0"
+#define MyAppVersion "2.0.3"
 #define MyAppPublisher "SARAD"
 #define MyAppURL "https://www.sarad.de"
 #define MyOutputDir "D:\bin\RegServer-Service"
@@ -38,7 +38,7 @@ DisableReadyPage=True
 DisableReadyMemo=True
 DisableFinishedPage=True
 AppName=SARAD Registration Server Service
-AppVersion=2.0
+AppVersion={#MyAppVersion}
 DefaultDirName={#Destination}
 DisableDirPage=yes
 AllowUNCPath=False

@@ -27,7 +27,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
     _svc_display_name_ = "SARAD Registration Server"
     _svc_description_ = (
         "Provides connection to local and remote "
-        + "measuring instruments from SARAD GmbH. v2.0.2_RC02"
+        + "measuring instruments from SARAD GmbH. v2.0.3"
     )
 
     def __init__(self, args):
