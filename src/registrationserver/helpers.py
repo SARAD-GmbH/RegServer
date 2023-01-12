@@ -16,8 +16,10 @@ from typing import List
 from thespian.actors import (Actor, ActorSystem,  # type: ignore
                              ActorSystemFailure)
 
-from registrationserver.actor_messages import (GetActorDictMsg,
+from registrationserver.actor_messages import (FreeDeviceMsg, GetActorDictMsg,
                                                GetDeviceStatusesMsg,
+                                               ReservationStatusMsg,
+                                               ReserveDeviceMsg, Status,
                                                UpdateActorDictMsg,
                                                UpdateDeviceStatusesMsg)
 from registrationserver.logger import logger
@@ -323,3 +325,107 @@ def delete_keys_from_dict(dictionary, keys):
 def sanitize_hn(hostname: str) -> str:
     """Remove domain and switch to lower case."""
     return hostname.split(".")[0].lower()
+
+
+def check_msg(return_message, message_object_type):
+    """Check whether the returned message is of the expected type.
+
+    Args:
+        return_message: Actor message object from the last ask.
+        message_object_type: The expected object type for this request.
+
+    Returns: Either a response to be published by Flask or False.
+    """
+    logger.debug("Returned with %s", return_message)
+    if not isinstance(return_message, message_object_type):
+        logger.critical("Got message object of unexpected type")
+        logger.critical("-> Stop and shutdown system")
+        status = Status.CRITICAL
+        answer = {"Error code": status.value, "Error": str(status)}
+        system_shutdown()
+        return answer
+    return False
+
+
+def send_reserve_message(device_id, registrar_actor, request_host, user, app) -> Status:
+    """Send a reserve message to the Device Actor associated with device_id
+    and give back the status.
+
+    Args:
+        device_id: device_id of the device that shall be reserved
+        registrar_actor: Actor address of the Registrar Actor
+        request_host: Requesting hostname
+        user: User requesting the reservation
+        app: Requesting application
+
+    Returns: Success status
+    """
+    device_actor = get_actor(registrar_actor, device_id)
+    if device_actor is None:
+        return Status.NOT_FOUND
+    with ActorSystem().private() as reserve_sys:
+        try:
+            reserve_return = reserve_sys.ask(
+                device_actor,
+                ReserveDeviceMsg(request_host, user, app),
+                timeout=timedelta(seconds=10),
+            )
+        except ConnectionResetError:
+            reserve_return = None
+    if reserve_return is None:
+        logger.error("No response from Device Actor %s", device_id)
+        device_actor = get_actor(registrar_actor, device_id)
+        if device_actor is None:
+            return Status.NOT_FOUND
+        return Status.CRITICAL
+    reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
+    if reply_is_corrupted:
+        return reply_is_corrupted
+    if reserve_return.status in [
+        Status.RESERVE_PENDING,
+        Status.FREE_PENDING,
+    ]:
+        return Status.NOT_FOUND
+    return reserve_return.status
+
+
+def send_free_message(device_id, registrar_actor) -> Status:
+    """Send a free message to the Device Actor associated with the device_id
+    and give back the status.
+
+    Args:
+        device_id: device_id of the device that shall be reserved
+        registrar_actor: Actor address of the Registrar Actor
+
+    Returns: Success status
+    """
+    device_state = get_device_status(registrar_actor, device_id)
+    if (device_state == {}) or (
+        device_actor := get_actor(registrar_actor, device_id)
+    ) is None:
+        return Status.NOT_FOUND
+    logger.info("Ask %s to FREE...", device_id)
+    with ActorSystem().private() as free_dev:
+        try:
+            free_return = free_dev.ask(
+                device_actor,
+                FreeDeviceMsg(),
+                timeout=timedelta(seconds=10),
+            )
+        except ConnectionResetError as exception:
+            logger.error(exception)
+            free_return = None
+    if free_return is None:
+        device_actor = get_actor(registrar_actor, device_id)
+        if device_actor is None:
+            return Status.NOT_FOUND
+        return Status.CRITICAL
+    reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
+    if reply_is_corrupted:
+        return reply_is_corrupted
+    if free_return.status in [
+        Status.RESERVE_PENDING,
+        Status.FREE_PENDING,
+    ]:
+        return Status.NOT_FOUND
+    return free_return.status

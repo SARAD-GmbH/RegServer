@@ -30,7 +30,7 @@ from registrationserver.logger import logger
 from registrationserver.modules.backend.mdns.mdns_listener import MdnsListener
 from registrationserver.modules.frontend.modbus.modbus_rtu import ModbusRtu
 from registrationserver.registrar import Registrar
-from registrationserver.restapi import RestApi
+from registrationserver.restapi import run
 from registrationserver.shutdown import (is_flag_set, kill_processes,
                                          set_file_flag, system_shutdown)
 
@@ -94,9 +94,8 @@ def startup():
     usb_listener = None
     mdns_backend = None
     if Frontend.REST in frontend_config:
-        restapi = RestApi()
         api_thread = threading.Thread(
-            target=restapi.run,
+            target=run,
             args=(rest_frontend_config["API_PORT"],),
             daemon=True,
         )

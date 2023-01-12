@@ -31,6 +31,7 @@ toml = "*"
 requests = "*"
 waitress = "*"
 modbus-tk = "*"
+flask-restx = "*"
 
 [requires]
 python_version = "3"

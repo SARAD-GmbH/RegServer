@@ -16,29 +16,30 @@ import time
 from datetime import datetime, timedelta
 
 from flask import Flask, Response, json, request
+from flask_restx import Api, Resource  # type: ignore
 from thespian.actors import ActorSystem  # type: ignore
 from thespian.actors import Thespian_ActorStatus
 from thespian.system.messages.status import (  # type: ignore
     Thespian_StatusReq, formatStatus)
 from waitress import serve
 
-from registrationserver.actor_messages import (AddPortToLoopMsg, FreeDeviceMsg,
+from registrationserver.actor_messages import (AddPortToLoopMsg,
                                                GetLocalPortsMsg,
                                                GetNativePortsMsg,
                                                GetRecentValueMsg,
                                                GetUsbPortsMsg, RecentValueMsg,
                                                RemovePortFromLoopMsg,
                                                RescanFinishedMsg, RescanMsg,
-                                               ReservationStatusMsg,
-                                               ReserveDeviceMsg,
                                                ReturnLocalPortsMsg,
                                                ReturnLoopPortsMsg,
                                                ReturnNativePortsMsg,
                                                ReturnUsbPortsMsg, Status)
 from registrationserver.config import mqtt_config
-from registrationserver.helpers import (get_actor, get_device_status,
-                                        get_device_statuses,
+from registrationserver.helpers import (check_msg, get_actor,
+                                        get_device_status, get_device_statuses,
                                         get_registrar_actor, sanitize_hn,
+                                        send_free_message,
+                                        send_reserve_message,
                                         transport_technology)
 from registrationserver.logger import logger  # type: ignore
 from registrationserver.shutdown import system_shutdown
@@ -48,148 +49,37 @@ from registrationserver.shutdown import system_shutdown
 STARTTIME = datetime.utcnow()
 
 
-def check_msg(return_message, message_object_type):
-    """Check whether the returned message is of the expected type.
-
-    Args:
-        return_message: Actor message object from the last ask.
-        message_object_type: The expected object type for this request.
-
-    Returns: Either a response to be published by Flask or False.
-    """
-    logger.debug("Returned with %s", return_message)
-    if not isinstance(return_message, message_object_type):
-        logger.critical("Got message object of unexpected type")
-        logger.critical("-> Stop and shutdown system")
-        status = Status.CRITICAL
-        answer = {"Error code": status.value, "Error": str(status)}
-        system_shutdown()
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
-    return False
+app = Flask(__name__)
+api = Api(app)
 
 
-def send_reserve_message(device_id, registrar_actor, request_host, user, app) -> Status:
-    """Send a reserve message to the Device Actor associated with device_id
-    and give back the status.
-
-    Args:
-        device_id: device_id of the device that shall be reserved
-        registrar_actor: Actor address of the Registrar Actor
-        request_host: Requesting hostname
-        user: User requesting the reservation
-        app: Requesting application
-
-    Returns: Success status
-    """
-    device_actor = get_actor(registrar_actor, device_id)
-    if device_actor is None:
-        return Status.NOT_FOUND
-    with ActorSystem().private() as reserve_sys:
-        try:
-            reserve_return = reserve_sys.ask(
-                device_actor,
-                ReserveDeviceMsg(request_host, user, app),
-                timeout=timedelta(seconds=10),
-            )
-        except ConnectionResetError:
-            reserve_return = None
-    if reserve_return is None:
-        logger.error("No response from Device Actor %s", device_id)
-        device_actor = get_actor(registrar_actor, device_id)
-        if device_actor is None:
-            return Status.NOT_FOUND
-        return Status.CRITICAL
-    reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
-    if reply_is_corrupted:
-        return reply_is_corrupted
-    if reserve_return.status in [
-        Status.RESERVE_PENDING,
-        Status.FREE_PENDING,
-    ]:
-        return Status.NOT_FOUND
-    return reserve_return.status
-
-
-def send_free_message(device_id, registrar_actor) -> Status:
-    """Send a free message to the Device Actor associated with the device_id
-    and give back the status.
-
-    Args:
-        device_id: device_id of the device that shall be reserved
-        registrar_actor: Actor address of the Registrar Actor
-
-    Returns: Success status
-    """
-    device_state = get_device_status(registrar_actor, device_id)
-    if (device_state == {}) or (
-        device_actor := get_actor(registrar_actor, device_id)
-    ) is None:
-        return Status.NOT_FOUND
-    logger.info("Ask %s to FREE...", device_id)
-    with ActorSystem().private() as free_dev:
-        try:
-            free_return = free_dev.ask(
-                device_actor,
-                FreeDeviceMsg(),
-                timeout=timedelta(seconds=10),
-            )
-        except ConnectionResetError as exception:
-            logger.error(exception)
-            free_return = None
-    if free_return is None:
-        device_actor = get_actor(registrar_actor, device_id)
-        if device_actor is None:
-            return Status.NOT_FOUND
-        return Status.CRITICAL
-    reply_is_corrupted = check_msg(free_return, ReservationStatusMsg)
-    if reply_is_corrupted:
-        return reply_is_corrupted
-    if free_return.status in [
-        Status.RESERVE_PENDING,
-        Status.FREE_PENDING,
-    ]:
-        return Status.NOT_FOUND
-    return free_return.status
-
-
-class RestApi:
-    """REST API
-
-    delivers lists and info for devices,
-    relays Reservation and Free requests to the device actors.
-    """
-
-    api = Flask(__name__)
-
-    class Dummy:
-        """Dummy output to ignore stdout"""
-
-        @staticmethod
-        def write(arg=None, **kwargs):
-            """Does Nothing"""
-
-        @staticmethod
-        def flush(arg=None, **kwargs):
-            """Does Nothing"""
+class Dummy:
+    """Dummy output to ignore stdout"""
 
     @staticmethod
-    @api.route("/", methods=["GET"])
-    @api.route("/ping", methods=["GET"])
-    @api.route("/ping/", methods=["GET"])
-    def ping():
+    def write(arg=None, **kwargs):
+        """Does Nothing"""
+
+    @staticmethod
+    def flush(arg=None, **kwargs):
+        """Does Nothing"""
+
+
+@api.route("/", "/ping", "/ping/")
+class Ping(Resource):
+    """Send a sign of life to confirm that the host is online."""
+
+    def get(self):
         """Send a sign of life to confirm that the host is online."""
         logger.debug("Ping received")
-        response = {"service": "SARAD Registration Server", "running_since": STARTTIME}
-        return Response(
-            response=json.dumps(response), status=200, mimetype="application/json"
-        )
+        return {"service": "SARAD Registration Server", "running_since": str(STARTTIME)}
 
-    @staticmethod
-    @api.route("/shutdown", methods=["GET"])
-    @api.route("/shutdown/", methods=["GET"])
-    def shutdown():
+
+@api.route("/shutdown", "/shutdown/")
+class Shutdown(Resource):
+    """Allows to shutdown the Registration Server."""
+
+    def get(self):
         """Allows to shutdown the Registration Server."""
         remote_addr = request.remote_addr
         remote_user = request.remote_user
@@ -225,14 +115,14 @@ class RestApi:
         answer["Error"] = str(status)
         answer["Remote addr"] = remote_addr
         answer["Remote user"] = remote_user
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
+        return answer
 
-    @staticmethod
-    @api.route("/list", methods=["GET"])
-    @api.route("/list/", methods=["GET"])
-    def get_list():
+
+@api.route("/list", "/list/")
+class List(Resource):
+    """Path for getting the list of active devices"""
+
+    def get(self):
         """Path for getting the list of active devices"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -246,16 +136,14 @@ class RestApi:
             system_shutdown()
         else:
             answer = get_device_statuses(registrar_actor)
-        return Response(
-            response=json.dumps(answer),
-            status=200,
-            mimetype="application/json",
-        )
+        return answer
 
-    @staticmethod
-    @api.route("/scan", methods=["GET"])
-    @api.route("/scan/", methods=["GET"])
-    def scan_for_new_instr():
+
+@api.route("/scan", "/scan/")
+class Scan(Resource):
+    """Refresh the list of active devices"""
+
+    def get(self):
         """Refresh the list of active devices"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -283,16 +171,14 @@ class RestApi:
                 "Error code": reply.status.value,
                 "Error": str(reply.status),
             }
-        return Response(
-            response=json.dumps(answer),
-            status=200,
-            mimetype="application/json",
-        )
+        return answer
 
-    @staticmethod
-    @api.route("/list/<device_id>", methods=["GET"])
-    @api.route("/list/<device_id>/", methods=["GET"])
-    def get_device(device_id):
+
+@api.route("/list/<string:device_id>", "/list/<string:device_id>/")
+class ListDevice(Resource):
+    """Path for getting information for a single active device"""
+
+    def get(self, device_id):
         """Path for getting information for a single active device"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -308,14 +194,14 @@ class RestApi:
         else:
             answer = {}
             answer[device_id] = get_device_status(registrar_actor, device_id)
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
+        return answer
 
-    @staticmethod
-    @api.route("/list/<device_id>/reserve", methods=["GET"])
-    @api.route("/list/<device_id>/reserve/", methods=["GET"])
-    def reserve_device(device_id):
+
+@api.route("/list/<string:device_id>/reserve", "/list/<string:device_id>/reserve/")
+class ReserveDevice(Resource):
+    """Path for reserving a single active device"""
+
+    def get(self, device_id):
         """Path for reserving a single active device"""
         # Collect information about who sent the request.
         error = False
@@ -334,7 +220,7 @@ class RestApi:
         else:
             try:
                 attribute_who = request.args.get("who").strip('"')
-                app = attribute_who.split(" - ")[0]
+                application = attribute_who.split(" - ")[0]
                 user = attribute_who.split(" - ")[1]
                 request_host = sanitize_hn(attribute_who.split(" - ")[2])
             except (IndexError, AttributeError):
@@ -364,7 +250,7 @@ class RestApi:
             status = Status.NOT_FOUND
         else:
             status = send_reserve_message(
-                device_id, registrar_actor, request_host, user, app
+                device_id, registrar_actor, request_host, user, application
             )
         if status == Status.CRITICAL:
             status = Status.IS_NOT_FOUND
@@ -389,14 +275,14 @@ class RestApi:
             }
             logger.critical(answer)
             system_shutdown()
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
+        return answer
 
-    @staticmethod
-    @api.route("/list/<device_id>/free", methods=["GET"])
-    @api.route("/list/<device_id>/free/", methods=["GET"])
-    def free_device(device_id):
+
+@api.route("/list/<string:device_id>/free", "/list/<string:device_id>/free/")
+class FreeDevice(Resource):
+    """Path for freeing a single active device"""
+
+    def get(self, device_id):
         """Path for freeing a single active device"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -423,14 +309,14 @@ class RestApi:
             }
             logger.critical("No response from Actor System. -> Emergency shutdown")
             system_shutdown()
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
+        return answer
 
-    @staticmethod
-    @api.route("/values/<device_id>", methods=["GET"])
-    @api.route("/values/<device_id>/", methods=["GET"])
-    def get_recent_value(device_id):
+
+@api.route("/values/<string:device_id>", "/values/<string:device_id>/")
+class GetValues(Resource):
+    """Path to get values of a special device"""
+
+    def get(self, device_id):
         """Path to get values of a special device"""
         error = False
         answer = {}
@@ -461,9 +347,7 @@ class RestApi:
                 }
                 error = True
         if error:
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
+            return answer
         logger.info(
             "Request value %d/%d/%d of %s",
             component_id,
@@ -485,9 +369,7 @@ class RestApi:
                 "Error": str(status),
                 "Notification": notification,
             }
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
+            return answer
         # send GetRecentValueMsg to device actor
         device_actor = get_actor(registrar_actor, device_id)
         if device_actor is None:
@@ -496,9 +378,7 @@ class RestApi:
                 "Error code": status.value,
                 "Error": str(status),
             }
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
+            return answer
         with ActorSystem().private() as value_sys:
             try:
                 value_return = value_sys.ask(
@@ -516,9 +396,7 @@ class RestApi:
                 }
                 logger.critical("No response from Actor System. -> Emergency shutdown")
                 system_shutdown()
-                return Response(
-                    response=json.dumps(answer), status=200, mimetype="application/json"
-                )
+                return answer
         reply_is_corrupted = check_msg(value_return, RecentValueMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
@@ -553,14 +431,14 @@ class RestApi:
                     "Deviation": value_return.gps.deviation,
                 },
             }
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
+        return answer
 
-    @staticmethod
-    @api.route("/ports", methods=["GET"])
-    @api.route("/ports/", methods=["GET"])
-    def getlocalports():
+
+@api.route("/ports", "/ports/")
+class GetLocalPorts(Resource):
+    """Lists Local Ports, Used for Testing atm"""
+
+    def get(self):
         """Lists Local Ports, Used for Testing atm"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -585,13 +463,14 @@ class RestApi:
             if reply_is_corrupted:
                 return reply_is_corrupted
             answer = reply.ports
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
+        return answer
 
-    @staticmethod
-    @api.route("/ports/<port>/loop", methods=["GET"])
-    def getloopport(port):
+
+@api.route("/ports/<int:port>/loop")
+class GetLoopPort(Resource):
+    """Loops Local Ports, Used for Testing"""
+
+    def get(self, port):
         """Loops Local Ports, Used for Testing"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -618,13 +497,14 @@ class RestApi:
             if reply_is_corrupted:
                 return reply_is_corrupted
             answer = reply.ports
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
+        return answer
 
-    @staticmethod
-    @api.route("/ports/<port>/stop", methods=["GET"])
-    def getstopport(port):
+
+@api.route("/ports/<int:port>/stop")
+class GetStopPort(Resource):
+    """Loops Local Ports, Used for Testing"""
+
+    def get(self, port):
         """Loops Local Ports, Used for Testing"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -651,13 +531,14 @@ class RestApi:
             if reply_is_corrupted:
                 return reply_is_corrupted
             answer = reply.ports
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
+        return answer
 
-    @staticmethod
-    @api.route("/ports/list-usb", methods=["GET"])
-    def getusbports():
+
+@api.route("/ports/list-usb")
+class GetUsbPorts(Resource):
+    """Loops Local Ports, Used for Testing"""
+
+    def get(self):
         """Loops Local Ports, Used for Testing"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -682,13 +563,14 @@ class RestApi:
             if reply_is_corrupted:
                 return reply_is_corrupted
             answer = reply.ports
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
+        return answer
 
-    @staticmethod
-    @api.route("/ports/list-native", methods=["GET"])
-    def getnativeports():
+
+@api.route("/ports/list-native")
+class GetNativePorts(Resource):
+    """Loops Local Ports, Used for Testing"""
+
+    def get(self):
         """Loops Local Ports, Used for Testing"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -715,13 +597,14 @@ class RestApi:
             if reply_is_corrupted:
                 return reply_is_corrupted
             answer = reply.ports
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
+        return answer
 
-    @staticmethod
-    @api.route("/status/<actor_id>", methods=["GET"])
-    def getstatus(actor_id):
+
+@api.route("/status/<string:actor_id>")
+class GetStatus(Resource):
+    """Ask actor system to output actor status to debug log"""
+
+    def get(self, actor_id):
         """Ask actor system to output actor status to debug log"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -757,23 +640,22 @@ class RestApi:
             formatStatus(reply, tofd=Temp())
             status = Status.OK
             answer = {"Error code": status.value, "Error": str(status)}
-        return Response(
-            response=json.dumps(answer), status=200, mimetype="application/json"
-        )
+        return answer
 
-    def run(self, port=None):
-        """Start the API"""
-        success = False
-        retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
-        while not success:
-            try:
-                logger.info("Starting API at port %d", port)
-                std = sys.stdout
-                sys.stdout = RestApi.Dummy
-                # self.api.run(host=host, port=port)
-                serve(self.api, listen=f"*:{port}", threads=12)
-                sys.stdout = std
-                success = True
-            except OSError as exception:
-                logger.critical(exception)
-                time.sleep(retry_interval)
+
+def run(port=None):
+    """Start the API"""
+    success = False
+    retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
+    while not success:
+        try:
+            logger.info("Starting API at port %d", port)
+            std = sys.stdout
+            sys.stdout = Dummy
+            # self.api.run(host=host, port=port)
+            serve(app, listen=f"*:{port}", threads=12)
+            sys.stdout = std
+            success = True
+        except OSError as exception:
+            logger.critical(exception)
+            time.sleep(retry_interval)
