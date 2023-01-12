@@ -26,9 +26,12 @@ def set_file_flag(running, with_error=False):
     Returns:
         None
     """
-    if running and os.path.isfile(FLAGFILENAME):
-        os.unlink(FLAGFILENAME)
-        logger.info("Remove %s", FLAGFILENAME)
+    if running:
+        try:
+            os.remove(FLAGFILENAME)
+            logger.info("Remove %s", FLAGFILENAME)
+        except FileNotFoundError:
+            logger.info("%s not found", FLAGFILENAME)
     else:
         with open(FLAGFILENAME, "w", encoding="utf8") as flag_file:
             flag_file.write(str(with_error))
