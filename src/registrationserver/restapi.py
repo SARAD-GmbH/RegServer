@@ -15,7 +15,7 @@ import sys
 import time
 from datetime import datetime, timedelta
 
-from flask import Flask, Response, json, request
+from flask import Flask, request
 from flask_restx import Api, Resource  # type: ignore
 from thespian.actors import ActorSystem  # type: ignore
 from thespian.actors import Thespian_ActorStatus
@@ -126,17 +126,15 @@ class List(Resource):
         """Path for getting the list of active devices"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
-            answer = {
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
-        else:
-            answer = get_device_statuses(registrar_actor)
-        return answer
+        return get_device_statuses(registrar_actor)
 
 
 @api.route("/scan", "/scan/")
@@ -147,31 +145,29 @@ class Scan(Resource):
         """Refresh the list of active devices"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
-            answer = {
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
-        else:
-            cluster_actor = get_actor(registrar_actor, "cluster")
-            with ActorSystem().private() as scan_sys:
-                try:
-                    reply = scan_sys.ask(
-                        cluster_actor, RescanMsg(), timeout=timedelta(seconds=60)
-                    )
-                except ConnectionResetError:
-                    reply = None
-            reply_is_corrupted = check_msg(reply, RescanFinishedMsg)
-            if reply_is_corrupted:
-                return reply_is_corrupted
-            answer = {
-                "Error code": reply.status.value,
-                "Error": str(reply.status),
-            }
-        return answer
+        cluster_actor = get_actor(registrar_actor, "cluster")
+        with ActorSystem().private() as scan_sys:
+            try:
+                reply = scan_sys.ask(
+                    cluster_actor, RescanMsg(), timeout=timedelta(seconds=60)
+                )
+            except ConnectionResetError:
+                reply = None
+        reply_is_corrupted = check_msg(reply, RescanFinishedMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
+        return {
+            "Error code": reply.status.value,
+            "Error": str(reply.status),
+        }
 
 
 @api.route("/list/<string:device_id>", "/list/<string:device_id>/")
@@ -182,19 +178,15 @@ class ListDevice(Resource):
         """Path for getting information for a single active device"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
-            answer = {
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
-            answer[device_id] = None
-        else:
-            answer = {}
-            answer[device_id] = get_device_status(registrar_actor, device_id)
-        return answer
+        return {device_id: get_device_status(registrar_actor, device_id)}
 
 
 @api.route("/list/<string:device_id>/reserve", "/list/<string:device_id>/reserve/")
@@ -204,38 +196,30 @@ class ReserveDevice(Resource):
     def get(self, device_id):
         """Path for reserving a single active device"""
         # Collect information about who sent the request.
-        error = False
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
-            answer = {
+            logger.critical("No response from Registrar Actor. -> Emergency shutdown")
+            system_shutdown()
+            return {
                 "Error code": status.value,
                 "Error": str(status),
                 device_id: {},
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
-            error = True
-        else:
-            try:
-                attribute_who = request.args.get("who").strip('"')
-                application = attribute_who.split(" - ")[0]
-                user = attribute_who.split(" - ")[1]
-                request_host = sanitize_hn(attribute_who.split(" - ")[2])
-            except (IndexError, AttributeError):
-                logger.warning("Reserve request without proper who attribute.")
-                status = Status.ATTRIBUTE_ERROR
-                answer = {
-                    "Error code": status.value,
-                    "Error": str(status),
-                    device_id: {},
-                }
-                error = True
-        if error:
-            return Response(
-                response=json.dumps(answer), status=200, mimetype="application/json"
-            )
+        try:
+            attribute_who = request.args.get("who").strip('"')
+            application = attribute_who.split(" - ")[0]
+            user = attribute_who.split(" - ")[1]
+            request_host = sanitize_hn(attribute_who.split(" - ")[2])
+        except (IndexError, AttributeError):
+            logger.warning("Reserve request without proper who attribute.")
+            status = Status.ATTRIBUTE_ERROR
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                device_id: {},
+            }
         logger.info(
             "Request reservation of %s for %s@%s",
             device_id,
@@ -262,20 +246,21 @@ class ReserveDevice(Resource):
             Status.NOT_FOUND,
             Status.IS_NOT_FOUND,
         ):
-            answer = {"Error code": status.value, "Error": str(status)}
-            answer[device_id] = get_device_status(registrar_actor, device_id)
-        else:
-            status = Status.CRITICAL
-            answer = {
+            return {
                 "Error code": status.value,
                 "Error": str(status),
-                device_id: {},
-                "Notification": "Registration Server going down for restart.",
-                "Requester": "Emergency shutdown",
+                device_id: get_device_status(registrar_actor, device_id),
             }
-            logger.critical(answer)
-            system_shutdown()
-        return answer
+        status = Status.CRITICAL
+        logger.critical("No response from Device Actor. -> Emergency shutdown")
+        system_shutdown()
+        return {
+            "Error code": status.value,
+            "Error": str(status),
+            device_id: {},
+            "Notification": "Registration Server going down for restart.",
+            "Requester": "Emergency shutdown",
+        }
 
 
 @api.route("/list/<string:device_id>/free", "/list/<string:device_id>/free/")
@@ -292,24 +277,20 @@ class FreeDevice(Resource):
                 status = Status.IS_NOT_FOUND
             else:
                 status = is_status
-        answer = {"Error code": status.value, "Error": str(status), device_id: {}}
-        if status in (
-            Status.OK,
-            Status.OCCUPIED,
-            Status.OK_SKIPPED,
-            Status.IS_NOT_FOUND,
-        ):
-            answer[device_id] = get_device_status(registrar_actor, device_id)
-        elif status == Status.CRITICAL:
-            answer = {
+        if status == Status.CRITICAL:
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
-        return answer
+        return {
+            "Error code": status.value,
+            "Error": str(status),
+            device_id: get_device_status(registrar_actor, device_id),
+        }
 
 
 @api.route("/values/<string:device_id>", "/values/<string:device_id>/")
@@ -317,37 +298,31 @@ class GetValues(Resource):
     """Path to get values of a special device"""
 
     def get(self, device_id):
+        # pylint: disable=too-many-return-statements
         """Path to get values of a special device"""
-        error = False
-        answer = {}
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
-            answer = {
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
-            error = True
-        else:
-            try:
-                component_id = int(request.args.get("component").strip('"'))
-                sensor_id = int(request.args.get("sensor").strip('"'))
-                measurand_id = int(request.args.get("measurand").strip('"'))
-            except (IndexError, AttributeError):
-                logger.warning("Get recent values request without proper attributes.")
-                status = Status.ATTRIBUTE_ERROR
-                notification = "Requires component, sensor, measurand."
-                answer = {
-                    "Error code": status.value,
-                    "Error": str(status),
-                    "Notification": notification,
-                }
-                error = True
-        if error:
-            return answer
+        try:
+            component_id = int(request.args.get("component").strip('"'))
+            sensor_id = int(request.args.get("sensor").strip('"'))
+            measurand_id = int(request.args.get("measurand").strip('"'))
+        except (IndexError, AttributeError):
+            logger.warning("Get recent values request without proper attributes.")
+            status = Status.ATTRIBUTE_ERROR
+            notification = "Requires component, sensor, measurand."
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": notification,
+            }
         logger.info(
             "Request value %d/%d/%d of %s",
             component_id,
@@ -364,21 +339,19 @@ class GetValues(Resource):
             logger.error("Request only supported for local DACM instruments.")
             status = Status.NOT_FOUND
             notification = "Only supported for local DACM instruments"
-            answer = {
+            return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": notification,
             }
-            return answer
         # send GetRecentValueMsg to device actor
         device_actor = get_actor(registrar_actor, device_id)
         if device_actor is None:
             status = Status.NOT_FOUND
-            answer = {
+            return {
                 "Error code": status.value,
                 "Error": str(status),
             }
-            return answer
         with ActorSystem().private() as value_sys:
             try:
                 value_return = value_sys.ask(
@@ -388,50 +361,47 @@ class GetValues(Resource):
                 )
             except ConnectionResetError:
                 status = Status.CRITICAL
-                answer = {
+                logger.critical("No response from Actor System. -> Emergency shutdown")
+                system_shutdown()
+                return {
                     "Error code": status.value,
                     "Error": str(status),
                     "Notification": "Registration Server going down for restart.",
                     "Requester": "Emergency shutdown",
                 }
-                logger.critical("No response from Actor System. -> Emergency shutdown")
-                system_shutdown()
-                return answer
         reply_is_corrupted = check_msg(value_return, RecentValueMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
         if value_return.status == Status.INDEX_ERROR:
-            answer = {
+            return {
                 "Error code": value_return.status.value,
                 "Error": str(value_return.status),
                 "Notification": "The requested measurand is not available.",
             }
-        else:
-            timestamp = (
-                value_return.timestamp.isoformat(timespec="seconds") + "Z"
-                if value_return.timestamp is not None
-                else None
-            )
-            answer = {
-                "Device Id": device_id,
-                "Component name": value_return.component_name,
-                "Sensor name": value_return.sensor_name,
-                "Measurand name": value_return.measurand_name,
-                "Measurand": value_return.measurand,
-                "Operator": value_return.operator,
-                "Value": value_return.value,
-                "Unit": value_return.unit,
-                "Timestamp": timestamp,
-                "Fetched": datetime.utcnow().isoformat(timespec="seconds") + "Z",
-                "GPS": {
-                    "Valid": value_return.gps.valid,
-                    "Latitude": value_return.gps.latitude,
-                    "Longitude": value_return.gps.longitude,
-                    "Altitude": value_return.gps.altitude,
-                    "Deviation": value_return.gps.deviation,
-                },
-            }
-        return answer
+        timestamp = (
+            value_return.timestamp.isoformat(timespec="seconds") + "Z"
+            if value_return.timestamp is not None
+            else None
+        )
+        return {
+            "Device Id": device_id,
+            "Component name": value_return.component_name,
+            "Sensor name": value_return.sensor_name,
+            "Measurand name": value_return.measurand_name,
+            "Measurand": value_return.measurand,
+            "Operator": value_return.operator,
+            "Value": value_return.value,
+            "Unit": value_return.unit,
+            "Timestamp": timestamp,
+            "Fetched": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "GPS": {
+                "Valid": value_return.gps.valid,
+                "Latitude": value_return.gps.latitude,
+                "Longitude": value_return.gps.longitude,
+                "Altitude": value_return.gps.altitude,
+                "Deviation": value_return.gps.deviation,
+            },
+        }
 
 
 @api.route("/ports", "/ports/")
@@ -442,28 +412,26 @@ class GetLocalPorts(Resource):
         """Lists Local Ports, Used for Testing atm"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
-            answer = {
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
-        else:
-            cluster_actor = get_actor(registrar_actor, "cluster")
-            with ActorSystem().private() as get_local_ports:
-                try:
-                    reply = get_local_ports.ask(
-                        cluster_actor, GetLocalPortsMsg(), timeout=timedelta(seconds=10)
-                    )
-                except ConnectionResetError:
-                    reply = None
-            reply_is_corrupted = check_msg(reply, ReturnLocalPortsMsg)
-            if reply_is_corrupted:
-                return reply_is_corrupted
-            answer = reply.ports
-        return answer
+        cluster_actor = get_actor(registrar_actor, "cluster")
+        with ActorSystem().private() as get_local_ports:
+            try:
+                reply = get_local_ports.ask(
+                    cluster_actor, GetLocalPortsMsg(), timeout=timedelta(seconds=10)
+                )
+            except ConnectionResetError:
+                reply = None
+        reply_is_corrupted = check_msg(reply, ReturnLocalPortsMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
+        return reply.ports
 
 
 @api.route("/ports/<int:port>/loop")
@@ -474,30 +442,28 @@ class GetLoopPort(Resource):
         """Loops Local Ports, Used for Testing"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
-            answer = {
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
-        else:
-            cluster_actor = get_actor(registrar_actor, "cluster")
-            with ActorSystem().private() as get_loop_port:
-                try:
-                    reply = get_loop_port.ask(
-                        cluster_actor,
-                        AddPortToLoopMsg(port),
-                        timeout=timedelta(seconds=10),
-                    )
-                except ConnectionResetError:
-                    reply = None
-            reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
-            if reply_is_corrupted:
-                return reply_is_corrupted
-            answer = reply.ports
-        return answer
+        cluster_actor = get_actor(registrar_actor, "cluster")
+        with ActorSystem().private() as get_loop_port:
+            try:
+                reply = get_loop_port.ask(
+                    cluster_actor,
+                    AddPortToLoopMsg(port),
+                    timeout=timedelta(seconds=10),
+                )
+            except ConnectionResetError:
+                reply = None
+        reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
+        return reply.ports
 
 
 @api.route("/ports/<int:port>/stop")
@@ -508,30 +474,28 @@ class GetStopPort(Resource):
         """Loops Local Ports, Used for Testing"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
-            answer = {
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
-        else:
-            cluster_actor = get_actor(registrar_actor, "cluster")
-            with ActorSystem().private() as get_stop_port:
-                try:
-                    reply = get_stop_port.ask(
-                        cluster_actor,
-                        RemovePortFromLoopMsg(port),
-                        timeout=timedelta(seconds=10),
-                    )
-                except ConnectionResetError:
-                    reply = None
-            reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
-            if reply_is_corrupted:
-                return reply_is_corrupted
-            answer = reply.ports
-        return answer
+        cluster_actor = get_actor(registrar_actor, "cluster")
+        with ActorSystem().private() as get_stop_port:
+            try:
+                reply = get_stop_port.ask(
+                    cluster_actor,
+                    RemovePortFromLoopMsg(port),
+                    timeout=timedelta(seconds=10),
+                )
+            except ConnectionResetError:
+                reply = None
+        reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
+        return reply.ports
 
 
 @api.route("/ports/list-usb")
@@ -542,28 +506,26 @@ class GetUsbPorts(Resource):
         """Loops Local Ports, Used for Testing"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
-            answer = {
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
-        else:
-            cluster_actor = get_actor(registrar_actor, "cluster")
-            with ActorSystem().private() as get_usb_ports:
-                try:
-                    reply = get_usb_ports.ask(
-                        cluster_actor, GetUsbPortsMsg(), timeout=timedelta(seconds=10)
-                    )
-                except ConnectionResetError:
-                    reply = None
-            reply_is_corrupted = check_msg(reply, ReturnUsbPortsMsg)
-            if reply_is_corrupted:
-                return reply_is_corrupted
-            answer = reply.ports
-        return answer
+        cluster_actor = get_actor(registrar_actor, "cluster")
+        with ActorSystem().private() as get_usb_ports:
+            try:
+                reply = get_usb_ports.ask(
+                    cluster_actor, GetUsbPortsMsg(), timeout=timedelta(seconds=10)
+                )
+            except ConnectionResetError:
+                reply = None
+        reply_is_corrupted = check_msg(reply, ReturnUsbPortsMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
+        return reply.ports
 
 
 @api.route("/ports/list-native")
@@ -574,30 +536,28 @@ class GetNativePorts(Resource):
         """Loops Local Ports, Used for Testing"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
-            answer = {
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
-        else:
-            cluster_actor = get_actor(registrar_actor, "cluster")
-            with ActorSystem().private() as get_native_ports:
-                try:
-                    reply = get_native_ports.ask(
-                        cluster_actor,
-                        GetNativePortsMsg(),
-                        timeout=timedelta(seconds=10),
-                    )
-                except ConnectionResetError:
-                    reply = None
-            reply_is_corrupted = check_msg(reply, ReturnNativePortsMsg)
-            if reply_is_corrupted:
-                return reply_is_corrupted
-            answer = reply.ports
-        return answer
+        cluster_actor = get_actor(registrar_actor, "cluster")
+        with ActorSystem().private() as get_native_ports:
+            try:
+                reply = get_native_ports.ask(
+                    cluster_actor,
+                    GetNativePortsMsg(),
+                    timeout=timedelta(seconds=10),
+                )
+            except ConnectionResetError:
+                reply = None
+        reply_is_corrupted = check_msg(reply, ReturnNativePortsMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
+        return reply.ports
 
 
 @api.route("/status/<string:actor_id>")
@@ -608,39 +568,37 @@ class GetStatus(Resource):
         """Ask actor system to output actor status to debug log"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
-            answer = {
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
-        else:
-            actor_address = get_actor(registrar_actor, actor_id)
-            with ActorSystem().private() as get_status:
-                try:
-                    reply = get_status.ask(
-                        actorAddr=actor_address,
-                        msg=Thespian_StatusReq(),
-                        timeout=timedelta(seconds=10),
-                    )
-                except ConnectionResetError:
-                    reply = None
-            reply_is_corrupted = check_msg(reply, Thespian_ActorStatus)
-            if reply_is_corrupted:
-                return reply_is_corrupted
+        actor_address = get_actor(registrar_actor, actor_id)
+        with ActorSystem().private() as get_status:
+            try:
+                reply = get_status.ask(
+                    actorAddr=actor_address,
+                    msg=Thespian_StatusReq(),
+                    timeout=timedelta(seconds=10),
+                )
+            except ConnectionResetError:
+                reply = None
+        reply_is_corrupted = check_msg(reply, Thespian_ActorStatus)
+        if reply_is_corrupted:
+            return reply_is_corrupted
 
-            class Temp:
-                # pylint: disable=too-few-public-methods
-                """Needed for formatStatus"""
+        class Temp:
+            # pylint: disable=too-few-public-methods
+            """Needed for formatStatus"""
 
-                write = logger.debug
+            write = logger.debug
 
-            formatStatus(reply, tofd=Temp())
-            status = Status.OK
-            answer = {"Error code": status.value, "Error": str(status)}
-        return answer
+        formatStatus(reply, tofd=Temp())
+        status = Status.OK
+        return {"Error code": status.value, "Error": str(status)}
 
 
 def run(port=None):
