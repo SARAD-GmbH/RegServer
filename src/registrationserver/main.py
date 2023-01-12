@@ -54,12 +54,6 @@ def startup():
     Returns:
         Tuple of Registrar Actor, MdnsListener, and UsbListener
     """
-    try:
-        with open(LOGFILENAME, "w", encoding="utf8") as _:
-            logger.info("Log entries go to %s", LOGFILENAME)
-    except Exception:  # pylint: disable=broad-except
-        logger.error("Initialization of log file failed.")
-    logger.info("Logging system initialized.")
     # =======================
     # Initialization of the actor system,
     # can be changed to a distributed system here.
@@ -167,14 +161,15 @@ def shutdown(startup_tupel, wait_some_time, registrar_is_down, with_error=True):
     except OSError as exception:
         logger.critical(exception)
     kill_residual_processes(end_with_error=with_error)
+    if with_error:
+        raise SystemExit("Exit with error for automatic restart.")
+    logger.info("RegServer ended gracefully")
 
 
 def kill_residual_processes(end_with_error=True):
     """Kill RegServer processes. OS independent."""
     if end_with_error:
         logger.info("Trying to kill residual processes. Fingers crossed!")
-    else:
-        logger.info("RegServer ended gracefully")
     if os.name == "posix":
         process_regex = "python.sarad_registration_server"
     elif os.name == "nt":
@@ -189,8 +184,6 @@ def kill_residual_processes(end_with_error=True):
             logger.info("Consider using 'ps ax' to investigate!")
         if os.name == "nt":
             logger.info("Inspect Task Manager to investigate!")
-    if end_with_error:
-        raise SystemExit("Exit with error for automatic restart.")
 
 
 def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
@@ -245,10 +238,14 @@ def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
 
 def main():
     """Main function of the Registration Server"""
-    logger.debug("Entering main()")
-    kill_residual_processes(
-        end_with_error=False
-    )  # maybe there are processes left from last run
+    try:
+        with open(LOGFILENAME, "w", encoding="utf8") as _:
+            logger.info("Log entries go to %s", LOGFILENAME)
+    except Exception:  # pylint: disable=broad-except
+        logger.error("Initialization of log file failed.")
+    logger.info("Logging system initialized.")
+    # maybe there are processes left from last run
+    kill_residual_processes(end_with_error=False)
     if len(sys.argv) < 2:
         start_stop = "start"
     else:
