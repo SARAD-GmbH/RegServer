@@ -13,10 +13,10 @@
 
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import Flask, request
-from flask_restx import Api, Resource  # type: ignore
+from flask_restx import Api, Resource, reqparse  # type: ignore
 from thespian.actors import ActorSystem  # type: ignore
 from thespian.actors import Thespian_ActorStatus
 from thespian.system.messages.status import (  # type: ignore
@@ -47,10 +47,44 @@ from registrationserver.shutdown import system_shutdown
 # logger.debug("%s -> %s", __package__, __file__)
 
 STARTTIME = datetime.utcnow()
+PASSWORD = "Diev5Pw."
 
 
 app = Flask(__name__)
-api = Api(app)
+app.url_map.strict_slashes = False
+api = Api(
+    app,
+    version="1.0",
+    title="RegServer API",
+    description="API to get data from and to control the SARAD Registration Server service",
+)
+api.namespaces.clear()
+root_ns = api.namespace("/", description="Administrative functions")
+list_ns = api.namespace(
+    "list", description="List SARAD instruments, reserve or release them"
+)
+ports_ns = api.namespace(
+    "ports", description="Endpoints to list available serial ports for debugging"
+)
+status_ns = api.namespace(
+    "status", description="Endpoints to show status information for debugging"
+)
+values_ns = api.namespace("values", description="Show measuring values")
+reserve_arguments = reqparse.RequestParser()
+reserve_arguments.add_argument("who", type=str, required=True)
+shutdown_arguments = reqparse.RequestParser()
+shutdown_arguments.add_argument(
+    "password",
+    type=str,
+    required=True,
+    choices=[PASSWORD],
+)
+values_arguments = reqparse.RequestParser()
+values_arguments.add_argument("component", type=int, required=True)
+values_arguments.add_argument("sensor", type=int, required=True)
+values_arguments.add_argument(
+    "measurand", type=int, required=True, choices=[0, 1, 2, 3]
+)
 
 
 class Dummy:
@@ -65,44 +99,60 @@ class Dummy:
         """Does Nothing"""
 
 
-@api.route("/", "/ping", "/ping/")
+@root_ns.route("/ping")
 class Ping(Resource):
-    """Send a sign of life to confirm that the host is online."""
+    """Request a sign of life to confirm that the host is online."""
 
     def get(self):
-        """Send a sign of life to confirm that the host is online."""
+        """Request a sign of life to confirm that the host is online."""
         logger.debug("Ping received")
-        return {"service": "SARAD Registration Server", "running_since": str(STARTTIME)}
+        return {
+            "service": "SARAD Registration Server",
+            "running_since": STARTTIME.replace(
+                tzinfo=timezone.utc, microsecond=0
+            ).isoformat(),
+        }
 
 
-@api.route("/shutdown", "/shutdown/")
+@root_ns.route("/shutdown")
+@root_ns.param(
+    "password",
+    "This is not really a password since it is given here. "
+    + "It is only there to prevent shutdown by mistake.",
+)
 class Shutdown(Resource):
-    """Allows to shutdown the Registration Server."""
+    """Shutdown the SARAD Registration Server."""
 
+    @api.expect(shutdown_arguments, validate=True)
     def get(self):
-        """Allows to shutdown the Registration Server."""
+        """Shutdown the SARAD Registration Server.
+
+        The service will be terminated with error and thus be restarted
+        automatically by the Service Manager (Windows) or Systemd (Linux)
+        resp.
+
+        """
         remote_addr = request.remote_addr
         remote_user = request.remote_user
         try:
-            attribute_who = request.args.get("who").strip('"')
+            attribute_password = request.args.get("password").strip('"')
         except (IndexError, AttributeError):
             status = Status.ATTRIBUTE_ERROR
         else:
-            if attribute_who in ("Michael", "Riccardo"):
+            if attribute_password == PASSWORD:
                 status = Status.OK
             else:
                 status = Status.ATTRIBUTE_ERROR
         answer = {}
         if status == Status.OK:
             logger.info(
-                "Shutdown by user intervention from %s @ %s",
-                attribute_who,
+                "Shutdown by user intervention from %s",
                 remote_addr,
             )
             system_shutdown()
             answer = {
                 "Notification": "Registration Server going down for restart.",
-                "Requester": attribute_who,
+                "Requester": remote_addr,
             }
         elif status == Status.ATTRIBUTE_ERROR:
             logger.warning(
@@ -118,12 +168,12 @@ class Shutdown(Resource):
         return answer
 
 
-@api.route("/list", "/list/")
+@list_ns.route("/")
 class List(Resource):
-    """Path for getting the list of active devices"""
+    """Endpoint for getting the list of active devices"""
 
     def get(self):
-        """Path for getting the list of active devices"""
+        """List available SARAD instruments"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Actor System. -> Emergency shutdown")
@@ -137,12 +187,20 @@ class List(Resource):
         return get_device_statuses(registrar_actor)
 
 
-@api.route("/scan", "/scan/")
+@root_ns.route("/scan")
 class Scan(Resource):
     """Refresh the list of active devices"""
 
     def get(self):
-        """Refresh the list of active devices"""
+        """Refresh the list of active devices.
+
+        This might be required for SARAD instruments that are connected via
+        USB/RS-232 adapters like the instruments of the DOSEman family that are
+        connected via their IR cradle. The Registration Server is detecting
+        instruments by their USB connection or, if configured, by polling. This
+        function was implemented as fallback.
+
+        """
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Actor System. -> Emergency shutdown")
@@ -170,12 +228,16 @@ class Scan(Resource):
         }
 
 
-@api.route("/list/<string:device_id>", "/list/<string:device_id>/")
+@list_ns.route("/<string:device_id>")
+@list_ns.param(
+    "device_id",
+    "ID of the connected device as gathered as key from the `/list` endpoint",
+)
 class ListDevice(Resource):
-    """Path for getting information for a single active device"""
+    """Endpoint for getting information for a single active device"""
 
     def get(self, device_id):
-        """Path for getting information for a single active device"""
+        """Get indentifying information for a single available instrument."""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Actor System. -> Emergency shutdown")
@@ -189,12 +251,24 @@ class ListDevice(Resource):
         return {device_id: get_device_status(registrar_actor, device_id)}
 
 
-@api.route("/list/<string:device_id>/reserve", "/list/<string:device_id>/reserve/")
+@list_ns.route("/<string:device_id>/reserve")
+@list_ns.param(
+    "device_id",
+    "ID of the connected device as gathered as key from the `/list` endpoint",
+)
+@list_ns.param(
+    "who",
+    "String identifying who requested the reservation."
+    + "Consists of application, user, and requesting host. "
+    + "All three parts are to be devided by ` - `. \n"
+    + "Example: `who=RV8 - mstrey - WS01`",
+)
 class ReserveDevice(Resource):
-    """Path for reserving a single active device"""
+    """Endpoint for reserving an available instrument"""
 
+    @api.expect(reserve_arguments, validate=True)
     def get(self, device_id):
-        """Path for reserving a single active device"""
+        """Reserve an available instrument so that nobody else can use it."""
         # Collect information about who sent the request.
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -263,12 +337,16 @@ class ReserveDevice(Resource):
         }
 
 
-@api.route("/list/<string:device_id>/free", "/list/<string:device_id>/free/")
+@list_ns.route("/<string:device_id>/free")
+@list_ns.param(
+    "device_id",
+    "ID of the connected device as gathered as key from the `/list` endpoint",
+)
 class FreeDevice(Resource):
-    """Path for freeing a single active device"""
+    """Endpoint for freeing a reserved instrument"""
 
     def get(self, device_id):
-        """Path for freeing a single active device"""
+        """Free/release a device that was reserved before"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
         else:
@@ -293,13 +371,30 @@ class FreeDevice(Resource):
         }
 
 
-@api.route("/values/<string:device_id>", "/values/<string:device_id>/")
+@values_ns.route("/<string:device_id>")
+@list_ns.param(
+    "device_id",
+    "ID of the connected device as gathered as key from the `/list` endpoint",
+)
+@list_ns.param(
+    "component",
+    "Component index found in dVision",
+)
+@list_ns.param(
+    "sensor",
+    "Sensor index found in dVision",
+)
+@list_ns.param(
+    "measurand",
+    "Measurand index found in dVision. 0 = Recent, 1 = Average, 2 = Minimum, 3 = Maximum",
+)
 class GetValues(Resource):
-    """Path to get values of a special device"""
+    """Endpoint to get measuring values from a SARAD instrument"""
 
+    @api.expect(values_arguments, validate=True)
     def get(self, device_id):
         # pylint: disable=too-many-return-statements
-        """Path to get values of a special device"""
+        """Gather a measuring value from a device"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Actor System. -> Emergency shutdown")
@@ -404,12 +499,12 @@ class GetValues(Resource):
         }
 
 
-@api.route("/ports", "/ports/")
+@ports_ns.route("/")
 class GetLocalPorts(Resource):
-    """Lists Local Ports, Used for Testing atm"""
+    """Lists local serial ports"""
 
     def get(self):
-        """Lists Local Ports, Used for Testing atm"""
+        """Lists local serial ports"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Actor System. -> Emergency shutdown")
@@ -434,12 +529,17 @@ class GetLocalPorts(Resource):
         return reply.ports
 
 
-@api.route("/ports/<int:port>/loop")
+@ports_ns.route("/<string:port>/loop")
+@ports_ns.param("port", "ID of the serial port as gathered from the `/ports` endpoint")
 class GetLoopPort(Resource):
-    """Loops Local Ports, Used for Testing"""
+    """Loops local ports"""
 
     def get(self, port):
-        """Loops Local Ports, Used for Testing"""
+        """Add the serial port to the list of ports that shall be polled for
+        connected SARAD instruments. Usually these are ports with external
+        USB/RS-232 adapters.
+
+        """
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Actor System. -> Emergency shutdown")
@@ -466,12 +566,15 @@ class GetLoopPort(Resource):
         return reply.ports
 
 
-@api.route("/ports/<int:port>/stop")
+@ports_ns.route("/<string:port>/stop")
 class GetStopPort(Resource):
-    """Loops Local Ports, Used for Testing"""
+    """Stop polling for local port"""
 
     def get(self, port):
-        """Loops Local Ports, Used for Testing"""
+        """Remove the serial port from the list of ports that shall be polled for
+        connected SARAD instruments.
+
+        """
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Actor System. -> Emergency shutdown")
@@ -498,12 +601,12 @@ class GetStopPort(Resource):
         return reply.ports
 
 
-@api.route("/ports/list-usb")
+@ports_ns.route("/list-usb")
 class GetUsbPorts(Resource):
-    """Loops Local Ports, Used for Testing"""
+    """List local USB devices with virtual serial ports"""
 
     def get(self):
-        """Loops Local Ports, Used for Testing"""
+        """List local USB devices with virtual serial ports"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Actor System. -> Emergency shutdown")
@@ -528,12 +631,12 @@ class GetUsbPorts(Resource):
         return reply.ports
 
 
-@api.route("/ports/list-native")
+@ports_ns.route("/list-native")
 class GetNativePorts(Resource):
-    """Loops Local Ports, Used for Testing"""
+    """List local RS-232 ports"""
 
     def get(self):
-        """Loops Local Ports, Used for Testing"""
+        """List local RS-232 ports"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Actor System. -> Emergency shutdown")
@@ -560,12 +663,16 @@ class GetNativePorts(Resource):
         return reply.ports
 
 
-@api.route("/status/<string:actor_id>")
+@status_ns.route("/<string:actor_id>")
+@status_ns.param(
+    "actor_id",
+    "ID of an Actor existing in the Thespian Actor System of the Registration Server",
+)
 class GetStatus(Resource):
-    """Ask actor system to output actor status to debug log"""
+    """Ask Actor System to output Actor status to debug log"""
 
     def get(self, actor_id):
-        """Ask actor system to output actor status to debug log"""
+        """Ask Actor System to output Actor status to debug log"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Actor System. -> Emergency shutdown")
