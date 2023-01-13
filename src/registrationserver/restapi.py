@@ -394,7 +394,7 @@ class GetValues(Resource):
     @api.expect(values_arguments, validate=True)
     def get(self, device_id):
         # pylint: disable=too-many-return-statements
-        """Gather a measuring value from a device"""
+        """Gather a measuring value from a SARAD instrument of DACM family"""
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Actor System. -> Emergency shutdown")
