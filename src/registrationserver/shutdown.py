@@ -22,20 +22,21 @@ def set_file_flag(running, with_error=False):
 
     Args:
         running (bool): If False, the file will be created and the system shall be shutdown.
+        with_error (bool): If True, the system shall be shutdown with error
+                           in order to restart the service automatically.
 
     Returns:
         None
     """
-    if running:
-        try:
-            os.remove(FLAGFILENAME)
-            logger.info("Remove %s", FLAGFILENAME)
-        except FileNotFoundError:
-            logger.info("%s not found", FLAGFILENAME)
-    else:
+    try:
+        os.remove(FLAGFILENAME)
+        logger.info("Remove %s", FLAGFILENAME)
+    except FileNotFoundError:
+        logger.info("%s not found", FLAGFILENAME)
+    if not running:
         with open(FLAGFILENAME, "w", encoding="utf8") as flag_file:
             flag_file.write(str(with_error))
-        logger.info("Write %s", FLAGFILENAME)
+        logger.info("Write %s, with_error = %s", FLAGFILENAME, with_error)
 
 
 def is_flag_set():
