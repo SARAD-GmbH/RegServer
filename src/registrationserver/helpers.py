@@ -274,7 +274,7 @@ def get_device_statuses(registrar_actor):
             logger.debug("Request to registrar delivered: %s", result)
             system_shutdown()
             return None
-    logger.debug("Device statuses: %s", result.device_statuses)
+    # logger.debug("Device statuses: %s", result.device_statuses)
     return result.device_statuses
 
 

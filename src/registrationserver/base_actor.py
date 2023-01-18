@@ -138,7 +138,7 @@ class BaseActor(ActorTypeDispatcher):
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
         """Handler for UpdateActorDictMsg from Registrar"""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        # logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.actor_dict = msg.actor_dict
 
     def receiveMsg_PoisonMessage(self, msg, sender):
