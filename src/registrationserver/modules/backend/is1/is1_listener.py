@@ -233,9 +233,10 @@ class Is1Listener(BaseActor):
         cmd_msg = make_command_msg(self.GET_FIRST_COM)
         logger.debug("Send GetFirstCOM: %s", cmd_msg)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-            client_socket.settimeout(3)
+            client_socket.settimeout(5)
             retry = True
             counter = 5
+            time.sleep(1)
             while retry and counter:
                 try:
                     logger.debug("Trying to connect %s:%d", address.ip_address, is_port)
@@ -245,8 +246,8 @@ class Is1Listener(BaseActor):
                     counter = counter - 1
                     logger.debug("%d retries left", counter)
                     time.sleep(1)
-                except (OSError, TimeoutError, socket.timeout):
-                    logger.debug("%s:%d not reachable", is_host, is_port)
+                except (OSError, TimeoutError, socket.timeout) as exception:
+                    logger.debug("%s:%d not reachable. %s", is_host, is_port, exception)
                     return
             if retry:
                 logger.error("Connection refused on %s:%d", is_host, is_port)
