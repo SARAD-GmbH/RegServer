@@ -279,6 +279,7 @@ class Is1Listener(BaseActor):
                         instr_id=this_instrument["instr_id"],
                         port=this_instrument["port"],
                         is1_address=address,
+                        firmware_version=this_instrument["version"],
                     )
                     cmd_msg = make_command_msg(self.GET_NEXT_COM)
                     try:
@@ -316,7 +317,9 @@ class Is1Listener(BaseActor):
                 pickle.HIGHEST_PROTOCOL,
             )
 
-    def _create_and_setup_actor(self, instr_id, port, is1_address: Is1Address):
+    def _create_and_setup_actor(
+        self, instr_id, port, is1_address: Is1Address, firmware_version: int
+    ):
         logger.debug("[_create_and_setup_actor]")
         hid = Hashids()
         family_id = hid.decode(instr_id)[0]
@@ -354,6 +357,7 @@ class Is1Listener(BaseActor):
                 "Type": type_id,
                 "Serial number": serial_number,
                 "Host": is1_address.hostname,
+                "Firmware_version": firmware_version,
                 "Origin": is1_address.hostname,
                 "Protocol": sarad_type,
             },

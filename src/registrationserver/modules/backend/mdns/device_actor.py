@@ -277,9 +277,11 @@ class DeviceActor(DeviceBaseActor):
                 self.send(self.myAddress, KillMsg())
                 super().receiveMsg_SetDeviceStatusMsg(msg, sender)
                 return
-            self.device_status["Identification"]["Origin"] = device_desc[
-                "Identification"
-            ].get("Origin")
+            ident = self.device_status["Identification"]
+            remote_ident = device_desc["Identification"]
+            ident["Origin"] = remote_ident.get("Origin")
+            ident["Firmware version"] = remote_ident.get("Firmware version")
+            self.device_status["Identification"] = ident
             reservation = device_desc.get("Reservation")
             if reservation is None:
                 logger.debug(
