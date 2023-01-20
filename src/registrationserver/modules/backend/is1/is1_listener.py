@@ -357,7 +357,7 @@ class Is1Listener(BaseActor):
                 "Type": type_id,
                 "Serial number": serial_number,
                 "Host": is1_address.hostname,
-                "Firmware_version": firmware_version,
+                "Firmware version": firmware_version,
                 "Origin": is1_address.hostname,
                 "Protocol": sarad_type,
             },
