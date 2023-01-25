@@ -58,7 +58,7 @@ admin_port = 1900
 # convention_address = "127.0.0.1"
 
 process_startup_method = "fork"
-watchdog_interval = 0  # in minutes. 0 = inner watchdog switched off
+watchdog_interval = 5  # in minutes. 0 = inner watchdog switched off
 watchdog_wait = 20  # in seconds, has to be encreased for multiple native RS-232 ports
 outer_watchdog_interval = 60  # in seconds
 outer_watchdog_trials = 0  # number of attempts to check Registrar

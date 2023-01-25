@@ -100,6 +100,7 @@ class MdnsAdvertiserActor(BaseActor):
         )
         self.zeroconf.register_service(self.service)
         self.virgin = False
+        self.__update_service()
 
     def __update_service(self):
         logger.info("Update %s: occupied = %s", self.service.name, self.occupied)

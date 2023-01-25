@@ -168,6 +168,7 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name
         """Handler for ActorExitRequest"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
 
     def receiveMsg_DeadEnvelope(self, msg, sender):
         # pylint: disable=invalid-name
