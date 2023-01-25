@@ -21,6 +21,7 @@ from thespian.actors import ActorSystem  # type: ignore
 from thespian.actors import Thespian_ActorStatus
 from thespian.system.messages.status import (  # type: ignore
     Thespian_StatusReq, formatStatus)
+from version import VERSION
 from waitress import serve
 
 from registrationserver.actor_messages import (GetLocalPortsMsg,
@@ -105,6 +106,7 @@ class Ping(Resource):
         logger.debug("Ping received")
         return {
             "service": "SARAD Registration Server",
+            "version": VERSION,
             "running_since": STARTTIME.replace(
                 tzinfo=timezone.utc, microsecond=0
             ).isoformat(),

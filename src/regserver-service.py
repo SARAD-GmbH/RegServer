@@ -15,6 +15,7 @@ import servicemanager
 import win32event
 import win32service
 import win32serviceutil
+from versin import VERSION
 
 import registrationserver.main
 from registrationserver.shutdown import system_shutdown
@@ -27,7 +28,8 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
     _svc_display_name_ = "SARAD Registration Server"
     _svc_description_ = (
         "Provides connection to local and remote "
-        + "measuring instruments from SARAD GmbH. v2.0.3_RC03"
+        + "measuring instruments from SARAD GmbH. "
+        + VERSION
     )
 
     def __init__(self, args):
