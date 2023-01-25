@@ -375,6 +375,7 @@ class Is1Listener(BaseActor):
             self.active_is1_addresses.append(
                 self.is1_addresses.pop(self.is1_addresses.index(is1_address))
             )
+        self._deduplicate(self.active_is1_addresses)
         logger.debug("List of active IS1: %s", self.active_is1_addresses)
         logger.debug("List of IS1 for next scan: %s", self.is1_addresses)
 

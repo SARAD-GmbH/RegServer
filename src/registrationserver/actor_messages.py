@@ -96,7 +96,7 @@ class Is1Address:
         hostname (str): hostname of instrument server
     """
 
-    ip_address: str = field(init=True, repr=False, compare=False)
+    ip_address: str = field(init=True, repr=True, compare=False)
     port: int
     hostname: str = field(init=True, repr=True, hash=True, compare=True)
 
@@ -112,6 +112,9 @@ class Is1Address:
             except Exception:  # pylint: disable=broad-except
                 object.__setattr__(self, "hostname", self.ip_address)
         return
+
+    def __eq__(self, other):
+        return self.hostname == other.hostname
 
 
 @dataclass
