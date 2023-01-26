@@ -15,10 +15,10 @@ import servicemanager
 import win32event
 import win32service
 import win32serviceutil
-from versin import VERSION
 
 import registrationserver.main
 from registrationserver.shutdown import system_shutdown
+from version import VERSION
 
 
 class SaradRegistrationServer(win32serviceutil.ServiceFramework):
