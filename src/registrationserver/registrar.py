@@ -17,15 +17,11 @@ from datetime import timedelta
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
-from thespian.actors import ActorExitRequest  # type: ignore
 
 from registrationserver.actor_messages import (Backend, Frontend, KeepAliveMsg,
-                                               KillMsg, PrepareMqttActorMsg,
-                                               ReservationStatusMsg,
+                                               KillMsg, Parent,
+                                               PrepareMqttActorMsg,
                                                ReturnDeviceActorMsg,
-                                               SetDeviceStatusMsg,
-                                               SubscribeToDeviceStatusMsg,
-                                               UnSubscribeFromDeviceStatusMsg,
                                                UpdateActorDictMsg,
                                                UpdateDeviceStatusesMsg)
 from registrationserver.base_actor import BaseActor
@@ -94,13 +90,28 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage to send the KeepAliveMsg to all children."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        CHECK = actor_config["CHECK"]
         if msg.payload == "keep alive":
             logger.info("Watchdog: start health check")
-            for actor_id in self.actor_dict:
-                self.actor_dict[actor_id]["is_alive"] = False
-            self.send(self.myAddress, KeepAliveMsg())
-            self.wakeupAfter(
-                timedelta(seconds=actor_config["WAIT_BEFORE_CHECK"]), payload="check"
+            if CHECK:
+                for actor_id in self.actor_dict:
+                    self.actor_dict[actor_id]["is_alive"] = False
+                self.wakeupAfter(
+                    timedelta(seconds=actor_config["WAIT_BEFORE_CHECK"]),
+                    payload="check",
+                )
+            else:
+                self.wakeupAfter(
+                    timedelta(minutes=actor_config["KEEPALIVE_INTERVAL"]),
+                    payload="keep alive",
+                )
+            self.send(
+                self.myAddress,
+                KeepAliveMsg(
+                    parent=Parent(self.my_id, self.myAddress),
+                    child=self.my_id,
+                    report=CHECK,
+                ),
             )
         elif msg.payload == "check":
             for actor_id in self.actor_dict:

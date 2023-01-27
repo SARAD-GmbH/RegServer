@@ -74,6 +74,23 @@ def startup():
                 capabilities=actor_config["capabilities"],
                 logDefs=logcfg,
             )
+        except RuntimeError as inner_exception:
+            logger.warning(inner_exception)
+            logger.info("Falling back to multiprocQueueBase Actor implementation")
+            capabilities = {
+                "Process Startup Method": actor_config["capabilities"].get(
+                    "Process Startup Method"
+                )
+            }
+            try:
+                system = ActorSystem(
+                    systemBase="multiprocQueueBase",
+                    capabilities=capabilities,
+                    logDefs=logcfg,
+                )
+            except Exception as second_exception:  # pylint: disable=broad-except
+                logger.critical(second_exception)
+                return ()
         except Exception as inner_exception:  # pylint: disable=broad-except
             logger.critical(inner_exception)
             return ()
@@ -117,49 +134,50 @@ def startup():
 def shutdown(startup_tupel, wait_some_time, registrar_is_down, with_error=True):
     # pylint: disable=too-many-branches
     """Shutdown application"""
-    mdns_listener = startup_tupel[1]
-    if mdns_listener is not None:
-        logger.debug("Shutdown MdnsListener")
-        try:
-            mdns_listener.shutdown()
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.critical(exception)
-    usb_listener = startup_tupel[2]
-    if usb_listener is not None:
-        logger.debug("Terminate UsbListener")
-        try:
-            usb_listener.stop()
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.critical(exception)
-    modbus_rtu = startup_tupel[3]
-    if modbus_rtu is not None:
-        logger.debug("Terminate ModbusRtu")
-        try:
-            modbus_rtu.stop()
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.critical(exception)
-    if wait_some_time:
-        logger.debug("Wait for 10 sec before shutting down RegServer.")
-        time.sleep(10)
-    logger.debug("Terminate the actor system")
-    if registrar_is_down:
-        logger.debug("Registrar actor already died from emergency shutdown")
-    else:
-        registrar_actor = startup_tupel[0]
-        try:
-            response = ActorSystem().ask(
-                registrar_actor, KillMsg(), timeout=timedelta(seconds=10)
-            )
-        except ConnectionResetError:
-            response = None
-        if response:
-            logger.debug("Registrar actor terminated successfully")
+    if startup_tupel:
+        mdns_listener = startup_tupel[1]
+        if mdns_listener is not None:
+            logger.debug("Shutdown MdnsListener")
+            try:
+                mdns_listener.shutdown()
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.critical(exception)
+        usb_listener = startup_tupel[2]
+        if usb_listener is not None:
+            logger.debug("Terminate UsbListener")
+            try:
+                usb_listener.stop()
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.critical(exception)
+        modbus_rtu = startup_tupel[3]
+        if modbus_rtu is not None:
+            logger.debug("Terminate ModbusRtu")
+            try:
+                modbus_rtu.stop()
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.critical(exception)
+        if wait_some_time:
+            logger.debug("Wait for 10 sec before shutting down RegServer.")
+            time.sleep(10)
+        logger.debug("Terminate the actor system")
+        if registrar_is_down:
+            logger.debug("Registrar actor already died from emergency shutdown")
         else:
-            logger.error("KillMsg to Registrar returned with %s", response)
-    try:
-        ActorSystem().shutdown()
-    except OSError as exception:
-        logger.critical(exception)
+            registrar_actor = startup_tupel[0]
+            try:
+                response = ActorSystem().ask(
+                    registrar_actor, KillMsg(), timeout=timedelta(seconds=10)
+                )
+            except ConnectionResetError:
+                response = None
+            if response:
+                logger.debug("Registrar actor terminated successfully")
+            else:
+                logger.error("KillMsg to Registrar returned with %s", response)
+        try:
+            ActorSystem().shutdown()
+        except OSError as exception:
+            logger.critical(exception)
     kill_residual_processes(end_with_error=with_error)
     if with_error:
         raise SystemExit("Exit with error for automatic restart.")
@@ -255,7 +273,7 @@ def main():
         startup_tupel = startup()
         if not startup_tupel:
             time.sleep(30)
-            kill_residual_processes(end_with_error=True)
+            shutdown((), False, True, with_error=True)
             return None
     elif start_stop == "stop":
         system_shutdown(with_error=False)

@@ -16,13 +16,14 @@ Actors created in the actor system
     | Michael Strey <strey@sarad.de>
 
 """
-from dataclasses import dataclass
 
 from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import ActorAddress, ActorTypeDispatcher
+from thespian.actors import ActorTypeDispatcher
 
-from registrationserver.actor_messages import (KillMsg, ReservationStatusMsg,
+from registrationserver.actor_messages import (DeadChildMsg, KeepAliveMsg,
+                                               KillMsg, Parent,
+                                               ReservationStatusMsg,
                                                RxBinaryMsg, SetDeviceStatusMsg,
                                                SetupMsg, SubscribeMsg,
                                                SubscribeToActorDictMsg,
@@ -33,14 +34,6 @@ from registrationserver.actor_messages import (KillMsg, ReservationStatusMsg,
                                                UpdateActorDictMsg)
 from registrationserver.logger import logger
 from registrationserver.shutdown import system_shutdown
-
-
-@dataclass
-class Parent:
-    """Description of the parent actor."""
-
-    parent_id: str
-    parent_address: ActorAddress
 
 
 class BaseActor(ActorTypeDispatcher):
@@ -132,8 +125,16 @@ class BaseActor(ActorTypeDispatcher):
         """Handler for KeepAliveMsg from the Registrar"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if self.child_actors:
-            self._forward_to_children(msg)
-        self._subscribe(True)
+            for child_id, child_actor in self.child_actors.items():
+                keep_alive_msg = KeepAliveMsg(
+                    parent=Parent(self.my_id, self.myAddress),
+                    child=child_id,
+                    report=msg.report,
+                )
+                logger.debug("Forward %s to %s", keep_alive_msg, child_id)
+                self.send(child_actor["actor_address"], keep_alive_msg)
+        if msg.report:
+            self._subscribe(True)
 
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
@@ -205,9 +206,27 @@ class BaseActor(ActorTypeDispatcher):
                         "Remove not existing actor %s from self.actor_dict", actor
                     )
             logger.info("The above warning can safely be ignored.")
+        elif isinstance(msg.deadMessage, KeepAliveMsg):
+            self.send(
+                msg.deadMessage.parent_address, DeadChildMsg(msg.deadMessage.child)
+            )
         else:
             logger.critical("-> Emergency shutdown")
             system_shutdown()
+
+    def receiveMsg_DeadChildMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for the message indicating that a child Actor has caused a
+        DeadEnvelope."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if msg.child in self.child_actors:
+            logger.critical(
+                "%s doesn't exist but is still in %s", msg.child, self.child_actors
+            )
+            logger.debug("-> Emergency shutdown")
+            system_shutdown()
+        else:
+            logger.debug("Don't worry about the Dead Letter caused by %s!", msg.child)
 
     def receiveUnrecognizedMessage(self, msg, sender):
         # pylint: disable=invalid-name
