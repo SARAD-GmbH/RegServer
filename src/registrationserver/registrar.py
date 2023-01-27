@@ -19,7 +19,8 @@ from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 
 from registrationserver.actor_messages import (Backend, Frontend, KeepAliveMsg,
-                                               KillMsg, PrepareMqttActorMsg,
+                                               KillMsg, Parent,
+                                               PrepareMqttActorMsg,
                                                ReturnDeviceActorMsg,
                                                UpdateActorDictMsg,
                                                UpdateDeviceStatusesMsg)
@@ -107,8 +108,7 @@ class Registrar(BaseActor):
             self.send(
                 self.myAddress,
                 KeepAliveMsg(
-                    parent=self.my_id,
-                    parent_actor=self.myAddress,
+                    parent=Parent(self.my_id, self.myAddress),
                     child=self.my_id,
                     report=CHECK,
                 ),

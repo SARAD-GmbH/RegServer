@@ -16,14 +16,14 @@ Actors created in the actor system
     | Michael Strey <strey@sarad.de>
 
 """
-from dataclasses import dataclass
 
 from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import ActorAddress, ActorTypeDispatcher
+from thespian.actors import ActorTypeDispatcher
 
 from registrationserver.actor_messages import (DeadChildMsg, KeepAliveMsg,
-                                               KillMsg, ReservationStatusMsg,
+                                               KillMsg, Parent,
+                                               ReservationStatusMsg,
                                                RxBinaryMsg, SetDeviceStatusMsg,
                                                SetupMsg, SubscribeMsg,
                                                SubscribeToActorDictMsg,
@@ -34,14 +34,6 @@ from registrationserver.actor_messages import (DeadChildMsg, KeepAliveMsg,
                                                UpdateActorDictMsg)
 from registrationserver.logger import logger
 from registrationserver.shutdown import system_shutdown
-
-
-@dataclass
-class Parent:
-    """Description of the parent actor."""
-
-    parent_id: str
-    parent_address: ActorAddress
 
 
 class BaseActor(ActorTypeDispatcher):
@@ -135,8 +127,7 @@ class BaseActor(ActorTypeDispatcher):
         if self.child_actors:
             for child_id, child_actor in self.child_actors.items():
                 keep_alive_msg = KeepAliveMsg(
-                    parent=self.my_id,
-                    parent_actor=self.myAddress,
+                    parent=Parent(self.my_id, self.myAddress),
                     child=child_id,
                     report=msg.report,
                 )
