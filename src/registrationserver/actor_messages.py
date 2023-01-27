@@ -245,7 +245,32 @@ class KeepAliveMsg:
     """Message sent to an actor from its parent actor in order to check
     whether the actor is still existing.
 
-    The actor shall reply with sending a SubscribeMsg to the Registrar."""
+    The Actor shall send a SubscribeMsg to the Registrar, if `report` is True.
+
+    Args:
+        parent (str): Actor Id of the parent Actor sending the KeepAliveMsg.
+        parent_actor (ActorAddress): Actor address of the parent Actor.
+        child (str): Actor Id of the child Actor the KeepAliveMsg is addressed to.
+        report (bool): True, if the child shall send a SubscribeMsg to Registrar.
+    """
+
+    parent: str
+    parent_actor: ActorAddress
+    child: str
+    report: bool
+
+
+@dataclass
+class DeadChildMsg:
+    """Message triggering the receiving Actor to check it's list of children
+    for the child Actor given in Args.
+    If the child is still in the list of children, it shall cause an emergency shutdown.
+
+    Args:
+        child: str
+    """
+
+    child: str
 
 
 @dataclass
