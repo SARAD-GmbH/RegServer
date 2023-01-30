@@ -32,7 +32,7 @@ from registrationserver.actor_messages import (GetLocalPortsMsg,
                                                ReturnLocalPortsMsg,
                                                ReturnNativePortsMsg,
                                                ReturnUsbPortsMsg, Status)
-from registrationserver.config import mqtt_config
+from registrationserver.config import actor_config, mqtt_config
 from registrationserver.helpers import (check_msg, get_actor,
                                         get_device_status, get_device_statuses,
                                         get_registrar_actor, sanitize_hn,
@@ -110,6 +110,7 @@ class Ping(Resource):
             "running_since": STARTTIME.replace(
                 tzinfo=timezone.utc, microsecond=0
             ).isoformat(),
+            "system_base": actor_config["systemBase"],
         }
 
 

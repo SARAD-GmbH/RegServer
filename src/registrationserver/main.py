@@ -82,9 +82,10 @@ def startup():
                     "Process Startup Method"
                 )
             }
+            actor_config["systemBase"] = "multiprocQueueBase"
             try:
                 system = ActorSystem(
-                    systemBase="multiprocQueueBase",
+                    systemBase=actor_config["systemBase"],
                     capabilities=capabilities,
                     logDefs=logcfg,
                 )
