@@ -210,8 +210,10 @@ class ClusterActor(BaseActor):
         gone_ports = old_ports.difference(current_ports)
         for port in new_ports:
             if port in self.rs485_ports:
-                pass
-                # TODO: addressable RS-485
+                loop_interval = 0
+                for address in self.rs485_ports[port]:
+                    route = Route(port=port, rs485_address=address, zigbee_address=None)
+                    self._create_and_setup_actor(route, loop_interval)
             elif port in self.zigbee_ports:
                 pass
                 # TODO: zigbee
@@ -224,8 +226,9 @@ class ClusterActor(BaseActor):
                 self._create_and_setup_actor(route, loop_interval)
         for port in gone_ports:
             if port in self.rs485_ports:
-                pass
-                # TODO: addressable RS-485
+                for address in self.rs485_ports[port]:
+                    route = Route(port=port, rs485_address=address, zigbee_address=None)
+                    self._remove_actor(route)
             elif port in self.zigbee_ports:
                 pass
                 # TODO: zigbee
