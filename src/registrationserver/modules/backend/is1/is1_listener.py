@@ -136,8 +136,8 @@ class Is1Listener(BaseActor):
         self.read_list = [server_socket]
         if my_port is not None:
             logger.info("Socket listening on %s:%d", my_ip, my_port)
-        self.is1_addresses = []  # List of Is1Adress
-        self.active_is1_addresses = []  # List of Is1Adress with device Actors
+        self.is1_addresses = []  # List of Is1Address
+        self.active_is1_addresses = []  # List of Is1Address with device Actors
         self.pickle_file_name = f"{app_folder}wlan_instruments.pickle"
 
     @overrides

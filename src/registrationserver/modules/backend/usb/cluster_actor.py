@@ -50,7 +50,7 @@ class ClusterActor(BaseActor):
     def _old_ports(child_actors):
         """child_actors is of form
         {actor_id: {"actor_address": <address>}}
-        where actor_id is of form port-rs485_adress-zigbee_address.
+        where actor_id is of form port-rs485_address-zigbee_address.
         This function converts this dictionary into a list of ports
 
         Args:
