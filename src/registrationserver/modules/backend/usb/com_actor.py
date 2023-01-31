@@ -42,11 +42,10 @@ class ComActor(BaseActor):
         """Handle message to initialize ComActor."""
         self.route = msg.route
         self.loop_interval = msg.loop_interval
-        instrument = self._get_instrument(msg.route)
-        if instrument is not None:
-            self._create_and_setup_actor(instrument)
-        if self.loop_interval:
+        self._do_loop()
+        if self.loop_interval and not self._loop_started:
             logger.debug("Start polling %s.", self.route)
+            self._loop_started = True
             self.wakeupAfter(self.loop_interval)
 
     def receiveMsg_WakeupMessage(self, _msg, _sender):
@@ -155,11 +154,8 @@ class ComActor(BaseActor):
                 self._create_and_setup_actor(instrument)
             except Exception as exception:  # pylint: disable=broad-except
                 logger.error(exception)
-        if not self._loop_started:
-            self._loop_started = True
+        if self.loop_interval:
             self.wakeupAfter(self.loop_interval)
-        else:
-            logger.info("Polling stopped")
 
 
 if __name__ == "__main__":
