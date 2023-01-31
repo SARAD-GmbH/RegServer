@@ -209,8 +209,8 @@ class ClusterActor(BaseActor):
         new_ports = current_ports.difference(old_ports)
         gone_ports = old_ports.difference(current_ports)
         for port in new_ports:
+            loop_interval = 0
             if port in self.rs485_ports:
-                loop_interval = 0
                 for address in self.rs485_ports[port]:
                     route = Route(port=port, rs485_address=address, zigbee_address=None)
                     self._create_and_setup_actor(route, loop_interval)
@@ -221,8 +221,6 @@ class ClusterActor(BaseActor):
                 route = Route(port=port, rs485_address=None, zigbee_address=None)
                 if port in self._looplist:
                     loop_interval = usb_backend_config["LOCAL_RETRY_INTERVAL"]
-                else:
-                    loop_interval = 0
                 self._create_and_setup_actor(route, loop_interval)
         for port in gone_ports:
             if port in self.rs485_ports:
@@ -235,6 +233,16 @@ class ClusterActor(BaseActor):
             else:
                 route = Route(port=port, rs485_address=None, zigbee_address=None)
                 self._remove_actor(route)
+
+    def _update(self):
+        """Trigger all Child Actors to update their instruments."""
+        for child_id, value in self.child_actors.items():
+            route = self._route(child_id)
+            child_address = value["actor_address"]
+            loop_interval = 0
+            if route.port in self._looplist:
+                loop_interval = usb_backend_config["LOCAL_RETRY_INTERVAL"]
+            self.send(child_address, SetupComActorMsg(route, loop_interval))
 
     def receiveMsg_InstrAddedMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -255,4 +263,5 @@ class ClusterActor(BaseActor):
         accordingly."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._rescan()
+        self._update()
         self.send(sender, RescanFinishedMsg(Status.OK))
