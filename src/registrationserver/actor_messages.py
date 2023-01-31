@@ -137,6 +137,22 @@ class SetupMsg:
 
 
 @dataclass
+class SetupComActorMsg:
+    """Message used to send the special setup information required for ComActors.
+    The parameters are required to identify the instr_id for the SaradInst object
+    for serial communication with the instrument.
+
+    Args:
+        route (Route): Serial interface port, RS-485 bus address and ZigBee
+                       address of the instrument.
+        loop_interval (int): Polling interval for instrument detection in seconds.
+    """
+
+    route: Route
+    loop_interval: int
+
+
+@dataclass
 class SetupUsbActorMsg:
     """Message used to send the special setup information required for USB Actors.
     The parameters are required to create the SaradInst object for serial communication
