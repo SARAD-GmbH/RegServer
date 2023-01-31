@@ -82,6 +82,11 @@ class ClusterActor(BaseActor):
         super().__init__()
         logger.debug("ClusterActor initialized")
 
+    @overrides
+    def receiveMsg_SetupMsg(self, msg, sender):
+        super().receiveMsg_SetupMsg(msg, sender)
+        self._rescan()
+
     def receiveMsg_AddPortToLoopMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for AddPortToLoopMsg from REST API.
@@ -195,7 +200,6 @@ class ClusterActor(BaseActor):
         logger.debug("[_remove_actor] %s", route_id)
         try:
             self.send(self.child_actors[route_id]["actor_address"], KillMsg())
-            self.child_actors.pop(route_id, None)
         except IndexError:
             logger.error("Tried to remove %s, that never was added properly.", route_id)
 
