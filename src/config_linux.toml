@@ -30,12 +30,12 @@ parity = "N"  # N: none, O: odd, E: even
 device_id = "28tkhn4V.sarad-dacm.local"
 
 [usb_backend]
-native_serial_ports = []
+poll_serial_ports = ["/dev/ttyS0", "/dev/ttyUSB2"]
 ignored_serial_ports = ["/dev/serial/by-id/usb-FTDI_Atil_UD-101i_USB__-__RS422_485-if00-port0"]
-local_retry_interval = 30  # in seconds
+local_retry_interval = 10  # in seconds
 
 [rs485_backend]
-# "/dev/ttyUSB0" = [1]
+#"/dev/ttyUSB0" = [1]
 
 [is1_backend]
 registration_port = 50002
@@ -59,7 +59,7 @@ admin_port = 1900
 
 process_startup_method = "fork"
 watchdog_interval = 5  # in minutes. 0 = inner watchdog switched off
-watchdog_wait = 20  # in seconds, has to be encreased for multiple native RS-232 ports
+watchdog_wait = 20  # in seconds
 watchdog_check = false  # if true, each Actor has to re-register at the Registrar
 outer_watchdog_interval = 60  # in seconds
 outer_watchdog_trials = 0  # number of attempts to check Registrar

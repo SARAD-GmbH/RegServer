@@ -254,22 +254,22 @@ else:
 
 # USB backend configuration
 if os.name == "nt":
-    DEFAULT_NATIVE_SERIAL_PORTS = ["COM1"]
+    DEFAULT_POLL_SERIAL_PORTS = ["COM1"]
 else:
-    DEFAULT_NATIVE_SERIAL_PORTS = ["/dev/ttyS0"]
+    DEFAULT_POLL_SERIAL_PORTS = ["/dev/ttyS0"]
 DEFAULT_IGNORED_SERIAL_PORTS: List[str] = []
 DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
 
 if customization.get("usb_backend") is None:
     usb_backend_config = {
-        "NATIVE_SERIAL_PORTS": DEFAULT_NATIVE_SERIAL_PORTS,
+        "POLL_SERIAL_PORTS": DEFAULT_POLL_SERIAL_PORTS,
         "IGNORED_SERIAL_PORTS": DEFAULT_IGNORED_SERIAL_PORTS,
         "LOCAL_RETRY_INTERVAL": DEFAULT_LOCAL_RETRY_INTERVAL,
     }
 else:
     usb_backend_config = {
-        "NATIVE_SERIAL_PORTS": customization["usb_backend"].get(
-            "native_serial_ports", DEFAULT_NATIVE_SERIAL_PORTS
+        "POLL_SERIAL_PORTS": customization["usb_backend"].get(
+            "poll_serial_ports", DEFAULT_POLL_SERIAL_PORTS
         ),
         "IGNORED_SERIAL_PORTS": customization["usb_backend"].get(
             "ignored_serial_ports", DEFAULT_IGNORED_SERIAL_PORTS

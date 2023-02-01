@@ -66,16 +66,14 @@ class ClusterActor(BaseActor):
 
     @overrides
     def __init__(self):
-        self.native_ports = {
-            os.path.realpath(path) for path in usb_backend_config["NATIVE_SERIAL_PORTS"]
+        self.poll_ports = {
+            os.path.realpath(path) for path in usb_backend_config["POLL_SERIAL_PORTS"]
         }
         self.ignore_ports = {
             os.path.realpath(path)
             for path in usb_backend_config["IGNORED_SERIAL_PORTS"]
         }
-        self._looplist: List[str] = list(
-            self.native_ports.difference(self.ignore_ports)
-        )
+        self._looplist: List[str] = list(self.poll_ports.difference(self.ignore_ports))
         self.rs485_ports = rs485_backend_config
         # self.zigbee_ports = zigbee_backend_config
         self.zigbee_ports = []
@@ -126,11 +124,8 @@ class ClusterActor(BaseActor):
         2. via their built in FT232R USB-serial converter
         3. via an external USB-serial converter (Prolific, Prolific fake, FTDI, QinHeng Electronics)
         4. via the SARAD ZigBee coordinator with FT232R"""
-        active_ports = []
-        # Get the list of accessible native ports
-        for port in comports():
-            if port.device in self.native_ports:
-                active_ports.append(port)
+        # Get the list of accessible native RS-232 ports
+        active_ports = [port for port in comports() if not port.pid]
         # FTDI USB-to-serial converters
         active_ports.extend(grep("0403"))
         # Prolific and no-name USB-to-serial converters
@@ -145,7 +140,7 @@ class ClusterActor(BaseActor):
         for port in set_of_ports:
             if port not in self.ignore_ports:
                 result.add(port)
-        logger.debug("Native ports: %s", self.native_ports)
+        logger.debug("Poll ports: %s", self.poll_ports)
         logger.debug("Ignored ports: %s", self.ignore_ports)
         logger.debug("Active ports: %s", result)
         return result
