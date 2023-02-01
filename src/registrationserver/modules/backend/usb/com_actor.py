@@ -140,22 +140,12 @@ class ComActor(BaseActor):
 
     def _do_loop(self) -> None:
         logger.debug("[_do_loop] %s", self.route)
-        instrument = self._get_instrument(self.route)
-        if instrument is None:
-            self._remove_child_actor()
-        else:
-            try:
-                device_id = list(self.child_actors.keys())[0]
-                instr_id = short_id(device_id)
-                new_instr_id = instrument.device_id
-                if instr_id != new_instr_id:
-                    self._remove_child_actor()
-                    self._create_and_setup_actor(instrument)
-            except IndexError:
-                self._create_and_setup_actor(instrument)
-            except Exception as exception:  # pylint: disable=broad-except
-                logger.error(exception)
-
-
-if __name__ == "__main__":
-    pass
+        instrument = None
+        try:
+            _device_id = list(self.child_actors.keys())[0]
+        except IndexError:
+            instrument = self._get_instrument(self.route)
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.error(exception)
+        if instrument is not None:
+            self._create_and_setup_actor(instrument)
