@@ -53,6 +53,7 @@ class ComActor(BaseActor):
         """Handler for WakeupMessage"""
         if not self.on_kill:
             self._do_loop()
+            self.wakeupAfter(self.loop_interval)
 
     def _get_instrument(self, route) -> Union[SI, None]:
         hid = Hashids()
@@ -150,12 +151,10 @@ class ComActor(BaseActor):
                 if instr_id != new_instr_id:
                     self._remove_child_actor()
                     self._create_and_setup_actor(instrument)
-            except KeyError:
+            except IndexError:
                 self._create_and_setup_actor(instrument)
             except Exception as exception:  # pylint: disable=broad-except
                 logger.error(exception)
-        if self.loop_interval:
-            self.wakeupAfter(self.loop_interval)
 
 
 if __name__ == "__main__":

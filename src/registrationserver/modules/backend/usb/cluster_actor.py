@@ -40,8 +40,8 @@ class ClusterActor(BaseActor):
     def _route(route_id):
         split_list = route_id.split("-")
         port = split_list[0]
-        rs485_address = split_list[1]
-        zigbee_address = split_list[2]
+        rs485_address = None if split_list[1] == "None" else split_list[1]
+        zigbee_address = None if split_list[2] == "None" else split_list[2]
         return Route(
             port=port, rs485_address=rs485_address, zigbee_address=zigbee_address
         )
@@ -124,7 +124,7 @@ class ClusterActor(BaseActor):
         """SARAD instruments can be connected:
         1. by RS232 on a native RS232 interface at the computer
         2. via their built in FT232R USB-serial converter
-        3. via an external USB-serial converter (Prolific, Prolific fake, FTDI)
+        3. via an external USB-serial converter (Prolific, Prolific fake, FTDI, QinHeng Electronics)
         4. via the SARAD ZigBee coordinator with FT232R"""
         active_ports = []
         # Get the list of accessible native ports
@@ -135,6 +135,8 @@ class ClusterActor(BaseActor):
         active_ports.extend(grep("0403"))
         # Prolific and no-name USB-to-serial converters
         active_ports.extend(grep("067B"))
+        # QinHeng Electronics USB-to-serial converters
+        active_ports.extend(grep("1a86"))
         # Actually we don't want the ports but the port devices.
         set_of_ports = set()
         for port in active_ports:
