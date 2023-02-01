@@ -30,7 +30,7 @@ parity = "N"  # N: none, O: odd, E: even
 device_id = "28tkhn4V.sarad-dacm.local"
 
 [usb_backend]
-poll_serial_ports = ["/dev/ttyS0", "/dev/ttyUSB2"]
+poll_serial_ports = ["/dev/ttyS0"]
 ignored_serial_ports = ["/dev/serial/by-id/usb-FTDI_Atil_UD-101i_USB__-__RS422_485-if00-port0"]
 local_retry_interval = 10  # in seconds
 
