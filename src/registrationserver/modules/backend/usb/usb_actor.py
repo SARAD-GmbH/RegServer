@@ -62,8 +62,7 @@ class UsbActor(DeviceBaseActor):
         self.instrument.route = msg.route
         self.instrument.release_instrument()
         logger.info("Instrument with Id %s detected.", self.my_id)
-        poll_ports = set(usb_backend_config["POLL_SERIAL_PORTS"])
-        if self.instrument.route.port in poll_ports:
+        if msg.poll:
             self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
         return None
 

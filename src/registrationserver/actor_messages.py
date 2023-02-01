@@ -162,10 +162,13 @@ class SetupUsbActorMsg:
         route (Route): Serial interface port, RS-485 bus address and ZigBee
                        address of the instrument.
         family (FamilyDict): Instrument family from instruments.yaml
+        poll (bool): If True, the instrument shall regularly be checked for availability.
+                     Important for DOSEman sitting on IR cradle.
     """
 
     route: Route
     family: FamilyDict
+    poll: bool
 
 
 @dataclass

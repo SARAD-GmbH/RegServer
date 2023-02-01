@@ -99,7 +99,7 @@ class ClusterActor(BaseActor):
         if isinstance(msg.ports, str):
             if self._add_to_loop(msg.ports):
                 ports_ok.append(msg.ports)
-        self.send(sender, ReturnLoopPortsMsg(ports_ok))
+        # self.send(sender, ReturnLoopPortsMsg(ports_ok))
 
     def receiveMsg_RemovePortFromLoopMsg(self, msg, sender) -> None:
         # pylint: disable=invalid-name
@@ -116,7 +116,7 @@ class ClusterActor(BaseActor):
         if isinstance(msg.ports, str):
             if self._remove_from_loop(msg.ports):
                 ports_ok.append(msg.ports)
-        self.send(sender, ReturnLoopPortsMsg(ports_ok))
+        # self.send(sender, ReturnLoopPortsMsg(ports_ok))
 
     def active_ports(self) -> Set[str]:
         """SARAD instruments can be connected:

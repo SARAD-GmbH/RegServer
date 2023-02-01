@@ -13,11 +13,12 @@ from typing import Union
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (KillMsg, SetDeviceStatusMsg,
+from registrationserver.actor_messages import (AddPortToLoopMsg, KillMsg,
+                                               RemovePortFromLoopMsg,
+                                               SetDeviceStatusMsg,
                                                SetupUsbActorMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
-from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.dacm import DacmInst  # type: ignore
@@ -106,6 +107,18 @@ class ComActor(BaseActor):
                 family,
             )
             sarad_type = "unknown"
+        if not self.loop_interval:
+            if (family == 1) and (instrument.type_id in (1, 2)):
+                # DOSEman and DOSEman Pro are using an IR cradle with USB/ser adapter
+                self.send(self.parent.parent_address, AddPortToLoopMsg(self.route.port))
+                poll = True
+            else:
+                self.send(
+                    self.parent.parent_address, RemovePortFromLoopMsg(self.route.port)
+                )
+                poll = False
+        else:
+            poll = True
         actor_id = f"{instr_id}.{sarad_type}.local"
         logger.debug("Create actor %s", actor_id)
         device_actor = self._create_actor(UsbActor, actor_id, None)
@@ -124,7 +137,9 @@ class ComActor(BaseActor):
         }
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
         self.send(device_actor, SetDeviceStatusMsg(device_status))
-        self.send(device_actor, SetupUsbActorMsg(instrument.route, instrument.family))
+        self.send(
+            device_actor, SetupUsbActorMsg(instrument.route, instrument.family, poll)
+        )
 
     def _remove_child_actor(self):
         logger.debug("Send KillMsg to device actor.")
