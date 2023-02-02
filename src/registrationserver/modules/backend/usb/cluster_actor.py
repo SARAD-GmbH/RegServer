@@ -93,13 +93,16 @@ class ClusterActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         ports_ok: List[str] = []
         if isinstance(msg.ports, list):
-            for port in msg.ports:
+            for port_orig in msg.ports:
+                port = self._escape_slash(port_orig)
                 if self._add_to_loop(port):
                     ports_ok.append(port)
         if isinstance(msg.ports, str):
-            if self._add_to_loop(msg.ports):
-                ports_ok.append(msg.ports)
+            port = self._escape_slash(msg.ports)
+            if self._add_to_loop(port):
+                ports_ok.append(port)
         self.send(sender, ReturnLoopPortsMsg(ports_ok))
+        self._update()
 
     def receiveMsg_RemovePortFromLoopMsg(self, msg, sender) -> None:
         # pylint: disable=invalid-name
@@ -110,13 +113,20 @@ class ClusterActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         ports_ok: List[str] = []
         if isinstance(msg.ports, list):
-            for port in msg.ports:
+            for port_orig in msg.ports:
+                port = self._escape_slash(port_orig)
                 if self._remove_from_loop(port):
                     ports_ok.append(port)
         if isinstance(msg.ports, str):
-            if self._remove_from_loop(msg.ports):
-                ports_ok.append(msg.ports)
+            port = self._escape_slash(msg.ports)
+            if self._remove_from_loop(port):
+                ports_ok.append(port)
         self.send(sender, ReturnLoopPortsMsg(ports_ok))
+        self._update()
+
+    @staticmethod
+    def _escape_slash(serial: str):
+        return serial.replace("_", "/")
 
     def active_ports(self) -> Set[str]:
         """SARAD instruments can be connected:

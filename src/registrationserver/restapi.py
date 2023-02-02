@@ -604,7 +604,7 @@ class GetLoopPort(Resource):
         connected SARAD instruments. Usually these are ports with external
         USB/RS-232 adapters.
 
-        Working on Windows only!
+        Replace slash in string by underscore for Linux devices.
         """
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -641,7 +641,7 @@ class GetStopPort(Resource):
         """Remove the serial port from the list of ports that shall be polled for
         connected SARAD instruments.
 
-        Working on Windows only!
+        Replace slash in string by underscore for Linux devices.
         """
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
