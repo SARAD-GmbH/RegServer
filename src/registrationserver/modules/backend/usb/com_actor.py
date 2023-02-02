@@ -86,6 +86,7 @@ class ComActor(BaseActor):
                 test_instrument.route = route
                 if not test_instrument.valid_family:
                     logger.debug("Family not valid")
+                    test_instrument.release_instrument()
                     continue
                 logger.debug(
                     "type_id = %d, serial_number = %d",
@@ -104,7 +105,9 @@ class ComActor(BaseActor):
                         test_instrument.family["family_name"],
                         route,
                     )
+                    test_instrument.release_instrument()
                     break
+                test_instrument.release_instrument()
             except SerialException:
                 logger.error("%s not accessible.", route)
             except OSError:
