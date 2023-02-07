@@ -7,4 +7,4 @@
     | Michael Strey <strey@sarad.de>
 """
 
-VERSION = "v2.0.3_RC09"
+VERSION = "v2.0.3_RC10"
