@@ -52,8 +52,9 @@ class ComActor(BaseActor):
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
         super().receiveMsg_ChildActorExited(msg, sender)
-        self._do_loop()
-        self._start_polling()
+        if not self.on_kill:
+            self._do_loop()
+            self._start_polling()
 
     def _do_loop(self) -> None:
         logger.info("[_do_loop] %s", self.route)
