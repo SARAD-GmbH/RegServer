@@ -25,7 +25,7 @@ port_range = [50001, 50500]
 [usb_backend]
 poll_serial_ports = ["COM1"]
 ignored_serial_ports = []
-local_retry_interval = 30  # in seconds
+local_retry_interval = 10  # in seconds
 
 [is1_backend]
 registration_port = 50002
