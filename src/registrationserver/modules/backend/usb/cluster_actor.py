@@ -211,6 +211,7 @@ class ClusterActor(BaseActor):
             logger.error("Tried to remove %s, that never was added properly.", route_id)
 
     def _rescan(self):
+        """Look for new resp. gone serial devices."""
         current_ports = self.active_ports()
         old_ports = self._old_ports(self.child_actors)
         new_ports = current_ports.difference(old_ports)

@@ -42,18 +42,24 @@ class ComActor(BaseActor):
         """Handle message to initialize ComActor."""
         self.route = msg.route
         self.loop_interval = msg.loop_interval
+        if self.child_actors:
+            self._forward_to_children(KillMsg())
+            self.loop_running = False
+        else:
+            self._do_loop()
+            self._start_polling()
+
+    @overrides
+    def receiveMsg_ChildActorExited(self, msg, sender):
+        super().receiveMsg_ChildActorExited(msg, sender)
         self._do_loop()
         self._start_polling()
 
     def _do_loop(self) -> None:
         logger.info("[_do_loop] %s", self.route)
         instrument = None
-        try:
-            _device_id = list(self.child_actors.keys())[0]
-        except IndexError:
+        if not self.child_actors:
             instrument = self._get_instrument(self.route)
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.error(exception)
         if instrument is not None:
             self._create_and_setup_actor(instrument)
 
@@ -66,7 +72,7 @@ class ComActor(BaseActor):
     def receiveMsg_WakeupMessage(self, _msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
-        if (not self.on_kill) and self.loop_interval:
+        if (not self.on_kill) and self.loop_interval and self.loop_running:
             self._do_loop()
             self.wakeupAfter(self.loop_interval)
         else:
