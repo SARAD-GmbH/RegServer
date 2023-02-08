@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "RegServer-Service"
-#define MyAppVersion "2.0.3_RC11"
+#define MyAppVersion "2.0.3_RC12"
 #define MyAppPublisher "SARAD"
 #define MyAppURL "https://www.sarad.de"
 #define MyOutputDir "D:\bin\RegServer-Service"
