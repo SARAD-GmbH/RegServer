@@ -134,9 +134,19 @@ class UsbActor(DeviceBaseActor):
     def _request_reserve_at_is(self):
         # pylint: disable=unused-argument
         """Reserve the requested instrument.
-        In this dummy we suppose, that the instrument is always available for us.
+
+        To avoid wrong reservations of instruments like DOSEman sitting on an
+        IR cradle that might stay connected to USB or instruments connected via
+        RS-232, we have to double-check the availability of the instrument.
+
         """
-        self._handle_reserve_reply_from_is(Status.OK)
+        logger.info("Check if %s is still connected", self.my_id)
+        if not self.instrument.get_description():
+            logger.info("Killing myself")
+            self.send(self.myAddress, KillMsg())
+            self._handle_reserve_reply_from_is(Status.NOT_FOUND)
+        else:
+            self._handle_reserve_reply_from_is(Status.OK)
 
     def receiveMsg_GetRecentValueMsg(self, msg, sender):
         # pylint: disable=invalid-name
