@@ -149,7 +149,7 @@ class ClusterActor(BaseActor):
         result = set()
         for port in set_of_ports:
             if port not in self.ignore_ports:
-                result.add(port)
+                result.add(os.path.realpath(port))
         logger.debug("Poll ports: %s", self.poll_ports)
         logger.debug("Ignored ports: %s", self.ignore_ports)
         logger.debug("Active ports: %s", result)
