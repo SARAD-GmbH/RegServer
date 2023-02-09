@@ -13,10 +13,12 @@
 from datetime import datetime
 from typing import Union
 
+from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (Gps, KillMsg, RecentValueMsg,
-                                               RxBinaryMsg, Status)
+                                               RescanMsg, RxBinaryMsg, Status)
 from registrationserver.config import usb_backend_config
+from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from sarad.dacm import DacmInst  # type: ignore
@@ -77,8 +79,23 @@ class UsbActor(DeviceBaseActor):
         if (not self.on_kill) and (not is_reserved):
             logger.info("Check if %s is still connected", self.my_id)
             if not self.instrument.get_description():
-                logger.info("Killing myself")
+                logger.info("Nothing connected -> Killing myself")
                 self.send(self.myAddress, KillMsg())
+            else:
+                hid = Hashids()
+                instr_id = hid.encode(
+                    self.instrument.family["family_id"],
+                    self.instrument.type_id,
+                    self.instrument.serial_number,
+                )
+                old_instr_id = short_id(self.my_id)
+                if instr_id != old_instr_id:
+                    logger.info(
+                        "Instr_id was %s and now is %s -> Rescan",
+                        old_instr_id,
+                        instr_id,
+                    )
+                    self.send(self.parent, RescanMsg())
         self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
 
     def dummy_reply(self, data, sender) -> bool:

@@ -23,6 +23,7 @@ from thespian.actors import ActorTypeDispatcher
 
 from registrationserver.actor_messages import (DeadChildMsg, KeepAliveMsg,
                                                KillMsg, Parent,
+                                               RescanFinishedMsg,
                                                ReservationStatusMsg,
                                                RxBinaryMsg, SetDeviceStatusMsg,
                                                SetupMsg, SubscribeMsg,
@@ -196,6 +197,7 @@ class BaseActor(ActorTypeDispatcher):
                 SetDeviceStatusMsg,
                 ReservationStatusMsg,
                 RxBinaryMsg,
+                RescanFinishedMsg,
             ),
         ):
             actor_dict = self.actor_dict.copy()
