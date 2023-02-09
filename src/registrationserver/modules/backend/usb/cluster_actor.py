@@ -73,7 +73,7 @@ class ClusterActor(BaseActor):
             os.path.realpath(path)
             for path in usb_backend_config["IGNORED_SERIAL_PORTS"]
         }
-        self._looplist: List[str] = list(self.poll_ports.difference(self.ignore_ports))
+        self.loop_ports: Set[str] = self.poll_ports.difference(self.ignore_ports)
         self.rs485_ports = rs485_backend_config
         # self.zigbee_ports = zigbee_backend_config
         self.zigbee_ports = []
@@ -91,18 +91,17 @@ class ClusterActor(BaseActor):
         Adds a port or list of ports to the list of serial interfaces that shall be polled.
         Sends the complete list back to the REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        ports_ok: List[str] = []
+        success = False
         if isinstance(msg.ports, list):
             for port_orig in msg.ports:
-                port = self._escape_slash(port_orig)
-                if self._add_to_loop(port):
-                    ports_ok.append(port)
+                port = self._normalize(port_orig)
+                success = self._add_to_loop(port)
         if isinstance(msg.ports, str):
-            port = self._escape_slash(msg.ports)
-            if self._add_to_loop(port):
-                ports_ok.append(port)
-        self.send(sender, ReturnLoopPortsMsg(ports_ok))
-        self._update()
+            port = self._normalize(msg.ports)
+            success = self._add_to_loop(port)
+        self.send(sender, ReturnLoopPortsMsg(list(self.loop_ports)))
+        if success:
+            self._update()
 
     def receiveMsg_RemovePortFromLoopMsg(self, msg, sender) -> None:
         # pylint: disable=invalid-name
@@ -111,22 +110,22 @@ class ClusterActor(BaseActor):
         that shall be polled.
         Sends the complete list back to the REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        ports_ok: List[str] = []
+        success = False
         if isinstance(msg.ports, list):
             for port_orig in msg.ports:
-                port = self._escape_slash(port_orig)
-                if self._remove_from_loop(port):
-                    ports_ok.append(port)
+                port = self._normalize(port_orig)
+                success = self._remove_from_loop(port)
         if isinstance(msg.ports, str):
-            port = self._escape_slash(msg.ports)
-            if self._remove_from_loop(port):
-                ports_ok.append(port)
-        self.send(sender, ReturnLoopPortsMsg(ports_ok))
-        self._update()
+            port = self._normalize(msg.ports)
+            success = self._remove_from_loop(port)
+        self.send(sender, ReturnLoopPortsMsg(list(self.loop_ports)))
+        if success:
+            self._update()
 
     @staticmethod
-    def _escape_slash(serial: str):
-        return serial.replace("_", "/")
+    def _normalize(serial: str):
+        """Bring the port id into a normalized form"""
+        return os.path.realpath(serial.replace("_", "/"))
 
     def active_ports(self) -> Set[str]:
         """SARAD instruments can be connected:
@@ -150,26 +149,24 @@ class ClusterActor(BaseActor):
         for port in set_of_ports:
             if port not in self.ignore_ports:
                 result.add(os.path.realpath(port))
-        logger.debug("Poll ports: %s", self.poll_ports)
         logger.debug("Ignored ports: %s", self.ignore_ports)
         logger.debug("Active ports: %s", result)
         return result
 
     def _remove_from_loop(self, port: str) -> bool:
         logger.debug("[_remove_from_loop]")
-        if port in self._looplist:
-            if self._looplist.count(port) >= 0:
-                self._looplist.remove(port)
+        normalized_port = self._normalize(port)
+        if normalized_port in self.loop_ports:
+            self.loop_ports.remove(normalized_port)
             return True
         return False
 
     def _add_to_loop(self, port: str) -> bool:
-        """Adds a port to the list of serial interfaces that shall be polled
-        in the _continue_loop() function."""
+        """Adds a port to the list of serial interfaces that shall be polled."""
         logger.debug("[_add_to_loop]")
-        if port in [i.device for i in comports()]:
-            if self._looplist.count(port) == 0:
-                self._looplist.append(port)
+        if port in self.active_ports():
+            if port not in self.loop_ports:
+                self.loop_ports.add(port)
             return True
         return False
 
@@ -227,7 +224,7 @@ class ClusterActor(BaseActor):
                 # TODO: zigbee
             else:
                 route = Route(port=port, rs485_address=None, zigbee_address=None)
-                if port in self._looplist:
+                if port in self.loop_ports:
                     loop_interval = usb_backend_config["LOCAL_RETRY_INTERVAL"]
                 self._create_and_setup_actor(route, loop_interval)
         for port in gone_ports:
@@ -248,7 +245,7 @@ class ClusterActor(BaseActor):
             route = self._route(child_id)
             child_address = value["actor_address"]
             loop_interval = 0
-            if route.port in self._looplist:
+            if route.port in self.loop_ports:
                 loop_interval = usb_backend_config["LOCAL_RETRY_INTERVAL"]
             self.send(child_address, SetupComActorMsg(route, loop_interval))
 

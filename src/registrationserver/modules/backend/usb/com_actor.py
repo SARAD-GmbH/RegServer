@@ -33,19 +33,24 @@ class ComActor(BaseActor):
     def __init__(self):
         super().__init__()
         self.loop_running: bool = False
+        self.stop_loop: bool = False
         self.route = None
         self.loop_interval = 0
         self.poll_doseman = False
 
-    def receiveMsg_SetupComActorMsg(self, msg, _sender):
+    def receiveMsg_SetupComActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handle message to initialize ComActor."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.route = msg.route
         self.loop_interval = msg.loop_interval
         if self.child_actors:
+            logger.info("Update -- child")
             self._forward_to_children(KillMsg())
-            self.loop_running = False
+            self.stop_loop = self.loop_running
+            # refer to receiveMsg_ChildActorExited()
         else:
+            logger.info("Update -- no child")
             self._do_loop()
             self._start_polling()
 
@@ -66,16 +71,19 @@ class ComActor(BaseActor):
 
     def _start_polling(self):
         if self.loop_interval and (not self.loop_running):
-            logger.debug("Start polling %s.", self.route)
+            logger.info("Start polling %s.", self.route)
             self.loop_running = True
             self.wakeupAfter(self.loop_interval)
+        else:
+            self.stop_loop = False
 
     def receiveMsg_WakeupMessage(self, _msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
-        if (not self.on_kill) and self.loop_interval and self.loop_running:
+        if (not self.on_kill) and self.loop_interval and not self.stop_loop:
             self._do_loop()
             self.wakeupAfter(self.loop_interval)
+            self.loop_running = True
         else:
             self.loop_running = False
 
