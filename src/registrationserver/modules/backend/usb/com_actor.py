@@ -16,7 +16,7 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg, SetDeviceStatusMsg,
                                                SetupUsbActorMsg)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import config
+from registrationserver.config import config, usb_backend_config
 from registrationserver.logger import logger
 from registrationserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.dacm import DacmInst  # type: ignore
@@ -144,6 +144,9 @@ class ComActor(BaseActor):
         if (family == 1) and (instrument.type_id in (1, 2)):
             # DOSEman and DOSEman Pro are using an IR cradle with USB/ser adapter
             self.poll_doseman = True
+            if (not self.loop_running) and not self.loop_interval:
+                self.loop_interval = usb_backend_config["LOCAL_RETRY_INTERVAL"]
+                self._start_polling()
         else:
             self.poll_doseman = False
         actor_id = f"{instr_id}.{sarad_type}.local"
