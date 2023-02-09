@@ -80,6 +80,8 @@ shutdown_arguments.add_argument(
     required=True,
     choices=[PASSWORD],
 )
+ports_arguments = reqparse.RequestParser()
+ports_arguments.add_argument("port", type=str, required=False)
 values_arguments = reqparse.RequestParser()
 values_arguments.add_argument("component", type=int, required=True)
 values_arguments.add_argument("sensor", type=int, required=True)
@@ -594,17 +596,18 @@ class GetNativePorts(Resource):
         return reply.ports
 
 
-@ports_ns.route("/<string:port>/loop")
+@ports_ns.route("/loop")
 @ports_ns.param("port", "ID of the serial port as gathered from the `/ports` endpoint")
 class GetLoopPort(Resource):
     """Start polling on the given port"""
 
-    def get(self, port):
+    @api.expect(ports_arguments, validate=True)
+    def get(self):
         """Add the serial port to the list of ports that shall be polled for
         connected SARAD instruments. Usually these are ports with external
         USB/RS-232 adapters.
 
-        Replace slash in string by underscore for Linux devices.
+        For Linux devices, replace slash in string by %2F.
         """
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -617,6 +620,12 @@ class GetLoopPort(Resource):
                 "Requester": "Emergency shutdown",
             }
         cluster_actor = get_actor(registrar_actor, "cluster")
+        try:
+            port = request.args.get("port").replace("%2F", "/").strip('"')
+        except (IndexError, AttributeError):
+            status = Status.ATTRIBUTE_ERROR
+        else:
+            status = Status.OK
         with ActorSystem().private() as get_loop_port:
             try:
                 reply = get_loop_port.ask(
@@ -632,16 +641,17 @@ class GetLoopPort(Resource):
         return reply.ports
 
 
-@ports_ns.route("/<string:port>/stop")
+@ports_ns.route("/stop")
 @ports_ns.param("port", "ID of the serial port as gathered from the `/ports` endpoint")
 class GetStopPort(Resource):
     """Stop polling on the given port"""
 
-    def get(self, port):
+    @api.expect(ports_arguments, validate=True)
+    def get(self):
         """Remove the serial port from the list of ports that shall be polled for
         connected SARAD instruments.
 
-        Replace slash in string by underscore for Linux devices.
+        For Linux devices, replace slash in string by %2F.
         """
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -654,6 +664,12 @@ class GetStopPort(Resource):
                 "Requester": "Emergency shutdown",
             }
         cluster_actor = get_actor(registrar_actor, "cluster")
+        try:
+            port = request.args.get("port").replace("%2F", "/").strip('"')
+        except (IndexError, AttributeError):
+            status = Status.ATTRIBUTE_ERROR
+        else:
+            status = Status.OK
         with ActorSystem().private() as get_stop_port:
             try:
                 reply = get_stop_port.ask(

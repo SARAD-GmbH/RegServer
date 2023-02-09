@@ -67,11 +67,10 @@ class ClusterActor(BaseActor):
     @overrides
     def __init__(self):
         self.poll_ports = {
-            os.path.realpath(path) for path in usb_backend_config["POLL_SERIAL_PORTS"]
+            self._normalize(port) for port in usb_backend_config["POLL_SERIAL_PORTS"]
         }
         self.ignore_ports = {
-            os.path.realpath(path)
-            for path in usb_backend_config["IGNORED_SERIAL_PORTS"]
+            self._normalize(port) for port in usb_backend_config["IGNORED_SERIAL_PORTS"]
         }
         self.loop_ports: Set[str] = self.poll_ports.difference(self.ignore_ports)
         self.rs485_ports = rs485_backend_config
@@ -125,7 +124,9 @@ class ClusterActor(BaseActor):
     @staticmethod
     def _normalize(serial: str):
         """Bring the port id into a normalized form"""
-        return os.path.realpath(serial.replace("_", "/"))
+        if os.name == "posix":
+            return os.path.realpath(serial)
+        return serial
 
     def active_ports(self) -> Set[str]:
         """SARAD instruments can be connected:
@@ -148,13 +149,13 @@ class ClusterActor(BaseActor):
         result = set()
         for port in set_of_ports:
             if port not in self.ignore_ports:
-                result.add(os.path.realpath(port))
+                result.add(self._normalize(port))
         logger.debug("Ignored ports: %s", self.ignore_ports)
         logger.debug("Active ports: %s", result)
         return result
 
     def _remove_from_loop(self, port: str) -> bool:
-        logger.debug("[_remove_from_loop]")
+        logger.debug("[_remove_from_loop] %s", port)
         normalized_port = self._normalize(port)
         if normalized_port in self.loop_ports:
             self.loop_ports.remove(normalized_port)
@@ -163,7 +164,7 @@ class ClusterActor(BaseActor):
 
     def _add_to_loop(self, port: str) -> bool:
         """Adds a port to the list of serial interfaces that shall be polled."""
-        logger.debug("[_add_to_loop]")
+        logger.debug("[_add_to_loop] %s", port)
         if port in self.active_ports():
             if port not in self.loop_ports:
                 self.loop_ports.add(port)
