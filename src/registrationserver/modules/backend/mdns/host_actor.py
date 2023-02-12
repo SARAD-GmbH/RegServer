@@ -16,6 +16,7 @@ from registrationserver.actor_messages import (ActorCreatedMsg, KillMsg,
                                                SetupMdnsActorMsg, Status)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
+from registrationserver.helpers import transport_technology
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mdns.device_actor import DeviceActor
 from requests.adapters import HTTPAdapter
@@ -59,6 +60,9 @@ class HostActor(BaseActor):
         self._virgin = True
         self._asys = None
         self.http = None
+        self.scan_interval = 0
+        self.host = None
+        self.port = None
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -87,6 +91,18 @@ class HostActor(BaseActor):
                 self.send(self._asys, ActorCreatedMsg(self.myAddress))
                 self._virgin = False
 
+    def receiveMsg_SetupHostActorMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for SetDeviceStatusMsg initialising the device status information."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.scan_interval = msg.scan_interval
+        self.base_url = f"http://{msg.host}:{msg.port}"
+        self.host = msg.host
+        self.port = msg.port
+        if self.scan_interval:
+            logger.info("Scan %s every %d seconds", self.my_id, self.scan_interval)
+            self._scan()
+
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SetDeviceStatusMsg initialising the device status information."""
@@ -108,10 +124,13 @@ class HostActor(BaseActor):
                 device_actor = self.child_actors[device_id]["actor_address"]
             self.send(device_actor, SetDeviceStatusMsg(data))
 
-    def receiveMsg_WakeupMessage(self, _msg, _sender):
+    def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handle WakeupMessage for regular pings to hosts REST API"""
-        self._ping()
+        if msg.payload == "ping":
+            self._ping()
+        elif msg.payload == "scan":
+            self._scan()
 
     def _ping(self):
         try:
@@ -123,3 +142,26 @@ class HostActor(BaseActor):
             self.send(self.myAddress, KillMsg())
         else:
             self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
+
+    def _scan(self):
+        try:
+            resp = self.http.get(f"{self.base_url}/list/")
+            device_list = resp.json()
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.debug("REST API of IS is not responding. %s", exception)
+            success = Status.IS_NOT_FOUND
+            logger.error("%s: %s", success, self.my_id)
+            self.send(self.myAddress, KillMsg())
+        else:
+            for device_id, device_status in device_list.items():
+                if transport_technology(device_id) in ("local", "is1"):
+                    device_status["Remote"] = {
+                        "Address": self.host,
+                        "API port": self.port,
+                        "Device Id": device_id,
+                    }
+                    self.send(
+                        self.myAddress,
+                        SetDeviceStatusMsg(device_status={device_id: device_status}),
+                    )
+            self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")

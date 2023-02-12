@@ -17,7 +17,8 @@ import threading
 
 import hashids  # type: ignore
 from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
-                                               KillMsg, SetDeviceStatusMsg)
+                                               KillMsg, SetDeviceStatusMsg,
+                                               SetupHostActorMsg)
 from registrationserver.config import config, mdns_backend_config
 from registrationserver.helpers import (get_actor, sarad_protocol, short_id,
                                         transport_technology)
@@ -151,6 +152,33 @@ class MdnsListener(ServiceListener):
                 interfaces=[config["MY_IP"], "127.0.0.1"],
             )
             _ = ServiceBrowser(self.zeroconf, service_type, self)
+        self.hosts = mdns_backend_config["HOSTS"]
+        if self.hosts:
+            for host in self.hosts:
+                logger.info("Ask Registrar to create Host Actor %s", host[0])
+                with ActorSystem().private() as add_host:
+                    try:
+                        reply = add_host.ask(
+                            self.registrar, CreateActorMsg(HostActor, host[0])
+                        )
+                    except ConnectionResetError:
+                        reply = None
+                if not isinstance(reply, ActorCreatedMsg):
+                    logger.critical("Got message object of unexpected type")
+                    logger.critical("-> Stop and shutdown system")
+                    system_shutdown()
+                elif reply.actor_address is None:
+                    return
+                else:
+                    host_actor = reply.actor_address
+                    ActorSystem().tell(
+                        host_actor,
+                        SetupHostActorMsg(
+                            host=host[0],
+                            port=host[1],
+                            scan_interval=mdns_backend_config["SCAN_INTERVAL"],
+                        ),
+                    )
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
