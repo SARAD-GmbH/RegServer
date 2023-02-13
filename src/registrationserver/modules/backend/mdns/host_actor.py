@@ -71,7 +71,6 @@ class HostActor(BaseActor):
         self.scan_interval = 0
         self.host = None
         self.port = None
-        self.pending = []
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -123,10 +122,6 @@ class HostActor(BaseActor):
         self.base_url = f"http://{is_host}:{api_port}"
         remote_device_id = data["Remote"]["Device Id"]
         if self.my_id != config["MY_HOSTNAME"]:
-            logger.debug("Pending: %s", self.pending)
-            logger.debug("My address: %s; Sender: %s", self.myAddress, sender)
-            if (sender != self.myAddress) and (device_id in self.pending):
-                return
             if device_id not in self.child_actors:
                 device_actor = self._create_actor(DeviceActor, device_id, None)
                 self.send(
@@ -158,7 +153,6 @@ class HostActor(BaseActor):
 
     def _scan(self):
         logger.info("Scan REST API of %s for new instruments", self.my_id)
-        self.pending = []
         try:
             resp = self.http.get(f"{self.base_url}/list/")
             device_list = resp.json()
@@ -177,8 +171,6 @@ class HostActor(BaseActor):
                     }
                     device_actor_id = self.mdns_id(device_id)
                     if device_actor_id not in self.child_actors:
-                        logger.debug("Set %s pending", device_actor_id)
-                        self.pending.append(device_actor_id)
                         self.send(
                             self.myAddress,
                             SetDeviceStatusMsg(
