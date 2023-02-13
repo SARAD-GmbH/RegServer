@@ -16,7 +16,8 @@ from registrationserver.actor_messages import (ActorCreatedMsg, KillMsg,
                                                SetupMdnsActorMsg, Status)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config
-from registrationserver.helpers import transport_technology
+from registrationserver.helpers import (sarad_protocol, short_id,
+                                        transport_technology)
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mdns.device_actor import DeviceActor
 from requests.adapters import HTTPAdapter
@@ -51,6 +52,13 @@ class TimeoutHTTPAdapter(HTTPAdapter):
 class HostActor(BaseActor):
     """Class representing a host providing at least one SARAD instrument."""
 
+    @staticmethod
+    def mdns_id(local_id):
+        """Convert device_id from local name into a proper mDNS device_id/actor_id"""
+        if transport_technology(local_id) in ("local", "is1"):
+            return f"{short_id(local_id, check=False)}.{sarad_protocol(local_id)}.mdns"
+        return local_id
+
     @overrides
     def __init__(self):
         super().__init__()
@@ -63,6 +71,7 @@ class HostActor(BaseActor):
         self.scan_interval = 0
         self.host = None
         self.port = None
+        self.pending = []
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -99,9 +108,9 @@ class HostActor(BaseActor):
         self.base_url = f"http://{msg.host}:{msg.port}"
         self.host = msg.host
         self.port = msg.port
+        self._scan()
         if self.scan_interval:
             logger.info("Scan %s every %d seconds", self.my_id, self.scan_interval)
-            self._scan()
 
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -114,6 +123,10 @@ class HostActor(BaseActor):
         self.base_url = f"http://{is_host}:{api_port}"
         remote_device_id = data["Remote"]["Device Id"]
         if self.my_id != config["MY_HOSTNAME"]:
+            logger.debug("Pending: %s", self.pending)
+            logger.debug("My address: %s; Sender: %s", self.myAddress, sender)
+            if (sender != self.myAddress) and (device_id in self.pending):
+                return
             if device_id not in self.child_actors:
                 device_actor = self._create_actor(DeviceActor, device_id, None)
                 self.send(
@@ -144,6 +157,8 @@ class HostActor(BaseActor):
             self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
     def _scan(self):
+        logger.info("Scan REST API of %s for new instruments", self.my_id)
+        self.pending = []
         try:
             resp = self.http.get(f"{self.base_url}/list/")
             device_list = resp.json()
@@ -160,8 +175,15 @@ class HostActor(BaseActor):
                         "API port": self.port,
                         "Device Id": device_id,
                     }
-                    self.send(
-                        self.myAddress,
-                        SetDeviceStatusMsg(device_status={device_id: device_status}),
-                    )
-            self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")
+                    device_actor_id = self.mdns_id(device_id)
+                    if device_actor_id not in self.child_actors:
+                        logger.debug("Set %s pending", device_actor_id)
+                        self.pending.append(device_actor_id)
+                        self.send(
+                            self.myAddress,
+                            SetDeviceStatusMsg(
+                                device_status={device_actor_id: device_status}
+                            ),
+                        )
+            if self.scan_interval:
+                self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")

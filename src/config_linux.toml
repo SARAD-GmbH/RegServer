@@ -15,7 +15,7 @@ modbus_rtu = false
 [backends]
 usb = true
 mqtt = false
-mdns = false
+mdns = true
 is1 = true
 
 [rest_frontend]
