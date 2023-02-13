@@ -155,8 +155,7 @@ class Is1Listener(BaseActor):
             self.pickle_file_name,
             self.is1_addresses,
         )
-        addresses = self.is1_addresses
-        for address in addresses:
+        for address in self.is1_addresses:
             self._scan_is(address)
         self._subscribe_to_actor_dict_msg()
         self.wakeupAfter(timedelta(seconds=0.01), payload="Connect")
@@ -190,8 +189,7 @@ class Is1Listener(BaseActor):
         if msg.payload == "Connect" and not self.on_kill:
             self.listen()
         if msg.payload == "Rescan" and not self.on_kill:
-            addresses = self.is1_addresses
-            for address in addresses:
+            for address in self.is1_addresses:
                 logger.info(
                     "Check %s for living instruments",
                     address.hostname,

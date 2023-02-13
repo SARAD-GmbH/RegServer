@@ -153,6 +153,22 @@ class SetupComActorMsg:
 
 
 @dataclass
+class SetupHostActorMsg:
+    """Message used to send the special setup information required for HostActors.
+
+    Args:
+        host: Hostname of the host running the instrument server
+        port: Port address of the REST API
+        scan_interval (int): Polling interval for instrument detection via REST API
+                             in seconds.
+    """
+
+    host: str
+    port: int
+    scan_interval: int
+
+
+@dataclass
 class SetupUsbActorMsg:
     """Message used to send the special setup information required for USB Actors.
     The parameters are required to create the SaradInst object for serial communication

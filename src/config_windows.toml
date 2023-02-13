@@ -34,6 +34,8 @@ scan_interval = 60  # in seconds
 [mdns_backend]
 mdns_timeout = 3000
 ip_version = "all"
+hosts = []
+scan_interval = 60  # in seconds, 0 = scan only once during startup
 
 [actor]
 ## Uncomment one of the following three base technologies for the Actor system
