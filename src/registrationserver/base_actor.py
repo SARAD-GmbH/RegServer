@@ -113,6 +113,7 @@ class BaseActor(ActorTypeDispatcher):
             self._unsubscribe_from_actor_dict_msg()
         if self.child_actors:
             self._forward_to_children(msg)
+            self._forward_to_children(ActorExitRequest())
         else:
             self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
             self.send(self.myAddress, ActorExitRequest())
