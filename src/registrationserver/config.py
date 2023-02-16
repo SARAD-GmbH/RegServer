@@ -216,7 +216,7 @@ DEFAULT_IP_VERSION = IPVersion.All
 
 # mDNS backend configuration
 DEFAULT_MDNS_TIMEOUT = 3000
-DEFAULT_HOSTS: List[str] = []
+DEFAULT_HOSTS: List[List[str], List[int]] = [[], []]
 DEFAULT_HOSTS_SCAN_INTERVAL = 60  # in seconds
 
 if customization.get("mdns_backend") is None:

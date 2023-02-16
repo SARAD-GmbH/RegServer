@@ -44,7 +44,7 @@ scan_interval = 60  # in seconds
 [mdns_backend]
 mdns_timeout = 3000
 ip_version = "all"
-hosts = [["kalibrierkammer.hq.sarad.de", "r2d2.hq.sarad.de"], [8008, 8000]]
+hosts = [["kalibrierkammer.hq.sarad.de", "r2d2.hq.sarad.de"], [8008, 8000]]  # [[host1, host2], [port1, port2]]
 scan_interval = 60  # in seconds, 0 = scan only once during startup
 
 [actor]
