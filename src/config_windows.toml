@@ -23,9 +23,9 @@ api_port = 8008
 port_range = [50001, 50500]
 
 [usb_backend]
-native_serial_ports = ["COM1"]
+poll_serial_ports = ["COM1"]
 ignored_serial_ports = []
-local_retry_interval = 30  # in seconds
+local_retry_interval = 10  # in seconds
 
 [is1_backend]
 registration_port = 50002
@@ -34,6 +34,8 @@ scan_interval = 60  # in seconds
 [mdns_backend]
 mdns_timeout = 3000
 ip_version = "all"
+hosts = [[], []]  # [[host1, host2], [port1, port2]]
+scan_interval = 60  # in seconds, 0 = scan only once during startup
 
 [actor]
 ## Uncomment one of the following three base technologies for the Actor system
@@ -48,9 +50,9 @@ admin_port = 1900
 # convention_address = "127.0.0.1"
 
 process_startup_method = "spawn"
-watchdog_interval = 5  # in minutes. 0 = inner watchdog switched off
-watchdog_wait = 20  # in seconds, has to be encreased for multiple native RS-232 ports
-watchdog_check = false  # if true, each Actor has to re-register at the Registrar
+watchdog_interval = 20  # in seconds. 0 = inner watchdog switched off
+watchdog_wait = 5  # in seconds
+watchdog_check = true  # if true, each Actor has to re-register at the Registrar
 outer_watchdog_interval = 60  # in seconds
 outer_watchdog_trials = 0  # number of attempts to check Registrar
 

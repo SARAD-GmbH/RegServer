@@ -17,10 +17,11 @@ import threading
 
 import hashids  # type: ignore
 from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
-                                               KillMsg, SetDeviceStatusMsg)
+                                               KillMsg, SetDeviceStatusMsg,
+                                               SetupHostActorMsg)
 from registrationserver.config import config, mdns_backend_config
-from registrationserver.helpers import (get_actor, sarad_protocol, short_id,
-                                        transport_technology)
+from registrationserver.helpers import (get_actor, sanitize_hn, sarad_protocol,
+                                        short_id, transport_technology)
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mdns.host_actor import HostActor
 from registrationserver.shutdown import system_shutdown
@@ -83,10 +84,10 @@ class MdnsListener(ServiceListener):
         if serial_short is None:
             logger.error("_serial_short is None")
             return None
-        device_id = serial_short.decode("utf-8").split(".")[0]
+        instr_id = serial_short.decode("utf-8").split(".")[0]
         sarad_protocol_ = serial_short.decode("utf-8").split(".")[1]
         hids = hashids.Hashids()
-        ids = hids.decode(device_id)
+        ids = hids.decode(instr_id)
         if ids is None:
             logger.error("ids is None")
             return None
@@ -131,7 +132,7 @@ class MdnsListener(ServiceListener):
         info = zc.get_service_info(
             type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
         )
-        hostname = self.get_host_addr(info)
+        hostname = sanitize_hn(self.get_host_addr(info))
         if hostname is None:
             logger.warning("Cannot handle Zeroconf service with info=%s", info)
             host_actor = None
@@ -151,6 +152,34 @@ class MdnsListener(ServiceListener):
                 interfaces=[config["MY_IP"], "127.0.0.1"],
             )
             _ = ServiceBrowser(self.zeroconf, service_type, self)
+        self.hosts = mdns_backend_config["HOSTS"]
+        if self.hosts:
+            for host in self.hosts:
+                hostname = sanitize_hn(host[0])
+                logger.info("Ask Registrar to create Host Actor %s", hostname)
+                with ActorSystem().private() as add_host:
+                    try:
+                        reply = add_host.ask(
+                            self.registrar, CreateActorMsg(HostActor, hostname)
+                        )
+                    except ConnectionResetError:
+                        reply = None
+                if not isinstance(reply, ActorCreatedMsg):
+                    logger.critical("Got message object of unexpected type")
+                    logger.critical("-> Stop and shutdown system")
+                    system_shutdown()
+                elif reply.actor_address is None:
+                    return
+                else:
+                    host_actor = reply.actor_address
+                    ActorSystem().tell(
+                        host_actor,
+                        SetupHostActorMsg(
+                            host=hostname,
+                            port=host[1],
+                            scan_interval=mdns_backend_config["SCAN_INTERVAL"],
+                        ),
+                    )
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
@@ -160,7 +189,11 @@ class MdnsListener(ServiceListener):
             host_actor, hostname = self._get_host_actor(zc, type_, name)
             if hostname is None:
                 return
-            if host_actor is None:
+            hostname = sanitize_hn(hostname)
+            known_hostnames = set()
+            for host in self.hosts:
+                known_hostnames.add(sanitize_hn(host[0]))
+            if (host_actor is None) and (hostname not in known_hostnames):
                 logger.info("Ask Registrar to create Host Actor %s", hostname)
                 with ActorSystem().private() as add_host:
                     try:

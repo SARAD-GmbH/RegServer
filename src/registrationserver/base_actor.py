@@ -23,6 +23,7 @@ from thespian.actors import ActorTypeDispatcher
 
 from registrationserver.actor_messages import (DeadChildMsg, KeepAliveMsg,
                                                KillMsg, Parent,
+                                               RescanFinishedMsg,
                                                ReservationStatusMsg,
                                                RxBinaryMsg, SetDeviceStatusMsg,
                                                SetupMsg, SubscribeMsg,
@@ -112,6 +113,7 @@ class BaseActor(ActorTypeDispatcher):
             self._unsubscribe_from_actor_dict_msg()
         if self.child_actors:
             self._forward_to_children(msg)
+            self._forward_to_children(ActorExitRequest())
         else:
             self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
             self.send(self.myAddress, ActorExitRequest())
@@ -196,6 +198,7 @@ class BaseActor(ActorTypeDispatcher):
                 SetDeviceStatusMsg,
                 ReservationStatusMsg,
                 RxBinaryMsg,
+                RescanFinishedMsg,
             ),
         ):
             actor_dict = self.actor_dict.copy()

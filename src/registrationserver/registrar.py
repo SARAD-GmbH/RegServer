@@ -83,8 +83,11 @@ class Registrar(BaseActor):
             )
         if Backend.IS1 in backend_config:
             _is1_listener = self._create_actor(Is1Listener, "is1_listener", None)
-        if actor_config["KEEPALIVE_INTERVAL"]:
-            self.wakeupAfter(timedelta(minutes=1), payload="keep alive")
+        keepalive_interval = actor_config["KEEPALIVE_INTERVAL"]
+        if keepalive_interval:
+            self.wakeupAfter(
+                timedelta(seconds=keepalive_interval), payload="keep alive"
+            )
 
     def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name
@@ -102,7 +105,7 @@ class Registrar(BaseActor):
                 )
             else:
                 self.wakeupAfter(
-                    timedelta(minutes=actor_config["KEEPALIVE_INTERVAL"]),
+                    timedelta(seconds=actor_config["KEEPALIVE_INTERVAL"]),
                     payload="keep alive",
                 )
             self.send(
@@ -123,7 +126,7 @@ class Registrar(BaseActor):
                     system_shutdown()
             logger.info("Watchdog: health check finished successfully")
             self.wakeupAfter(
-                timedelta(minutes=actor_config["KEEPALIVE_INTERVAL"]),
+                timedelta(seconds=actor_config["KEEPALIVE_INTERVAL"]),
                 payload="keep alive",
             )
 

@@ -24,15 +24,18 @@ from thespian.system.messages.status import (  # type: ignore
 from version import VERSION
 from waitress import serve
 
-from registrationserver.actor_messages import (GetLocalPortsMsg,
+from registrationserver.actor_messages import (AddPortToLoopMsg,
+                                               GetLocalPortsMsg,
                                                GetNativePortsMsg,
                                                GetRecentValueMsg,
                                                GetUsbPortsMsg, RecentValueMsg,
+                                               RemovePortFromLoopMsg,
                                                RescanFinishedMsg, RescanMsg,
                                                ReturnLocalPortsMsg,
+                                               ReturnLoopPortsMsg,
                                                ReturnNativePortsMsg,
                                                ReturnUsbPortsMsg, Status)
-from registrationserver.config import mqtt_config
+from registrationserver.config import actor_config, mqtt_config
 from registrationserver.helpers import (check_msg, get_actor,
                                         get_device_status, get_device_statuses,
                                         get_registrar_actor, sanitize_hn,
@@ -77,6 +80,8 @@ shutdown_arguments.add_argument(
     required=True,
     choices=[PASSWORD],
 )
+ports_arguments = reqparse.RequestParser()
+ports_arguments.add_argument("port", type=str, required=False)
 values_arguments = reqparse.RequestParser()
 values_arguments.add_argument("component", type=int, required=True)
 values_arguments.add_argument("sensor", type=int, required=True)
@@ -110,6 +115,7 @@ class Ping(Resource):
             "running_since": STARTTIME.replace(
                 tzinfo=timezone.utc, microsecond=0
             ).isoformat(),
+            "system_base": actor_config["systemBase"],
         }
 
 
@@ -585,6 +591,95 @@ class GetNativePorts(Resource):
             except ConnectionResetError:
                 reply = None
         reply_is_corrupted = check_msg(reply, ReturnNativePortsMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
+        return reply.ports
+
+
+@ports_ns.route("/loop")
+@ports_ns.param("port", "ID of the serial port as gathered from the `/ports` endpoint")
+class GetLoopPort(Resource):
+    """Start polling on the given port"""
+
+    @api.expect(ports_arguments, validate=True)
+    def get(self):
+        """Add the serial port to the list of ports that shall be polled for
+        connected SARAD instruments. Usually these are ports with external
+        USB/RS-232 adapters.
+
+        For Linux devices, replace slash in string by %2F.
+        """
+        if (registrar_actor := get_registrar_actor()) is None:
+            status = Status.CRITICAL
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+        cluster_actor = get_actor(registrar_actor, "cluster")
+        try:
+            port = request.args.get("port").replace("%2F", "/").strip('"')
+        except (IndexError, AttributeError):
+            status = Status.ATTRIBUTE_ERROR
+        else:
+            status = Status.OK
+        with ActorSystem().private() as get_loop_port:
+            try:
+                reply = get_loop_port.ask(
+                    cluster_actor,
+                    AddPortToLoopMsg(port),
+                    timeout=timedelta(seconds=10),
+                )
+            except ConnectionResetError:
+                reply = None
+        reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
+        return reply.ports
+
+
+@ports_ns.route("/stop")
+@ports_ns.param("port", "ID of the serial port as gathered from the `/ports` endpoint")
+class GetStopPort(Resource):
+    """Stop polling on the given port"""
+
+    @api.expect(ports_arguments, validate=True)
+    def get(self):
+        """Remove the serial port from the list of ports that shall be polled for
+        connected SARAD instruments.
+
+        For Linux devices, replace slash in string by %2F.
+        """
+        if (registrar_actor := get_registrar_actor()) is None:
+            status = Status.CRITICAL
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+        cluster_actor = get_actor(registrar_actor, "cluster")
+        try:
+            port = request.args.get("port").replace("%2F", "/").strip('"')
+        except (IndexError, AttributeError):
+            status = Status.ATTRIBUTE_ERROR
+        else:
+            status = Status.OK
+        with ActorSystem().private() as get_stop_port:
+            try:
+                reply = get_stop_port.ask(
+                    cluster_actor,
+                    RemovePortFromLoopMsg(port),
+                    timeout=timedelta(seconds=10),
+                )
+            except ConnectionResetError:
+                reply = None
+        reply_is_corrupted = check_msg(reply, ReturnLoopPortsMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
         return reply.ports

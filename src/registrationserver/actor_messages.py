@@ -137,6 +137,38 @@ class SetupMsg:
 
 
 @dataclass
+class SetupComActorMsg:
+    """Message used to send the special setup information required for ComActors.
+    The parameters are required to identify the instr_id for the SaradInst object
+    for serial communication with the instrument.
+
+    Args:
+        route (Route): Serial interface port, RS-485 bus address and ZigBee
+                       address of the instrument.
+        loop_interval (int): Polling interval for instrument detection in seconds.
+    """
+
+    route: Route
+    loop_interval: int
+
+
+@dataclass
+class SetupHostActorMsg:
+    """Message used to send the special setup information required for HostActors.
+
+    Args:
+        host: Hostname of the host running the instrument server
+        port: Port address of the REST API
+        scan_interval (int): Polling interval for instrument detection via REST API
+                             in seconds.
+    """
+
+    host: str
+    port: int
+    scan_interval: int
+
+
+@dataclass
 class SetupUsbActorMsg:
     """Message used to send the special setup information required for USB Actors.
     The parameters are required to create the SaradInst object for serial communication
@@ -146,10 +178,13 @@ class SetupUsbActorMsg:
         route (Route): Serial interface port, RS-485 bus address and ZigBee
                        address of the instrument.
         family (FamilyDict): Instrument family from instruments.yaml
+        poll (bool): If True, the instrument shall regularly be checked for availability.
+                     Important for DOSEman sitting on IR cradle.
     """
 
     route: Route
     family: FamilyDict
+    poll: bool
 
 
 @dataclass

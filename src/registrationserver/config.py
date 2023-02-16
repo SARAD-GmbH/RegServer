@@ -11,7 +11,7 @@ import logging
 import os
 import socket
 import sys
-from typing import List
+from typing import List, Union
 from uuid import getnode as get_mac
 
 import toml
@@ -216,24 +216,40 @@ DEFAULT_IP_VERSION = IPVersion.All
 
 # mDNS backend configuration
 DEFAULT_MDNS_TIMEOUT = 3000
+DEFAULT_HOSTS: List[List[Union[None, str, int]]] = [[], []]
+DEFAULT_HOSTS_SCAN_INTERVAL = 60  # in seconds
 
 if customization.get("mdns_backend") is None:
     mdns_backend_config = {
         "MDNS_TIMEOUT": DEFAULT_MDNS_TIMEOUT,
         "TYPE": DEFAULT_TYPE,
         "IP_VERSION": DEFAULT_IP_VERSION,
+        "HOSTS": DEFAULT_HOSTS,
+        "SCAN_INTERVAL": DEFAULT_HOSTS_SCAN_INTERVAL,
     }
 else:
     if customization["mdns_backend"].get("ip_version") in ip_version_dict:
         IP_VERSION = ip_version_dict[customization["mdns_backend"]["ip_version"]]
     else:
         IP_VERSION = DEFAULT_IP_VERSION
+    hosts_toml = customization["mdns_backend"].get("hosts", DEFAULT_HOSTS)
+    hosts = []
+    for hostname in hosts_toml[0]:
+        try:
+            port = hosts_toml[1][hosts_toml[0].index(hostname)]
+        except IndexError:
+            port = DEFAULT_API_PORT  # pylint: disable=invalid-name
+        hosts.append([hostname, port])
     mdns_backend_config = {
         "MDNS_TIMEOUT": int(
             customization["mdns_backend"].get("mdns_timeout", DEFAULT_MDNS_TIMEOUT)
         ),
         "TYPE": customization["mdns_backend"].get("type", DEFAULT_TYPE),
         "IP_VERSION": IP_VERSION,
+        "HOSTS": hosts,
+        "SCAN_INTERVAL": customization["mdns_backend"].get(
+            "scan_interval", DEFAULT_HOSTS_SCAN_INTERVAL
+        ),
     }
 
 # mDNS frontend configuration
@@ -254,22 +270,22 @@ else:
 
 # USB backend configuration
 if os.name == "nt":
-    DEFAULT_NATIVE_SERIAL_PORTS = ["COM1"]
+    DEFAULT_POLL_SERIAL_PORTS = ["COM1"]
 else:
-    DEFAULT_NATIVE_SERIAL_PORTS = ["/dev/ttyS0"]
+    DEFAULT_POLL_SERIAL_PORTS = ["/dev/ttyS0"]
 DEFAULT_IGNORED_SERIAL_PORTS: List[str] = []
 DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
 
 if customization.get("usb_backend") is None:
     usb_backend_config = {
-        "NATIVE_SERIAL_PORTS": DEFAULT_NATIVE_SERIAL_PORTS,
+        "POLL_SERIAL_PORTS": DEFAULT_POLL_SERIAL_PORTS,
         "IGNORED_SERIAL_PORTS": DEFAULT_IGNORED_SERIAL_PORTS,
         "LOCAL_RETRY_INTERVAL": DEFAULT_LOCAL_RETRY_INTERVAL,
     }
 else:
     usb_backend_config = {
-        "NATIVE_SERIAL_PORTS": customization["usb_backend"].get(
-            "native_serial_ports", DEFAULT_NATIVE_SERIAL_PORTS
+        "POLL_SERIAL_PORTS": customization["usb_backend"].get(
+            "poll_serial_ports", DEFAULT_POLL_SERIAL_PORTS
         ),
         "IGNORED_SERIAL_PORTS": customization["usb_backend"].get(
             "ignored_serial_ports", DEFAULT_IGNORED_SERIAL_PORTS
@@ -306,8 +322,8 @@ DEFAULT_ADMIN_PORT = 1901
 DEFAULT_WINDOWS_METHOD = "spawn"
 DEFAULT_LINUX_METHOD = "fork"
 DEFAULT_CONVENTION_ADDRESS = None
-DEFAULT_KEEPALIVE_INTERVAL = 10  # in minutes
-DEFAULT_WAIT_BEFORE_CHECK = 20  # in seconds, min. is set by cluster_actor
+DEFAULT_KEEPALIVE_INTERVAL = 30  # in seconds
+DEFAULT_WAIT_BEFORE_CHECK = 5  # in seconds
 DEFAULT_CHECK = False
 DEFAULT_OUTER_WATCHDOG_INTERVAL = 30  # in seconds
 DEFAULT_OUTER_WATCHDOG_TRIALS = 3  # number of attempts to check Registrar
