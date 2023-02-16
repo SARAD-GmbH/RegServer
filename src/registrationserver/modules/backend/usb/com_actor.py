@@ -118,11 +118,10 @@ class ComActor(BaseActor):
                     test_instrument.release_instrument()
                     break
                 test_instrument.release_instrument()
-            except SerialException:
-                logger.error("%s not accessible.", route)
-            except OSError:
-                logger.critical("OSError -- exiting for a restart")
-                os._exit(1)  # pylint: disable=protected-access
+            except (SerialException, OSError) as exception:
+                logger.error("%s not accessible: %s", route, exception)
+                self.send(self.myAddress, KillMsg())
+                break
         if instr_id is not None:
             return test_instrument
         return None
