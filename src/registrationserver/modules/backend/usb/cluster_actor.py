@@ -11,7 +11,7 @@ Covers as well USB ports as native RS-232 ports, addressed RS-485 as ZigBee.
 """
 
 import os
-from typing import List, Set
+from typing import Set
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg, RescanFinishedMsg,
@@ -142,6 +142,9 @@ class ClusterActor(BaseActor):
         active_ports.extend(grep("067B"))
         # QinHeng Electronics USB-to-serial converters
         active_ports.extend(grep("1a86"))
+        toxic_ports = [port for port in comports() if "BTHENUM" in port.hwid]
+        for port in toxic_ports:
+            self.ignore_ports.add(port.device)
         # Actually we don't want the ports but the port devices.
         set_of_ports = set()
         for port in active_ports:

@@ -11,7 +11,7 @@ import logging
 import os
 import socket
 import sys
-from typing import List
+from typing import List, Union
 from uuid import getnode as get_mac
 
 import toml
@@ -216,7 +216,7 @@ DEFAULT_IP_VERSION = IPVersion.All
 
 # mDNS backend configuration
 DEFAULT_MDNS_TIMEOUT = 3000
-DEFAULT_HOSTS: List[str] = []
+DEFAULT_HOSTS: List[List[Union[None, str, int]]] = [[], []]
 DEFAULT_HOSTS_SCAN_INTERVAL = 60  # in seconds
 
 if customization.get("mdns_backend") is None:
