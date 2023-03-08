@@ -138,7 +138,6 @@ class Registrar(BaseActor):
             self.pending.remove(msg.actor_id)
         if msg.keep_alive:
             self.actor_dict[msg.actor_id]["is_alive"] = True
-            self._send_updates(self.actor_dict)
             return
         if msg.actor_id in self.actor_dict:
             logger.error("The actor %s already exists in the system.", msg.actor_id)

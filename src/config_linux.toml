@@ -60,8 +60,10 @@ admin_port = 1900
 # convention_address = "127.0.0.1"
 
 process_startup_method = "fork"
-watchdog_interval = 60  # in seconds. 0 = inner watchdog switched off
-watchdog_wait = 30  # in seconds
+watchdog_interval = 20  # in seconds. 0 = inner watchdog switched off
+watchdog_wait = 10  # in seconds. If IS1 backend is active and watchdog_check is
+                   # True, this must be at least 35. In every other case it
+                   # should be at least 10.
 watchdog_check = true  # if true, each Actor has to re-register at the Registrar
 outer_watchdog_interval = 60  # in seconds
 outer_watchdog_trials = 0  # number of attempts to check Registrar
