@@ -185,15 +185,17 @@ class MdnsListener(ServiceListener):
         # pylint: disable=invalid-name
         """Hook, being called when a new service
         representing a device is being detected"""
+        logger.debug("[Add] Service %s of type %s", name, type_)
         with self.lock:
             host_actor, hostname = self._get_host_actor(zc, type_, name)
+            logger.debug("hostname: %s, host_actor: %s", hostname, host_actor)
             if hostname is None:
                 return
             hostname = sanitize_hn(hostname)
             known_hostnames = set()
             for host in self.hosts:
                 known_hostnames.add(sanitize_hn(host[0]))
-            if (host_actor is None) and (hostname not in known_hostnames):
+            if host_actor is None:
                 logger.info("Ask Registrar to create Host Actor %s", hostname)
                 with ActorSystem().private() as add_host:
                     try:
