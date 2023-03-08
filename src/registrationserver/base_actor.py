@@ -211,7 +211,8 @@ class BaseActor(ActorTypeDispatcher):
             logger.info("The above warning can safely be ignored.")
         elif isinstance(msg.deadMessage, KeepAliveMsg):
             self.send(
-                msg.deadMessage.parent_address, DeadChildMsg(msg.deadMessage.child)
+                msg.deadMessage.parent.parent_address,
+                DeadChildMsg(msg.deadMessage.child),
             )
         else:
             logger.critical("-> Emergency shutdown")
