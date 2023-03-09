@@ -162,20 +162,24 @@ class HostActor(BaseActor):
             logger.error("%s: %s", success, self.my_id)
             self.send(self.myAddress, KillMsg())
         else:
-            for device_id, device_status in device_list.items():
-                if transport_technology(device_id) in ("local", "is1"):
-                    device_status["Remote"] = {
-                        "Address": self.host,
-                        "API port": self.port,
-                        "Device Id": device_id,
-                    }
-                    device_actor_id = self.mdns_id(device_id)
-                    if device_actor_id not in self.child_actors:
-                        self.send(
-                            self.myAddress,
-                            SetDeviceStatusMsg(
-                                device_status={device_actor_id: device_status}
-                            ),
-                        )
+            if device_list is None:
+                logger.error("Instrument list on remote host %s is empty.", self.host)
+                self.send(self.myAddress, KillMsg())
+            else:
+                for device_id, device_status in device_list.items():
+                    if transport_technology(device_id) in ("local", "is1"):
+                        device_status["Remote"] = {
+                            "Address": self.host,
+                            "API port": self.port,
+                            "Device Id": device_id,
+                        }
+                        device_actor_id = self.mdns_id(device_id)
+                        if device_actor_id not in self.child_actors:
+                            self.send(
+                                self.myAddress,
+                                SetDeviceStatusMsg(
+                                    device_status={device_actor_id: device_status}
+                                ),
+                            )
             if self.scan_interval:
                 self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")
