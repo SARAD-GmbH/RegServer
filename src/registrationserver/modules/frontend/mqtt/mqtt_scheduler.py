@@ -14,7 +14,7 @@ import time
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (FreeDeviceMsg, ReserveDeviceMsg,
                                                Status, TxBinaryMsg)
-from registrationserver.config import config
+from registrationserver.config import config, get_hostname, get_ip
 from registrationserver.helpers import diff_of_dicts, short_id
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
@@ -111,6 +111,7 @@ class MqttSchedulerActor(MqttBaseActor):
             ]
             self._subscribe_topic(new_subscriptions)
             identification = device_status["Identification"]
+            identification["Host"] = get_hostname(get_ip(False))
             message = {"State": 2, "Identification": identification}
             self.mqttc.publish(
                 topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
