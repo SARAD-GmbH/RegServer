@@ -62,7 +62,6 @@ class HostActor(BaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self.on_kill = True
         self.base_url = ""
         self.get_updates = True
         self._virgin = True
