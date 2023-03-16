@@ -365,7 +365,14 @@ class GetActorDictMsg:
 class KillMsg:
     """Message sent to an actor to trigger the exit of this actor. The actor has to
     forward this message to all of its children an finally sends an UnsubscribeMsg
-    to the Registrar actor."""
+    to the Registrar actor.
+
+    Args:
+        register (bool): If True, the receiving actor shall send an UnsubscribeMsg
+                         to the Registrar.
+    """
+
+    register: bool = True
 
 
 @dataclass

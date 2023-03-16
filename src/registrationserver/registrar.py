@@ -141,7 +141,7 @@ class Registrar(BaseActor):
             return
         if msg.actor_id in self.actor_dict:
             logger.error("The actor %s already exists in the system.", msg.actor_id)
-            self.send(sender, KillMsg())
+            self.send(sender, KillMsg(register=False))
             if msg.is_device_actor:
                 hid = Hashids()
                 serial_number = hid.decode(short_id(msg.actor_id))[2]

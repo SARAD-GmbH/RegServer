@@ -115,7 +115,8 @@ class BaseActor(ActorTypeDispatcher):
             self._forward_to_children(msg)
             self._forward_to_children(ActorExitRequest())
         else:
-            self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
+            if msg.register:
+                self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
             self.send(self.myAddress, ActorExitRequest())
             if self.is_device_actor:
                 logger.info(
@@ -174,7 +175,7 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name
         """Handler for ActorExitRequest"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
+        # self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
 
     def receiveMsg_DeadEnvelope(self, msg, sender):
         # pylint: disable=invalid-name

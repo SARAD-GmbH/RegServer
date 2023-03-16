@@ -18,7 +18,8 @@ import time
 
 from overrides import overrides  # type: ignore
 
-from registrationserver.actor_messages import SocketMsg, Status, TxBinaryMsg
+from registrationserver.actor_messages import (KillMsg, SocketMsg, Status,
+                                               TxBinaryMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config, rest_frontend_config
 from registrationserver.logger import logger
@@ -125,10 +126,10 @@ class RedirectorActor(BaseActor):
                 time.sleep(5)
         if data is None:
             logger.critical("Application software seems to be dead.")
-            self.receiveMsg_KillMsg(None, self.my_parent)
+            self.send(self.myAddress, KillMsg())
         elif data == b"":
             logger.debug("The application closed the socket.")
-            self.receiveMsg_KillMsg(None, self.my_parent)
+            self.send(self.myAddress, KillMsg())
         else:
             logger.debug(
                 "Redirect %s from app, socket %s to device actor %s",
@@ -150,4 +151,4 @@ class RedirectorActor(BaseActor):
                 logger.error("Connection reset by SARAD application software.")
                 time.sleep(5)
         logger.critical("Application software seems to be dead.")
-        self.receiveMsg_KillMsg(None, self.my_parent)
+        self.send(self.myAddress, KillMsg())
