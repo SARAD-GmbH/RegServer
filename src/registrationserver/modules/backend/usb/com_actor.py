@@ -62,7 +62,7 @@ class ComActor(BaseActor):
             self._start_polling()
 
     def _do_loop(self) -> None:
-        logger.info("[_do_loop] %s", self.route)
+        logger.debug("[_do_loop] %s", self.route)
         instrument = None
         if not self.child_actors:
             instrument = self._get_instrument(self.route)
@@ -71,7 +71,7 @@ class ComActor(BaseActor):
 
     def _start_polling(self):
         if self.loop_interval and (not self.loop_running):
-            logger.info("Start polling %s.", self.route)
+            logger.info("Start polling %s every %d s.", self.route, self.loop_interval)
             self.loop_running = True
             self.wakeupAfter(self.loop_interval)
         else:
