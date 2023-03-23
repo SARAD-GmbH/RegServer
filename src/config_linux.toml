@@ -1,5 +1,5 @@
-debug_level = "info"
-# is_id = "aranea0008"
+debug_level = "debug"
+is_id = "Wettinquelle"
 # description = "A longer text describing this Instrument Server"
 # place = "A text describing where the Instrument Controller running this Instrument Server is placed"
 # latitude = 51.0764194  # positive values for North, negative for South
@@ -44,19 +44,19 @@ scan_interval = 60  # in seconds
 [mdns_backend]
 mdns_timeout = 3000
 ip_version = "all"
-hosts = [["kalibrierkammer.hq.sarad.de", "r2d2.hq.sarad.de"], [8008, 8000]]  # [[host1, host2], [port1, port2]]
+hosts = [[], []]  # [[host1, host2], [port1, port2]]
 scan_interval = 60  # in seconds, 0 = scan only once during startup
 
 [actor]
 ## Uncomment one of the following three base technologies for the Actor system
 ## A) Experimental multithreading base
-# system_base = "multiprocQueueBase"
+system_base = "multiprocQueueBase"
 ## B) UDP based messages
 # system_base = "multiprocUDPBase"
 # admin_port = 1029
 ## C) TCP based messages
-system_base = "multiprocTCPBase"
-admin_port = 1900
+# system_base = "multiprocTCPBase"
+# admin_port = 1900
 # convention_address = "127.0.0.1"
 
 process_startup_method = "fork"
