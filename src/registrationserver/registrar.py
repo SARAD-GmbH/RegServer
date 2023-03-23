@@ -85,6 +85,9 @@ class Registrar(BaseActor):
             _is1_listener = self._create_actor(Is1Listener, "is1_listener", None)
         keepalive_interval = actor_config["KEEPALIVE_INTERVAL"]
         if keepalive_interval:
+            logger.debug(
+                "Inner watchdog will be activated every %d s.", keepalive_interval
+            )
             self.wakeupAfter(
                 timedelta(seconds=keepalive_interval), payload="keep alive"
             )
@@ -95,7 +98,7 @@ class Registrar(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         CHECK = actor_config["CHECK"]
         if msg.payload == "keep alive":
-            logger.info("Watchdog: start health check")
+            logger.debug("Watchdog: start health check")
             if CHECK:
                 for actor_id in self.actor_dict:
                     self.actor_dict[actor_id]["is_alive"] = False
@@ -124,7 +127,7 @@ class Registrar(BaseActor):
                     )
                     logger.critical("-> Emergency shutdown")
                     system_shutdown()
-            logger.info("Watchdog: health check finished successfully")
+            logger.debug("Watchdog: health check finished successfully")
             self.wakeupAfter(
                 timedelta(seconds=actor_config["KEEPALIVE_INTERVAL"]),
                 payload="keep alive",
@@ -141,7 +144,7 @@ class Registrar(BaseActor):
             return
         if msg.actor_id in self.actor_dict:
             logger.error("The actor %s already exists in the system.", msg.actor_id)
-            self.send(sender, KillMsg())
+            self.send(sender, KillMsg(register=False))
             if msg.is_device_actor:
                 hid = Hashids()
                 serial_number = hid.decode(short_id(msg.actor_id))[2]
@@ -239,7 +242,7 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for CreateActorMsg. Create a new actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        logger.info("Pending actors: %s", self.pending)
+        logger.debug("Pending actors: %s", self.pending)
         if (msg.actor_id not in self.actor_dict) and (msg.actor_id not in self.pending):
             _actor_address = self._create_actor(msg.actor_type, msg.actor_id, sender)
             self.pending.append(msg.actor_id)

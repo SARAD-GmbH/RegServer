@@ -88,6 +88,7 @@ class HostActor(BaseActor):
         self.http.mount("https://", adapter)
         self.http.mount("http://", adapter)
         self._asys = msg.asys_address
+        logger.info("Ping %s every %d minutes.", self.my_id, PING_INTERVAL)
         self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
     @overrides
@@ -108,7 +109,7 @@ class HostActor(BaseActor):
         self.port = msg.port
         self._scan()
         if self.scan_interval:
-            logger.info("Scan %s every %d seconds", self.my_id, self.scan_interval)
+            logger.info("Scan %s every %d seconds", self.base_url, self.scan_interval)
 
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -151,7 +152,7 @@ class HostActor(BaseActor):
             self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
     def _scan(self):
-        logger.info("Scan REST API of %s for new instruments", self.my_id)
+        logger.debug("Scan REST API of %s for new instruments", self.my_id)
         try:
             resp = self.http.get(f"{self.base_url}/list/")
             device_list = resp.json()
