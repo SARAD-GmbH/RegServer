@@ -184,9 +184,7 @@ class Registrar(BaseActor):
                     new_tt = transport_technology(new_device_id)
                     logger.debug("New device_id: %s", new_device_id)
                     logger.debug("Old device_id: %s", old_device_id)
-                    if (new_tt == "local") or (
-                        (new_tt == "mdns") and (old_tt == "is1")
-                    ):
+                    if new_tt == "local":
                         logger.debug(
                             "Keep new %s and kill the old %s",
                             new_device_id,
@@ -194,6 +192,17 @@ class Registrar(BaseActor):
                         )
                         keep_new_actor = True
                         self.send(self.actor_dict[old_device_id]["address"], KillMsg())
+                    elif (new_tt == "mdns") and (old_tt == "is1"):
+                        logger.debug(
+                            "A WLAN instrument might have been connected to another PC via USB."
+                        )
+                        # TODO Check whether old_device_id is still active
+                        logger.warning(
+                            "A WLAN instrument connected via USB to a remote host will be ignored."
+                        )
+                        keep_new_actor = False
+                        self.send(sender, KillMsg())
+                        return
                     else:
                         logger.debug("Keep device actor %s in place.", old_device_id)
                         keep_new_actor = False
