@@ -140,7 +140,13 @@ class Registrar(BaseActor):
         if msg.actor_id in self.pending:
             self.pending.remove(msg.actor_id)
         if msg.keep_alive:
-            self.actor_dict[msg.actor_id]["is_alive"] = True
+            try:
+                self.actor_dict[msg.actor_id]["is_alive"] = True
+            except KeyError:
+                logger.error(
+                    "Great confusion. %s passed away during handling of KeepAliveMsg.",
+                    msg.actor_id,
+                )
             return
         if msg.actor_id in self.actor_dict:
             logger.error("The actor %s already exists in the system.", msg.actor_id)
