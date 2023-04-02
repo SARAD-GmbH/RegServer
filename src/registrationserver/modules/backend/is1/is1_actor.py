@@ -194,6 +194,26 @@ class Is1Actor(DeviceBaseActor):
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         self._destroy_socket()
         super().receiveMsg_FreeDeviceMsg(msg, sender)
+        try:
+            if self.device_status["Reservation"]["Active"] and (
+                status in (Status.OK, Status.OK_SKIPPED)
+            ):
+                logger.info("Free active %s", self.my_id)
+                self.device_status["Reservation"]["Active"] = False
+                if self.device_status["Reservation"].get("IP") is not None:
+                    self.device_status["Reservation"].pop("IP")
+                if self.device_status["Reservation"].get("Port") is not None:
+                    self.device_status["Reservation"].pop("Port")
+                self.device_status["Reservation"]["Timestamp"] = (
+                    datetime.utcnow().isoformat(timespec="seconds") + "Z"
+                )
+                status = Status.OK
+            else:
+                status = Status.OK_SKIPPED
+        except KeyError:
+            logger.debug("Instr. was not reserved before.")
+            status = Status.OK_SKIPPED
+        self._handle_free_reply_from_is(Status.OK)
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):

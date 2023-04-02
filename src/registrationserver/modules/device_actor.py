@@ -155,6 +155,21 @@ class DeviceBaseActor(BaseActor):
             system_shutdown()
         self._send_reservation_status_msg()
 
+    def _handle_free_reply_from_is(self, success: Status):
+        # pylint: disable=unused-argument
+        """Inform all interested parties that the instrument is free.
+        Forward the reservation state from the Instrument Server to the REST API.
+        This function has to be called in the protocol specific modules.
+        """
+        logger.debug("Free command returned %s", success)
+        self._forward_to_children(KillMsg())
+        self.return_message = ReservationStatusMsg(self.instr_id, success)
+        if success == Status.OK:
+            self._publish_status_change()
+        if not self.child_actors:
+            self._send_reservation_status_msg()
+        logger.info("Free %s", self.my_id)
+
     def _create_redirector(self) -> bool:
         """Create redirector actor if it does not exist already"""
         if not self.child_actors:
@@ -208,31 +223,6 @@ class DeviceBaseActor(BaseActor):
             return
         self.return_message = ReservationStatusMsg(self.instr_id, Status.FREE_PENDING)
         self.sender_api = sender
-        status = Status.OK
-        try:
-            if self.device_status["Reservation"]["Active"]:
-                logger.info("Free active %s", self.my_id)
-                self.device_status["Reservation"]["Active"] = False
-                if self.device_status["Reservation"].get("IP") is not None:
-                    self.device_status["Reservation"].pop("IP")
-                if self.device_status["Reservation"].get("Port") is not None:
-                    self.device_status["Reservation"].pop("Port")
-                self.device_status["Reservation"]["Timestamp"] = (
-                    datetime.utcnow().isoformat(timespec="seconds") + "Z"
-                )
-                status = Status.OK
-            else:
-                status = Status.OK_SKIPPED
-        except KeyError:
-            logger.debug("Instr. was not reserved before.")
-            status = Status.OK_SKIPPED
-        self._forward_to_children(KillMsg())
-        self.return_message = ReservationStatusMsg(self.instr_id, status)
-        if status == Status.OK:
-            self._publish_status_change()
-        if not self.child_actors:
-            self._send_reservation_status_msg()
-        logger.info("Free %s", self.my_id)
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name

@@ -159,7 +159,7 @@ class MqttSchedulerActor(MqttBaseActor):
                     logger.debug(
                         "[FREE] Instrument is not in the list of reserved instruments."
                     )
-                    return
+                    reservation_object.status = Status.OK_SKIPPED
                 logger.debug("Publish free status")
                 if reservation_object.status in (
                     Status.OK,

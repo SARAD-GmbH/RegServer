@@ -230,6 +230,14 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             )  # create redirector actor
             self.state["RESERVE"]["Pending"] = False
             return
+        if (
+            (not reservation.get("Active", False))
+            and (self.return_message is not None)
+            and (self.return_message.status is not None)
+            and (self.return_message.status == Status.FREE_PENDING)
+        ):
+            self._handle_free_reply_from_is(Status.OK)
+            return
         logger.warning(
             "MQTT actor received a reply to a non-requested reservation on instrument %s",
             self.my_id,

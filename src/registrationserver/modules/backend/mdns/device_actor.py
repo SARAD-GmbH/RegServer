@@ -172,6 +172,26 @@ class DeviceActor(DeviceBaseActor):
                 success = Status.OK_SKIPPED
         logger.debug("Freeing remote device ended with %s", success)
         super().receiveMsg_FreeDeviceMsg(msg, sender)
+        try:
+            if self.device_status["Reservation"]["Active"] and (
+                status in (Status.OK, Status.OK_SKIPPED)
+            ):
+                logger.info("Free active %s", self.my_id)
+                self.device_status["Reservation"]["Active"] = False
+                if self.device_status["Reservation"].get("IP") is not None:
+                    self.device_status["Reservation"].pop("IP")
+                if self.device_status["Reservation"].get("Port") is not None:
+                    self.device_status["Reservation"].pop("Port")
+                self.device_status["Reservation"]["Timestamp"] = (
+                    datetime.utcnow().isoformat(timespec="seconds") + "Z"
+                )
+                status = Status.OK
+            else:
+                status = Status.OK_SKIPPED
+        except KeyError:
+            logger.debug("Instr. was not reserved before.")
+            status = Status.OK_SKIPPED
+        self._handle_free_reply_from_is(success)
 
     @overrides
     def _request_reserve_at_is(self):
