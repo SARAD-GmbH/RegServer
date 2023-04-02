@@ -8,7 +8,7 @@
     | Michael Strey <strey@sarad.de>
 
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import requests
 from overrides import overrides  # type: ignore

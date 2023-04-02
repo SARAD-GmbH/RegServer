@@ -7,9 +7,9 @@ as used in Instrument Server 1
 :Authors:
     | Michael Strey <strey@sarad.de>
 """
-import datetime
 import socket
 import time
+from datetime import datetime, timedelta
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (Is1Address, Is1RemoveMsg,
@@ -39,7 +39,7 @@ class Is1Actor(DeviceBaseActor):
         self._is: Is1Address = None
         self._com_port = None
         self._socket = None
-        self.last_activity = datetime.datetime.utcnow()
+        self.last_activity = datetime.utcnow()
 
     def receiveMsg_SetupIs1ActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -48,15 +48,14 @@ class Is1Actor(DeviceBaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._is = msg.is1_address
         self._com_port = msg.com_port
-        self.wakeupAfter(datetime.timedelta(seconds=20), payload="Rescan")
+        self.wakeupAfter(timedelta(seconds=20), payload="Rescan")
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
         if msg.payload == "Rescan" and not self.on_kill:
             time_condition = bool(
-                datetime.datetime.utcnow() - self.last_activity
-                > datetime.timedelta(seconds=10)
+                datetime.utcnow() - self.last_activity > timedelta(seconds=10)
             )
             logger.debug(
                 "time_condition = %s",
@@ -68,8 +67,8 @@ class Is1Actor(DeviceBaseActor):
                     self._is.hostname,
                 )
                 self._scan_is(self._is)
-            self.wakeupAfter(datetime.timedelta(seconds=60), payload="Rescan")
-            self.last_activity = datetime.datetime.utcnow()
+            self.wakeupAfter(timedelta(seconds=60), payload="Rescan")
+            self.last_activity = datetime.utcnow()
 
     def _establish_socket(self):
         if self._socket is None:
@@ -156,7 +155,7 @@ class Is1Actor(DeviceBaseActor):
             self.send(self.myAddress, KillMsg())
             reply = b""
         self.send(self.redirector_actor, RxBinaryMsg(reply))
-        self.last_activity = datetime.datetime.utcnow()
+        self.last_activity = datetime.utcnow()
 
     @overrides
     def _request_reserve_at_is(self):
