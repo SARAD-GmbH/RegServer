@@ -167,7 +167,7 @@ class HostActor(BaseActor):
                 self.send(self.myAddress, KillMsg())
             else:
                 for device_id, device_status in device_list.items():
-                    if transport_technology(device_id) in ("local", "is1"):
+                    if transport_technology(device_id) in ("local", "is1", "mqtt"):
                         device_status["Remote"] = {
                             "Address": self.host,
                             "API port": self.port,
