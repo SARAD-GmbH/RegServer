@@ -124,7 +124,7 @@ class MqttSchedulerActor(MqttBaseActor):
             self.reservations[device_id] = Reservation(
                 status=Status.OK_SKIPPED, timestamp=time.time()
             )
-            reservation = {"Active", False}
+            reservation = {"Active": False}
         saved_reservation_object = self.reservations.get(device_id)
         if saved_reservation_object is not None:
             status = saved_reservation_object.status
