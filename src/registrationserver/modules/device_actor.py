@@ -92,24 +92,6 @@ class DeviceBaseActor(BaseActor):
         )
         self.sender_api = sender
         self.reserve_device_msg = msg
-        try:
-            if self.device_status["Reservation"]["Active"]:
-                if (
-                    (self.device_status["Reservation"]["Host"] == msg.host)
-                    and (self.device_status["Reservation"]["App"] == msg.app)
-                    and (self.device_status["Reservation"]["User"] == msg.user)
-                ):
-                    self.return_message = ReservationStatusMsg(
-                        self.instr_id, Status.OK_UPDATED
-                    )
-                else:
-                    self.return_message = ReservationStatusMsg(
-                        self.instr_id, Status.OCCUPIED
-                    )
-                self._send_reservation_status_msg()
-                return
-        except KeyError:
-            logger.debug("First reservation since restart of RegServer")
         self._request_reserve_at_is()
 
     def _request_reserve_at_is(self):
@@ -131,6 +113,33 @@ class DeviceBaseActor(BaseActor):
             instr_id=self.instr_id, status=success
         )
         if success in [Status.OK, Status.OK_UPDATED, Status.OK_SKIPPED]:
+            try:
+                if self.device_status["Reservation"]["Active"]:
+                    if (
+                        (
+                            self.device_status["Reservation"]["Host"]
+                            == self.reserve_device_msg.host
+                        )
+                        and (
+                            self.device_status["Reservation"]["App"]
+                            == self.reserve_device_msg.app
+                        )
+                        and (
+                            self.device_status["Reservation"]["User"]
+                            == self.reserve_device_msg.user
+                        )
+                    ):
+                        self.return_message = ReservationStatusMsg(
+                            self.instr_id, Status.OK_UPDATED
+                        )
+                    else:
+                        self.return_message = ReservationStatusMsg(
+                            self.instr_id, Status.OCCUPIED
+                        )
+                    self._send_reservation_status_msg()
+                    return
+            except KeyError:
+                logger.debug("First reservation since restart of RegServer")
             if Frontend.REST in frontend_config:
                 # create redirector
                 if not self._create_redirector():
