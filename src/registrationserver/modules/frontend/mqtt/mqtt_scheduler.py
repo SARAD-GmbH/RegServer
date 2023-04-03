@@ -124,55 +124,52 @@ class MqttSchedulerActor(MqttBaseActor):
             self.reservations[device_id] = Reservation(
                 status=Status.OK_SKIPPED, timestamp=time.time()
             )
+        saved_reservation_object = self.reservations.get(device_id)
+        if saved_reservation_object is not None:
+            status = saved_reservation_object.status
         else:
-            saved_reservation_object = self.reservations.get(device_id)
-            if saved_reservation_object is not None:
-                status = saved_reservation_object.status
-            else:
-                status = Status.OK
-            reservation_object = Reservation(
-                timestamp=time.time(),
-                active=reservation.get("Active", False),
-                host=reservation.get("Host", ""),
-                app=reservation.get("App", ""),
-                user=reservation.get("User", ""),
-                status=status,
-            )
-            self.reservations[device_id] = reservation_object
-            if self.pending_control_action == ControlType.RESERVE:
-                logger.debug("Publish reservation")
-                if reservation_object.status in (
-                    Status.OK,
-                    Status.OK_SKIPPED,
-                    Status.OK_UPDATED,
-                ):
-                    reservation_object._replace(active=True)
-                    self.reservations[device_id] = reservation_object
-                    reservation_json = get_instr_reservation(reservation_object)
-                    topic = f"{self.group}/{self.is_id}/{instr_id}/reservation"
-                    logger.debug("Publish %s on %s", reservation_json, topic)
-                    self.mqttc.publish(
-                        topic=topic, payload=reservation_json, retain=True
-                    )
-            elif self.pending_control_action == ControlType.FREE:
-                if self.reservations.get(device_id) is None:
-                    logger.debug(
-                        "[FREE] Instrument is not in the list of reserved instruments."
-                    )
-                    reservation_object.status = Status.OK_SKIPPED
-                logger.debug("Publish free status")
-                if reservation_object.status in (
-                    Status.OK,
-                    Status.OK_SKIPPED,
-                    Status.OK_UPDATED,
-                ):
-                    reservation_object._replace(active=False)
-                    self.mqttc.publish(
-                        topic=f"{self.group}/{self.is_id}/{instr_id}/reservation",
-                        payload=get_instr_reservation(reservation_object),
-                        retain=True,
-                    )
-            self.pending_control_action = ControlType.UNKNOWN
+            status = Status.OK
+        reservation_object = Reservation(
+            timestamp=time.time(),
+            active=reservation.get("Active", False),
+            host=reservation.get("Host", ""),
+            app=reservation.get("App", ""),
+            user=reservation.get("User", ""),
+            status=status,
+        )
+        self.reservations[device_id] = reservation_object
+        if self.pending_control_action == ControlType.RESERVE:
+            logger.debug("Publish reservation")
+            if reservation_object.status in (
+                Status.OK,
+                Status.OK_SKIPPED,
+                Status.OK_UPDATED,
+            ):
+                reservation_object._replace(active=True)
+                self.reservations[device_id] = reservation_object
+                reservation_json = get_instr_reservation(reservation_object)
+                topic = f"{self.group}/{self.is_id}/{instr_id}/reservation"
+                logger.debug("Publish %s on %s", reservation_json, topic)
+                self.mqttc.publish(topic=topic, payload=reservation_json, retain=True)
+        elif self.pending_control_action == ControlType.FREE:
+            if self.reservations.get(device_id) is None:
+                logger.debug(
+                    "[FREE] Instrument is not in the list of reserved instruments."
+                )
+                reservation_object.status = Status.OK_SKIPPED
+            logger.debug("Publish free status")
+            if reservation_object.status in (
+                Status.OK,
+                Status.OK_SKIPPED,
+                Status.OK_UPDATED,
+            ):
+                reservation_object._replace(active=False)
+                self.mqttc.publish(
+                    topic=f"{self.group}/{self.is_id}/{instr_id}/reservation",
+                    payload=get_instr_reservation(reservation_object),
+                    retain=True,
+                )
+        self.pending_control_action = ControlType.UNKNOWN
 
     def _remove_instrument(self, device_id):
         # pylint: disable=invalid-name
