@@ -191,9 +191,8 @@ class Is1Actor(DeviceBaseActor):
         self._destroy_socket()
 
     @overrides
-    def receiveMsg_FreeDeviceMsg(self, msg, sender):
+    def _request_free_at_is(self):
         self._destroy_socket()
-        super().receiveMsg_FreeDeviceMsg(msg, sender)
         try:
             if self.device_status["Reservation"]["Active"] and (
                 status in (Status.OK, Status.OK_SKIPPED)

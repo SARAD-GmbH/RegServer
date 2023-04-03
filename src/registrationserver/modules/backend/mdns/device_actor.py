@@ -138,7 +138,7 @@ class DeviceActor(DeviceBaseActor):
         self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
 
     @overrides
-    def receiveMsg_FreeDeviceMsg(self, msg, sender):
+    def _request_free_at_is(self):
         try:
             resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
             device_resp = resp.json()
@@ -147,7 +147,7 @@ class DeviceActor(DeviceBaseActor):
             logger.error("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
             logger.error("%s, cannot access REST API of IS", success)
-            super().receiveMsg_FreeDeviceMsg(msg, sender)
+            self._handle_free_reply_from_is(success)
             return
         success = Status.NOT_FOUND
         if device_desc is not None:
@@ -171,7 +171,6 @@ class DeviceActor(DeviceBaseActor):
                 logger.debug("Tried to free a device that was not reserved.")
                 success = Status.OK_SKIPPED
         logger.debug("Freeing remote device ended with %s", success)
-        super().receiveMsg_FreeDeviceMsg(msg, sender)
         try:
             if self.device_status["Reservation"]["Active"] and (
                 status in (Status.OK, Status.OK_SKIPPED)

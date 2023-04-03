@@ -155,6 +155,25 @@ class DeviceBaseActor(BaseActor):
             system_shutdown()
         self._send_reservation_status_msg()
 
+    def receiveMsg_FreeDeviceMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for FreeDeviceMsg from REST API."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if (self.return_message is not None) and (
+            self.return_message.status == Status.FREE_PENDING
+        ):
+            self._send_reservation_status_msg()
+            return
+        self.return_message = ReservationStatusMsg(self.instr_id, Status.FREE_PENDING)
+        self.sender_api = sender
+        self._request_free_at_is()
+
+    def _request_free_at_is(self):
+        # pylint: disable=unused-argument
+        """Request freeing an instrument at the Instrument Server. This function has
+        to be implemented (overridden) in the protocol specific modules.
+        """
+
     def _handle_free_reply_from_is(self, success: Status):
         # pylint: disable=unused-argument
         """Inform all interested parties that the instrument is free.
@@ -211,18 +230,6 @@ class DeviceBaseActor(BaseActor):
         if self.return_message is not None:
             self.send(self.sender_api, self.return_message)
             self.return_message = None
-
-    def receiveMsg_FreeDeviceMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler for FreeDeviceMsg from REST API."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if (self.return_message is not None) and (
-            self.return_message.status == Status.FREE_PENDING
-        ):
-            self._send_reservation_status_msg()
-            return
-        self.return_message = ReservationStatusMsg(self.instr_id, Status.FREE_PENDING)
-        self.sender_api = sender
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name

@@ -169,8 +169,8 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             self.mqttc.loop_start()
 
     @overrides
-    def receiveMsg_FreeDeviceMsg(self, msg, sender):
-        super().receiveMsg_FreeDeviceMsg(msg, sender)
+    def _request_free_at_is(self):
+        """Forward the free request to the broker."""
         _msg = {
             "topic": self.allowed_sys_topics["CTRL"],
             "payload": json.dumps({"Req": "free"}),
