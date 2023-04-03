@@ -146,7 +146,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 Status.OK_SKIPPED,
                 Status.OK_UPDATED,
             ):
-                if self.pending_control_action == ControlType.FREE:
+                if self.pending_control_action == ControlType.RESERVE:
                     reservation_object._replace(active=True)
                 else:
                     reservation_object._replace(active=False)
