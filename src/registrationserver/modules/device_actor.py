@@ -181,6 +181,23 @@ class DeviceBaseActor(BaseActor):
         This function has to be called in the protocol specific modules.
         """
         logger.debug("Free command returned %s", success)
+        if success in (Status.OK, Status.OK_SKIPPED, Status.OK_UPDATED):
+            try:
+                if self.device_status["Reservation"]["Active"]:
+                    logger.info("Free active %s", self.my_id)
+                    self.device_status["Reservation"]["Active"] = False
+                    if self.device_status["Reservation"].get("IP") is not None:
+                        self.device_status["Reservation"].pop("IP")
+                    if self.device_status["Reservation"].get("Port") is not None:
+                        self.device_status["Reservation"].pop("Port")
+                    self.device_status["Reservation"]["Timestamp"] = (
+                        datetime.utcnow().isoformat(timespec="seconds") + "Z"
+                    )
+                else:
+                    success = Status.OK_SKIPPED
+            except KeyError:
+                logger.debug("Instr. was not reserved before.")
+                success = Status.OK_SKIPPED
         self._forward_to_children(KillMsg())
         self.return_message = ReservationStatusMsg(self.instr_id, success)
         if success == Status.OK:
