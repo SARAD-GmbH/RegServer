@@ -200,7 +200,7 @@ class DeviceBaseActor(BaseActor):
                 success = Status.OK_SKIPPED
         self._forward_to_children(KillMsg())
         self.return_message = ReservationStatusMsg(self.instr_id, success)
-        if success == Status.OK:
+        if success in (Status.OK, Status.OK_SKIPPED, Status.OK_UPDATED):
             self._publish_status_change()
         if not self.child_actors:
             self._send_reservation_status_msg()
