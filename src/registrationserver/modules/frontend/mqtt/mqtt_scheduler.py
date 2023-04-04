@@ -224,7 +224,6 @@ class MqttSchedulerActor(MqttBaseActor):
         """Handler for ReservationStatusMsg coming back from Device Actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         _device_actor, device_id = self._device_actor(msg.instr_id)
-        instr_id = short_id(msg.device_id)
         reservation = self.reservations.get(device_id)
         if reservation is not None:
             self.reservations[device_id]._replace(status=msg.status)
@@ -246,7 +245,7 @@ class MqttSchedulerActor(MqttBaseActor):
                     reservation_object._replace(active=False)
             self.reservations[device_id] = reservation_object
             reservation_json = get_instr_reservation(reservation_object)
-            topic = f"{self.group}/{self.is_id}/{instr_id}/reservation"
+            topic = f"{self.group}/{self.is_id}/{msg.instr_id}/reservation"
             logger.debug("Publish %s on %s", reservation_json, topic)
             self.mqttc.publish(topic=topic, payload=reservation_json, retain=True)
 
