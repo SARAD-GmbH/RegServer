@@ -248,6 +248,7 @@ class DeviceActor(DeviceBaseActor):
             logger.critical("%s during reservation", success)
             system_shutdown()
         self._update_reservation_status(self.device_status.get("Reservation"))
+        self._send_reservation_status_msg()
 
     @overrides
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):

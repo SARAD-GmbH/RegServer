@@ -153,6 +153,7 @@ class DeviceBaseActor(BaseActor):
                     "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
                 }
                 self._update_reservation_status(reservation)
+                self._send_reservation_status_msg()
             return
         if success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
             logger.error(
@@ -207,11 +208,12 @@ class DeviceBaseActor(BaseActor):
             except KeyError:
                 logger.debug("Instr. was not reserved before.")
                 success = Status.OK_SKIPPED
-        self._forward_to_children(KillMsg())
         self.return_message = ReservationStatusMsg(self.instr_id, success)
         if success in (Status.OK, Status.OK_SKIPPED, Status.OK_UPDATED):
             self._publish_status_change()
-        if not self.child_actors:
+        if self.child_actors:
+            self._forward_to_children(KillMsg())
+        else:
             self._send_reservation_status_msg()
         logger.info("Free %s", self.my_id)
 
@@ -245,12 +247,12 @@ class DeviceBaseActor(BaseActor):
             "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         }
         self._update_reservation_status(reservation)
+        self._send_reservation_status_msg()
 
     def _update_reservation_status(self, reservation):
         self.device_status["Reservation"] = reservation
         logger.info("Reservation state updated: %s", self.device_status)
         self._publish_status_change()
-        self._send_reservation_status_msg()
 
     def _send_reservation_status_msg(self):
         if self.return_message is not None:
