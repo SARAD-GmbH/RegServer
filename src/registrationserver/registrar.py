@@ -158,6 +158,10 @@ class Registrar(BaseActor):
                     logger.info(
                         "Someone has attached a virgin SARAD instrument. Ignore it!"
                     )
+                elif transport_technology(msg.actor_id) == "mdns":
+                    logger.debug(
+                        "%s is availabel from different hosts. First come, first served."
+                    )
                 else:
                     logger.critical(
                         "SN %d != 65535 -> Emergency shutdown", serial_number
