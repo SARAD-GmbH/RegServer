@@ -152,8 +152,8 @@ class DeviceBaseActor(BaseActor):
                     "User": self.reserve_device_msg.user,
                     "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
                 }
-                self._update_reservation_status(reservation)
                 self._send_reservation_status_msg()
+                self._update_reservation_status(reservation)
             return
         if success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
             logger.error(
@@ -246,8 +246,8 @@ class DeviceBaseActor(BaseActor):
             "Port": msg.port,
             "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         }
-        self._update_reservation_status(reservation)
         self._send_reservation_status_msg()
+        self._update_reservation_status(reservation)
 
     def _update_reservation_status(self, reservation):
         self.device_status["Reservation"] = reservation
