@@ -169,7 +169,7 @@ class DeviceBaseActor(BaseActor):
         """Handler for FreeDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if (self.return_message is not None) and (
-            self.return_message.status == Status.FREE_PENDING
+            self.return_message.status == Status.RESERVE_PENDING
         ):
             self._send_reservation_status_msg()
             return
