@@ -94,6 +94,16 @@ class MqttSchedulerActor(MqttBaseActor):
         for actor_id in gone_device_actors:
             self._remove_instrument(actor_id)
 
+    def receiveMsg_ReservationStatusMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for ReservationStatusMsg from Device Actor.
+
+        This message makes only sense for the REST API. The MQTT Scheduler is
+        using the UpdateDeviceStatusMsg instead. That's why this handler does
+        nothing.
+        """
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for UpdateDeviceStatusMsg from Device Actor.
