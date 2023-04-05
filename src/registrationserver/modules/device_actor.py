@@ -213,8 +213,6 @@ class DeviceBaseActor(BaseActor):
                 logger.debug("Instr. was not reserved before.")
                 success = Status.OK_SKIPPED
         self.return_message = ReservationStatusMsg(self.instr_id, success)
-        if success in (Status.OK, Status.OK_SKIPPED, Status.OK_UPDATED):
-            self._publish_status_change()
         if self.child_actors:
             self._forward_to_children(KillMsg())
         else:
@@ -317,8 +315,9 @@ class DeviceBaseActor(BaseActor):
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
         super().receiveMsg_ChildActorExited(msg, sender)
-        self._send_reservation_status_msg()
-        self._publish_status_change()
+        if self.return_message.status != Status.FREE_PENDING:
+            self._send_reservation_status_msg()
+            self._publish_status_change()
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
