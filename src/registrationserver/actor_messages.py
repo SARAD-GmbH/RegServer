@@ -414,7 +414,7 @@ class ReserveDeviceMsg:
 
 @dataclass
 class ReservationStatusMsg:
-    """Message to inform about the result of the ReserveDeviceMsg.
+    """Message to inform the REST API about the result of the ReserveDeviceMsg.
 
     Args:
         instr_id (str): instrument id
@@ -463,9 +463,14 @@ class GetDeviceStatusMsg:
 class UpdateDeviceStatusMsg:
     """Message with updated device status information for an instrument.
 
+    This message will be sent by a device actor whenever the status of the
+    device has changed or when a ReserveDeviceMsg or FreeDeviceMsg was handled
+    completely.
+
     Args:
         device_id (str): Device Id in long form
         device_status (dict): Dictionary with status information of the instrument.
+
     """
 
     device_id: str

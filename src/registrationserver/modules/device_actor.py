@@ -86,6 +86,7 @@ class DeviceBaseActor(BaseActor):
             self.return_message.status == Status.FREE_PENDING
         ):
             self._send_reservation_status_msg()
+            self._publish_status_change()
             return
         self.return_message = ReservationStatusMsg(
             self.instr_id, Status.RESERVE_PENDING
@@ -137,6 +138,7 @@ class DeviceBaseActor(BaseActor):
                             self.instr_id, Status.OCCUPIED
                         )
                     self._send_reservation_status_msg()
+                    self._publish_status_change()
                     return
             except KeyError:
                 logger.debug("First reservation since restart of RegServer")
@@ -164,6 +166,7 @@ class DeviceBaseActor(BaseActor):
             logger.critical("%s during reservation", success)
             system_shutdown()
         self._send_reservation_status_msg()
+        self._publish_status_change()
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -173,6 +176,7 @@ class DeviceBaseActor(BaseActor):
             self.return_message.status == Status.RESERVE_PENDING
         ):
             self._send_reservation_status_msg()
+            self._publish_status_change()
             return
         self.return_message = ReservationStatusMsg(self.instr_id, Status.FREE_PENDING)
         self.sender_api = sender
@@ -215,6 +219,7 @@ class DeviceBaseActor(BaseActor):
             self._forward_to_children(KillMsg())
         else:
             self._send_reservation_status_msg()
+            self._publish_status_change()
         logger.info("Free %s", self.my_id)
 
     def _create_redirector(self) -> bool:
@@ -235,6 +240,7 @@ class DeviceBaseActor(BaseActor):
                 self.instr_id, Status.UNKNOWN_PORT
             )
             self._send_reservation_status_msg()
+            self._publish_status_change()
             return
         # Write Reservation section into device status
         reservation = {
@@ -312,8 +318,10 @@ class DeviceBaseActor(BaseActor):
     def receiveMsg_ChildActorExited(self, msg, sender):
         super().receiveMsg_ChildActorExited(msg, sender)
         self._send_reservation_status_msg()
+        self._publish_status_change()
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
         self._send_reservation_status_msg()
+        self._publish_status_change()
         super().receiveMsg_KillMsg(msg, sender)
