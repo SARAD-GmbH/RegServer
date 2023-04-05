@@ -259,8 +259,10 @@ def get_device_status(registrar_actor, device_id: str) -> dict:
                 GetDeviceStatusMsg(),
                 timeout=timedelta(seconds=5),
             )
-        except ConnectionResetError:
+        except (ConnectionResetError, ValueError):
             result = None
+    if result is None:
+        return {}
     if not isinstance(result, UpdateDeviceStatusMsg):
         logger.critical(
             "Emergency shutdown. Request to %s delivered: %s", device_id, result
