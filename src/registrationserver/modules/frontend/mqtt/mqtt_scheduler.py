@@ -138,13 +138,6 @@ class MqttSchedulerActor(MqttBaseActor):
             user=reservation.get("User", ""),
             status=status,
         )
-        self.reservations[device_id] = reservation_object
-        if reservation is not None:
-            self.reservations[device_id]._replace(status=msg.status)
-        else:
-            self.reservations[device_id] = Reservation(
-                status=msg.status, timestamp=time.time()
-            )
         if self.pending_control_action in (ControlType.RESERVE, ControlType.FREE):
             logger.debug("Publish reservation state")
             if reservation_object.status in (
@@ -161,7 +154,6 @@ class MqttSchedulerActor(MqttBaseActor):
             topic = f"{self.group}/{self.is_id}/{instr_id}/reservation"
             logger.debug("Publish %s on %s", reservation_json, topic)
             self.mqttc.publish(topic=topic, payload=reservation_json, retain=True)
-
         self.pending_control_action = ControlType.UNKNOWN
 
     def _remove_instrument(self, device_id):
