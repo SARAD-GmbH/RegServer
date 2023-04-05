@@ -247,8 +247,8 @@ class DeviceActor(DeviceBaseActor):
         elif success == Status.ERROR:
             logger.critical("%s during reservation", success)
             system_shutdown()
-        self._send_reservation_status_msg()
         self._publish_status_change()
+        self._send_reservation_status_msg()
 
     @overrides
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):

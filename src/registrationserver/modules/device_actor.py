@@ -85,8 +85,8 @@ class DeviceBaseActor(BaseActor):
         if (self.return_message is not None) and (
             self.return_message.status == Status.FREE_PENDING
         ):
-            self._send_reservation_status_msg()
             self._publish_status_change()
+            self._send_reservation_status_msg()
             return
         self.return_message = ReservationStatusMsg(
             self.instr_id, Status.RESERVE_PENDING
@@ -137,8 +137,8 @@ class DeviceBaseActor(BaseActor):
                         self.return_message = ReservationStatusMsg(
                             self.instr_id, Status.OCCUPIED
                         )
-                    self._send_reservation_status_msg()
                     self._publish_status_change()
+                    self._send_reservation_status_msg()
                     return
             except KeyError:
                 logger.debug("First reservation since restart of RegServer")
@@ -165,8 +165,8 @@ class DeviceBaseActor(BaseActor):
         elif success == Status.ERROR:
             logger.critical("%s during reservation", success)
             system_shutdown()
-        self._send_reservation_status_msg()
         self._publish_status_change()
+        self._send_reservation_status_msg()
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -175,8 +175,8 @@ class DeviceBaseActor(BaseActor):
         if (self.return_message is not None) and (
             self.return_message.status == Status.RESERVE_PENDING
         ):
-            self._send_reservation_status_msg()
             self._publish_status_change()
+            self._send_reservation_status_msg()
             return
         self.return_message = ReservationStatusMsg(self.instr_id, Status.FREE_PENDING)
         self.sender_api = sender
@@ -216,8 +216,8 @@ class DeviceBaseActor(BaseActor):
         if self.child_actors:
             self._forward_to_children(KillMsg())
         else:
-            self._send_reservation_status_msg()
             self._publish_status_change()
+            self._send_reservation_status_msg()
         logger.info("Free %s", self.my_id)
 
     def _create_redirector(self) -> bool:
@@ -237,8 +237,8 @@ class DeviceBaseActor(BaseActor):
             self.return_message = ReservationStatusMsg(
                 self.instr_id, Status.UNKNOWN_PORT
             )
-            self._send_reservation_status_msg()
             self._publish_status_change()
+            self._send_reservation_status_msg()
             return
         # Write Reservation section into device status
         reservation = {
@@ -315,12 +315,14 @@ class DeviceBaseActor(BaseActor):
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
         super().receiveMsg_ChildActorExited(msg, sender)
-        if self.return_message.status != Status.FREE_PENDING:
-            self._send_reservation_status_msg()
+        if (self.return_message is not None) and (
+            self.return_message.status != Status.FREE_PENDING
+        ):
             self._publish_status_change()
+            self._send_reservation_status_msg()
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
-        self._send_reservation_status_msg()
         self._publish_status_change()
+        self._send_reservation_status_msg()
         super().receiveMsg_KillMsg(msg, sender)
