@@ -14,12 +14,14 @@ Based on work of Riccardo Förster <foerster@sarad.de>.
 """
 import socket
 
+from registrationserver.actor_messages import KillMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import (config, mdns_frontend_config,
                                        rest_frontend_config)
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from zeroconf import ServiceInfo, Zeroconf
+from zeroconf._exceptions import NonUniqueNameException
 
 
 class MdnsAdvertiserActor(BaseActor):
@@ -65,7 +67,14 @@ class MdnsAdvertiserActor(BaseActor):
             if self.occupied and (not self.virgin):
                 self.__update_service()
         if self.virgin:
-            self.__start_advertising()
+            try:
+                self.__start_advertising()
+            except NonUniqueNameException:
+                logger.warning(
+                    "%s is already availabel from another host in this LAN.",
+                    msg.device_id,
+                )
+                self.send(self.myAddress, KillMsg())
 
     def receiveMsg_KillMsg(self, msg, sender):
         if self.service is not None:

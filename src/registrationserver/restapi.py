@@ -322,13 +322,20 @@ class ReserveDevice(Resource):
             Status.OK_SKIPPED,
             Status.OK_UPDATED,
             Status.OCCUPIED,
+        ):
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                device_id: get_device_status(registrar_actor, device_id),
+            }
+        if status in (
             Status.NOT_FOUND,
             Status.IS_NOT_FOUND,
         ):
             return {
                 "Error code": status.value,
                 "Error": str(status),
-                device_id: get_device_status(registrar_actor, device_id),
+                device_id: {},
             }
         status = Status.CRITICAL
         logger.critical("No response from Device Actor. -> Emergency shutdown")
@@ -369,10 +376,21 @@ class FreeDevice(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
+        if status in (
+            Status.OK,
+            Status.OK_SKIPPED,
+            Status.OK_UPDATED,
+            Status.OCCUPIED,
+        ):
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                device_id: get_device_status(registrar_actor, device_id),
+            }
         return {
             "Error code": status.value,
             "Error": str(status),
-            device_id: get_device_status(registrar_actor, device_id),
+            device_id: {},
         }
 
 

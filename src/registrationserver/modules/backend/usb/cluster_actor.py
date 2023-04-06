@@ -135,7 +135,8 @@ class ClusterActor(BaseActor):
         3. via an external USB-serial converter (Prolific, Prolific fake, FTDI, QinHeng Electronics)
         4. via the SARAD ZigBee coordinator with FT232R"""
         # Get the list of accessible native RS-232 ports
-        active_ports = [port for port in comports() if not port.pid]
+        active_ports = [port for port in comports() if port.pid is None]
+        logger.debug("RS-232 or UART ports: %s", [port.device for port in active_ports])
         # FTDI USB-to-serial converters
         active_ports.extend(grep("0403"))
         # Prolific and no-name USB-to-serial converters

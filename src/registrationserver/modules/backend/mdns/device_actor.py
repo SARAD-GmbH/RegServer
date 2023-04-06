@@ -8,7 +8,7 @@
     | Michael Strey <strey@sarad.de>
 
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import requests
 from overrides import overrides  # type: ignore
@@ -138,7 +138,7 @@ class DeviceActor(DeviceBaseActor):
         self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
 
     @overrides
-    def receiveMsg_FreeDeviceMsg(self, msg, sender):
+    def _request_free_at_is(self):
         try:
             resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
             device_resp = resp.json()
@@ -147,7 +147,7 @@ class DeviceActor(DeviceBaseActor):
             logger.error("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
             logger.error("%s, cannot access REST API of IS", success)
-            super().receiveMsg_FreeDeviceMsg(msg, sender)
+            self._handle_free_reply_from_is(success)
             return
         success = Status.NOT_FOUND
         if device_desc is not None:
@@ -170,8 +170,7 @@ class DeviceActor(DeviceBaseActor):
             else:
                 logger.debug("Tried to free a device that was not reserved.")
                 success = Status.OK_SKIPPED
-        logger.debug("Freeing remote device ended with %s", success)
-        super().receiveMsg_FreeDeviceMsg(msg, sender)
+        self._handle_free_reply_from_is(success)
 
     @overrides
     def _request_reserve_at_is(self):
@@ -248,7 +247,8 @@ class DeviceActor(DeviceBaseActor):
         elif success == Status.ERROR:
             logger.critical("%s during reservation", success)
             system_shutdown()
-        self._update_reservation_status(self.device_status.get("Reservation"))
+        self._publish_status_change()
+        self._send_reservation_status_msg()
 
     @overrides
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):

@@ -18,10 +18,12 @@ from thespian.actors import (Actor, ActorSystem,  # type: ignore
 
 from registrationserver.actor_messages import (FreeDeviceMsg, GetActorDictMsg,
                                                GetDeviceStatusesMsg,
+                                               GetDeviceStatusMsg,
                                                ReservationStatusMsg,
                                                ReserveDeviceMsg, Status,
                                                UpdateActorDictMsg,
-                                               UpdateDeviceStatusesMsg)
+                                               UpdateDeviceStatusesMsg,
+                                               UpdateDeviceStatusMsg)
 from registrationserver.logger import logger
 from registrationserver.shutdown import system_shutdown
 
@@ -240,6 +242,38 @@ def get_actor(registrar_actor, actor_id: str):
 
 def get_device_status(registrar_actor, device_id: str) -> dict:
     """Read the device status from the device actor.
+
+    Args:
+        device_id: The device id is used as well as file name as
+                   as global name for the device actor
+
+    Returns:
+        A dictionary containing additional information
+        for the *Identification* of the instrument and it's *Reservation* state
+
+    """
+    with ActorSystem().private() as db_sys:
+        try:
+            result = db_sys.ask(
+                get_actor(registrar_actor, device_id),
+                GetDeviceStatusMsg(),
+                timeout=timedelta(seconds=5),
+            )
+        except (ConnectionResetError, ValueError):
+            result = None
+    if result is None:
+        return {}
+    if not isinstance(result, UpdateDeviceStatusMsg):
+        logger.critical(
+            "Emergency shutdown. Request to %s delivered: %s", device_id, result
+        )
+        system_shutdown()
+        return {}
+    return result.device_status
+
+
+def get_device_status_from_registrar(registrar_actor, device_id: str) -> dict:
+    """Read the device status from the registrar.
 
     Args:
         device_id: The device id is used as well as file name as

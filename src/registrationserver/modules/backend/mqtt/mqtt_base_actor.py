@@ -242,12 +242,12 @@ class MqttBaseActor(BaseActor):
             logger.error("Subscribe failed; result code is: %s", return_code)
             return False
         logger.info("[Subscribe] to %s successful", sub_info)
-        for (topic, qos) in sub_info:
+        for topic, qos in sub_info:
             self._subscriptions[topic] = qos
         return True
 
     def _unsubscribe_topic(self, topics: list) -> bool:
-        logger.info("Unsubscribe topics %s", topics)
+        logger.debug("Unsubscribe topics %s", topics)
         if not self.is_connected:
             logger.error("[Unsubscribe] failed, not connected to broker")
             return False
@@ -255,7 +255,7 @@ class MqttBaseActor(BaseActor):
         if return_code != MQTT.MQTT_ERR_SUCCESS:
             logger.warning("[Unsubscribe] failed; result code is: %s", return_code)
             return False
-        logger.info("[Unsubscribe] from %s successful", topics)
+        logger.debug("[Unsubscribe] from %s successful", topics)
         for topic in topics:
             logger.debug("Pop %s from %s", topic, self._subscriptions)
             try:

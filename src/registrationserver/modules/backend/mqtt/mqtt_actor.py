@@ -169,8 +169,8 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             self.mqttc.loop_start()
 
     @overrides
-    def receiveMsg_FreeDeviceMsg(self, msg, sender):
-        super().receiveMsg_FreeDeviceMsg(msg, sender)
+    def _request_free_at_is(self):
+        """Forward the free request to the broker."""
         _msg = {
             "topic": self.allowed_sys_topics["CTRL"],
             "payload": json.dumps({"Req": "free"}),
@@ -185,8 +185,6 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         """Handler for MQTT messages regarding reservation of instruments"""
         reservation_status = Status.ERROR
         reservation = json.loads(message.payload)
-        logger.debug("Update reservation state of %s: %s", self.my_id, reservation)
-        self.device_status["Reservation"] = reservation
         self._publish_status_change()
         if self.state["RESERVE"]["Pending"]:
             instr_status = reservation.get("Active")
@@ -229,6 +227,14 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                 reservation_status
             )  # create redirector actor
             self.state["RESERVE"]["Pending"] = False
+            return
+        if (
+            (not reservation.get("Active", False))
+            and (self.return_message is not None)
+            and (self.return_message.status is not None)
+            and (self.return_message.status == Status.FREE_PENDING)
+        ):
+            self._handle_free_reply_from_is(Status.OK)
             return
         logger.warning(
             "MQTT actor received a reply to a non-requested reservation on instrument %s",

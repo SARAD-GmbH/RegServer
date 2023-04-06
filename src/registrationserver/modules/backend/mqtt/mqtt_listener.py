@@ -53,11 +53,11 @@ class MqttListener(MqttBaseActor):
         }
     """
 
-    def device_id(self, instr_id):
-        """Deliver device_id belonging to the instr_id in the argument."""
-        logger.debug("Search for %s in %s", instr_id, self.child_actors)
-        for device_id in self.child_actors:
-            if instr_id in device_id:
+    def device_id(self, is_id, instr_id):
+        """Deliver device_id belonging to the instr_id on is_id in the argument."""
+        logger.debug("Search for %s on %s in %s", instr_id, is_id, self.child_actors)
+        for device_id, child_actor in self.child_actors.items():
+            if (instr_id in device_id) and (child_actor["host"] == is_id):
                 return device_id
         return None
 
@@ -122,11 +122,11 @@ class MqttListener(MqttBaseActor):
 
     def _rm_instr(self, is_id, instr_id) -> None:
         logger.debug("[rm_instr] %s, %s", is_id, instr_id)
-        device_id = self.device_id(instr_id)
+        device_id = self.device_id(is_id, instr_id)
         if device_id is None:
             logger.debug("Instrument unknown")
             return
-        logger.info("[rm_instr] %s", instr_id)
+        logger.info("[rm_instr] %s", device_id)
         device_actor = self.child_actors[device_id]["actor_address"]
         self.send(device_actor, KillMsg())
 
@@ -137,11 +137,11 @@ class MqttListener(MqttBaseActor):
                 "and Instrument ID are None or the meta message is None."
             )
             return
-        device_id = self.device_id(instr_id)
+        device_id = self.device_id(is_id, instr_id)
         if device_id is None:
             logger.warning("[update_instr] Instrument unknown")
             return
-        logger.info("[update_instr] %s", instr_id)
+        logger.info("[update_instr] %s", device_id)
         device_actor = self.child_actors[device_id]["actor_address"]
         self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
 
@@ -256,7 +256,7 @@ class MqttListener(MqttBaseActor):
                     "[+/meta] Store properties of instrument %s",
                     instr_id,
                 )
-                if self.device_id(instr_id) is not None:
+                if self.device_id(is_id, instr_id) is not None:
                     self._update_instr(is_id, instr_id, payload)
                 else:
                     self._add_instr(is_id, instr_id, payload)

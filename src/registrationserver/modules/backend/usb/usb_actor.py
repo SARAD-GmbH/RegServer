@@ -149,7 +149,6 @@ class UsbActor(DeviceBaseActor):
 
     @overrides
     def _request_reserve_at_is(self):
-        # pylint: disable=unused-argument
         """Reserve the requested instrument.
 
         To avoid wrong reservations of instruments like DOSEman sitting on an
@@ -164,6 +163,15 @@ class UsbActor(DeviceBaseActor):
             self._handle_reserve_reply_from_is(Status.NOT_FOUND)
         else:
             self._handle_reserve_reply_from_is(Status.OK)
+
+    @overrides
+    def _request_free_at_is(self):
+        """Free the instrument
+
+        The USB Actor is already the last in the chain. There is no need to ask
+        somebody else to free the instrument.
+        """
+        self._handle_free_reply_from_is(Status.OK)
 
     def receiveMsg_GetRecentValueMsg(self, msg, sender):
         # pylint: disable=invalid-name
