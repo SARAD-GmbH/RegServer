@@ -222,7 +222,8 @@ class Scan(Resource):
                 reply = scan_sys.ask(
                     cluster_actor, RescanMsg(), timeout=timedelta(seconds=60)
                 )
-            except ConnectionResetError:
+            except ConnectionResetError as exception:
+                logger.debug(exception)
                 reply = None
         reply_is_corrupted = check_msg(reply, RescanFinishedMsg)
         if reply_is_corrupted:

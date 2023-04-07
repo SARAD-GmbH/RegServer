@@ -219,16 +219,24 @@ def get_actor(registrar_actor, actor_id: str):
     Returns:
         Actor address
     """
-    with ActorSystem().private() as db_sys:
+    with ActorSystem().private() as h_get_actor:
         try:
-            result = db_sys.ask(
+            result = h_get_actor.ask(
                 registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=1)
             )
-        except ConnectionResetError:
+        except ConnectionResetError as exception:
+            logger.debug(exception)
             result = None
-        if not isinstance(result, UpdateActorDictMsg):
+        if result is None:
             logger.critical(
                 "Emergency shutdown. Ask to Registrar took more than 1 sec."
+            )
+            system_shutdown()
+            return None
+        if not isinstance(result, UpdateActorDictMsg):
+            logger.critical(
+                "UpdateActorDictMsg expected but % received. -> Emergency shutdown.",
+                result,
             )
             system_shutdown()
             return None
@@ -252,20 +260,24 @@ def get_device_status(registrar_actor, device_id: str) -> dict:
         for the *Identification* of the instrument and it's *Reservation* state
 
     """
-    with ActorSystem().private() as db_sys:
+    with ActorSystem().private() as h_get_device_status:
         try:
-            result = db_sys.ask(
+            result = h_get_device_status.ask(
                 get_actor(registrar_actor, device_id),
                 GetDeviceStatusMsg(),
                 timeout=timedelta(seconds=5),
             )
-        except (ConnectionResetError, ValueError):
+        except (ConnectionResetError, ValueError) as exception:
+            logger.debug(exception)
             result = None
     if result is None:
+        logger.debug("Timeout at GetDeviceStatusMsg.")
         return {}
     if not isinstance(result, UpdateDeviceStatusMsg):
         logger.critical(
-            "Emergency shutdown. Request to %s delivered: %s", device_id, result
+            "Emergency shutdown. Request to %s delivered: %s instead of UpdateDeviceStatusMsg",
+            device_id,
+            result,
         )
         system_shutdown()
         return {}
@@ -292,20 +304,22 @@ def get_device_status_from_registrar(registrar_actor, device_id: str) -> dict:
 
 def get_device_statuses(registrar_actor):
     """Return a list of all device ids together with the device status"""
-    with ActorSystem().private() as db_sys:
+    with ActorSystem().private() as h_get_device_statuses:
         try:
-            result = db_sys.ask(
+            result = h_get_device_statuses.ask(
                 registrar_actor, GetDeviceStatusesMsg(), timeout=timedelta(seconds=5)
             )
-        except ConnectionResetError:
+        except ConnectionResetError as exception:
+            logger.debug(exception)
             result = None
         if result is None:
+            logger.debug("Timeout at GetDeviceStatusMsg.")
             return None
         if not isinstance(result, UpdateDeviceStatusesMsg):
             logger.critical(
-                "Emergency shutdown. Ask to Registrar took more than 5 sec."
+                "Emergency shutdown. Registrar replied %s instead of UpdateDeviceStatusesMsg",
+                result,
             )
-            logger.debug("Request to registrar delivered: %s", result)
             system_shutdown()
             return None
     # logger.debug("Device statuses: %s", result.device_statuses)
@@ -319,11 +333,19 @@ def get_instr_id_actor_dict(registrar_actor):
             result = iid_sys.ask(
                 registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=1)
             )
-        except ConnectionResetError:
+        except ConnectionResetError as exception:
+            logger.debug(exception)
             result = None
-        if not isinstance(result, UpdateActorDictMsg):
+        if result is None:
             logger.critical(
                 "Emergency shutdown. Ask to Registrar took more than 1 sec."
+            )
+            system_shutdown()
+            return {}
+        if not isinstance(result, UpdateActorDictMsg):
+            logger.critical(
+                "Emergency shutdown. Registrar replied %s instead of UpdateActorDictMsg",
+                result,
             )
             system_shutdown()
             return {}
@@ -372,7 +394,7 @@ def check_msg(return_message, message_object_type):
     """
     logger.debug("Returned with %s", return_message)
     if not isinstance(return_message, message_object_type):
-        logger.critical("Got message object of unexpected type")
+        logger.critical("Got %s instead of %s", return_message, message_object_type)
         logger.critical("-> Stop and shutdown system")
         status = Status.CRITICAL
         answer = {"Error code": status.value, "Error": str(status)}
@@ -404,7 +426,8 @@ def send_reserve_message(device_id, registrar_actor, request_host, user, app) ->
                 ReserveDeviceMsg(request_host, user, app),
                 timeout=timedelta(seconds=10),
             )
-        except ConnectionResetError:
+        except ConnectionResetError as exception:
+            logger.debug(exception)
             reserve_return = None
     if reserve_return is None:
         logger.error("No response from Device Actor %s", device_id)

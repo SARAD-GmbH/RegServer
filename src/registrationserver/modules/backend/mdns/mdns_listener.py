@@ -162,10 +162,11 @@ class MdnsListener(ServiceListener):
                         reply = add_host.ask(
                             self.registrar, CreateActorMsg(HostActor, hostname)
                         )
-                    except ConnectionResetError:
+                    except ConnectionResetError as exception:
+                        logger.debug(exception)
                         reply = None
                 if not isinstance(reply, ActorCreatedMsg):
-                    logger.critical("Got message object of unexpected type")
+                    logger.critical("Got %s instead of ActorCreateMsg", reply)
                     logger.critical("-> Stop and shutdown system")
                     system_shutdown()
                 elif reply.actor_address is None:
@@ -197,15 +198,16 @@ class MdnsListener(ServiceListener):
                 known_hostnames.add(sanitize_hn(host[0]))
             if host_actor is None:
                 logger.info("Ask Registrar to create Host Actor %s", hostname)
-                with ActorSystem().private() as add_host:
+                with ActorSystem().private() as create_host:
                     try:
-                        reply = add_host.ask(
+                        reply = create_host.ask(
                             self.registrar, CreateActorMsg(HostActor, hostname)
                         )
-                    except ConnectionResetError:
+                    except ConnectionResetError as exception:
+                        logger.debug(exception)
                         reply = None
                 if not isinstance(reply, ActorCreatedMsg):
-                    logger.critical("Got message object of unexpected type")
+                    logger.critical("Got %s instead of ActorCreateMsg", reply)
                     logger.critical("-> Stop and shutdown system")
                     system_shutdown()
                 elif reply.actor_address is None:
