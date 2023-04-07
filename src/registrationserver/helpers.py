@@ -222,14 +222,14 @@ def get_actor(registrar_actor, actor_id: str):
     with ActorSystem().private() as h_get_actor:
         try:
             result = h_get_actor.ask(
-                registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=1)
+                registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=5)
             )
         except ConnectionResetError as exception:
             logger.debug(exception)
             result = None
         if result is None:
             logger.critical(
-                "Emergency shutdown. Ask to Registrar took more than 1 sec."
+                "Emergency shutdown. Ask to Registrar took more than 5 sec."
             )
             system_shutdown()
             return None
@@ -331,14 +331,14 @@ def get_instr_id_actor_dict(registrar_actor):
     with ActorSystem().private() as iid_sys:
         try:
             result = iid_sys.ask(
-                registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=1)
+                registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=5)
             )
         except ConnectionResetError as exception:
             logger.debug(exception)
             result = None
         if result is None:
             logger.critical(
-                "Emergency shutdown. Ask to Registrar took more than 1 sec."
+                "Emergency shutdown. Ask to Registrar took more than 5 sec."
             )
             system_shutdown()
             return {}

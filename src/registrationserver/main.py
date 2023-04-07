@@ -225,7 +225,7 @@ def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
                 reply = registrar_status.ask(
                     registrar_address,
                     Thespian_StatusReq(),
-                    timeout=timedelta(seconds=1),
+                    timeout=timedelta(seconds=5),
                 )
             except OSError as exception:
                 logger.critical("We are offline. OSError: %s.", exception)
