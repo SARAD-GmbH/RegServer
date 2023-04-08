@@ -15,7 +15,6 @@ from registrationserver.actor_messages import (ActorCreatedMsg, KillMsg,
                                                SetDeviceStatusMsg,
                                                SetupMdnsActorMsg, Status)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import config
 from registrationserver.helpers import (sarad_protocol, short_id,
                                         transport_technology)
 from registrationserver.logger import logger
@@ -55,7 +54,7 @@ class HostActor(BaseActor):
     @staticmethod
     def mdns_id(local_id):
         """Convert device_id from local name into a proper mDNS device_id/actor_id"""
-        if transport_technology(local_id) in ("local", "is1"):
+        if transport_technology(local_id) in ("local", "is1", "mqtt"):
             return f"{short_id(local_id, check=False)}.{sarad_protocol(local_id)}.mdns"
         return local_id
 
@@ -121,16 +120,15 @@ class HostActor(BaseActor):
         api_port = data["Remote"]["API port"]
         self.base_url = f"http://{is_host}:{api_port}"
         remote_device_id = data["Remote"]["Device Id"]
-        if self.my_id != config["MY_HOSTNAME"]:
-            if device_id not in self.child_actors:
-                device_actor = self._create_actor(DeviceActor, device_id, None)
-                self.send(
-                    device_actor,
-                    SetupMdnsActorMsg(is_host, api_port, remote_device_id),
-                )
-            else:
-                device_actor = self.child_actors[device_id]["actor_address"]
-            self.send(device_actor, SetDeviceStatusMsg(data))
+        if device_id not in self.child_actors:
+            device_actor = self._create_actor(DeviceActor, device_id, None)
+            self.send(
+                device_actor,
+                SetupMdnsActorMsg(is_host, api_port, remote_device_id),
+            )
+        else:
+            device_actor = self.child_actors[device_id]["actor_address"]
+        self.send(device_actor, SetDeviceStatusMsg(data))
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name

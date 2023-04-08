@@ -193,10 +193,13 @@ class MdnsListener(ServiceListener):
             if hostname is None:
                 return
             hostname = sanitize_hn(hostname)
+            my_hostname = sanitize_hn(config["MY_HOSTNAME"])
+            logger.debug("Host to add: %s", hostname)
+            logger.debug("My hostname: %s", my_hostname)
             known_hostnames = set()
             for host in self.hosts:
                 known_hostnames.add(sanitize_hn(host[0]))
-            if host_actor is None:
+            if (host_actor is None) and (my_hostname != hostname):
                 logger.info("Ask Registrar to create Host Actor %s", hostname)
                 with ActorSystem().private() as create_host:
                     try:
@@ -215,10 +218,10 @@ class MdnsListener(ServiceListener):
                 else:
                     host_actor = reply.actor_address
             data = self.convert_properties(zc, type_, name)
-            if data is not None:
+            if (data is not None) and (host_actor is not None):
                 logger.debug("Tell Host Actor to setup device actor with %s", data)
                 ActorSystem().tell(host_actor, SetDeviceStatusMsg(data))
-            else:
+            elif data is None:
                 logger.error(
                     "add_service was called with bad parameters: %s, %s, %s",
                     zc,
