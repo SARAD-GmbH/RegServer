@@ -259,9 +259,10 @@ class DeviceBaseActor(BaseActor):
         self._publish_status_change()
 
     def _send_reservation_status_msg(self):
-        if self.return_message is not None:
+        if (self.return_message is not None) and (self.sender_api is not None):
             self.send(self.sender_api, self.return_message)
             self.return_message = None
+            self.sender_api = None
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
