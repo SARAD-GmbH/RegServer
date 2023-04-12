@@ -230,7 +230,10 @@ class UsbActor(DeviceBaseActor):
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
-        self.instrument.release_instrument()
+        try:
+            self.instrument.release_instrument()
+        except AttributeError:
+            logger.warning("The USB Actor to be killed wasn't initialized properly.")
         super().receiveMsg_KillMsg(msg, sender)
 
 
