@@ -70,7 +70,9 @@ class MdnsListener(ServiceListener):
             type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
         )
         if not info or not name:
-            logger.error("info in Zeroconf message is None")
+            logger.error(
+                "Cannot convert properties. `info` in Zeroconf message is None"
+            )
             return None
         properties = info.properties
         if properties is not None:
@@ -132,13 +134,14 @@ class MdnsListener(ServiceListener):
         info = zc.get_service_info(
             type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
         )
-        hostname = sanitize_hn(self.get_host_addr(info))
+        hostname = self.get_host_addr(info)
         if hostname is None:
             logger.warning("Cannot handle Zeroconf service with info=%s", info)
             host_actor = None
-        else:
-            host_actor = get_actor(self.registrar, hostname)
-        return host_actor, hostname
+            return host_actor, hostname
+        sanitized_hostname = sanitize_hn(hostname)
+        host_actor = get_actor(self.registrar, sanitized_hostname)
+        return host_actor, sanitized_hostname
 
     def __init__(self, registrar_actor, service_type):
         """
@@ -192,7 +195,6 @@ class MdnsListener(ServiceListener):
             logger.debug("hostname: %s, host_actor: %s", hostname, host_actor)
             if hostname is None:
                 return
-            hostname = sanitize_hn(hostname)
             my_hostname = sanitize_hn(config["MY_HOSTNAME"])
             logger.debug("Host to add: %s", hostname)
             logger.debug("My hostname: %s", my_hostname)
