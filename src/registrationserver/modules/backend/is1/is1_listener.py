@@ -11,6 +11,7 @@ import select
 import socket
 import time
 from datetime import timedelta
+from threading import Thread
 from typing import List
 
 from hashids import Hashids  # type: ignore
@@ -200,6 +201,12 @@ class Is1Listener(BaseActor):
             )
 
     def _cmd_handler(self, is_host):
+        cmd_thread = Thread(
+            target=self._cmd_handler_function, args=(is_host,), daemon=True
+        )
+        cmd_thread.start()
+
+    def _cmd_handler_function(self, is_host):
         """Handle a binary SARAD command received via the socket."""
         for _i in range(0, 5):
             try:
@@ -217,7 +224,7 @@ class Is1Listener(BaseActor):
             is_port_id = self._get_port_and_id(data)
             logger.debug("IS1 port: %d", is_port_id["port"])
             logger.debug("IS1 hostname: %s", is_port_id["id"])
-            self._scan_is(
+            self._scan_is_function(
                 Is1Address(
                     ip_address=is_host,
                     port=is_port_id["port"],
@@ -226,6 +233,12 @@ class Is1Listener(BaseActor):
             )
 
     def _scan_is(self, address: Is1Address):
+        scan_is_thread = Thread(
+            target=self._scan_is_function, args=(address,), daemon=True
+        )
+        scan_is_thread.start()
+
+    def _scan_is_function(self, address: Is1Address):
         is_host = address.hostname
         is_port = address.port
         cmd_msg = make_command_msg(self.GET_FIRST_COM)
@@ -321,8 +334,6 @@ class Is1Listener(BaseActor):
         logger.debug("[_create_and_setup_actor]")
         hid = Hashids()
         family_id = hid.decode(instr_id)[0]
-        type_id = hid.decode(instr_id)[1]
-        serial_number = hid.decode(instr_id)[2]
         if family_id == 5:
             sarad_type = "sarad-dacm"
         elif family_id in [1, 2]:
@@ -352,8 +363,8 @@ class Is1Listener(BaseActor):
             "Identification": {
                 "Name": self._get_name(instr_id),
                 "Family": family_id,
-                "Type": type_id,
-                "Serial number": serial_number,
+                "Type": hid.decode(instr_id)[1],
+                "Serial number": hid.decode(instr_id)[2],
                 "Host": is1_address.hostname,
                 "Firmware version": firmware_version,
                 "Origin": is1_address.hostname,
