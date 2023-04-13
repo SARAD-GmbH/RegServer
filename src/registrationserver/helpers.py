@@ -209,15 +209,14 @@ def get_registrar_actor():
         return None
 
 
-def get_actor(registrar_actor, actor_id: str):
-    """Find the actor address of an actor with a given actor_id.
+def get_actor_dict(registrar_actor):
+    """Get the actor_dict from the Registrar.
 
     Args:
         registrar_actor: The actor address of the Registrar
-        actor_id: The actor id identifies the actor
 
     Returns:
-        Actor address
+        actor_dict
     """
     with ActorSystem().private() as h_get_actor:
         try:
@@ -240,7 +239,22 @@ def get_actor(registrar_actor, actor_id: str):
             )
             system_shutdown()
             return None
-        actor_dict = result.actor_dict
+        return result.actor_dict
+
+
+def get_actor(registrar_actor, actor_id: str):
+    """Find the actor address of an actor with a given actor_id.
+
+    Args:
+        registrar_actor: The actor address of the Registrar
+        actor_id: The actor id identifies the actor
+
+    Returns:
+        Actor address
+    """
+    actor_dict = get_actor_dict(registrar_actor)
+    if actor_dict is None:
+        return None
     try:
         return actor_dict[actor_id]["address"]
     except KeyError:
@@ -328,30 +342,12 @@ def get_device_statuses(registrar_actor):
 
 def get_instr_id_actor_dict(registrar_actor):
     """Return a dictionary of device actor addresses with instr_id as key."""
-    with ActorSystem().private() as iid_sys:
-        try:
-            result = iid_sys.ask(
-                registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=5)
-            )
-        except ConnectionResetError as exception:
-            logger.debug(exception)
-            result = None
-        if result is None:
-            logger.critical(
-                "Emergency shutdown. Ask to Registrar took more than 5 sec."
-            )
-            system_shutdown()
-            return {}
-        if not isinstance(result, UpdateActorDictMsg):
-            logger.critical(
-                "Emergency shutdown. Registrar replied %s instead of UpdateActorDictMsg",
-                result,
-            )
-            system_shutdown()
-            return {}
+    actor_dict = get_actor_dict(registrar_actor)
+    if actor_dict is None:
+        return {}
     return {
         short_id(id): dict["address"]
-        for id, dict in result.actor_dict.items()
+        for id, dict in actor_dict.items()
         if dict["is_device_actor"]
     }
 
