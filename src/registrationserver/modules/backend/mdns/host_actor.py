@@ -8,6 +8,7 @@
 
 """
 from datetime import timedelta
+from threading import Thread
 
 import requests
 from overrides import overrides  # type: ignore
@@ -69,6 +70,8 @@ class HostActor(BaseActor):
         self.scan_interval = 0
         self.host = None
         self.port = None
+        self.ping_thread = Thread(target=self._ping_function, daemon=True)
+        self.scan_thread = Thread(target=self._scan_function, daemon=True)
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -139,6 +142,14 @@ class HostActor(BaseActor):
             self._scan()
 
     def _ping(self):
+        if (not self.ping_thread.is_alive()) and (not self.scan_thread.is_alive()):
+            self.ping_thread = Thread(target=self._ping_function, daemon=True)
+            try:
+                self.ping_thread.start()
+            except RuntimeError:
+                pass
+
+    def _ping_function(self):
         try:
             _resp = self.http.get(f"{self.base_url}/ping/")
         except Exception as exception:  # pylint: disable=broad-except
@@ -150,6 +161,14 @@ class HostActor(BaseActor):
             self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
     def _scan(self):
+        if (not self.scan_thread.is_alive()) and (not self.ping_thread.is_alive()):
+            self.scan_thread = Thread(target=self._scan_function, daemon=True)
+            try:
+                self.scan_thread.start()
+            except RuntimeError:
+                pass
+
+    def _scan_function(self):
         logger.debug("Scan REST API of %s for new instruments", self.my_id)
         try:
             resp = self.http.get(f"{self.base_url}/list/")
