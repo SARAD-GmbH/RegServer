@@ -83,9 +83,7 @@ class BaseActor(ActorTypeDispatcher):
             self.registrar = self.myAddress
         self._subscribe(False)
         if self.is_device_actor:
-            logger.info(
-                "Device actor %s created at %s.", self.my_id, self.parent.parent_id
-            )
+            logger.info("%s created at %s.", self.my_id, self.parent.parent_id)
 
     def _subscribe(self, keep_alive):
         """Subscribe at Registrar actor."""

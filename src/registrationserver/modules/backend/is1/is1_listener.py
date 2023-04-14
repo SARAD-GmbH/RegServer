@@ -244,7 +244,7 @@ class Is1Listener(BaseActor):
 
     def _scan_is_function(self):
         for address in self.is1_addresses:
-            logger.info(
+            logger.debug(
                 "Check %s for living instruments",
                 address.hostname,
             )
@@ -294,7 +294,7 @@ class Is1Listener(BaseActor):
                 this_instrument = self._get_instrument_id(checked_reply["payload"])
                 if this_instrument:
                     logger.info(
-                        "Instrument %s on COM port %d",
+                        "Instrument %s on COM%d",
                         this_instrument["instr_id"],
                         this_instrument["port"],
                     )

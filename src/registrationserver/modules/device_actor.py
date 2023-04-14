@@ -218,7 +218,6 @@ class DeviceBaseActor(BaseActor):
         else:
             self._publish_status_change()
             self._send_reservation_status_msg()
-        logger.info("Free %s", self.my_id)
 
     def _create_redirector(self) -> bool:
         """Create redirector actor if it does not exist already"""

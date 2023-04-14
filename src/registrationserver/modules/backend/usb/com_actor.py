@@ -46,12 +46,12 @@ class ComActor(BaseActor):
         self.route = msg.route
         self.loop_interval = msg.loop_interval
         if self.child_actors:
-            logger.info("Update -- child")
+            logger.debug("Update -- child")
             self._forward_to_children(KillMsg())
             self.stop_loop = self.loop_running
             # refer to receiveMsg_ChildActorExited()
         else:
-            logger.info("Update -- no child")
+            logger.debug("Update -- no child")
             self._do_loop()
             self._start_polling()
 
