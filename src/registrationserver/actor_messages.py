@@ -15,7 +15,7 @@ from enum import Enum, unique
 from typing import Any, ByteString, Dict, List, Union
 
 from sarad.sari import FamilyDict, Route  # type: ignore
-from thespian.actors import ActorAddress  # type: ignore
+from thespian.actors import ActorAddress, ActorSystemMessage  # type: ignore
 
 
 @unique
@@ -215,6 +215,34 @@ class SetupMdnsActorMsg:
     is_host: str
     api_port: int
     device_id: str
+
+
+@dataclass
+class FinishSetupMdnsActorMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class FinishWakeupMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class FinishReserveMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class FinishFreeMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class FinishSetDeviceStatusMsg:
+    """Internal message of MDNS device Actor"""
+
+    msg: ActorSystemMessage
+    sender: ActorAddress
 
 
 @dataclass
