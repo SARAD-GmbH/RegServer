@@ -124,10 +124,10 @@ class DeviceActor(DeviceBaseActor):
         if self.success == Status.OK:
             self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
 
-    def receiveMsg_WakeupMessage(self, _msg, _sender):
+    def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handle WakeupMessage for regular updates"""
-        if self.occupied:
+        if self.occupied and (msg.payload == "update"):
             try:
                 logger.debug(
                     "Check whether %s still occupies %s.",
@@ -153,87 +153,37 @@ class DeviceActor(DeviceBaseActor):
 
     @overrides
     def _request_free_at_is(self):
-        self._http_get_function(f"{self.base_url}/list/{self.device_id}/")
+        self._http_get_function(f"{self.base_url}/list/{self.device_id}/free")
         if self.success == Status.OK:
-            device_desc = self.response[self.device_id]
+            success = Status(self.response.get("Error code", 98))
         else:
-            self._handle_free_reply_from_is(self.success)
-            return
-        success = Status.NOT_FOUND
-        if device_desc is not None:
-            reservation = device_desc.get("Reservation")
-            if (reservation is None) or reservation.get("Active", True):
-                try:
-                    resp = self.http.get(f"{self.base_url}/list/{self.device_id}/free")
-                    resp_free = resp.json()
-                except Exception as exception:  # pylint: disable=broad-except
-                    logger.error("REST API of IS is not responding. %s", exception)
-                    success = Status.IS_NOT_FOUND
-                    logger.error("%s, cannot access REST API of IS", success)
-                else:
-                    error_code = resp_free.get("Error code")
-                    logger.debug("Error code: %d", error_code)
-                    if error_code is None:
-                        success = Status.ERROR
-                    else:
-                        success = Status(error_code)
-            else:
-                logger.debug("Tried to free a device that was not reserved.")
-                success = Status.OK_SKIPPED
+            success = self.success
         self._handle_free_reply_from_is(success)
 
     @overrides
     def _request_reserve_at_is(self):
         """Reserve the requested instrument at the instrument server."""
-        self.occupied = False
-        self._http_get_function(f"{self.base_url}/list/{self.device_id}/")
+        app = self.reserve_device_msg.app
+        user = self.reserve_device_msg.user
+        host = sanitize_hn(self.reserve_device_msg.host)
+        who = f"{app} - {user} - {host}"
+        logger.debug("Try to reserve %s for %s.", self.device_id, who)
+        self._http_get_function(
+            f"{self.base_url}/list/{self.device_id}/reserve",
+            params={"who": who},
+        )
         if self.success == Status.OK:
-            device_desc = self.response[self.device_id]
+            success = Status(self.response.get("Error code", 98))
         else:
-            self._handle_reserve_reply_from_is(self.success)
-            return
-        success = Status.NOT_FOUND
-        if device_desc is None:
-            self._handle_reserve_reply_from_is(success)
-            return
-        reservation = device_desc.get("Reservation")
-        if reservation is not None:
-            reservation.pop("IP", None)
-            reservation.pop("Port", None)
-            self.device_status["Reservation"] = reservation
-        if (reservation is None) or not reservation.get("Active", False):
-            app = self.reserve_device_msg.app
-            user = self.reserve_device_msg.user
-            host = sanitize_hn(self.reserve_device_msg.host)
-            who = f"{app} - {user} - {host}"
-            logger.debug("Try to reserve %s for %s.", self.device_id, who)
-            self._http_get_function(
-                f"{self.base_url}/list/{self.device_id}/reserve",
-                params={"who": who},
-            )
-            if self.success != Status.OK:
-                self._handle_reserve_reply_from_is(success)
-                return
+            success = self.success
+        if success == Status.OCCUPIED:
+            self.occupied = True
+        else:
+            self.occupied = False
+        if success in (Status.OK, Status.OCCUPIED):
             self.device_status["Reservation"] = self.response[self.device_id].get(
                 "Reservation", {}
             )
-            error_code = self.response.get("Error code")
-            logger.debug("Error code: %d", error_code)
-            if error_code is None:
-                success = Status.ERROR
-            else:
-                success = Status(error_code)
-        else:
-            logger.debug("%s is already reserved", self.device_id)
-            using_host = sanitize_hn(device_desc["Reservation"]["Host"])
-            my_host = sanitize_hn(config["MY_HOSTNAME"])
-            if using_host == my_host:
-                logger.debug("Already occupied by me.")
-                success = Status.OK_SKIPPED
-            else:
-                logger.debug("Occupied by: %s, my host: %s", using_host, my_host)
-                success = Status.OCCUPIED
-                self.occupied = True
         self._handle_reserve_reply_from_is(success)
 
     @overrides
