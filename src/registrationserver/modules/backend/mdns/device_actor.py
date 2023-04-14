@@ -8,7 +8,8 @@
     | Michael Strey <strey@sarad.de>
 
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
+from threading import Thread
 
 import requests
 from overrides import overrides  # type: ignore
@@ -64,6 +65,35 @@ class DeviceActor(DeviceBaseActor):
         self.base_url = ""
         self.occupied = False  # Is device occupied by somebody else?
         self.http = None
+        self.response = None  # Response from http request
+        self.success = Status.OK
+
+    def _http_get_function(self, endpoint, params=None):
+        try:
+            resp = self.http.get(endpoint, params=params)
+            self.response = resp.json()
+            self.success = Status.OK
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.error("REST API of IS is not responding. %s", exception)
+            self.success = Status.IS_NOT_FOUND
+            self.send(self.myAddress, KillMsg())
+        else:
+            if (self.response is None) or (self.response == {}):
+                logger.error("%s not available", self.device_id)
+                self.success = Status.NOT_FOUND
+                self.send(self.myAddress, KillMsg())
+            else:
+                device_desc = self.response.get(self.device_id)
+                if (device_desc is None) or (device_desc == {}):
+                    logger.error("%s not available", self.device_id)
+                    self.success = Status.NOT_FOUND
+                    self.send(self.myAddress, KillMsg())
+                else:
+                    ident = device_desc.get("Identification")
+                    if ident is None:
+                        logger.error("No Identification section available.")
+                        self.success = Status.NOT_FOUND
+                        self.send(self.myAddress, KillMsg())
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -90,20 +120,9 @@ class DeviceActor(DeviceBaseActor):
         self._api_port = msg.api_port
         self.device_id = msg.device_id
         self.base_url = f"http://{self._is_host}:{self._api_port}"
-        try:
-            resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
-            device_resp = resp.json()
-            device_desc = device_resp[self.device_id]
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.error("REST API of IS is not responding. %s", exception)
-            success = Status.IS_NOT_FOUND
-            logger.error(success)
-            self.send(self.myAddress, KillMsg())
-        else:
-            if device_desc is None:
-                logger.error("%s not available", self.device_id)
-                self.send(self.myAddress, KillMsg())
-        self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
+        self._http_get_function(f"{self.base_url}/list/{self.device_id}/")
+        if self.success == Status.OK:
+            self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
 
     def receiveMsg_WakeupMessage(self, _msg, _sender):
         # pylint: disable=invalid-name
@@ -117,37 +136,28 @@ class DeviceActor(DeviceBaseActor):
                 )
             except KeyError:
                 logger.error("%s occupied, but we don't know by whom", self.device_id)
-            try:
-                resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
-                device_resp = resp.json()
-                device_desc = device_resp[self.device_id]
-            except Exception as exception:  # pylint: disable=broad-except
-                logger.error("REST API of IS is not responding. %s", exception)
-            else:
-                if device_desc is not None:
-                    reservation = device_desc.get("Reservation")
-                    if reservation is None:
-                        active = False
-                    else:
-                        active = reservation.get("Active", False)
-                    self.device_status["Reservation"]["Active"] = active
-                    logger.debug("%s reservation active: %s", self.device_id, active)
-                    self._publish_status_change()
-                    if not active:
-                        self.occupied = False
+            self._http_get_function(f"{self.base_url}/list/{self.device_id}/")
+            if self.success == Status.OK:
+                device_desc = self.response[self.device_id]
+                reservation = device_desc.get("Reservation")
+                if reservation is None:
+                    active = False
+                else:
+                    active = reservation.get("Active", False)
+                self.device_status["Reservation"]["Active"] = active
+                logger.debug("%s reservation active: %s", self.device_id, active)
+                self._publish_status_change()
+                if not active:
+                    self.occupied = False
         self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
 
     @overrides
     def _request_free_at_is(self):
-        try:
-            resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
-            device_resp = resp.json()
-            device_desc = device_resp[self.device_id]
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.error("REST API of IS is not responding. %s", exception)
-            success = Status.IS_NOT_FOUND
-            logger.error("%s, cannot access REST API of IS", success)
-            self._handle_free_reply_from_is(success)
+        self._http_get_function(f"{self.base_url}/list/{self.device_id}/")
+        if self.success == Status.OK:
+            device_desc = self.response[self.device_id]
+        else:
+            self._handle_free_reply_from_is(self.success)
             return
         success = Status.NOT_FOUND
         if device_desc is not None:
@@ -176,14 +186,11 @@ class DeviceActor(DeviceBaseActor):
     def _request_reserve_at_is(self):
         """Reserve the requested instrument at the instrument server."""
         self.occupied = False
-        try:
-            resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
-            device_resp = resp.json()
-            device_desc = device_resp[self.device_id]
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.error("REST API of IS is not responding. %s", exception)
-            success = Status.IS_NOT_FOUND
-            self._handle_reserve_reply_from_is(success)
+        self._http_get_function(f"{self.base_url}/list/{self.device_id}/")
+        if self.success == Status.OK:
+            device_desc = self.response[self.device_id]
+        else:
+            self._handle_reserve_reply_from_is(self.success)
             return
         success = Status.NOT_FOUND
         if device_desc is None:
@@ -200,21 +207,17 @@ class DeviceActor(DeviceBaseActor):
             host = sanitize_hn(self.reserve_device_msg.host)
             who = f"{app} - {user} - {host}"
             logger.debug("Try to reserve %s for %s.", self.device_id, who)
-            try:
-                resp = self.http.get(
-                    f"{self.base_url}/list/{self.device_id}/reserve",
-                    params={"who": who},
-                )
-                resp_reserve = resp.json()
-            except Exception as exception:  # pylint: disable=broad-except
-                logger.error("REST API of IS is not responding. %s", exception)
-                success = Status.IS_NOT_FOUND
+            self._http_get_function(
+                f"{self.base_url}/list/{self.device_id}/reserve",
+                params={"who": who},
+            )
+            if self.success != Status.OK:
                 self._handle_reserve_reply_from_is(success)
                 return
-            self.device_status["Reservation"] = resp_reserve[self.device_id].get(
+            self.device_status["Reservation"] = self.response[self.device_id].get(
                 "Reservation", {}
             )
-            error_code = resp_reserve.get("Error code")
+            error_code = self.response.get("Error code")
             logger.debug("Error code: %d", error_code)
             if error_code is None:
                 success = Status.ERROR
@@ -257,26 +260,10 @@ class DeviceActor(DeviceBaseActor):
         self.occupied = False
         self.device_status = msg.device_status
         logger.debug("Device status: %s", self.device_status)
-        try:
-            resp = self.http.get(f"{self.base_url}/list/{self.device_id}/")
-            device_resp = resp.json()
-            device_desc = device_resp[self.device_id]
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.error("REST API of IS is not responding. %s", exception)
-            success = Status.IS_NOT_FOUND
-            logger.error(success)
-            self.send(self.myAddress, KillMsg())
-        else:
-            logger.debug("device_resp: %s", device_resp)
+        self._http_get_function(f"{self.base_url}/list/{self.device_id}/")
+        if self.success == Status.OK:
+            device_desc = self.response[self.device_id]
             logger.debug("device_desc: %s", device_desc)
-            success = Status.NOT_FOUND
-            if (device_desc is None) or (device_desc.get("Identification") is None):
-                logger.warning(
-                    "No Identification information available for %s", self.device_id
-                )
-                self.send(self.myAddress, KillMsg())
-                super().receiveMsg_SetDeviceStatusMsg(msg, sender)
-                return
             ident = self.device_status["Identification"]
             remote_ident = device_desc["Identification"]
             ident["Origin"] = remote_ident.get("Origin")
@@ -294,16 +281,15 @@ class DeviceActor(DeviceBaseActor):
                     my_host = sanitize_hn(config["MY_HOSTNAME"])
                     if using_host == my_host:
                         logger.debug("Occupied by me.")
-                        success = Status.OK_SKIPPED
                     else:
                         logger.debug("Occupied by somebody else.")
                         logger.debug("Using host: %s, my host: %s", using_host, my_host)
-                        success = Status.OCCUPIED
                         self.occupied = True
                         reservation.pop("IP", None)
                         reservation.pop("Port", None)
                     self.device_status["Reservation"] = reservation
                 else:
-                    success = Status.OK
                     self.device_status.pop("Reservation", None)
-        self._publish_status_change()
+            self._publish_status_change()
+        else:
+            super().receiveMsg_SetDeviceStatusMsg(msg, sender)
