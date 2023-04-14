@@ -140,6 +140,8 @@ class Is1Listener(BaseActor):
         self.is1_addresses = []  # List of Is1Address
         self.active_is1_addresses = []  # List of Is1Address with device Actors
         self.pickle_file_name = f"{app_folder}wlan_instruments.pickle"
+        self.scan_is_thread = Thread(target=self._scan_is_function, daemon=True)
+        self.cmd_thread = Thread(target=self._cmd_handler_function, daemon=True)
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -156,8 +158,7 @@ class Is1Listener(BaseActor):
             self.pickle_file_name,
             self.is1_addresses,
         )
-        for address in self.is1_addresses:
-            self._scan_is(address)
+        self._scan_is()
         self._subscribe_to_actor_dict_msg()
         self.wakeupAfter(timedelta(seconds=0.01), payload="Connect")
         self.wakeupAfter(
@@ -179,35 +180,33 @@ class Is1Listener(BaseActor):
                     self.read_list.append(self._client_socket)
                     logger.info("Connection from %s", self._socket_info)
                 else:
-                    self._cmd_handler(self._socket_info[0])
+                    self._cmd_handler()
         except ValueError:
             logger.error("None of ports in %s available", self.PORTS)
-        self.wakeupAfter(timedelta(seconds=1), payload="Connect")
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
         if msg.payload == "Connect" and not self.on_kill:
             self.listen()
+            self.wakeupAfter(timedelta(seconds=1), payload="Connect")
         if msg.payload == "Rescan" and not self.on_kill:
-            for address in self.is1_addresses:
-                logger.info(
-                    "Check %s for living instruments",
-                    address.hostname,
-                )
-                self._scan_is(address)
+            self._scan_is()
             self.wakeupAfter(
                 timedelta(seconds=is1_backend_config["SCAN_INTERVAL"]), payload="Rescan"
             )
 
-    def _cmd_handler(self, is_host):
-        cmd_thread = Thread(
-            target=self._cmd_handler_function, args=(is_host,), daemon=True
-        )
-        cmd_thread.start()
+    def _cmd_handler(self):
+        if (not self.cmd_thread.is_alive()) and (not self.scan_is_thread.is_alive()):
+            self.cmd_thread = Thread(target=self._cmd_handler_function, daemon=True)
+            try:
+                self.cmd_thread.start()
+            except RuntimeError:
+                pass
 
-    def _cmd_handler_function(self, is_host):
+    def _cmd_handler_function(self):
         """Handle a binary SARAD command received via the socket."""
+        is_host = self._socket_info[0]
         for _i in range(0, 5):
             try:
                 data = self.conn.recv(1024)
@@ -224,7 +223,7 @@ class Is1Listener(BaseActor):
             is_port_id = self._get_port_and_id(data)
             logger.debug("IS1 port: %d", is_port_id["port"])
             logger.debug("IS1 hostname: %s", is_port_id["id"])
-            self._scan_is_function(
+            self._scan_one_is(
                 Is1Address(
                     ip_address=is_host,
                     port=is_port_id["port"],
@@ -232,13 +231,26 @@ class Is1Listener(BaseActor):
                 )
             )
 
-    def _scan_is(self, address: Is1Address):
-        scan_is_thread = Thread(
-            target=self._scan_is_function, args=(address,), daemon=True
-        )
-        scan_is_thread.start()
+    def _scan_is(self):
+        if (not self.cmd_thread.is_alive()) and (not self.scan_is_thread.is_alive()):
+            logger.debug("Scan IS1 thread isn't alive.")
+            self.scan_is_thread = Thread(target=self._scan_is_function, daemon=True)
+            try:
+                self.scan_is_thread.start()
+            except RuntimeError:
+                pass
+        else:
+            logger.debug("Scan IS1 thread is still alive.")
 
-    def _scan_is_function(self, address: Is1Address):
+    def _scan_is_function(self):
+        for address in self.is1_addresses:
+            logger.info(
+                "Check %s for living instruments",
+                address.hostname,
+            )
+            self._scan_one_is(address)
+
+    def _scan_one_is(self, address: Is1Address):
         is_host = address.hostname
         is_port = address.port
         cmd_msg = make_command_msg(self.GET_FIRST_COM)
@@ -309,7 +321,6 @@ class Is1Listener(BaseActor):
                     logger.error("Error parsing payload received from instrument")
                     return
             client_socket.shutdown(socket.SHUT_WR)
-            return
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
