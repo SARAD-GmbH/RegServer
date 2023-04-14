@@ -121,12 +121,16 @@ class DeviceActor(DeviceBaseActor):
         self.device_id = msg.device_id
         self.base_url = f"http://{self._is_host}:{self._api_port}"
         self._http_get_function(f"{self.base_url}/list/{self.device_id}/")
+        self._finish_setup_mdns_actor()
+
+    def _finish_setup_mdns_actor(self):
         if self.success == Status.OK:
             self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handle WakeupMessage for regular updates"""
+        self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
         if self.occupied and (msg.payload == "update"):
             try:
                 logger.debug(
@@ -137,28 +141,34 @@ class DeviceActor(DeviceBaseActor):
             except KeyError:
                 logger.error("%s occupied, but we don't know by whom", self.device_id)
             self._http_get_function(f"{self.base_url}/list/{self.device_id}/")
-            if self.success == Status.OK:
-                device_desc = self.response[self.device_id]
-                reservation = device_desc.get("Reservation")
-                if reservation is None:
-                    active = False
-                else:
-                    active = reservation.get("Active", False)
-                self.device_status["Reservation"]["Active"] = active
-                logger.debug("%s reservation active: %s", self.device_id, active)
-                self._publish_status_change()
-                if not active:
-                    self.occupied = False
-        self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
+            self._finish_wakeup()
+
+    def _finish_wakeup(self):
+        if self.success == Status.OK:
+            device_desc = self.response[self.device_id]
+            reservation = device_desc.get("Reservation")
+            if reservation is None:
+                active = False
+            else:
+                active = reservation.get("Active", False)
+            self.device_status["Reservation"]["Active"] = active
+            logger.debug("%s reservation active: %s", self.device_id, active)
+            self._publish_status_change()
+            if not active:
+                self.occupied = False
 
     @overrides
     def _request_free_at_is(self):
         self._http_get_function(f"{self.base_url}/list/{self.device_id}/free")
+        self._handle_free_reply_from_is(self.success)
+
+    @overrides
+    def _handle_free_reply_from_is(self, success: Status):
         if self.success == Status.OK:
             success = Status(self.response.get("Error code", 98))
         else:
             success = self.success
-        self._handle_free_reply_from_is(success)
+        super()._handle_free_reply_from_is(success)
 
     @overrides
     def _request_reserve_at_is(self):
@@ -172,6 +182,11 @@ class DeviceActor(DeviceBaseActor):
             f"{self.base_url}/list/{self.device_id}/reserve",
             params={"who": who},
         )
+        self._handle_reserve_reply_from_is(self.success)
+
+    @overrides
+    def _handle_reserve_reply_from_is(self, success: Status):
+        """Forward the reservation state from the Instrument Server to the REST API."""
         if self.success == Status.OK:
             success = Status(self.response.get("Error code", 98))
         else:
@@ -184,11 +199,6 @@ class DeviceActor(DeviceBaseActor):
             self.device_status["Reservation"] = self.response[self.device_id].get(
                 "Reservation", {}
             )
-        self._handle_reserve_reply_from_is(success)
-
-    @overrides
-    def _handle_reserve_reply_from_is(self, success: Status):
-        """Forward the reservation state from the Instrument Server to the REST API."""
         self.return_message = ReservationStatusMsg(
             instr_id=self.instr_id, status=success
         )
@@ -211,6 +221,9 @@ class DeviceActor(DeviceBaseActor):
         self.device_status = msg.device_status
         logger.debug("Device status: %s", self.device_status)
         self._http_get_function(f"{self.base_url}/list/{self.device_id}/")
+        self._finish_set_device_status(msg, sender)
+
+    def _finish_set_device_status(self, msg, sender):
         if self.success == Status.OK:
             device_desc = self.response[self.device_id]
             logger.debug("device_desc: %s", device_desc)
