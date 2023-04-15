@@ -156,9 +156,8 @@ class HostActor(BaseActor):
             logger.debug("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
             logger.error("%s: %s", success, self.my_id)
-            self.send(self.myAddress, KillMsg())
-        else:
-            self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
+            self._forward_to_children(KillMsg())
+        self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
     def _scan(self):
         if (not self.scan_thread.is_alive()) and (not self.ping_thread.is_alive()):
@@ -176,12 +175,11 @@ class HostActor(BaseActor):
         except Exception as exception:  # pylint: disable=broad-except
             logger.debug("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
-            logger.error("%s: %s", success, self.my_id)
-            self.send(self.myAddress, KillMsg())
+            logger.warning("%s: %s", success, self.my_id)
+            self._forward_to_children(KillMsg())
         else:
-            if device_list is None:
-                logger.error("Instrument list on remote host %s is empty.", self.host)
-                self.send(self.myAddress, KillMsg())
+            if (device_list is None) or (device_list == {}):
+                logger.warning("Instrument list on remote host %s is empty.", self.host)
             else:
                 for device_id, device_status in device_list.items():
                     if transport_technology(device_id) in ("local", "is1", "mqtt"):
@@ -198,5 +196,5 @@ class HostActor(BaseActor):
                                     device_status={device_actor_id: device_status}
                                 ),
                             )
-            if self.scan_interval:
-                self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")
+        if self.scan_interval:
+            self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")
