@@ -25,7 +25,7 @@ from registrationserver.actor_messages import (FinishFreeMsg, FinishReserveMsg,
                                                SetDeviceStatusMsg,
                                                SetupMdnsActorMsg, Status)
 from registrationserver.config import config
-from registrationserver.helpers import sanitize_hn
+from registrationserver.hostname_functions import compare_hostnames
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.shutdown import system_shutdown
@@ -277,7 +277,7 @@ class DeviceActor(DeviceBaseActor):
         """Reserve the requested instrument at the instrument server."""
         app = self.reserve_device_msg.app
         user = self.reserve_device_msg.user
-        host = sanitize_hn(self.reserve_device_msg.host)
+        host = self.reserve_device_msg.host
         who = f"{app} - {user} - {host}"
         logger.debug("Try to reserve %s for %s.", self.device_id, who)
         if not self.request_thread.is_alive():
@@ -376,9 +376,9 @@ class DeviceActor(DeviceBaseActor):
                 self.device_status.pop("Reservation", None)
             else:
                 if reservation.get("Active", False):
-                    using_host = sanitize_hn(reservation.get("Host", ""))
-                    my_host = sanitize_hn(config["MY_HOSTNAME"])
-                    if using_host == my_host:
+                    using_host = reservation.get("Host", "")
+                    my_host = config["MY_HOSTNAME"]
+                    if compare_hostnames(using_host, my_host):
                         logger.debug("Occupied by me.")
                     else:
                         logger.debug("Occupied by somebody else.")

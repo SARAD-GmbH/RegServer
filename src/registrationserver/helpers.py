@@ -8,6 +8,7 @@ Authors
 """
 import fnmatch
 import os
+import re
 from collections.abc import MutableMapping
 from contextlib import suppress
 from datetime import timedelta
@@ -372,11 +373,6 @@ def delete_keys_from_dict(dictionary, keys):
     for value in dictionary.values():
         if isinstance(value, MutableMapping):
             delete_keys_from_dict(value, keys)
-
-
-def sanitize_hn(hostname: str) -> str:
-    """Remove domain and switch to lower case."""
-    return hostname.split(".")[0].lower()
 
 
 def check_msg(return_message, message_object_type):

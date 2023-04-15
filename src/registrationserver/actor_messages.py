@@ -17,6 +17,8 @@ from typing import Any, ByteString, Dict, List, Union
 from sarad.sari import FamilyDict, Route  # type: ignore
 from thespian.actors import ActorAddress, ActorSystemMessage  # type: ignore
 
+from registrationserver.hostname_functions import compare_hostnames
+
 
 @unique
 class Status(Enum):
@@ -114,7 +116,7 @@ class Is1Address:
         return
 
     def __eq__(self, other):
-        return self.hostname == other.hostname
+        return compare_hostnames(self.hostname, other.hostname)
 
 
 @dataclass
@@ -720,7 +722,8 @@ class RecentValueMsg:
         status (Status): Error status
         component_name (str): Name of the DACM component
         sensor_name (str): Name of the sensor within the DACM component (derived from Result Index)
-        measurand_name (str): Name of the measurand delivered by the sensor (derived from Item Index)
+        measurand_name (str): Name of the measurand delivered by the sensor
+                              (derived from Item Index)
         measurand (str): Complete measurand (value and unit) as string
         operator (str): Operator associated (i.e. < or >)
         value (float): Value of the measurand

@@ -20,8 +20,9 @@ from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
                                                KillMsg, SetDeviceStatusMsg,
                                                SetupHostActorMsg)
 from registrationserver.config import config, mdns_backend_config
-from registrationserver.helpers import (get_actor, sanitize_hn, sarad_protocol,
-                                        short_id, transport_technology)
+from registrationserver.helpers import (get_actor, sarad_protocol, short_id,
+                                        transport_technology)
+from registrationserver.hostname_functions import compare_hostnames
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mdns.host_actor import HostActor
 from registrationserver.shutdown import system_shutdown
@@ -139,9 +140,8 @@ class MdnsListener(ServiceListener):
             logger.warning("Cannot handle Zeroconf service with info=%s", info)
             host_actor = None
             return host_actor, hostname
-        sanitized_hostname = sanitize_hn(hostname)
-        host_actor = get_actor(self.registrar, sanitized_hostname)
-        return host_actor, sanitized_hostname
+        host_actor = get_actor(self.registrar, hostname)
+        return host_actor, hostname
 
     def __init__(self, registrar_actor, service_type):
         """
@@ -158,7 +158,7 @@ class MdnsListener(ServiceListener):
         self.hosts = mdns_backend_config["HOSTS"]
         if self.hosts:
             for host in self.hosts:
-                hostname = sanitize_hn(host[0])
+                hostname = host[0]
                 logger.info("Ask Registrar to create Host Actor %s", hostname)
                 with ActorSystem().private() as add_host:
                     try:
@@ -195,13 +195,13 @@ class MdnsListener(ServiceListener):
             logger.debug("hostname: %s, host_actor: %s", hostname, host_actor)
             if hostname is None:
                 return
-            my_hostname = sanitize_hn(config["MY_HOSTNAME"])
+            my_hostname = config["MY_HOSTNAME"]
             logger.debug("Host to add: %s", hostname)
             logger.debug("My hostname: %s", my_hostname)
             known_hostnames = set()
             for host in self.hosts:
-                known_hostnames.add(sanitize_hn(host[0]))
-            if (host_actor is None) and (my_hostname != hostname):
+                known_hostnames.add(host[0])
+            if (host_actor is None) and (not compare_hostnames(my_hostname, hostname)):
                 logger.info("Ask Registrar to create Host Actor %s", hostname)
                 with ActorSystem().private() as create_host:
                     try:

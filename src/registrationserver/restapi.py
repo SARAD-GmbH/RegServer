@@ -38,8 +38,7 @@ from registrationserver.actor_messages import (AddPortToLoopMsg,
 from registrationserver.config import actor_config, mqtt_config
 from registrationserver.helpers import (check_msg, get_actor,
                                         get_device_status, get_device_statuses,
-                                        get_registrar_actor, sanitize_hn,
-                                        send_free_message,
+                                        get_registrar_actor, send_free_message,
                                         send_reserve_message,
                                         transport_technology)
 from registrationserver.logger import logger  # type: ignore
@@ -291,7 +290,7 @@ class ReserveDevice(Resource):
             attribute_who = request.args.get("who").strip('"')
             application = attribute_who.split(" - ")[0]
             user = attribute_who.split(" - ")[1]
-            request_host = sanitize_hn(attribute_who.split(" - ")[2])
+            request_host = attribute_who.split(" - ")[2]
         except (IndexError, AttributeError):
             logger.warning("Reserve request without proper who attribute.")
             status = Status.ATTRIBUTE_ERROR
