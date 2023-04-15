@@ -91,7 +91,8 @@ class DeviceBaseActor(BaseActor):
         self.return_message = ReservationStatusMsg(
             self.instr_id, Status.RESERVE_PENDING
         )
-        self.sender_api = sender
+        if self.sender_api is None:
+            self.sender_api = sender
         self.reserve_device_msg = msg
         self._request_reserve_at_is()
 
@@ -179,7 +180,8 @@ class DeviceBaseActor(BaseActor):
             self._send_reservation_status_msg()
             return
         self.return_message = ReservationStatusMsg(self.instr_id, Status.FREE_PENDING)
-        self.sender_api = sender
+        if self.sender_api is None:
+            self.sender_api = sender
         self._request_free_at_is()
 
     def _request_free_at_is(self):

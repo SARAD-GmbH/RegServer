@@ -233,7 +233,17 @@ class FinishReserveMsg:
 
 
 @dataclass
+class RefreshReserveMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
 class FinishFreeMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class RefreshFreeMsg:
     """Internal message of MDNS device Actor"""
 
 

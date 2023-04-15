@@ -11,6 +11,7 @@
 from datetime import timedelta
 from enum import Enum
 from threading import Thread
+from time import sleep
 
 import requests
 from overrides import overrides  # type: ignore
@@ -18,7 +19,11 @@ from registrationserver.actor_messages import (FinishFreeMsg, FinishReserveMsg,
                                                FinishSetDeviceStatusMsg,
                                                FinishSetupMdnsActorMsg,
                                                FinishWakeupMsg, KillMsg,
-                                               ReservationStatusMsg, Status)
+                                               RefreshFreeMsg,
+                                               RefreshReserveMsg,
+                                               ReservationStatusMsg,
+                                               SetDeviceStatusMsg,
+                                               SetupMdnsActorMsg, Status)
 from registrationserver.config import config
 from registrationserver.helpers import sanitize_hn
 from registrationserver.logger import logger
@@ -81,9 +86,20 @@ class DeviceActor(DeviceBaseActor):
         self.http = None
         self.response = None  # Response from http request
         self.success = Status.OK
+        self.request_thread = Thread(
+            target=self._http_get_function,
+            kwargs={
+                "endpoint": "",
+                "params": None,
+                "msg": None,
+                "sender": None,
+                "purpose": Purpose.SETUP,
+            },
+            daemon=True,
+        )
 
     def _http_get_function(
-        self, endpoint, params=None, msg=None, sender=None, purpose=Purpose.SETUP
+        self, endpoint="", params=None, msg=None, sender=None, purpose=Purpose.SETUP
     ):
         try:
             resp = self.http.get(endpoint, params=params)
@@ -146,9 +162,25 @@ class DeviceActor(DeviceBaseActor):
         self._api_port = msg.api_port
         self.device_id = msg.device_id
         self.base_url = f"http://{self._is_host}:{self._api_port}"
-        self._http_get_function(
-            f"{self.base_url}/list/{self.device_id}/", purpose=Purpose.SETUP
-        )
+        if not self.request_thread.is_alive():
+            self.request_thread = Thread(
+                target=self._http_get_function,
+                kwargs={
+                    "endpoint": f"{self.base_url}/list/{self.device_id}/",
+                    "params": None,
+                    "msg": None,
+                    "sender": None,
+                    "purpose": Purpose.SETUP,
+                },
+                daemon=True,
+            )
+            self.request_thread.start()
+        else:
+            sleep(0.5)
+            self.send(
+                self.myAddress,
+                SetupMdnsActorMsg(msg.is_host, msg.api_port, msg.device_id),
+            )
 
     def receiveMsg_FinishSetupMdnsActorMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
@@ -169,9 +201,19 @@ class DeviceActor(DeviceBaseActor):
                 )
             except KeyError:
                 logger.error("%s occupied, but we don't know by whom", self.device_id)
-            self._http_get_function(
-                f"{self.base_url}/list/{self.device_id}/", purpose=Purpose.WAKEUP
-            )
+            if not self.request_thread.is_alive():
+                self.request_thread = Thread(
+                    target=self._http_get_function,
+                    kwargs={
+                        "endpoint": f"{self.base_url}/list/{self.device_id}/",
+                        "params": None,
+                        "msg": None,
+                        "sender": None,
+                        "purpose": Purpose.WAKEUP,
+                    },
+                    daemon=True,
+                )
+                self.request_thread.start()
 
     def receiveMsg_FinishWakeupMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
@@ -189,11 +231,32 @@ class DeviceActor(DeviceBaseActor):
             if not active:
                 self.occupied = False
 
+    def receiveMsg_RefreshFreeMsg(self, _msg, _sender):
+        # pylint: disable=invalid-name
+        """Handle repeated attempts to start the request thread for FREE."""
+        self._request_free_at_is()
+
     @overrides
     def _request_free_at_is(self):
-        self._http_get_function(
-            f"{self.base_url}/list/{self.device_id}/free", purpose=Purpose.FREE
-        )
+        if not self.request_thread.is_alive():
+            self.request_thread = Thread(
+                target=self._http_get_function,
+                kwargs={
+                    "endpoint": f"{self.base_url}/list/{self.device_id}/free",
+                    "params": None,
+                    "msg": None,
+                    "sender": None,
+                    "purpose": Purpose.FREE,
+                },
+                daemon=True,
+            )
+            self.request_thread.start()
+        else:
+            sleep(0.5)
+            self.send(
+                self.myAddress,
+                RefreshFreeMsg(),
+            )
 
     def receiveMsg_FinishFreeMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
@@ -204,6 +267,11 @@ class DeviceActor(DeviceBaseActor):
             success = self.success
         super()._handle_free_reply_from_is(success)
 
+    def receiveMsg_RefreshReserveMsg(self, _msg, _sender):
+        # pylint: disable=invalid-name
+        """Handle repeated attempts to start the request thread for RESERVE."""
+        self._request_reserve_at_is()
+
     @overrides
     def _request_reserve_at_is(self):
         """Reserve the requested instrument at the instrument server."""
@@ -212,11 +280,25 @@ class DeviceActor(DeviceBaseActor):
         host = sanitize_hn(self.reserve_device_msg.host)
         who = f"{app} - {user} - {host}"
         logger.debug("Try to reserve %s for %s.", self.device_id, who)
-        self._http_get_function(
-            f"{self.base_url}/list/{self.device_id}/reserve",
-            params={"who": who},
-            purpose=Purpose.RESERVE,
-        )
+        if not self.request_thread.is_alive():
+            self.request_thread = Thread(
+                target=self._http_get_function,
+                kwargs={
+                    "endpoint": f"{self.base_url}/list/{self.device_id}/reserve",
+                    "params": {"who": who},
+                    "msg": None,
+                    "sender": None,
+                    "purpose": Purpose.RESERVE,
+                },
+                daemon=True,
+            )
+            self.request_thread.start()
+        else:
+            sleep(0.5)
+            self.send(
+                self.myAddress,
+                RefreshReserveMsg(),
+            )
 
     def receiveMsg_FinishReserveMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
@@ -254,11 +336,28 @@ class DeviceActor(DeviceBaseActor):
         self.occupied = False
         self.device_status = msg.device_status
         logger.debug("Device status: %s", self.device_status)
-        self._http_get_function(
-            f"{self.base_url}/list/{self.device_id}/", purpose=Purpose.STATUS
-        )
+        if not self.request_thread.is_alive():
+            self.request_thread = Thread(
+                target=self._http_get_function,
+                kwargs={
+                    "endpoint": f"{self.base_url}/list/{self.device_id}/",
+                    "params": None,
+                    "msg": msg,
+                    "sender": sender,
+                    "purpose": Purpose.STATUS,
+                },
+                daemon=True,
+            )
+            self.request_thread.start()
 
-    def receiveMsg_FinishSetDeviceStatusMsg(self, msg, sender):
+        else:
+            sleep(0.5)
+            self.send(
+                self.myAddress,
+                SetDeviceStatusMsg(msg.device_status),
+            )
+
+    def receiveMsg_FinishSetDeviceStatusMsg(self, msg, _sender):
         # pylint: disable=invalid-name
         """Finalize SetDeviceStatusMsg handler after receiving HTTP request."""
         if self.success == Status.OK:
