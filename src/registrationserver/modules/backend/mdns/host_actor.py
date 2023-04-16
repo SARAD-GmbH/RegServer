@@ -156,7 +156,10 @@ class HostActor(BaseActor):
             logger.debug("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
             logger.error("%s: %s", success, self.my_id)
-            self._forward_to_children(KillMsg())
+            if self.scan_interval:
+                self._forward_to_children(KillMsg())
+            else:
+                self.send(self.myAddress, KillMsg())
         self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
     def _scan(self):
