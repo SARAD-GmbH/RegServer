@@ -191,6 +191,7 @@ class HostActor(BaseActor):
                             "API port": self.port,
                             "Device Id": device_id,
                         }
+                        device_status["Identification"]["Host"] = self.host
                         device_actor_id = self.mdns_id(device_id)
                         if device_actor_id not in self.child_actors:
                             self.send(
