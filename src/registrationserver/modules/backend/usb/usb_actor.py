@@ -79,7 +79,7 @@ class UsbActor(DeviceBaseActor):
         if purpose == Purpose.WAKEUP:
             self.send(self.myAddress, FinishWakeupMsg())
         elif purpose == Purpose.RESERVE:
-            self.send(self.myAddress, FinishReserveMsg())
+            self.send(self.myAddress, FinishReserveMsg(Status.OK))
 
     def receiveMsg_SetupUsbActorMsg(self, msg, sender):
         # pylint: disable=invalid-name

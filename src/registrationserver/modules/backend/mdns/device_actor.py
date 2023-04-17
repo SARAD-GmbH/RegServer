@@ -131,7 +131,7 @@ class DeviceActor(DeviceBaseActor):
         elif purpose == Purpose.WAKEUP:
             self.send(self.myAddress, FinishWakeupMsg())
         elif purpose == Purpose.RESERVE:
-            self.send(self.myAddress, FinishReserveMsg())
+            self.send(self.myAddress, FinishReserveMsg(Status.OK))
         elif purpose == Purpose.FREE:
             self.send(self.myAddress, FinishFreeMsg())
         elif purpose == Purpose.STATUS:

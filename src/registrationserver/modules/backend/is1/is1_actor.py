@@ -9,13 +9,14 @@ as used in Instrument Server 1
 """
 import socket
 from datetime import timedelta
-from enum import Enum
 from threading import Thread
 from time import sleep
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (Is1Address, Is1RemoveMsg,
-                                               KillMsg, RxBinaryMsg, Status)
+from registrationserver.actor_messages import (FinishReserveMsg, Is1Address,
+                                               Is1RemoveMsg, KillMsg,
+                                               RefreshReserveMsg, RxBinaryMsg,
+                                               Status)
 from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
@@ -50,6 +51,10 @@ class Is1Actor(DeviceBaseActor):
             kwargs={"data": None, "sender": None},
             daemon=True,
         )
+        self.reserve_thread = Thread(
+            target=self._reserve_function,
+            daemon=True,
+        )
 
     def receiveMsg_SetupIs1ActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -72,7 +77,19 @@ class Is1Actor(DeviceBaseActor):
                 "Check %s for living instruments",
                 self._is.hostname,
             )
-            self.scan_is(self._is)
+            if (
+                not self.check_connection_thread.is_alive()
+                and not self.tx_binary_thread.is_alive()
+                and not self.reserve_thread.is_alive()
+            ):
+                self.check_connection_thread = Thread(
+                    target=self.scan_is,
+                    kwargs={"is1_address": self._is},
+                    daemon=True,
+                )
+                self.check_connection_thread.start()
+            else:
+                logger.critical("Conflict between threads in WakeupMsg handler")
 
     def _establish_socket(self):
         try:
@@ -142,6 +159,7 @@ class Is1Actor(DeviceBaseActor):
         if (
             not self.check_connection_thread.is_alive()
             and not self.tx_binary_thread.is_alive()
+            and not self.reserve_thread.is_alive()
         ):
             self.tx_binary_thread = Thread(
                 target=self._tx_binary,
@@ -189,38 +207,65 @@ class Is1Actor(DeviceBaseActor):
             is_reserved = False
         if is_reserved:
             status = Status.OCCUPIED
+            self.send(self.myAddress, FinishReserveMsg(status))
         else:
-            self._establish_socket()
-            if self._socket is None:
-                logger.error("Can't establish the client socket.")
-                self._handle_reserve_reply_from_is(Status.IS_NOT_FOUND)
-                return
-            cmd_msg = make_command_msg(
-                [self.SELECT_COM, (self._com_port).to_bytes(1, byteorder="little")]
-            )
-            if self._send_via_socket(cmd_msg):
-                try:
-                    reply = self._socket.recv(1024)
-                except (TimeoutError, socket.timeout, ConnectionResetError):
-                    logger.error(
-                        "Timeout on waiting for reply to SELECT_COM: %s", cmd_msg
-                    )
-                    status = Status.IS_NOT_FOUND
-                else:
-                    checked_reply = check_message(reply, multiframe=False)
-                    logger.debug("Reserve at IS1 replied %s", checked_reply)
-                    if (
-                        checked_reply["is_valid"]
-                        and checked_reply["payload"][0].to_bytes(1, byteorder="little")
-                        == self.COM_SELECTED
-                    ):
-                        status = Status.OK
-                    else:
-                        status = Status.NOT_FOUND
+            if (
+                not self.check_connection_thread.is_alive()
+                and not self.tx_binary_thread.is_alive()
+                and not self.reserve_thread.is_alive()
+            ):
+                self.reserve_thread = Thread(
+                    target=self._reserve_function,
+                    daemon=True,
+                )
+                self.reserve_thread.start()
             else:
+                sleep(0.5)
+                self.send(
+                    self.myAddress,
+                    RefreshReserveMsg(),
+                )
+
+    def _reserve_function(self):
+        self._establish_socket()
+        if self._socket is None:
+            logger.error("Can't establish the client socket.")
+            self._handle_reserve_reply_from_is(Status.IS_NOT_FOUND)
+            return
+        cmd_msg = make_command_msg(
+            [self.SELECT_COM, (self._com_port).to_bytes(1, byteorder="little")]
+        )
+        if self._send_via_socket(cmd_msg):
+            try:
+                reply = self._socket.recv(1024)
+            except (TimeoutError, socket.timeout, ConnectionResetError):
+                logger.error("Timeout on waiting for reply to SELECT_COM: %s", cmd_msg)
                 status = Status.IS_NOT_FOUND
-            self._destroy_socket()
-        self._handle_reserve_reply_from_is(status)
+            else:
+                checked_reply = check_message(reply, multiframe=False)
+                logger.debug("Reserve at IS1 replied %s", checked_reply)
+                if (
+                    checked_reply["is_valid"]
+                    and checked_reply["payload"][0].to_bytes(1, byteorder="little")
+                    == self.COM_SELECTED
+                ):
+                    status = Status.OK
+                else:
+                    status = Status.NOT_FOUND
+        else:
+            status = Status.IS_NOT_FOUND
+        self._destroy_socket()
+        self.send(self.myAddress, FinishReserveMsg(status))
+
+    def receiveMsg_FinishReserveMsg(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Forward the reservation state from the Instrument Server to the REST API."""
+        self._handle_reserve_reply_from_is(msg.status)
+
+    def receiveMsg_RefreshReserveMsg(self, _msg, _sender):
+        # pylint: disable=invalid-name
+        """Handle repeated attempts to start the request thread for RESERVE."""
+        self._request_reserve_at_is()
 
     @overrides
     def _request_free_at_is(self):

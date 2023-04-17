@@ -233,6 +233,8 @@ class FinishWakeupMsg:
 class FinishReserveMsg:
     """Internal message of MDNS device Actor"""
 
+    status: Status
+
 
 @dataclass
 class RefreshReserveMsg:
