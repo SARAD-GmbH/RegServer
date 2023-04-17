@@ -13,13 +13,15 @@
 from datetime import datetime
 from enum import Enum
 from threading import Thread
+from time import sleep
 from typing import Union
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (FinishReserveMsg,
                                                FinishWakeupMsg, Gps, KillMsg,
-                                               RecentValueMsg, RescanMsg,
+                                               RecentValueMsg,
+                                               RefreshReserveMsg, RescanMsg,
                                                RxBinaryMsg, Status)
 from registrationserver.config import usb_backend_config
 from registrationserver.helpers import short_id
@@ -51,8 +53,27 @@ class UsbActor(DeviceBaseActor):
         self.mqtt_scheduler = None
         self.instrument: Union[SaradInst, None] = None
         self.is_connected = True
+        self.check_connection_thread = Thread(
+            target=self._check_connection,
+            daemon=True,
+        )
+        self.tx_binary_thread = Thread(
+            target=self._tx_binary,
+            kwargs={"data": None, "sender": None},
+            daemon=True,
+        )
+        self.get_recent_value_thread = Thread(
+            target=self._tx_binary,
+            kwargs={
+                "sender": None,
+                "component": None,
+                "sensor": None,
+                "measurand": None,
+            },
+            daemon=True,
+        )
 
-    def _check_connection(self, purpose: Purpose):
+    def _check_connection(self, purpose: Purpose = Purpose.WAKEUP):
         logger.debug("Check if %s is still connected", self.my_id)
         self.is_connected = self.instrument.get_description()
         if purpose == Purpose.WAKEUP:
@@ -98,7 +119,14 @@ class UsbActor(DeviceBaseActor):
         except KeyError:
             is_reserved = False
         if (not self.on_kill) and (not is_reserved):
-            self._check_connection(Purpose.WAKEUP)
+            if not self.check_connection_thread.is_alive():
+                self.check_connection_thread = Thread(
+                    target=self._check_connection,
+                    kwargs={
+                        "purpose": Purpose.WAKEUP,
+                    },
+                    daemon=True,
+                )
 
     def receiveMsg_FinishWakeupMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
@@ -140,7 +168,18 @@ class UsbActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Handler for binary message from App to Instrument."""
         super().receiveMsg_TxBinaryMsg(msg, sender)
-        self._tx_binary(msg.data, sender)
+        if (
+            not self.check_connection_thread.is_alive()
+            and not self.tx_binary_thread.is_alive()
+        ):
+            self.tx_binary_thread = Thread(
+                target=self._tx_binary,
+                kwargs={"data": msg.data, "sender": sender},
+                daemon=True,
+            )
+            self.tx_binary_thread.start()
+        else:
+            logger.critical("Conflict between threads in TxBinaryMsg handler")
 
     def _tx_binary(self, data, sender):
         if self.dummy_reply(data, sender):
@@ -183,7 +222,26 @@ class UsbActor(DeviceBaseActor):
         RS-232, we have to double-check the availability of the instrument.
 
         """
-        self._check_connection(Purpose.RESERVE)
+        if not self.check_connection_thread.is_alive():
+            self.check_connection_thread = Thread(
+                target=self._check_connection,
+                kwargs={
+                    "purpose": Purpose.RESERVE,
+                },
+                daemon=True,
+            )
+            self.check_connection_thread.start()
+        else:
+            sleep(0.5)
+            self.send(
+                self.myAddress,
+                RefreshReserveMsg(),
+            )
+
+    def receiveMsg_RefreshReserveMsg(self, _msg, _sender):
+        # pylint: disable=invalid-name
+        """Handle repeated attempts to start the request thread for RESERVE."""
+        self._request_reserve_at_is()
 
     def receiveMsg_FinishReserveMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
@@ -208,7 +266,24 @@ class UsbActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Get a value from a DACM instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self._get_recent_value(sender, msg.component, msg.sensor, msg.measurand)
+        if (
+            not self.check_connection_thread.is_alive()
+            and not self.tx_binary_thread.is_alive()
+            and not self.get_recent_value_thread.is_alive()
+        ):
+            self.get_recent_value_thread = Thread(
+                target=self._tx_binary,
+                kwargs={
+                    "sender": sender,
+                    "component": msg.component,
+                    "sensor": msg.sensor,
+                    "measurand": msg.measurand,
+                },
+                daemon=True,
+            )
+            self.get_recent_value_thread.start()
+        else:
+            logger.critical("Conflict between threads in GetRecentValueMsg handler")
 
     def _get_recent_value(self, sender, component, sensor, measurand):
         try:
