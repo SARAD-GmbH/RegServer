@@ -126,10 +126,7 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name, unused-argument
         """Handler for KeepAliveMsg from the Registrar"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.on_kill:
-            logger.debug("I'm dying. Don't disturb me!")
-            return
-        if self.child_actors:
+        if self.child_actors and not self.on_kill:
             for child_id, child_actor in self.child_actors.items():
                 keep_alive_msg = KeepAliveMsg(
                     parent=Parent(self.my_id, self.myAddress),
