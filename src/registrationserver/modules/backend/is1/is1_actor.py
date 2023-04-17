@@ -283,7 +283,7 @@ class Is1Actor(DeviceBaseActor):
         is_host = is1_address.hostname
         is_port = is1_address.port
         cmd_msg = make_command_msg(self.GET_FIRST_COM)
-        logger.info("Send GetFirstCOM: %s", cmd_msg)
+        logger.debug("Send GetFirstCOM: %s", cmd_msg)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
             client_socket.settimeout(3)
             retry = True
