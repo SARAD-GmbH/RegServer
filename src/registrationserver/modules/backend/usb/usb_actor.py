@@ -10,18 +10,16 @@
 .. uml :: uml-usb_actor.puml
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from threading import Thread
-from time import sleep
 from typing import Union
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (FinishReserveMsg,
                                                FinishWakeupMsg, Gps, KillMsg,
-                                               RecentValueMsg,
-                                               RefreshReserveMsg, RescanMsg,
+                                               RecentValueMsg, RescanMsg,
                                                RxBinaryMsg, Status)
 from registrationserver.config import usb_backend_config
 from registrationserver.helpers import short_id
@@ -41,6 +39,14 @@ class Purpose(Enum):
 
     WAKEUP = 2
     RESERVE = 3
+
+
+class ThreadType(Enum):
+    """One item for every possible thread."""
+
+    CHECK_CONNECTION = 1
+    TX_BINARY = 2
+    RECENT_VALUE = 3
 
 
 class UsbActor(DeviceBaseActor):
@@ -72,6 +78,24 @@ class UsbActor(DeviceBaseActor):
             },
             daemon=True,
         )
+
+    def _start_thread(self, thread, thread_type: ThreadType):
+        if (
+            not self.check_connection_thread.is_alive()
+            and not self.tx_binary_thread.is_alive()
+            and not self.get_recent_value_thread.is_alive()
+        ):
+            if thread_type == ThreadType.CHECK_CONNECTION:
+                self.check_connection_thread = thread
+                self.check_connection_thread.start()
+            elif thread_type == ThreadType.TX_BINARY:
+                self.tx_binary_thread = thread
+                self.tx_binary_thread.start()
+            elif thread_type == ThreadType.RECENT_VALUE:
+                self.get_recent_value_thread = thread
+                self.get_recent_value_thread.start()
+        else:
+            self.wakeupAfter(timedelta(seconds=0.5), payload=(thread, thread_type))
 
     def _check_connection(self, purpose: Purpose = Purpose.WAKEUP):
         logger.debug("Check if %s is still connected", self.my_id)
@@ -109,24 +133,27 @@ class UsbActor(DeviceBaseActor):
             self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
         return None
 
-    def receiveMsg_WakeupMessage(self, _msg, _sender):
+    def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
         logger.debug("Wakeup %s", self.my_id)
-        self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
-        try:
-            is_reserved = self.device_status["Reservation"]["Active"]
-        except KeyError:
-            is_reserved = False
-        if (not self.on_kill) and (not is_reserved):
-            if not self.check_connection_thread.is_alive():
-                self.check_connection_thread = Thread(
-                    target=self._check_connection,
-                    kwargs={
-                        "purpose": Purpose.WAKEUP,
-                    },
-                    daemon=True,
-                )
+        if msg.payload is None:
+            self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
+            try:
+                is_reserved = self.device_status["Reservation"]["Active"]
+            except KeyError:
+                is_reserved = False
+            if (not self.on_kill) and (not is_reserved):
+                if not self.check_connection_thread.is_alive():
+                    self.check_connection_thread = Thread(
+                        target=self._check_connection,
+                        kwargs={
+                            "purpose": Purpose.WAKEUP,
+                        },
+                        daemon=True,
+                    )
+        elif isinstance(msg.payload, Thread):
+            self._start_thread(msg.payload[0], msg.payload[1])
 
     def receiveMsg_FinishWakeupMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
@@ -168,18 +195,14 @@ class UsbActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Handler for binary message from App to Instrument."""
         super().receiveMsg_TxBinaryMsg(msg, sender)
-        if (
-            not self.check_connection_thread.is_alive()
-            and not self.tx_binary_thread.is_alive()
-        ):
-            self.tx_binary_thread = Thread(
+        self._start_thread(
+            Thread(
                 target=self._tx_binary,
                 kwargs={"data": msg.data, "sender": sender},
                 daemon=True,
-            )
-            self.tx_binary_thread.start()
-        else:
-            logger.critical("Conflict between threads in TxBinaryMsg handler")
+            ),
+            ThreadType.TX_BINARY,
+        )
 
     def _tx_binary(self, data, sender):
         if self.dummy_reply(data, sender):
@@ -222,26 +245,16 @@ class UsbActor(DeviceBaseActor):
         RS-232, we have to double-check the availability of the instrument.
 
         """
-        if not self.check_connection_thread.is_alive():
-            self.check_connection_thread = Thread(
+        self._start_thread(
+            Thread(
                 target=self._check_connection,
                 kwargs={
                     "purpose": Purpose.RESERVE,
                 },
                 daemon=True,
-            )
-            self.check_connection_thread.start()
-        else:
-            sleep(0.5)
-            self.send(
-                self.myAddress,
-                RefreshReserveMsg(),
-            )
-
-    def receiveMsg_RefreshReserveMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
-        """Handle repeated attempts to start the request thread for RESERVE."""
-        self._request_reserve_at_is()
+            ),
+            ThreadType.CHECK_CONNECTION,
+        )
 
     def receiveMsg_FinishReserveMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
@@ -266,12 +279,8 @@ class UsbActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Get a value from a DACM instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if (
-            not self.check_connection_thread.is_alive()
-            and not self.tx_binary_thread.is_alive()
-            and not self.get_recent_value_thread.is_alive()
-        ):
-            self.get_recent_value_thread = Thread(
+        self._start_thread(
+            Thread(
                 target=self._tx_binary,
                 kwargs={
                     "sender": sender,
@@ -280,10 +289,9 @@ class UsbActor(DeviceBaseActor):
                     "measurand": msg.measurand,
                 },
                 daemon=True,
-            )
-            self.get_recent_value_thread.start()
-        else:
-            logger.critical("Conflict between threads in GetRecentValueMsg handler")
+            ),
+            ThreadType.RECENT_VALUE,
+        )
 
     def _get_recent_value(self, sender, component, sensor, measurand):
         try:

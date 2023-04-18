@@ -99,7 +99,6 @@ class Is1Actor(DeviceBaseActor):
         except KeyError:
             is_reserved = False
         if msg.payload == "Rescan":
-            logger.info("Rescan")
             self.wakeupAfter(timedelta(seconds=10), payload="Rescan")
             if (not self.on_kill) and (not is_reserved):
                 logger.debug(
