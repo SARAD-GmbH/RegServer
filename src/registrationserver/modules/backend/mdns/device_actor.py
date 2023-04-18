@@ -218,14 +218,7 @@ class DeviceActor(DeviceBaseActor):
                     )
                     self.request_thread.start()
         elif isinstance(msg.payload, Thread):
-            if not self.request_thread.is_alive():
-                self.request_thread = msg.payload
-                self.request_thread.start()
-            else:
-                self.wakeupAfter(
-                    timedelta(seconds=0.5),
-                    payload=msg.payload,
-                )
+            self._start_thread(msg.payload)
 
     def receiveMsg_FinishWakeupMsg(self, _msg, _sender):
         # pylint: disable=invalid-name

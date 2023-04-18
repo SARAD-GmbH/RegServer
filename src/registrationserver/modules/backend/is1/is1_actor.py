@@ -9,19 +9,27 @@ as used in Instrument Server 1
 """
 import socket
 from datetime import timedelta
+from enum import Enum
 from threading import Thread
 from time import sleep
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (FinishReserveMsg, Is1Address,
                                                Is1RemoveMsg, KillMsg,
-                                               RefreshReserveMsg, RxBinaryMsg,
-                                               Status)
+                                               RxBinaryMsg, Status)
 from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
 
 # logger.debug("%s -> %s", __package__, __file__)
+
+
+class ThreadType(Enum):
+    """One item for every possible thread."""
+
+    CHECK_CONNECTION = 1
+    TX_BINARY = 2
+    RESERVE = 3
 
 
 class Is1Actor(DeviceBaseActor):
@@ -56,6 +64,24 @@ class Is1Actor(DeviceBaseActor):
             daemon=True,
         )
 
+    def _start_thread(self, thread, thread_type: ThreadType):
+        if (
+            not self.check_connection_thread.is_alive()
+            and not self.tx_binary_thread.is_alive()
+            and not self.reserve_thread.is_alive()
+        ):
+            if thread_type == ThreadType.CHECK_CONNECTION:
+                self.check_connection_thread = thread
+                self.check_connection_thread.start()
+            elif thread_type == ThreadType.TX_BINARY:
+                self.tx_binary_thread = thread
+                self.tx_binary_thread.start()
+            elif thread_type == ThreadType.RESERVE:
+                self.reserve_thread = thread
+                self.reserve_thread.start()
+        else:
+            self.wakeupAfter(timedelta(seconds=0.5), payload=(thread, thread_type))
+
     def receiveMsg_SetupIs1ActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SetupIs1ActorMsg containing setup information
@@ -72,24 +98,22 @@ class Is1Actor(DeviceBaseActor):
             is_reserved = self.device_status["Reservation"]["Active"]
         except KeyError:
             is_reserved = False
-        if (msg.payload == "Rescan") and (not self.on_kill) and (not is_reserved):
-            logger.debug(
-                "Check %s for living instruments",
-                self._is.hostname,
-            )
-            if (
-                not self.check_connection_thread.is_alive()
-                and not self.tx_binary_thread.is_alive()
-                and not self.reserve_thread.is_alive()
-            ):
-                self.check_connection_thread = Thread(
-                    target=self.scan_is,
-                    kwargs={"is1_address": self._is},
-                    daemon=True,
+        if msg.payload == "Rescan":
+            if (not self.on_kill) and (not is_reserved):
+                logger.debug(
+                    "Check %s for living instruments",
+                    self._is.hostname,
                 )
-                self.check_connection_thread.start()
-            else:
-                logger.critical("Conflict between threads in WakeupMsg handler")
+                self._start_thread(
+                    Thread(
+                        target=self.scan_is,
+                        kwargs={"is1_address": self._is},
+                        daemon=True,
+                    ),
+                    ThreadType.CHECK_CONNECTION,
+                )
+        elif isinstance(msg.payload, Thread):
+            self._start_thread(msg.payload[0], msg.payload[1])
 
     def _establish_socket(self):
         try:
@@ -156,19 +180,14 @@ class Is1Actor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Handler for TxBinaryMsg from App to Instrument."""
         super().receiveMsg_TxBinaryMsg(msg, sender)
-        if (
-            not self.check_connection_thread.is_alive()
-            and not self.tx_binary_thread.is_alive()
-            and not self.reserve_thread.is_alive()
-        ):
-            self.tx_binary_thread = Thread(
+        self._start_thread(
+            Thread(
                 target=self._tx_binary,
                 kwargs={"data": msg.data},
                 daemon=True,
-            )
-            self.tx_binary_thread.start()
-        else:
-            logger.critical("Conflict between threads in TxBinaryMsg handler")
+            ),
+            ThreadType.TX_BINARY,
+        )
 
     def _tx_binary(self, data):
         self._establish_socket()
@@ -209,22 +228,13 @@ class Is1Actor(DeviceBaseActor):
             status = Status.OCCUPIED
             self.send(self.myAddress, FinishReserveMsg(status))
         else:
-            if (
-                not self.check_connection_thread.is_alive()
-                and not self.tx_binary_thread.is_alive()
-                and not self.reserve_thread.is_alive()
-            ):
-                self.reserve_thread = Thread(
+            self._start_thread(
+                Thread(
                     target=self._reserve_function,
                     daemon=True,
-                )
-                self.reserve_thread.start()
-            else:
-                sleep(0.5)
-                self.send(
-                    self.myAddress,
-                    RefreshReserveMsg(),
-                )
+                ),
+                ThreadType.RESERVE,
+            )
 
     def _reserve_function(self):
         self._establish_socket()
@@ -261,11 +271,6 @@ class Is1Actor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Forward the reservation state from the Instrument Server to the REST API."""
         self._handle_reserve_reply_from_is(msg.status)
-
-    def receiveMsg_RefreshReserveMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
-        """Handle repeated attempts to start the request thread for RESERVE."""
-        self._request_reserve_at_is()
 
     @overrides
     def _request_free_at_is(self):
