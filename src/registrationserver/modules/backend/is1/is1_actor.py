@@ -89,7 +89,7 @@ class Is1Actor(DeviceBaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._is = msg.is1_address
         self._com_port = msg.com_port
-        self.wakeupAfter(timedelta(seconds=20), payload="Rescan")
+        self.wakeupAfter(timedelta(seconds=10), payload="Rescan")
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
@@ -99,6 +99,8 @@ class Is1Actor(DeviceBaseActor):
         except KeyError:
             is_reserved = False
         if msg.payload == "Rescan":
+            logger.info("Rescan")
+            self.wakeupAfter(timedelta(seconds=10), payload="Rescan")
             if (not self.on_kill) and (not is_reserved):
                 logger.debug(
                     "Check %s for living instruments",
@@ -336,4 +338,3 @@ class Is1Actor(DeviceBaseActor):
                     return
                 checked_reply = check_message(reply, multiframe=False)
             client_socket.shutdown(socket.SHUT_WR)
-        self.wakeupAfter(timedelta(seconds=60), payload="Rescan")
