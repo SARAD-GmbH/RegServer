@@ -11,7 +11,6 @@
 from datetime import timedelta
 from enum import Enum
 from threading import Thread
-from time import sleep
 
 import requests
 from overrides import overrides  # type: ignore
@@ -19,11 +18,7 @@ from registrationserver.actor_messages import (FinishFreeMsg, FinishReserveMsg,
                                                FinishSetDeviceStatusMsg,
                                                FinishSetupMdnsActorMsg,
                                                FinishWakeupMsg, KillMsg,
-                                               RefreshFreeMsg,
-                                               RefreshReserveMsg,
-                                               ReservationStatusMsg,
-                                               SetDeviceStatusMsg,
-                                               SetupMdnsActorMsg, Status)
+                                               ReservationStatusMsg, Status)
 from registrationserver.config import config
 from registrationserver.hostname_functions import compare_hostnames
 from registrationserver.logger import logger
@@ -137,6 +132,16 @@ class DeviceActor(DeviceBaseActor):
         elif purpose == Purpose.STATUS:
             self.send(self.myAddress, FinishSetDeviceStatusMsg(msg, sender))
 
+    def _start_thread(self, thread):
+        if not self.request_thread.is_alive():
+            self.request_thread = thread
+            self.request_thread.start()
+        else:
+            self.wakeupAfter(
+                timedelta(seconds=0.5),
+                payload=thread,
+            )
+
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
@@ -154,16 +159,17 @@ class DeviceActor(DeviceBaseActor):
         self.http.mount("https://", adapter)
         self.http.mount("http://", adapter)
 
-    def receiveMsg_SetupMdnsActorMsg(self, msg, _sender):
+    def receiveMsg_SetupMdnsActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SetupMdnsActorMsg containing setup information
         that is special to the mDNS device actor"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._is_host = msg.is_host
         self._api_port = msg.api_port
         self.device_id = msg.device_id
         self.base_url = f"http://{self._is_host}:{self._api_port}"
-        if not self.request_thread.is_alive():
-            self.request_thread = Thread(
+        self._start_thread(
+            Thread(
                 target=self._http_get_function,
                 kwargs={
                     "endpoint": f"{self.base_url}/list/{self.device_id}/",
@@ -174,13 +180,7 @@ class DeviceActor(DeviceBaseActor):
                 },
                 daemon=True,
             )
-            self.request_thread.start()
-        else:
-            sleep(0.5)
-            self.send(
-                self.myAddress,
-                SetupMdnsActorMsg(msg.is_host, msg.api_port, msg.device_id),
-            )
+        )
 
     def receiveMsg_FinishSetupMdnsActorMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
@@ -192,28 +192,40 @@ class DeviceActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Handle WakeupMessage for regular updates"""
         self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
-        if self.occupied and (msg.payload == "update"):
-            try:
-                logger.debug(
-                    "Check whether %s still occupies %s.",
-                    self.device_status["Reservation"]["Host"],
-                    self.device_id,
-                )
-            except KeyError:
-                logger.error("%s occupied, but we don't know by whom", self.device_id)
+        if msg.payload == "update":
+            if self.occupied:
+                try:
+                    logger.debug(
+                        "Check whether %s still occupies %s.",
+                        self.device_status["Reservation"]["Host"],
+                        self.device_id,
+                    )
+                except KeyError:
+                    logger.error(
+                        "%s occupied, but we don't know by whom", self.device_id
+                    )
+                if not self.request_thread.is_alive():
+                    self.request_thread = Thread(
+                        target=self._http_get_function,
+                        kwargs={
+                            "endpoint": f"{self.base_url}/list/{self.device_id}/",
+                            "params": None,
+                            "msg": None,
+                            "sender": None,
+                            "purpose": Purpose.WAKEUP,
+                        },
+                        daemon=True,
+                    )
+                    self.request_thread.start()
+        elif isinstance(msg.payload, Thread):
             if not self.request_thread.is_alive():
-                self.request_thread = Thread(
-                    target=self._http_get_function,
-                    kwargs={
-                        "endpoint": f"{self.base_url}/list/{self.device_id}/",
-                        "params": None,
-                        "msg": None,
-                        "sender": None,
-                        "purpose": Purpose.WAKEUP,
-                    },
-                    daemon=True,
-                )
+                self.request_thread = msg.payload
                 self.request_thread.start()
+            else:
+                self.wakeupAfter(
+                    timedelta(seconds=0.5),
+                    payload=msg.payload,
+                )
 
     def receiveMsg_FinishWakeupMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
@@ -231,15 +243,10 @@ class DeviceActor(DeviceBaseActor):
             if not active:
                 self.occupied = False
 
-    def receiveMsg_RefreshFreeMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
-        """Handle repeated attempts to start the request thread for FREE."""
-        self._request_free_at_is()
-
     @overrides
     def _request_free_at_is(self):
-        if not self.request_thread.is_alive():
-            self.request_thread = Thread(
+        self._start_thread(
+            Thread(
                 target=self._http_get_function,
                 kwargs={
                     "endpoint": f"{self.base_url}/list/{self.device_id}/free",
@@ -250,13 +257,7 @@ class DeviceActor(DeviceBaseActor):
                 },
                 daemon=True,
             )
-            self.request_thread.start()
-        else:
-            sleep(0.5)
-            self.send(
-                self.myAddress,
-                RefreshFreeMsg(),
-            )
+        )
 
     def receiveMsg_FinishFreeMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
@@ -267,11 +268,6 @@ class DeviceActor(DeviceBaseActor):
             success = self.success
         super()._handle_free_reply_from_is(success)
 
-    def receiveMsg_RefreshReserveMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
-        """Handle repeated attempts to start the request thread for RESERVE."""
-        self._request_reserve_at_is()
-
     @overrides
     def _request_reserve_at_is(self):
         """Reserve the requested instrument at the instrument server."""
@@ -280,8 +276,8 @@ class DeviceActor(DeviceBaseActor):
         host = self.reserve_device_msg.host
         who = f"{app} - {user} - {host}"
         logger.debug("Try to reserve %s for %s.", self.device_id, who)
-        if not self.request_thread.is_alive():
-            self.request_thread = Thread(
+        self._start_thread(
+            Thread(
                 target=self._http_get_function,
                 kwargs={
                     "endpoint": f"{self.base_url}/list/{self.device_id}/reserve",
@@ -292,13 +288,7 @@ class DeviceActor(DeviceBaseActor):
                 },
                 daemon=True,
             )
-            self.request_thread.start()
-        else:
-            sleep(0.5)
-            self.send(
-                self.myAddress,
-                RefreshReserveMsg(),
-            )
+        )
 
     def receiveMsg_FinishReserveMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
@@ -336,8 +326,8 @@ class DeviceActor(DeviceBaseActor):
         self.occupied = False
         self.device_status = msg.device_status
         logger.debug("Device status: %s", self.device_status)
-        if not self.request_thread.is_alive():
-            self.request_thread = Thread(
+        self._start_thread(
+            Thread(
                 target=self._http_get_function,
                 kwargs={
                     "endpoint": f"{self.base_url}/list/{self.device_id}/",
@@ -348,14 +338,7 @@ class DeviceActor(DeviceBaseActor):
                 },
                 daemon=True,
             )
-            self.request_thread.start()
-
-        else:
-            sleep(0.5)
-            self.send(
-                self.myAddress,
-                SetDeviceStatusMsg(msg.device_status),
-            )
+        )
 
     def receiveMsg_FinishSetDeviceStatusMsg(self, msg, _sender):
         # pylint: disable=invalid-name
