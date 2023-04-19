@@ -48,19 +48,22 @@ class RedirectorActor(BaseActor):
     def _loop(self):
         while self.read_list:
             if not self.on_kill:
-                # Listen to socket and redirect any message from the socket to the device actor
-                server_socket = self.read_list[0]
-                timeout = 0.1
-                readable, _writable, _errored = select.select(
-                    self.read_list, [], [], timeout
-                )
-                for self.conn in readable:
-                    if self.conn is server_socket:
-                        client_socket, socket_info = server_socket.accept()
-                        self.read_list.append(client_socket)
-                        logger.debug("Connection from %s", socket_info)
-                    else:
-                        self._cmd_handler()
+                try:
+                    # Listen to socket and redirect any message from the socket to the device actor
+                    server_socket = self.read_list[0]
+                    timeout = 0.1
+                    readable, _writable, _errored = select.select(
+                        self.read_list, [], [], timeout
+                    )
+                    for self.conn in readable:
+                        if self.conn is server_socket:
+                            client_socket, socket_info = server_socket.accept()
+                            self.read_list.append(client_socket)
+                            logger.debug("Connection from %s", socket_info)
+                        else:
+                            self._cmd_handler()
+                except ValueError as exception:
+                    logger.error("%s in _loop function of redirector", exception)
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -111,7 +114,10 @@ class RedirectorActor(BaseActor):
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
         """Handler to exit the redirector actor."""
-        self.read_list[0].close()
+        try:
+            self.read_list[0].close()
+        except ValueError as exception:
+            logger.error("%s in KillMsg handler of redirector", exception)
         super().receiveMsg_KillMsg(msg, sender)
 
     def _cmd_handler(self):
@@ -124,6 +130,9 @@ class RedirectorActor(BaseActor):
                 logger.error("Connection reset by SARAD application software.")
                 data = None
                 time.sleep(5)
+            except ValueError as exception:
+                logger.error("%s in _cmd_handler function", exception)
+                data = None
         if data is None:
             logger.critical("Application software seems to be dead.")
             self.send(self.myAddress, KillMsg())
@@ -157,5 +166,7 @@ class RedirectorActor(BaseActor):
             except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")
                 time.sleep(5)
+            except ValueError as exception:
+                logger.error("%s in _sendall function", exception)
         logger.critical("Application software seems to be dead.")
         self.send(self.myAddress, KillMsg())
