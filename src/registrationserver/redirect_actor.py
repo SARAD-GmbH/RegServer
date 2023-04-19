@@ -45,8 +45,25 @@ class RedirectorActor(BaseActor):
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
-        if msg.payload == "loop" and not self.on_kill:
+        if msg.payload == "loop":
             self._loop()
+
+    def _loop(self):
+        if not self.on_kill:
+            # Listen to socket and redirect any message from the socket to the device actor
+            server_socket = self.read_list[0]
+            timeout = 0.1
+            readable, _writable, _errored = select.select(
+                self.read_list, [], [], timeout
+            )
+            for self.conn in readable:
+                if self.conn is server_socket:
+                    self._client_socket, self._socket_info = server_socket.accept()
+                    self.read_list.append(self._client_socket)
+                    logger.debug("Connection from %s", self._socket_info)
+                else:
+                    self._cmd_handler()
+            self.wakeupAfter(datetime.timedelta(seconds=0.055), payload="loop")
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -92,27 +109,13 @@ class RedirectorActor(BaseActor):
         logger.debug("Setup finished with %s", return_msg)
         self.send(sender, return_msg)
         logger.debug("Start socket loop")
-        self._loop()
+        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="loop")
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
         """Handler to exit the redirector actor."""
         self.read_list[0].close()
         super().receiveMsg_KillMsg(msg, sender)
-
-    def _loop(self):
-        """Listen to socket and redirect any message from the socket to the device actor"""
-        server_socket = self.read_list[0]
-        timeout = 0.1
-        readable, _writable, _errored = select.select(self.read_list, [], [], timeout)
-        for self.conn in readable:
-            if self.conn is server_socket:
-                self._client_socket, self._socket_info = server_socket.accept()
-                self.read_list.append(self._client_socket)
-                logger.debug("Connection from %s", self._socket_info)
-            else:
-                self._cmd_handler()
-        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="loop")
 
     def _cmd_handler(self):
         """Handle a binary SARAD command received via the socket."""
