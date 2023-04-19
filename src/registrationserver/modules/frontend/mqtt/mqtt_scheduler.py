@@ -62,9 +62,9 @@ class MqttSchedulerActor(MqttBaseActor):
         )
         self.pending_control_action = ControlType.UNKNOWN
 
-    @overrides
-    def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
-        super().receiveMsg_PrepareMqttActorMsg(msg, sender)
+    def receiveMsg_MqttConnectedMsg(self, _msg, _sender):
+        # pylint: disable=invalid-name
+        """Initial setup of the MQTT client"""
         self.mqttc.message_callback_add(f"{self.group}/+/+/control", self.on_control)
         self.mqttc.message_callback_add(f"{self.group}/+/+/cmd", self.on_cmd)
         self.mqttc.message_callback_add(
@@ -75,8 +75,7 @@ class MqttSchedulerActor(MqttBaseActor):
             topic=f"{self.group}/{self.is_id}/meta",
             payload=get_is_meta(self.is_meta._replace(state=0)),
         )
-        if self._connect(self.mqtt_broker, self.port):
-            self.mqttc.loop_start()
+        self.mqttc.loop_start()
 
     @overrides
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):

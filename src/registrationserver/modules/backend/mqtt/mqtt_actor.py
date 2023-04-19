@@ -65,6 +65,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         self.cmd_id = 0
         self.msg_id["UNSUBSCRIBE"] = None
         self.msg_id["PUBLISH"] = None
+        self.is_id = None
 
     @overrides
     def receiveMsg_TxBinaryMsg(self, msg, sender):
@@ -144,11 +145,16 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
 
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
+        self.is_id = msg.is_id
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
+
+    def receiveMsg_MqttConnectedMsg(self, _msg, _sender):
+        # pylint: disable=invalid-name
+        """Initial setup of the MQTT client"""
         self.mqttc.on_publish = self.on_publish
         for k in self.allowed_sys_topics:
             self.allowed_sys_topics[k] = (
-                f"{self.group}/{msg.is_id}/"
+                f"{self.group}/{self.is_id}/"
                 + f"{short_id(self.my_id)}/{self.allowed_sys_options[k]}"
             )
             logger.debug("allowed topic: %s", self.allowed_sys_topics[k])
@@ -165,8 +171,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             qos=0,
             retain=True,
         )
-        if self._connect(self.mqtt_broker, self.port):
-            self.mqttc.loop_start()
+        self.mqttc.loop_start()
 
     @overrides
     def _request_free_at_is(self):
