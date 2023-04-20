@@ -62,7 +62,7 @@ class RedirectorActor(BaseActor):
                             logger.debug("Connection from %s", socket_info)
                         else:
                             self._cmd_handler()
-                except ValueError as exception:
+                except (ValueError, IOError) as exception:
                     logger.error("%s in _loop function of redirector", exception)
 
     @overrides
@@ -116,7 +116,7 @@ class RedirectorActor(BaseActor):
         """Handler to exit the redirector actor."""
         try:
             self.read_list[0].close()
-        except ValueError as exception:
+        except (ValueError, IOError) as exception:
             logger.error("%s in KillMsg handler of redirector", exception)
         super().receiveMsg_KillMsg(msg, sender)
 
@@ -130,7 +130,7 @@ class RedirectorActor(BaseActor):
                 logger.error("Connection reset by SARAD application software.")
                 data = None
                 time.sleep(5)
-            except ValueError as exception:
+            except (ValueError, IOError) as exception:
                 logger.error("%s in _cmd_handler function", exception)
                 data = None
         if data is None:
@@ -166,7 +166,7 @@ class RedirectorActor(BaseActor):
             except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")
                 time.sleep(5)
-            except ValueError as exception:
+            except (ValueError, IOError) as exception:
                 logger.error("%s in _sendall function", exception)
         logger.critical("Application software seems to be dead.")
         self.send(self.myAddress, KillMsg())
