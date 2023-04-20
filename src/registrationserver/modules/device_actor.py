@@ -82,10 +82,11 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for ReserveDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if self.sender_api is None:
+            self.sender_api = sender
         if (self.return_message is not None) and (
             self.return_message.status == Status.FREE_PENDING
         ):
-            self._publish_status_change()
             self._send_reservation_status_msg()
             return
         self.return_message = ReservationStatusMsg(
@@ -173,15 +174,14 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for FreeDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if self.sender_api is None:
+            self.sender_api = sender
         if (self.return_message is not None) and (
             self.return_message.status == Status.RESERVE_PENDING
         ):
-            self._publish_status_change()
             self._send_reservation_status_msg()
             return
         self.return_message = ReservationStatusMsg(self.instr_id, Status.FREE_PENDING)
-        if self.sender_api is None:
-            self.sender_api = sender
         self._request_free_at_is()
 
     def _request_free_at_is(self):
@@ -318,7 +318,8 @@ class DeviceBaseActor(BaseActor):
     def receiveMsg_ChildActorExited(self, msg, sender):
         super().receiveMsg_ChildActorExited(msg, sender)
         if (self.return_message is not None) and (
-            self.return_message.status != Status.FREE_PENDING
+            self.return_message.status
+            not in (Status.FREE_PENDING, Status.RESERVE_PENDING)
         ):
             self._publish_status_change()
             self._send_reservation_status_msg()
