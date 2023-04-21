@@ -191,7 +191,6 @@ class BaseActor(ActorTypeDispatcher):
             msg.deadMessage,
             (
                 ActorExitRequest,
-                KeepAliveMsg,
                 KillMsg,
                 SubscribeToDeviceStatusMsg,
                 UnSubscribeFromDeviceStatusMsg,
