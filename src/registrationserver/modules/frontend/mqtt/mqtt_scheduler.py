@@ -95,13 +95,34 @@ class MqttSchedulerActor(MqttBaseActor):
 
     def receiveMsg_ReservationStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Handler for ReservationStatusMsg from Device Actor.
-
-        This message makes only sense for the REST API. The MQTT Scheduler is
-        using the UpdateDeviceStatusMsg instead. That's why this handler does
-        nothing.
-        """
+        """Handler for ReservationStatusMsg from Device Actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        _device_actor, device_id = self._device_actor(msg.instr_id)
+        reservation = self.reservations.get(device_id)
+        if reservation is not None:
+            self.reservations[device_id]._replace(status=msg.status)
+        else:
+            self.reservations[device_id] = Reservation(
+                status=msg.status, timestamp=time.time()
+            )
+        reservation_object = self.reservations[device_id]
+        if self.pending_control_action in (ControlType.RESERVE, ControlType.FREE):
+            logger.debug("Publish reservation state")
+            if reservation_object.status in (
+                Status.OK,
+                Status.OK_SKIPPED,
+                Status.OK_UPDATED,
+            ):
+                if self.pending_control_action == ControlType.RESERVE:
+                    reservation_object._replace(active=True)
+                else:
+                    reservation_object._replace(active=False)
+            self.reservations[device_id] = reservation_object
+            reservation_json = get_instr_reservation(reservation_object)
+            topic = f"{self.group}/{self.is_id}/{msg.instr_id}/reservation"
+            logger.debug("Publish %s on %s", reservation_json, topic)
+            self.mqttc.publish(topic=topic, payload=reservation_json, retain=True)
+            self.pending_control_action = ControlType.UNKNOWN
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -147,23 +168,7 @@ class MqttSchedulerActor(MqttBaseActor):
             user=reservation.get("User", ""),
             status=status,
         )
-        if self.pending_control_action in (ControlType.RESERVE, ControlType.FREE):
-            logger.debug("Publish reservation state")
-            if reservation_object.status in (
-                Status.OK,
-                Status.OK_SKIPPED,
-                Status.OK_UPDATED,
-            ):
-                if self.pending_control_action == ControlType.RESERVE:
-                    reservation_object._replace(active=True)
-                else:
-                    reservation_object._replace(active=False)
-            self.reservations[device_id] = reservation_object
-            reservation_json = get_instr_reservation(reservation_object)
-            topic = f"{self.group}/{self.is_id}/{instr_id}/reservation"
-            logger.debug("Publish %s on %s", reservation_json, topic)
-            self.mqttc.publish(topic=topic, payload=reservation_json, retain=True)
-        self.pending_control_action = ControlType.UNKNOWN
+        self.reservations[device_id] = reservation_object
 
     def _remove_instrument(self, device_id):
         # pylint: disable=invalid-name
