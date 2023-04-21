@@ -65,6 +65,7 @@ class DeviceBaseActor(BaseActor):
         self.return_message = None
         self.instr_id = None
         self.reserve_lock = False
+        self.free_lock = False
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -187,14 +188,14 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for FreeDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.reserve_lock:
+        if self.free_lock:
             logger.debug("RESERVE or FREE action pending")
             self.wakeupAfter(
                 timedelta(milliseconds=500),
                 (self.receiveMsg_FreeDeviceMsg, msg, sender),
             )
             return
-        self.reserve_lock = True
+        self.free_lock = True
         if self.sender_api is None:
             self.sender_api = sender
         self._request_free_at_is()
@@ -276,12 +277,15 @@ class DeviceBaseActor(BaseActor):
         if (
             (self.return_message is not None)
             and (self.sender_api is not None)
-            and self.reserve_lock
+            and (self.reserve_lock or self.free_lock)
         ):
             self.send(self.sender_api, self.return_message)
             self.return_message = None
             self.sender_api = None
-            self.reserve_lock = False
+            if self.reserve_lock:
+                self.reserve_lock = False
+            elif self.free_lock:
+                self.free_lock = False
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
