@@ -233,6 +233,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             self.state["RESERVE"]["Pending"] = False
             return
         if not reservation.get("Active", False):
+            logger.debug("Free status: %s", reservation_status)
             self._handle_free_reply_from_is(Status.OK)
             return
         logger.warning(

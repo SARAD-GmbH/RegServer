@@ -90,7 +90,7 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for ReserveDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.reserve_lock:
+        if self.free_lock or self.reserve_lock:
             logger.debug("RESERVE or FREE action pending")
             self.wakeupAfter(
                 timedelta(milliseconds=500),
@@ -188,7 +188,7 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for FreeDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.free_lock:
+        if self.free_lock or self.reserve_lock:
             logger.debug("RESERVE or FREE action pending")
             self.wakeupAfter(
                 timedelta(milliseconds=500),
