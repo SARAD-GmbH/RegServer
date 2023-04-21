@@ -11,16 +11,16 @@ import os
 import socket
 import ssl
 import time
+from threading import Thread
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import Frontend
+from registrationserver.actor_messages import (Frontend, KillMsg,
+                                               MqttConnectedMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import frontend_config, mqtt_config
 from registrationserver.logger import logger
 from registrationserver.shutdown import is_flag_set, system_shutdown
-
-# logger.debug("%s -> %s", __package__, __file__)
 
 
 class MqttBaseActor(BaseActor):
@@ -40,6 +40,10 @@ class MqttBaseActor(BaseActor):
         self.mqtt_broker = None
         self.port = None
         self.group = None
+        self.connect_thread = Thread(
+            target=self._connect,
+            daemon=True,
+        )
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
@@ -68,8 +72,9 @@ class MqttBaseActor(BaseActor):
         self.mqttc.on_message = self.on_message
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
+        self.connect_thread.start()
 
-    def _connect(self, mqtt_broker, port):
+    def _connect(self):
         """Try to connect the MQTT broker
 
         Retry forever with RETRY_INTERVAL,
@@ -81,8 +86,8 @@ class MqttBaseActor(BaseActor):
             try:
                 logger.info(
                     "Attempting to connect to broker %s: %s",
-                    mqtt_broker,
-                    port,
+                    self.mqtt_broker,
+                    self.port,
                 )
                 if mqtt_config["TLS_USE_TLS"] and self.mqttc._ssl_context is None:
                     ca_certs = os.path.expanduser(mqtt_config["TLS_CA_FILE"])
@@ -97,8 +102,9 @@ class MqttBaseActor(BaseActor):
                         keyfile=keyfile,
                         cert_reqs=ssl.CERT_REQUIRED,
                     )
-                self.mqttc.connect(mqtt_broker, port=port)
-                return True
+                self.mqttc.connect(self.mqtt_broker, port=self.port)
+                self.send(self.myAddress, MqttConnectedMsg())
+                return
             except FileNotFoundError:
                 logger.critical(
                     "Cannot find files expected in %s, %s, %s",
@@ -113,7 +119,9 @@ class MqttBaseActor(BaseActor):
                     system_shutdown()
                 else:
                     logger.warning("Proceed without MQTT.")
-                return False
+                    self.send(self.myAddress, KillMsg())
+                self.is_connected = False
+                return
             except socket.gaierror as exception:
                 logger.error("We are offline and can handle only local instruments.")
                 logger.info(

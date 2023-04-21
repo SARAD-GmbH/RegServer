@@ -26,7 +26,8 @@ from registrationserver.actor_messages import (DeadChildMsg, KeepAliveMsg,
                                                RescanFinishedMsg,
                                                ReservationStatusMsg,
                                                RxBinaryMsg, SetDeviceStatusMsg,
-                                               SetupMsg, SubscribeMsg,
+                                               SetupMdnsActorMsg, SetupMsg,
+                                               SetupUsbActorMsg, SubscribeMsg,
                                                SubscribeToActorDictMsg,
                                                SubscribeToDeviceStatusMsg,
                                                UnSubscribeFromActorDictMsg,
@@ -82,9 +83,7 @@ class BaseActor(ActorTypeDispatcher):
             self.registrar = self.myAddress
         self._subscribe(False)
         if self.is_device_actor:
-            logger.info(
-                "Device actor %s created at %s.", self.my_id, self.parent.parent_id
-            )
+            logger.info("%s created at %s.", self.my_id, self.parent.parent_id)
 
     def _subscribe(self, keep_alive):
         """Subscribe at Registrar actor."""
@@ -127,10 +126,7 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name, unused-argument
         """Handler for KeepAliveMsg from the Registrar"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.on_kill:
-            logger.debug("I'm dying. Don't disturb me!")
-            return
-        if self.child_actors:
+        if self.child_actors and not self.on_kill:
             for child_id, child_actor in self.child_actors.items():
                 keep_alive_msg = KeepAliveMsg(
                     parent=Parent(self.my_id, self.myAddress),
@@ -200,6 +196,8 @@ class BaseActor(ActorTypeDispatcher):
                 UnSubscribeFromDeviceStatusMsg,
                 UpdateActorDictMsg,
                 SetDeviceStatusMsg,
+                SetupMdnsActorMsg,
+                SetupUsbActorMsg,
                 ReservationStatusMsg,
                 RxBinaryMsg,
                 RescanFinishedMsg,

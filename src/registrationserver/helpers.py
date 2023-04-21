@@ -8,6 +8,7 @@ Authors
 """
 import fnmatch
 import os
+import re
 from collections.abc import MutableMapping
 from contextlib import suppress
 from datetime import timedelta
@@ -209,6 +210,39 @@ def get_registrar_actor():
         return None
 
 
+def get_actor_dict(registrar_actor):
+    """Get the actor_dict from the Registrar.
+
+    Args:
+        registrar_actor: The actor address of the Registrar
+
+    Returns:
+        actor_dict
+    """
+    with ActorSystem().private() as h_get_actor:
+        try:
+            result = h_get_actor.ask(
+                registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=5)
+            )
+        except ConnectionResetError as exception:
+            logger.debug(exception)
+            result = None
+        if result is None:
+            logger.critical(
+                "Emergency shutdown. Ask to Registrar took more than 5 sec."
+            )
+            system_shutdown()
+            return None
+        if not isinstance(result, UpdateActorDictMsg):
+            logger.critical(
+                "UpdateActorDictMsg expected but % received. -> Emergency shutdown.",
+                result,
+            )
+            system_shutdown()
+            return None
+        return result.actor_dict
+
+
 def get_actor(registrar_actor, actor_id: str):
     """Find the actor address of an actor with a given actor_id.
 
@@ -219,20 +253,9 @@ def get_actor(registrar_actor, actor_id: str):
     Returns:
         Actor address
     """
-    with ActorSystem().private() as db_sys:
-        try:
-            result = db_sys.ask(
-                registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=1)
-            )
-        except ConnectionResetError:
-            result = None
-        if not isinstance(result, UpdateActorDictMsg):
-            logger.critical(
-                "Emergency shutdown. Ask to Registrar took more than 1 sec."
-            )
-            system_shutdown()
-            return None
-        actor_dict = result.actor_dict
+    actor_dict = get_actor_dict(registrar_actor)
+    if actor_dict is None:
+        return None
     try:
         return actor_dict[actor_id]["address"]
     except KeyError:
@@ -252,20 +275,24 @@ def get_device_status(registrar_actor, device_id: str) -> dict:
         for the *Identification* of the instrument and it's *Reservation* state
 
     """
-    with ActorSystem().private() as db_sys:
+    with ActorSystem().private() as h_get_device_status:
         try:
-            result = db_sys.ask(
+            result = h_get_device_status.ask(
                 get_actor(registrar_actor, device_id),
                 GetDeviceStatusMsg(),
                 timeout=timedelta(seconds=5),
             )
-        except (ConnectionResetError, ValueError):
+        except (ConnectionResetError, ValueError) as exception:
+            logger.debug(exception)
             result = None
     if result is None:
+        logger.debug("Timeout at GetDeviceStatusMsg.")
         return {}
     if not isinstance(result, UpdateDeviceStatusMsg):
         logger.critical(
-            "Emergency shutdown. Request to %s delivered: %s", device_id, result
+            "Emergency shutdown. Request to %s delivered: %s instead of UpdateDeviceStatusMsg",
+            device_id,
+            result,
         )
         system_shutdown()
         return {}
@@ -292,20 +319,22 @@ def get_device_status_from_registrar(registrar_actor, device_id: str) -> dict:
 
 def get_device_statuses(registrar_actor):
     """Return a list of all device ids together with the device status"""
-    with ActorSystem().private() as db_sys:
+    with ActorSystem().private() as h_get_device_statuses:
         try:
-            result = db_sys.ask(
+            result = h_get_device_statuses.ask(
                 registrar_actor, GetDeviceStatusesMsg(), timeout=timedelta(seconds=5)
             )
-        except ConnectionResetError:
+        except ConnectionResetError as exception:
+            logger.debug(exception)
             result = None
         if result is None:
+            logger.debug("Timeout at GetDeviceStatusMsg.")
             return None
         if not isinstance(result, UpdateDeviceStatusesMsg):
             logger.critical(
-                "Emergency shutdown. Ask to Registrar took more than 5 sec."
+                "Emergency shutdown. Registrar replied %s instead of UpdateDeviceStatusesMsg",
+                result,
             )
-            logger.debug("Request to registrar delivered: %s", result)
             system_shutdown()
             return None
     # logger.debug("Device statuses: %s", result.device_statuses)
@@ -314,22 +343,12 @@ def get_device_statuses(registrar_actor):
 
 def get_instr_id_actor_dict(registrar_actor):
     """Return a dictionary of device actor addresses with instr_id as key."""
-    with ActorSystem().private() as iid_sys:
-        try:
-            result = iid_sys.ask(
-                registrar_actor, GetActorDictMsg(), timeout=timedelta(seconds=1)
-            )
-        except ConnectionResetError:
-            result = None
-        if not isinstance(result, UpdateActorDictMsg):
-            logger.critical(
-                "Emergency shutdown. Ask to Registrar took more than 1 sec."
-            )
-            system_shutdown()
-            return {}
+    actor_dict = get_actor_dict(registrar_actor)
+    if actor_dict is None:
+        return {}
     return {
         short_id(id): dict["address"]
-        for id, dict in result.actor_dict.items()
+        for id, dict in actor_dict.items()
         if dict["is_device_actor"]
     }
 
@@ -356,11 +375,6 @@ def delete_keys_from_dict(dictionary, keys):
             delete_keys_from_dict(value, keys)
 
 
-def sanitize_hn(hostname: str) -> str:
-    """Remove domain and switch to lower case."""
-    return hostname.split(".")[0].lower()
-
-
 def check_msg(return_message, message_object_type):
     """Check whether the returned message is of the expected type.
 
@@ -372,7 +386,7 @@ def check_msg(return_message, message_object_type):
     """
     logger.debug("Returned with %s", return_message)
     if not isinstance(return_message, message_object_type):
-        logger.critical("Got message object of unexpected type")
+        logger.critical("Got %s instead of %s", return_message, message_object_type)
         logger.critical("-> Stop and shutdown system")
         status = Status.CRITICAL
         answer = {"Error code": status.value, "Error": str(status)}
@@ -404,7 +418,8 @@ def send_reserve_message(device_id, registrar_actor, request_host, user, app) ->
                 ReserveDeviceMsg(request_host, user, app),
                 timeout=timedelta(seconds=10),
             )
-        except ConnectionResetError:
+        except ConnectionResetError as exception:
+            logger.debug(exception)
             reserve_return = None
     if reserve_return is None:
         logger.error("No response from Device Actor %s", device_id)

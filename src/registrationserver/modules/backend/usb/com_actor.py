@@ -8,7 +8,7 @@
 
 """
 
-import os
+from threading import Thread
 from typing import Union
 
 from hashids import Hashids  # type: ignore
@@ -37,6 +37,7 @@ class ComActor(BaseActor):
         self.route = None
         self.loop_interval = 0
         self.poll_doseman = False
+        self.loop_thread = Thread(target=self._loop_function, daemon=True)
 
     def receiveMsg_SetupComActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -45,12 +46,12 @@ class ComActor(BaseActor):
         self.route = msg.route
         self.loop_interval = msg.loop_interval
         if self.child_actors:
-            logger.info("Update -- child")
+            logger.debug("Update -- child")
             self._forward_to_children(KillMsg())
             self.stop_loop = self.loop_running
             # refer to receiveMsg_ChildActorExited()
         else:
-            logger.info("Update -- no child")
+            logger.debug("Update -- no child")
             self._do_loop()
             self._start_polling()
 
@@ -62,6 +63,14 @@ class ComActor(BaseActor):
             self._start_polling()
 
     def _do_loop(self) -> None:
+        if not self.loop_thread.is_alive():
+            self.loop_thread = Thread(target=self._loop_function, daemon=True)
+            try:
+                self.loop_thread.start()
+            except RuntimeError:
+                pass
+
+    def _loop_function(self) -> None:
         logger.debug("[_do_loop] %s", self.route)
         instrument = None
         if not self.child_actors:

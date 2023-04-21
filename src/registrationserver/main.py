@@ -225,7 +225,7 @@ def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
                 reply = registrar_status.ask(
                     registrar_address,
                     Thespian_StatusReq(),
-                    timeout=timedelta(seconds=1),
+                    timeout=timedelta(seconds=5),
                 )
             except OSError as exception:
                 logger.critical("We are offline. OSError: %s.", exception)
@@ -255,6 +255,12 @@ def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
     return not registrar_is_down
 
 
+def custom_hook(args):
+    """Custom exception hook to handle exceptions that occured within threads."""
+    logger.critical("Thread failed: %s", args.exc_value)
+    system_shutdown(with_error=True)
+
+
 def main():
     """Main function of the Registration Server"""
     try:
@@ -265,6 +271,7 @@ def main():
     logger.info("Logging system initialized.")
     # maybe there are processes left from last run
     kill_residual_processes(end_with_error=False)
+    threading.excepthook = custom_hook
     if len(sys.argv) < 2:
         start_stop = "start"
     else:

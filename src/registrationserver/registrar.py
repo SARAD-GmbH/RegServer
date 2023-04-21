@@ -133,6 +133,97 @@ class Registrar(BaseActor):
                 payload="keep alive",
             )
 
+    def _is_alive(self, actor_id):
+        """Confirm that the actor is still alive."""
+        try:
+            self.actor_dict[actor_id]["is_alive"] = True
+        except KeyError:
+            logger.error(
+                "Great confusion. %s passed away during handling of KeepAliveMsg.",
+                actor_id,
+            )
+
+    def _handle_existing_actor(self, sender, actor_id, is_device_actor):
+        """Do whatever is required if the SubscribeMsg handler finds an actor
+        that is already existing.
+
+        Args:
+            sender: Actor address of the Actor sending the SubscribeMsg
+            actor_id: Id of the actor that shall be subscribed
+            is_device_actor (bool): indicates a device actor
+        """
+        logger.error("The actor %s already exists in the system.", actor_id)
+        self.send(sender, KillMsg(register=False))
+        if is_device_actor:
+            hid = Hashids()
+            serial_number = hid.decode(short_id(actor_id))[2]
+            if serial_number == 65535:
+                logger.info(
+                    "Someone has attached a virgin SARAD instrument. Ignore it!"
+                )
+            elif transport_technology(actor_id) == "mdns":
+                logger.debug(
+                    "%s is availabel from different hosts. First come, first served.",
+                    actor_id,
+                )
+            else:
+                logger.critical("SN %d != 65535 -> Emergency shutdown", serial_number)
+                system_shutdown()
+        else:
+            logger.critical("-> Emergency shutdown")
+            system_shutdown()
+
+    def _handle_device_actor(self, sender, actor_id):
+        """Do whatever is required if the SubscribeMsg handler finds an Device
+        Actor to be subscribed.
+
+        Args:
+            sender: Actor address of the Actor sending the SubscribeMsg
+            actor_id: Id of the actor that shall be subscribed
+        """
+        keep_new_actor = True
+        new_device_id = actor_id
+        for old_device_id in self.actor_dict:
+            if (
+                (short_id(old_device_id) == short_id(new_device_id))
+                and (new_device_id != old_device_id)
+                and (
+                    transport_technology(old_device_id)
+                    in ["local", "mdns", "mqtt", "is1"]
+                )
+            ):
+                old_tt = transport_technology(old_device_id)
+                new_tt = transport_technology(new_device_id)
+                logger.debug("New device_id: %s", new_device_id)
+                logger.debug("Old device_id: %s", old_device_id)
+                if new_tt == "local":
+                    logger.debug(
+                        "Keep new %s and kill the old %s",
+                        new_device_id,
+                        old_device_id,
+                    )
+                    keep_new_actor = True
+                    self.send(self.actor_dict[old_device_id]["address"], KillMsg())
+                elif (new_tt == "mdns") and (old_tt == "is1"):
+                    logger.debug(
+                        "A WLAN instrument might have been connected to another PC via USB."
+                    )
+                    # TODO Check whether old_device_id is still active
+                    logger.warning(
+                        "A WLAN instrument connected via USB to a remote host will be ignored."
+                    )
+                    keep_new_actor = False
+                    self.send(sender, KillMsg())
+                    return
+                else:
+                    logger.debug("Keep device actor %s in place.", old_device_id)
+                    keep_new_actor = False
+                    self.send(sender, KillMsg())
+                    return
+        if (not self.on_kill) and keep_new_actor:
+            logger.debug("Subscribe %s to device statuses dict", actor_id)
+            self._subscribe_to_device_status_msg(sender)
+
     def receiveMsg_SubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SubscribeMsg from any actor."""
@@ -140,36 +231,10 @@ class Registrar(BaseActor):
         if msg.actor_id in self.pending:
             self.pending.remove(msg.actor_id)
         if msg.keep_alive:
-            try:
-                self.actor_dict[msg.actor_id]["is_alive"] = True
-            except KeyError:
-                logger.error(
-                    "Great confusion. %s passed away during handling of KeepAliveMsg.",
-                    msg.actor_id,
-                )
+            self._is_alive(msg.actor_id)
             return
         if msg.actor_id in self.actor_dict:
-            logger.error("The actor %s already exists in the system.", msg.actor_id)
-            self.send(sender, KillMsg(register=False))
-            if msg.is_device_actor:
-                hid = Hashids()
-                serial_number = hid.decode(short_id(msg.actor_id))[2]
-                if serial_number == 65535:
-                    logger.info(
-                        "Someone has attached a virgin SARAD instrument. Ignore it!"
-                    )
-                elif transport_technology(msg.actor_id) == "mdns":
-                    logger.debug(
-                        "%s is availabel from different hosts. First come, first served."
-                    )
-                else:
-                    logger.critical(
-                        "SN %d != 65535 -> Emergency shutdown", serial_number
-                    )
-                    system_shutdown()
-            else:
-                logger.critical("-> Emergency shutdown")
-                system_shutdown()
+            self._handle_existing_actor(sender, msg.actor_id, msg.is_device_actor)
             return
         self.actor_dict[msg.actor_id] = {
             "address": sender,
@@ -179,48 +244,7 @@ class Registrar(BaseActor):
             "is_alive": True,
         }
         if msg.is_device_actor:
-            keep_new_actor = True
-            new_device_id = msg.actor_id
-            for old_device_id in self.actor_dict:
-                if (
-                    (short_id(old_device_id) == short_id(new_device_id))
-                    and (new_device_id != old_device_id)
-                    and (
-                        transport_technology(old_device_id)
-                        in ["local", "mdns", "mqtt", "is1"]
-                    )
-                ):
-                    old_tt = transport_technology(old_device_id)
-                    new_tt = transport_technology(new_device_id)
-                    logger.debug("New device_id: %s", new_device_id)
-                    logger.debug("Old device_id: %s", old_device_id)
-                    if new_tt == "local":
-                        logger.debug(
-                            "Keep new %s and kill the old %s",
-                            new_device_id,
-                            old_device_id,
-                        )
-                        keep_new_actor = True
-                        self.send(self.actor_dict[old_device_id]["address"], KillMsg())
-                    elif (new_tt == "mdns") and (old_tt == "is1"):
-                        logger.debug(
-                            "A WLAN instrument might have been connected to another PC via USB."
-                        )
-                        # TODO Check whether old_device_id is still active
-                        logger.warning(
-                            "A WLAN instrument connected via USB to a remote host will be ignored."
-                        )
-                        keep_new_actor = False
-                        self.send(sender, KillMsg())
-                        return
-                    else:
-                        logger.debug("Keep device actor %s in place.", old_device_id)
-                        keep_new_actor = False
-                        self.send(sender, KillMsg())
-                        return
-            if (not self.on_kill) and keep_new_actor:
-                logger.debug("Subscribe %s to device statuses dict", msg.actor_id)
-                self._subscribe_to_device_status_msg(sender)
+            self._handle_device_actor(sender, msg.actor_id)
         self._send_updates(self.actor_dict)
         return
 

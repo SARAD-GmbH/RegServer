@@ -15,7 +15,9 @@ from enum import Enum, unique
 from typing import Any, ByteString, Dict, List, Union
 
 from sarad.sari import FamilyDict, Route  # type: ignore
-from thespian.actors import ActorAddress  # type: ignore
+from thespian.actors import ActorAddress, ActorSystemMessage  # type: ignore
+
+from registrationserver.hostname_functions import compare_hostnames
 
 
 @unique
@@ -114,7 +116,7 @@ class Is1Address:
         return
 
     def __eq__(self, other):
-        return self.hostname == other.hostname
+        return compare_hostnames(self.hostname, other.hostname)
 
 
 @dataclass
@@ -215,6 +217,46 @@ class SetupMdnsActorMsg:
     is_host: str
     api_port: int
     device_id: str
+
+
+@dataclass
+class FinishSetupMdnsActorMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class FinishWakeupMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class FinishReserveMsg:
+    """Internal message of MDNS device Actor"""
+
+    status: Status
+
+
+@dataclass
+class RefreshReserveMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class FinishFreeMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class RefreshFreeMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class FinishSetDeviceStatusMsg:
+    """Internal message of MDNS device Actor"""
+
+    msg: ActorSystemMessage
+    sender: ActorAddress
 
 
 @dataclass
@@ -606,6 +648,11 @@ class PrepareMqttActorMsg:
 
 
 @dataclass
+class MqttConnectedMsg:
+    """Message informing an MQTT Actor that it is connected to the MQTT broker."""
+
+
+@dataclass
 class CreateActorMsg:
     """Request to the Registrar to create a new actor.
     This is usually sent to the Registrar from the surrounding program
@@ -682,7 +729,8 @@ class RecentValueMsg:
         status (Status): Error status
         component_name (str): Name of the DACM component
         sensor_name (str): Name of the sensor within the DACM component (derived from Result Index)
-        measurand_name (str): Name of the measurand delivered by the sensor (derived from Item Index)
+        measurand_name (str): Name of the measurand delivered by the sensor
+                              (derived from Item Index)
         measurand (str): Complete measurand (value and unit) as string
         operator (str): Operator associated (i.e. < or >)
         value (float): Value of the measurand

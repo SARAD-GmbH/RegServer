@@ -8,6 +8,7 @@
 
 """
 from datetime import timedelta
+from threading import Thread
 
 import requests
 from overrides import overrides  # type: ignore
@@ -15,7 +16,6 @@ from registrationserver.actor_messages import (ActorCreatedMsg, KillMsg,
                                                SetDeviceStatusMsg,
                                                SetupMdnsActorMsg, Status)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import config
 from registrationserver.helpers import (sarad_protocol, short_id,
                                         transport_technology)
 from registrationserver.logger import logger
@@ -55,7 +55,7 @@ class HostActor(BaseActor):
     @staticmethod
     def mdns_id(local_id):
         """Convert device_id from local name into a proper mDNS device_id/actor_id"""
-        if transport_technology(local_id) in ("local", "is1"):
+        if transport_technology(local_id) in ("local", "is1", "mqtt"):
             return f"{short_id(local_id, check=False)}.{sarad_protocol(local_id)}.mdns"
         return local_id
 
@@ -70,6 +70,8 @@ class HostActor(BaseActor):
         self.scan_interval = 0
         self.host = None
         self.port = None
+        self.ping_thread = Thread(target=self._ping_function, daemon=True)
+        self.scan_thread = Thread(target=self._scan_function, daemon=True)
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -121,16 +123,15 @@ class HostActor(BaseActor):
         api_port = data["Remote"]["API port"]
         self.base_url = f"http://{is_host}:{api_port}"
         remote_device_id = data["Remote"]["Device Id"]
-        if self.my_id != config["MY_HOSTNAME"]:
-            if device_id not in self.child_actors:
-                device_actor = self._create_actor(DeviceActor, device_id, None)
-                self.send(
-                    device_actor,
-                    SetupMdnsActorMsg(is_host, api_port, remote_device_id),
-                )
-            else:
-                device_actor = self.child_actors[device_id]["actor_address"]
-            self.send(device_actor, SetDeviceStatusMsg(data))
+        if device_id not in self.child_actors:
+            device_actor = self._create_actor(DeviceActor, device_id, None)
+            self.send(
+                device_actor,
+                SetupMdnsActorMsg(is_host, api_port, remote_device_id),
+            )
+        else:
+            device_actor = self.child_actors[device_id]["actor_address"]
+        self.send(device_actor, SetDeviceStatusMsg(data))
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
@@ -141,17 +142,35 @@ class HostActor(BaseActor):
             self._scan()
 
     def _ping(self):
+        if (not self.ping_thread.is_alive()) and (not self.scan_thread.is_alive()):
+            self.ping_thread = Thread(target=self._ping_function, daemon=True)
+            try:
+                self.ping_thread.start()
+            except RuntimeError:
+                pass
+
+    def _ping_function(self):
         try:
             _resp = self.http.get(f"{self.base_url}/ping/")
         except Exception as exception:  # pylint: disable=broad-except
             logger.debug("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
             logger.error("%s: %s", success, self.my_id)
-            self.send(self.myAddress, KillMsg())
-        else:
-            self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
+            if self.scan_interval:
+                self._forward_to_children(KillMsg())
+            else:
+                self.send(self.myAddress, KillMsg())
+        self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
     def _scan(self):
+        if (not self.scan_thread.is_alive()) and (not self.ping_thread.is_alive()):
+            self.scan_thread = Thread(target=self._scan_function, daemon=True)
+            try:
+                self.scan_thread.start()
+            except RuntimeError:
+                pass
+
+    def _scan_function(self):
         logger.debug("Scan REST API of %s for new instruments", self.my_id)
         try:
             resp = self.http.get(f"{self.base_url}/list/")
@@ -159,12 +178,11 @@ class HostActor(BaseActor):
         except Exception as exception:  # pylint: disable=broad-except
             logger.debug("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
-            logger.error("%s: %s", success, self.my_id)
-            self.send(self.myAddress, KillMsg())
+            logger.warning("%s: %s", success, self.my_id)
+            self._forward_to_children(KillMsg())
         else:
-            if device_list is None:
-                logger.error("Instrument list on remote host %s is empty.", self.host)
-                self.send(self.myAddress, KillMsg())
+            if (device_list is None) or (device_list == {}):
+                logger.warning("Instrument list on remote host %s is empty.", self.host)
             else:
                 for device_id, device_status in device_list.items():
                     if transport_technology(device_id) in ("local", "is1", "mqtt"):
@@ -173,6 +191,7 @@ class HostActor(BaseActor):
                             "API port": self.port,
                             "Device Id": device_id,
                         }
+                        device_status["Identification"]["Host"] = self.host
                         device_actor_id = self.mdns_id(device_id)
                         if device_actor_id not in self.child_actors:
                             self.send(
@@ -181,5 +200,5 @@ class HostActor(BaseActor):
                                     device_status={device_actor_id: device_status}
                                 ),
                             )
-            if self.scan_interval:
-                self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")
+        if self.scan_interval:
+            self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")
