@@ -190,7 +190,6 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         """Handler for MQTT messages regarding reservation of instruments"""
         reservation_status = Status.ERROR
         reservation = json.loads(message.payload)
-        self._publish_status_change()
         if self.state["RESERVE"]["Pending"]:
             instr_status = reservation.get("Active")
             app = reservation.get("App")
@@ -233,12 +232,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             )  # create redirector actor
             self.state["RESERVE"]["Pending"] = False
             return
-        if (
-            (not reservation.get("Active", False))
-            and (self.return_message is not None)
-            and (self.return_message.status is not None)
-            and (self.return_message.status == Status.FREE_PENDING)
-        ):
+        if not reservation.get("Active", False):
             self._handle_free_reply_from_is(Status.OK)
             return
         logger.warning(
