@@ -144,7 +144,8 @@ class Is1Actor(DeviceBaseActor):
                     except BlockingIOError:
                         logger.error("BlockingIOError connecting %s", self._is.hostname)
                         retry_counter = 0
-                self.send(self.myAddress, KillMsg())
+                if not self.on_kill:
+                    self.send(self.myAddress, KillMsg())
                 self._socket = None
         except OSError as re_exception:
             logger.error("Failed to re-establish socket: %s", re_exception)
@@ -213,7 +214,8 @@ class Is1Actor(DeviceBaseActor):
                     retry_counter = 0
         if not success:
             logger.error("Giving up on %s and removing this actor", self.my_id)
-            self.send(self.myAddress, KillMsg())
+            if not self.on_kill:
+                self.send(self.myAddress, KillMsg())
             reply = b""
         self.send(self.redirector_actor, RxBinaryMsg(reply))
 
@@ -305,18 +307,21 @@ class Is1Actor(DeviceBaseActor):
                     sleep(1)
                 except (OSError, TimeoutError, socket.timeout):
                     logger.debug("%s:%d not reachable", is_host, is_port)
-                    self.send(self.myAddress, KillMsg())
+                    if not self.on_kill:
+                        self.send(self.myAddress, KillMsg())
                     return
             if retry:
                 logger.error("Connection refused on %s:%d", is_host, is_port)
-                self.send(self.myAddress, KillMsg())
+                if not self.on_kill:
+                    self.send(self.myAddress, KillMsg())
                 return
             try:
                 client_socket.sendall(cmd_msg)
                 reply = client_socket.recv(1024)
             except (ConnectionResetError, TimeoutError, socket.timeout) as exception:
                 logger.error("%s. IS1 closed or disconnected.", exception)
-                self.send(self.myAddress, KillMsg())
+                if not self.on_kill:
+                    self.send(self.myAddress, KillMsg())
                 return
             checked_reply = check_message(reply, multiframe=False)
             while checked_reply["is_valid"] and checked_reply["payload"] not in [
@@ -333,7 +338,8 @@ class Is1Actor(DeviceBaseActor):
                     socket.timeout,
                 ) as exception:
                     logger.error("%s. IS1 closed or disconnected.", exception)
-                    self.send(self.myAddress, KillMsg())
+                    if not self.on_kill:
+                        self.send(self.myAddress, KillMsg())
                     return
                 checked_reply = check_message(reply, multiframe=False)
             client_socket.shutdown(socket.SHUT_WR)

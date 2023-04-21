@@ -158,7 +158,7 @@ class HostActor(BaseActor):
             logger.error("%s: %s", success, self.my_id)
             if self.scan_interval:
                 self._forward_to_children(KillMsg())
-            else:
+            elif not self.on_kill:
                 self.send(self.myAddress, KillMsg())
         self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 

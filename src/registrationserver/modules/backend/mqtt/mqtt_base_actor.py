@@ -119,7 +119,8 @@ class MqttBaseActor(BaseActor):
                     system_shutdown()
                 else:
                     logger.warning("Proceed without MQTT.")
-                    self.send(self.myAddress, KillMsg())
+                    if not self.on_kill:
+                        self.send(self.myAddress, KillMsg())
                 self.is_connected = False
                 return
             except socket.gaierror as exception:

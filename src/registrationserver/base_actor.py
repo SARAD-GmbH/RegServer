@@ -107,20 +107,23 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name, unused-argument
         """Handle the KillMsg for this actor"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.on_kill = True
-        if self.get_updates:
-            self._unsubscribe_from_actor_dict_msg()
-        if self.child_actors:
-            self._forward_to_children(msg)
-            self._forward_to_children(ActorExitRequest())
-        else:
-            if msg.register:
-                self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
-            self.send(self.myAddress, ActorExitRequest())
-            if self.is_device_actor:
-                logger.info(
-                    "Device actor %s exited at %s.", self.my_id, self.parent.parent_id
-                )
+        if not self.on_kill:
+            self.on_kill = True
+            if self.get_updates:
+                self._unsubscribe_from_actor_dict_msg()
+            if self.child_actors:
+                self._forward_to_children(msg)
+                self._forward_to_children(ActorExitRequest())
+            else:
+                if msg.register:
+                    self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
+                self.send(self.myAddress, ActorExitRequest())
+                if self.is_device_actor:
+                    logger.info(
+                        "Device actor %s exited at %s.",
+                        self.my_id,
+                        self.parent.parent_id,
+                    )
 
     def receiveMsg_KeepAliveMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument

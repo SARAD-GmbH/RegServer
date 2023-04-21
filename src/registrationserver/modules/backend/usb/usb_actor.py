@@ -158,7 +158,7 @@ class UsbActor(DeviceBaseActor):
     def receiveMsg_FinishWakeupMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
         """Finalize the handling of WakeupMessage"""
-        if not self.is_connected:
+        if not self.is_connected and not self.on_kill:
             logger.info("Nothing connected -> Killing myself")
             self.send(self.myAddress, KillMsg())
         else:
@@ -229,7 +229,7 @@ class UsbActor(DeviceBaseActor):
                     logger.error("Connection to %s lost", self.my_id)
                     reply = {"is_valid": False, "is_last_frame": True}
                     emergency = True
-        if emergency:
+        if emergency and not self.on_kill:
             logger.info("Killing myself")
             self.send(self.myAddress, KillMsg())
         elif not reply["is_valid"]:
@@ -259,7 +259,7 @@ class UsbActor(DeviceBaseActor):
     def receiveMsg_FinishReserveMsg(self, _msg, _sender):
         # pylint: disable=invalid-name
         """Forward the reservation state from the Instrument Server to the REST API."""
-        if not self.is_connected:
+        if not self.is_connected and not self.on_kill:
             logger.info("Killing myself")
             self.send(self.myAddress, KillMsg())
             self._handle_reserve_reply_from_is(Status.NOT_FOUND)
