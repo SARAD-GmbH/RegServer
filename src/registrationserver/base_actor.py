@@ -113,7 +113,6 @@ class BaseActor(ActorTypeDispatcher):
                 self._unsubscribe_from_actor_dict_msg()
             if self.child_actors:
                 self._forward_to_children(msg)
-                self._forward_to_children(ActorExitRequest())
             else:
                 if msg.register:
                     self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
@@ -159,16 +158,18 @@ class BaseActor(ActorTypeDispatcher):
         """Handler for ChildActorExited"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         actor_id = self._get_actor_id(msg.childAddress, self.child_actors)
-        self.send(self.registrar, UnsubscribeMsg(actor_id))
-        self.child_actors.pop(actor_id, None)
-        logger.debug(
-            "List of child actors after removal of %s: %s", actor_id, self.child_actors
-        )
+        child_actor = self.child_actors.pop(actor_id, None)
+        if child_actor is not None:
+            # self.send(self.registrar, UnsubscribeMsg(actor_id))
+            logger.debug(
+                "List of child actors after removal of %s: %s",
+                actor_id,
+                self.child_actors,
+            )
         logger.debug("self.on_kill is %s", self.on_kill)
         if (not self.child_actors) and self.on_kill:
-            logger.debug("Unsubscribe and send ActorExitRequest to myself")
+            logger.debug("Unsubscribe from Registrar")
             self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
-            self.send(self.myAddress, ActorExitRequest())
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
         # pylint: disable=invalid-name

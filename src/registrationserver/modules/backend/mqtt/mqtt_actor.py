@@ -190,6 +190,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         """Handler for MQTT messages regarding reservation of instruments"""
         reservation_status = Status.ERROR
         reservation = json.loads(message.payload)
+        logger.debug("[on_reserve] received: %s", reservation)
         if self.state["RESERVE"]["Pending"]:
             instr_status = reservation.get("Active")
             app = reservation.get("App")

@@ -243,6 +243,7 @@ class ListDevice(Resource):
 
     def get(self, device_id):
         """Get indentifying information for a single available instrument."""
+        logger.debug("ListDevice %s", device_id)
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Actor System. -> Emergency shutdown")
@@ -275,6 +276,7 @@ class ReserveDevice(Resource):
     def get(self, device_id):
         """Reserve an available instrument so that nobody else can use it."""
         # Collect information about who sent the request.
+        logger.debug("ReserveDevice %s", device_id)
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Registrar Actor. -> Emergency shutdown")
@@ -305,6 +307,7 @@ class ReserveDevice(Resource):
             attribute_who,
             request_host,
         )
+        logger.debug("Before RESERVE operation")
         device_state = get_device_status(registrar_actor, device_id)
         if (
             transport_technology(device_id) not in ["local", "is1", "mdns", "mqtt"]
@@ -323,6 +326,7 @@ class ReserveDevice(Resource):
             Status.OK_UPDATED,
             Status.OCCUPIED,
         ):
+            logger.debug("After RESERVE operation")
             return {
                 "Error code": status.value,
                 "Error": str(status),
@@ -359,6 +363,7 @@ class FreeDevice(Resource):
 
     def get(self, device_id):
         """Free/release a device that was reserved before"""
+        logger.debug("FreeDevice %s", device_id)
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
         else:
@@ -382,6 +387,7 @@ class FreeDevice(Resource):
             Status.OK_UPDATED,
             Status.OCCUPIED,
         ):
+            logger.debug("After FREE operation")
             return {
                 "Error code": status.value,
                 "Error": str(status),
