@@ -78,6 +78,11 @@ class UsbActor(DeviceBaseActor):
             },
             daemon=True,
         )
+        self.setup_thread = Thread(
+            target=self._setup,
+            kwargs={"family_id": None, "poll": False, "route": None},
+            daemon=True,
+        )
 
     def _start_thread(self, thread, thread_type: ThreadType):
         if (
@@ -116,6 +121,14 @@ class UsbActor(DeviceBaseActor):
             sender,
         )
         family_id = msg.family["family_id"]
+        self.setup_thread = Thread(
+            target=self._setup,
+            kwargs={"family_id": family_id, "poll": msg.poll, "route": msg.route},
+            daemon=True,
+        )
+        self.setup_thread.start()
+
+    def _setup(self, family_id=None, poll=False, route=None):
         if family_id == 1:
             family_class = DosemanInst
         elif family_id == 2:
@@ -126,10 +139,10 @@ class UsbActor(DeviceBaseActor):
             logger.error("Family %s not supported", family_id)
             return None
         self.instrument = family_class()
-        self.instrument.route = msg.route
+        self.instrument.route = route
         self.instrument.release_instrument()
         logger.info("Instrument with Id %s detected.", self.my_id)
-        if msg.poll:
+        if poll:
             self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
         return None
 
