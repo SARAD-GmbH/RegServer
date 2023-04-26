@@ -180,8 +180,8 @@ class DeviceBaseActor(BaseActor):
             )
             self.send(self.myAddress, KillMsg())
         elif success == Status.ERROR:
-            logger.critical("%s during reservation", success)
-            system_shutdown()
+            logger.error("%s during reservation", success)
+            self.send(self.myAddress, KillMsg())
         self._send_reservation_status_msg()
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):

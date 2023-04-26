@@ -30,7 +30,7 @@ from urllib3.util.retry import Retry
 # logger.debug("%s -> %s", __package__, __file__)
 
 CMD_CYCLE_TIMEOUT = 1
-DEFAULT_TIMEOUT = 5  # seconds
+DEFAULT_TIMEOUT = 8  # seconds
 RETRY = 0  # number of retries for HTTP requests
 UPDATE_INTERVAL = 3  # in seconds
 
@@ -307,8 +307,8 @@ class DeviceActor(DeviceBaseActor):
             )
             self.send(self.myAddress, KillMsg())
         elif success == Status.ERROR:
-            logger.critical("%s during reservation", success)
-            system_shutdown()
+            logger.error("%s during reservation", success)
+            self.send(self.myAddress, KillMsg())
         self._send_reservation_status_msg()
 
     @overrides

@@ -24,7 +24,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 PING_INTERVAL = 5  # in minutes
-DEFAULT_TIMEOUT = 5  # seconds
+DEFAULT_TIMEOUT = 8  # seconds
 RETRY = 0  # number of retries for HTTP requests
 
 
