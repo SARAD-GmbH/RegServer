@@ -117,12 +117,6 @@ class BaseActor(ActorTypeDispatcher):
                 if msg.register:
                     self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
                 self.send(self.myAddress, ActorExitRequest())
-                if self.is_device_actor:
-                    logger.info(
-                        "Device actor %s exited at %s.",
-                        self.my_id,
-                        self.parent.parent_id,
-                    )
 
     def receiveMsg_KeepAliveMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
@@ -168,13 +162,22 @@ class BaseActor(ActorTypeDispatcher):
             )
         logger.debug("self.on_kill is %s", self.on_kill)
         if (not self.child_actors) and self.on_kill:
-            logger.debug("Unsubscribe from Registrar")
+            logger.debug(
+                "Unsubscribe from Registrar and send ActorExitRequest to myself"
+            )
             self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
+            self.send(self.myAddress, ActorExitRequest())
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for ActorExitRequest"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if self.is_device_actor:
+            logger.info(
+                "Device actor %s exited at %s.",
+                self.my_id,
+                self.parent.parent_id,
+            )
         # self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
 
     def receiveMsg_DeadEnvelope(self, msg, sender):
