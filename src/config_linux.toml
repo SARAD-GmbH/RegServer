@@ -30,21 +30,26 @@ parity = "N"  # N: none, O: odd, E: even
 device_id = "28tkhn4V.sarad-dacm.local"
 
 [usb_backend]
-poll_serial_ports = ["/dev/ttyS0"]
-ignored_serial_ports = ["/dev/serial/by-id/usb-FTDI_Atil_UD-101i_USB__-__RS422_485-if00-port0"]
-local_retry_interval = 10  # in seconds
+poll_serial_ports = []
+ignored_serial_ports = []
+ignored_hwids = ["BTHENUM"]
+# Serial Bluetooth device: "BTHENUM"
+# FTDI USB-to-serial converters: "0403"
+# Prolific and no-name USB-to-serial converters: "067B"
+# QinHeng Electronics USB-to-serial converters: "1a86"
+local_retry_interval = 5  # in seconds
 
 [rs485_backend]
 #"/dev/ttyUSB0" = [1]
 
 [is1_backend]
 registration_port = 50002
-scan_interval = 60  # in seconds
+scan_interval = 1  # in seconds
 
 [mdns_backend]
 mdns_timeout = 3000
 ip_version = "all"
-hosts = [["kalibrierkammer.hq.sarad.de", "r2d2.hq.sarad.de"], [8008, 8000]]  # [[host1, host2], [port1, port2]]
+hosts = [[], []]  # [[host1, host2], [port1, port2]]
 scan_interval = 60  # in seconds, 0 = scan only once during startup
 
 [actor]

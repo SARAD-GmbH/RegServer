@@ -274,12 +274,14 @@ if os.name == "nt":
 else:
     DEFAULT_POLL_SERIAL_PORTS = ["/dev/ttyS0"]
 DEFAULT_IGNORED_SERIAL_PORTS: List[str] = []
+DEFAULT_IGNORED_HWIDS: List[str] = []
 DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
 
 if customization.get("usb_backend") is None:
     usb_backend_config = {
         "POLL_SERIAL_PORTS": DEFAULT_POLL_SERIAL_PORTS,
         "IGNORED_SERIAL_PORTS": DEFAULT_IGNORED_SERIAL_PORTS,
+        "IGNORED_HWIDS": DEFAULT_IGNORED_HWIDS,
         "LOCAL_RETRY_INTERVAL": DEFAULT_LOCAL_RETRY_INTERVAL,
     }
 else:
@@ -289,6 +291,9 @@ else:
         ),
         "IGNORED_SERIAL_PORTS": customization["usb_backend"].get(
             "ignored_serial_ports", DEFAULT_IGNORED_SERIAL_PORTS
+        ),
+        "IGNORED_HWIDS": customization["usb_backend"].get(
+            "ignored_hwids", DEFAULT_IGNORED_HWIDS
         ),
         "LOCAL_RETRY_INTERVAL": customization["usb_backend"].get(
             "local_retry_interval", DEFAULT_LOCAL_RETRY_INTERVAL

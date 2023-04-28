@@ -25,6 +25,11 @@ port_range = [50001, 50500]
 [usb_backend]
 poll_serial_ports = ["COM1"]
 ignored_serial_ports = []
+ignored_hwids = ["BTHENUM"]
+# Serial Bluetooth device: "BTHENUM"
+# FTDI USB-to-serial converters: "0403"
+# Prolific and no-name USB-to-serial converters: "067B"
+# QinHeng Electronics USB-to-serial converters: "1a86"
 local_retry_interval = 10  # in seconds
 
 [is1_backend]
