@@ -140,6 +140,13 @@ class UsbActor(DeviceBaseActor):
             return None
         self.instrument = family_class()
         self.instrument.route = route
+        if usb_backend_config["SET_RTC"]:
+            if usb_backend_config["USE_UTC"]:
+                now = datetime.utcnow()
+            else:
+                now = datetime.now()
+            logger.info("Set RTC of %s to %s", self.my_id, now)
+            self.instrument.set_real_time_clock(now)
         self.instrument.release_instrument()
         logger.info("Instrument with Id %s detected.", self.my_id)
         if poll:

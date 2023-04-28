@@ -38,6 +38,8 @@ ignored_hwids = ["BTHENUM"]
 # Prolific and no-name USB-to-serial converters: "067B"
 # QinHeng Electronics USB-to-serial converters: "1a86"
 local_retry_interval = 5  # in seconds
+set_realtime_clock = true  # set the RTC of instrument on every contact
+use_utc = true  # UTC if true, local time if false
 
 [rs485_backend]
 #"/dev/ttyUSB0" = [1]
