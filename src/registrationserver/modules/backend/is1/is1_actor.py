@@ -113,7 +113,7 @@ class Is1Actor(DeviceBaseActor):
                     ),
                     ThreadType.CHECK_CONNECTION,
                 )
-        elif isinstance(msg.payload, Thread):
+        elif isinstance(msg.payload[0], Thread):
             self._start_thread(msg.payload[0], msg.payload[1])
 
     def _establish_socket(self):

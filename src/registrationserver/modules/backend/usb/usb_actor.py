@@ -172,7 +172,7 @@ class UsbActor(DeviceBaseActor):
                         },
                         daemon=True,
                     )
-        elif isinstance(msg.payload, Thread):
+        elif isinstance(msg.payload[0], Thread):
             self._start_thread(msg.payload[0], msg.payload[1])
 
     def receiveMsg_FinishWakeupMsg(self, _msg, _sender):
