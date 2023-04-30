@@ -17,10 +17,8 @@ from typing import Union
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (FinishReserveMsg,
-                                               FinishWakeupMsg, Gps, KillMsg,
-                                               RecentValueMsg, RescanMsg,
-                                               RxBinaryMsg, Status)
+from registrationserver.actor_messages import (Gps, KillMsg, RecentValueMsg,
+                                               RescanMsg, RxBinaryMsg, Status)
 from registrationserver.config import usb_backend_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
@@ -30,6 +28,7 @@ from sarad.doseman import DosemanInst  # type: ignore
 from sarad.radonscout import RscInst  # type: ignore
 from sarad.sari import SaradInst  # type: ignore
 from serial import SerialException  # type: ignore
+from thespian.actors import ActorSystemMessage  # type: ignore
 
 # logger.debug("%s -> %s", __package__, __file__)
 
@@ -106,9 +105,10 @@ class UsbActor(DeviceBaseActor):
         logger.debug("Check if %s is still connected", self.my_id)
         self.is_connected = self.instrument.get_description()
         if purpose == Purpose.WAKEUP:
-            self.send(self.myAddress, FinishWakeupMsg())
+            self.wakeupAfter(timedelta(seconds=0.5), payload=self._finish_wakeup)
         elif purpose == Purpose.RESERVE:
-            self.send(self.myAddress, FinishReserveMsg(Status.OK))
+            logger.debug("Call _finish_reserve")
+            self.wakeupAfter(timedelta(seconds=0.5), payload=self._finish_reserve)
 
     def receiveMsg_SetupUsbActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -167,9 +167,11 @@ class UsbActor(DeviceBaseActor):
                     )
         elif isinstance(msg.payload, Thread):
             self._start_thread(msg.payload[0], msg.payload[1])
+        else:
+            logger.debug("Call %s of type %s", msg.payload, type(msg.payload))
+            msg.payload()
 
-    def receiveMsg_FinishWakeupMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
+    def _finish_wakeup(self):
         """Finalize the handling of WakeupMessage"""
         if not self.is_connected and not self.on_kill:
             logger.info("Nothing connected -> Killing myself")
@@ -269,9 +271,9 @@ class UsbActor(DeviceBaseActor):
             ThreadType.CHECK_CONNECTION,
         )
 
-    def receiveMsg_FinishReserveMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
+    def _finish_reserve(self):
         """Forward the reservation state from the Instrument Server to the REST API."""
+        logger.debug("_finish_reserve")
         if not self.is_connected and not self.on_kill:
             logger.info("Killing myself")
             self.send(self.myAddress, KillMsg())
