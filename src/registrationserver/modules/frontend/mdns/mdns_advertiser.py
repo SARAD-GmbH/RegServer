@@ -16,7 +16,8 @@ import socket
 
 from registrationserver.actor_messages import KillMsg
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import (config, mdns_frontend_config,
+from registrationserver.config import (config, get_hostname, get_ip,
+                                       mdns_frontend_config,
                                        rest_frontend_config)
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
@@ -106,12 +107,13 @@ class MdnsAdvertiserActor(BaseActor):
             weight=0,
             priority=0,
             properties=properties,
+            server=get_hostname(get_ip(False)),
             addresses=[socket.inet_aton(self.address)],
         )
         try:
             self.zeroconf.register_service(self.service)
-        except EventLoopBlocked:
-            logger.critical("Event loop blocked in mdns_advertiser")
+        except (EventLoopBlocked, AssertionError) as exception:
+            logger.critical(exception)
             system_shutdown()
         self.virgin = False
         self.__update_service()
@@ -133,10 +135,11 @@ class MdnsAdvertiserActor(BaseActor):
             weight=0,
             priority=0,
             properties=properties,
+            server=get_hostname(get_ip(False)),
             addresses=[socket.inet_aton(self.address)],
         )
         try:
             self.zeroconf.update_service(self.service)
-        except EventLoopBlocked:
-            logger.critical("Event loop blocked in mdns_advertiser")
+        except (EventLoopBlocked, AssertionError) as exception:
+            logger.critical(exception)
             system_shutdown()
