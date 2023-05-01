@@ -20,9 +20,8 @@ from registrationserver.config import frontend_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.redirect_actor import RedirectorActor
-from registrationserver.shutdown import system_shutdown
 
-# logger.debug("%s -> %s", __package__, __file__)
+RESERVE_TIMEOUT = timedelta(seconds=10)  # Timeout for RESERVE or FREE operations
 
 
 class DeviceBaseActor(BaseActor):
@@ -92,12 +91,18 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if self.free_lock or self.reserve_lock:
             logger.debug("RESERVE or FREE action pending")
+            if self.reserve_lock and (
+                datetime.now() - self.reserve_lock > RESERVE_TIMEOUT
+            ):
+                logger.warning("Pending RESERVE took longer than %s", RESERVE_TIMEOUT)
+                self.send(self.myAddress, KillMsg())
+                return
             self.wakeupAfter(
                 timedelta(milliseconds=500),
                 (self.receiveMsg_ReserveDeviceMsg, msg, sender),
             )
             return
-        self.reserve_lock = True
+        self.reserve_lock = datetime.now()
         if self.sender_api is None:
             self.sender_api = sender
         self.reserve_device_msg = msg
@@ -190,12 +195,16 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if self.free_lock or self.reserve_lock:
             logger.debug("RESERVE or FREE action pending")
+            if self.free_lock and (datetime.now() - self.free_lock > RESERVE_TIMEOUT):
+                logger.warning("Pending FREE took longer than %s", RESERVE_TIMEOUT)
+                self.send(self.myAddress, KillMsg())
+                return
             self.wakeupAfter(
                 timedelta(milliseconds=500),
                 (self.receiveMsg_FreeDeviceMsg, msg, sender),
             )
             return
-        self.free_lock = True
+        self.free_lock = datetime.now()
         if self.sender_api is None:
             self.sender_api = sender
         self._request_free_at_is()
