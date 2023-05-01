@@ -172,7 +172,8 @@ class UsbActor(DeviceBaseActor):
                         },
                         daemon=True,
                     )
-        elif isinstance(msg.payload[0], Thread):
+        elif isinstance(msg.payload, tuple) and isinstance(msg.payload[0], Thread):
+            logger.debug("Start %s thread", msg.payload[1])
             self._start_thread(msg.payload[0], msg.payload[1])
         else:
             logger.debug("Call %s of type %s", msg.payload, type(msg.payload))
