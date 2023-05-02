@@ -37,8 +37,6 @@ class MqttBaseActor(BaseActor):
             "UNSUBSCRIBE": None,
         }  # store the current message ID to check
         self._subscriptions = {}
-        self.mqtt_broker = None
-        self.port = None
         self.group = None
         self.connect_thread = Thread(
             target=self._connect,
@@ -62,8 +60,6 @@ class MqttBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for PrepareMqttActorMsg from MQTT Listener"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.mqtt_broker = mqtt_config["MQTT_BROKER"]
-        self.port = mqtt_config["PORT"]
         self.mqttc = MQTT.Client(msg.client_id)
         self.group = msg.group
         self.mqttc.reinitialise()
@@ -83,11 +79,13 @@ class MqttBaseActor(BaseActor):
         """
         retry_interval = mqtt_config["RETRY_INTERVAL"]
         while self.ungr_disconn > 0 and is_flag_set()[0]:
+            mqtt_broker = mqtt_config["MQTT_BROKER"]
+            port = mqtt_config["PORT"]
             try:
                 logger.info(
                     "Attempting to connect to broker %s: %s",
-                    self.mqtt_broker,
-                    self.port,
+                    mqtt_broker,
+                    port,
                 )
                 if mqtt_config["TLS_USE_TLS"] and self.mqttc._ssl_context is None:
                     ca_certs = os.path.expanduser(mqtt_config["TLS_CA_FILE"])
@@ -102,7 +100,7 @@ class MqttBaseActor(BaseActor):
                         keyfile=keyfile,
                         cert_reqs=ssl.CERT_REQUIRED,
                     )
-                self.mqttc.connect(self.mqtt_broker, port=self.port)
+                self.mqttc.connect(mqtt_broker, port=port)
                 self.send(self.myAddress, MqttConnectedMsg())
                 return
             except FileNotFoundError:
