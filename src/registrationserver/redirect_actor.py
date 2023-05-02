@@ -137,10 +137,12 @@ class RedirectorActor(BaseActor):
                 logger.error("%s in _sendall function", exception)
         if data is None:
             logger.critical("Application software seems to be dead.")
-            self.send(self.myAddress, KillMsg())
+            if not self.on_kill:
+                self.send(self.myAddress, KillMsg())
         elif data == b"":
             logger.debug("The application closed the socket.")
-            self.send(self.myAddress, KillMsg())
+            if not self.on_kill:
+                self.send(self.myAddress, KillMsg())
         else:
             logger.debug(
                 "Redirect %s from app, socket %s to device actor %s",
@@ -164,4 +166,5 @@ class RedirectorActor(BaseActor):
             except (ValueError, IOError) as exception:
                 logger.error("%s in RxBinaryMsg handler", exception)
         logger.critical("Application software seems to be dead.")
-        self.send(self.myAddress, KillMsg())
+        if not self.on_kill:
+            self.send(self.myAddress, KillMsg())
