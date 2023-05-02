@@ -14,6 +14,7 @@ socket as actor messages to the device actor.
 import select
 import socket
 import time
+from datetime import timedelta
 from threading import Thread
 
 from overrides import overrides  # type: ignore
@@ -34,6 +35,8 @@ class RedirectorActor(BaseActor):
         self.my_parent = None
         self.conn = None
         self.read_list = None
+        self.kill_myself = False
+        self.next_method = None
         self.socket_loop_thread = Thread(
             target=self._loop,
             daemon=True,
@@ -158,6 +161,7 @@ class RedirectorActor(BaseActor):
             kwargs={"data": msg.data},
             daemon=True,
         )
+        self.wakeupAfter(timedelta(seconds=0.5), payload="send")
         self.send_thread.start()
 
     def _sendall(self, data):
@@ -171,5 +175,20 @@ class RedirectorActor(BaseActor):
             except (ValueError, IOError) as exception:
                 logger.error("%s in _sendall function", exception)
         logger.critical("Application software seems to be dead.")
-        if not self.on_kill:
+        self.kill_myself = True
+        self.next_method = self._finish_rx_binary
+
+    def _finish_rx_binary(self):
+        if self.kill_myself and not self.on_kill:
             self.send(self.myAddress, KillMsg())
+
+    def receiveMsg_WakeupMessage(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for WakeupMessage"""
+        logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
+        if msg.payload in ("send", "loop"):
+            if self.next_method is None:
+                self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
+            else:
+                self.next_method()
+                self.next_method = None
