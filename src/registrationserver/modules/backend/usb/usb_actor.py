@@ -28,9 +28,6 @@ from sarad.doseman import DosemanInst  # type: ignore
 from sarad.radonscout import RscInst  # type: ignore
 from sarad.sari import SaradInst  # type: ignore
 from serial import SerialException  # type: ignore
-from thespian.actors import ActorSystemMessage  # type: ignore
-
-# logger.debug("%s -> %s", __package__, __file__)
 
 
 class Purpose(Enum):
@@ -55,7 +52,6 @@ class UsbActor(DeviceBaseActor):
     def __init__(self):
         logger.debug("Initialize a new USB actor.")
         super().__init__()
-        self.mqtt_scheduler = None
         self.instrument: Union[SaradInst, None] = None
         self.is_connected = True
         self.next_method = None
@@ -104,7 +100,8 @@ class UsbActor(DeviceBaseActor):
 
     def _check_connection(self, purpose: Purpose = Purpose.WAKEUP):
         logger.debug("Check if %s is still connected", self.my_id)
-        self.is_connected = self.instrument.get_description()
+        if self.instrument is not None:
+            self.is_connected = self.instrument.get_description()
         if purpose == Purpose.WAKEUP:
             self.next_method = self._finish_poll
         elif purpose == Purpose.RESERVE:
