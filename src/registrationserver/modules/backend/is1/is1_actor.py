@@ -14,14 +14,11 @@ from threading import Thread
 from time import sleep
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (FinishReserveMsg, Is1Address,
-                                               Is1RemoveMsg, RxBinaryMsg,
-                                               Status)
+from registrationserver.actor_messages import (Is1Address, Is1RemoveMsg,
+                                               RxBinaryMsg, Status)
 from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
-
-# logger.debug("%s -> %s", __package__, __file__)
 
 
 class ThreadType(Enum):
@@ -50,6 +47,7 @@ class Is1Actor(DeviceBaseActor):
         self._is: Is1Address = None
         self._com_port = None
         self._socket = None
+        self.status = Status.OK
         self.check_connection_thread = Thread(
             target=self.scan_is,
             daemon=True,
@@ -226,8 +224,8 @@ class Is1Actor(DeviceBaseActor):
         except KeyError:
             is_reserved = False
         if is_reserved:
-            status = Status.OCCUPIED
-            self.send(self.myAddress, FinishReserveMsg(status))
+            self.status = Status.OCCUPIED
+            self._finish_reserve()
         else:
             self._start_thread(
                 Thread(
@@ -251,7 +249,7 @@ class Is1Actor(DeviceBaseActor):
                 reply = self._socket.recv(1024)
             except (TimeoutError, socket.timeout, ConnectionResetError):
                 logger.error("Timeout on waiting for reply to SELECT_COM: %s", cmd_msg)
-                status = Status.IS_NOT_FOUND
+                self.status = Status.IS_NOT_FOUND
             else:
                 checked_reply = check_message(reply, multiframe=False)
                 logger.debug("Reserve at IS1 replied %s", checked_reply)
@@ -260,18 +258,17 @@ class Is1Actor(DeviceBaseActor):
                     and checked_reply["payload"][0].to_bytes(1, byteorder="little")
                     == self.COM_SELECTED
                 ):
-                    status = Status.OK
+                    self.status = Status.OK
                 else:
-                    status = Status.NOT_FOUND
+                    self.status = Status.NOT_FOUND
         else:
-            status = Status.IS_NOT_FOUND
+            self.status = Status.IS_NOT_FOUND
         self._destroy_socket()
-        self.send(self.myAddress, FinishReserveMsg(status))
+        self._finish_reserve()
 
-    def receiveMsg_FinishReserveMsg(self, msg, _sender):
-        # pylint: disable=invalid-name
+    def _finish_reserve(self):
         """Forward the reservation state from the Instrument Server to the REST API."""
-        self._handle_reserve_reply_from_is(msg.status)
+        self._handle_reserve_reply_from_is(self.status)
 
     @overrides
     def _request_free_at_is(self):
