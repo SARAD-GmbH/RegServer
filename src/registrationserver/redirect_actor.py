@@ -18,13 +18,10 @@ import time
 
 from overrides import overrides  # type: ignore
 
-from registrationserver.actor_messages import (KillMsg, SocketMsg, Status,
-                                               TxBinaryMsg)
+from registrationserver.actor_messages import SocketMsg, Status, TxBinaryMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import config, rest_frontend_config
 from registrationserver.logger import logger
-
-# logger.debug("%s -> %s", __package__, __file__)
 
 
 class RedirectorActor(BaseActor):
@@ -115,13 +112,12 @@ class RedirectorActor(BaseActor):
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="loop")
 
     @overrides
-    def receiveMsg_KillMsg(self, msg, sender):
-        """Handler to exit the redirector actor."""
+    def _kill_myself(self, register=True):
         try:
             self.read_list[0].close()
         except (ValueError, IOError) as exception:
             logger.error("%s in KillMsg handler of redirector", exception)
-        super().receiveMsg_KillMsg(msg, sender)
+        super()._kill_myself(register)
 
     def _cmd_handler(self):
         """Handle a binary SARAD command received via the socket."""
@@ -137,12 +133,10 @@ class RedirectorActor(BaseActor):
                 logger.error("%s in _sendall function", exception)
         if data is None:
             logger.critical("Application software seems to be dead.")
-            if not self.on_kill:
-                self.send(self.myAddress, KillMsg())
+            self._kill_myself()
         elif data == b"":
             logger.debug("The application closed the socket.")
-            if not self.on_kill:
-                self.send(self.myAddress, KillMsg())
+            self._kill_myself()
         else:
             logger.debug(
                 "Redirect %s from app, socket %s to device actor %s",
@@ -166,5 +160,4 @@ class RedirectorActor(BaseActor):
             except (ValueError, IOError) as exception:
                 logger.error("%s in RxBinaryMsg handler", exception)
         logger.critical("Application software seems to be dead.")
-        if not self.on_kill:
-            self.send(self.myAddress, KillMsg())
+        self._kill_myself()

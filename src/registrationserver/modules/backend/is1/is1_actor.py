@@ -15,8 +15,8 @@ from time import sleep
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (FinishReserveMsg, Is1Address,
-                                               Is1RemoveMsg, KillMsg,
-                                               RxBinaryMsg, Status)
+                                               Is1RemoveMsg, RxBinaryMsg,
+                                               Status)
 from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
@@ -144,8 +144,7 @@ class Is1Actor(DeviceBaseActor):
                     except BlockingIOError:
                         logger.error("BlockingIOError connecting %s", self._is.hostname)
                         retry_counter = 0
-                if not self.on_kill:
-                    self.send(self.myAddress, KillMsg())
+                self._kill_myself()
                 self._socket = None
         except OSError as re_exception:
             logger.error("Failed to re-establish socket: %s", re_exception)
@@ -214,8 +213,7 @@ class Is1Actor(DeviceBaseActor):
                     retry_counter = 0
         if not success:
             logger.error("Giving up on %s and removing this actor", self.my_id)
-            if not self.on_kill:
-                self.send(self.myAddress, KillMsg())
+            self._kill_myself()
             reply = b""
         self.send(self.redirector_actor, RxBinaryMsg(reply))
 
@@ -281,10 +279,10 @@ class Is1Actor(DeviceBaseActor):
         self._handle_free_reply_from_is(Status.OK)
 
     @overrides
-    def receiveMsg_KillMsg(self, msg, sender):
+    def _kill_myself(self, register=True):
         self._destroy_socket()
         self.send(self.parent.parent_address, Is1RemoveMsg(is1_address=self._is))
-        super().receiveMsg_KillMsg(msg, sender)
+        super()._kill_myself(register)
 
     def scan_is(self, is1_address: Is1Address):
         """Look for SARAD instruments at the given Instrument Server"""
@@ -307,21 +305,18 @@ class Is1Actor(DeviceBaseActor):
                     sleep(1)
                 except (OSError, TimeoutError, socket.timeout):
                     logger.debug("%s:%d not reachable", is_host, is_port)
-                    if not self.on_kill:
-                        self.send(self.myAddress, KillMsg())
+                    self._kill_myself()
                     return
             if retry:
                 logger.error("Connection refused on %s:%d", is_host, is_port)
-                if not self.on_kill:
-                    self.send(self.myAddress, KillMsg())
+                self._kill_myself()
                 return
             try:
                 client_socket.sendall(cmd_msg)
                 reply = client_socket.recv(1024)
             except (ConnectionResetError, TimeoutError, socket.timeout) as exception:
                 logger.error("%s. IS1 closed or disconnected.", exception)
-                if not self.on_kill:
-                    self.send(self.myAddress, KillMsg())
+                self._kill_myself()
                 return
             checked_reply = check_message(reply, multiframe=False)
             while checked_reply["is_valid"] and checked_reply["payload"] not in [
@@ -338,8 +333,7 @@ class Is1Actor(DeviceBaseActor):
                     socket.timeout,
                 ) as exception:
                     logger.error("%s. IS1 closed or disconnected.", exception)
-                    if not self.on_kill:
-                        self.send(self.myAddress, KillMsg())
+                    self._kill_myself()
                     return
                 checked_reply = check_message(reply, multiframe=False)
             client_socket.shutdown(socket.SHUT_WR)

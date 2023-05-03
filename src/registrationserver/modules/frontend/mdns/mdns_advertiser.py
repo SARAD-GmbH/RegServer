@@ -14,7 +14,7 @@ Based on work of Riccardo Förster <foerster@sarad.de>.
 """
 import socket
 
-from registrationserver.actor_messages import KillMsg
+from overrides import overrides  # type: ignore
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import (config, get_hostname, get_ip,
                                        mdns_frontend_config,
@@ -30,6 +30,7 @@ class MdnsAdvertiserActor(BaseActor):
     # pylint: disable=too-many-instance-attributes
     """Actor to advertise a listening server socket via mDNS"""
 
+    @overrides
     def __init__(self):
         super().__init__()
         self.device_actor = None
@@ -76,9 +77,10 @@ class MdnsAdvertiserActor(BaseActor):
                     "%s is already availabel from another host in this LAN.",
                     msg.device_id,
                 )
-                self.send(self.myAddress, KillMsg())
+                self._kill_myself()
 
-    def receiveMsg_KillMsg(self, msg, sender):
+    @overrides
+    def _kill_myself(self, register=True):
         if self.service is not None:
             try:
                 self.zeroconf.unregister_service(self.service)
@@ -88,7 +90,7 @@ class MdnsAdvertiserActor(BaseActor):
                     "%s raised when trying to unregister Zeroconf service", exception
                 )
         self._unsubscribe_from_device_status_msg(self.device_actor)
-        super().receiveMsg_KillMsg(msg, sender)
+        super()._kill_myself(register)
 
     def __start_advertising(self):
         logger.info("Start advertising %s", self.service_name)

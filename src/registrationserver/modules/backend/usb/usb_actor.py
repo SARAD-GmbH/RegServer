@@ -17,8 +17,8 @@ from typing import Union
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (Gps, KillMsg, RecentValueMsg,
-                                               RescanMsg, RxBinaryMsg, Status)
+from registrationserver.actor_messages import (Gps, RecentValueMsg, RescanMsg,
+                                               RxBinaryMsg, Status)
 from registrationserver.config import usb_backend_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
@@ -187,7 +187,7 @@ class UsbActor(DeviceBaseActor):
         """Finalize the handling of WakeupMessage for regular rescan"""
         if not self.is_connected and not self.on_kill:
             logger.info("Nothing connected -> Killing myself")
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
         else:
             hid = Hashids()
             instr_id = hid.encode(
@@ -256,9 +256,9 @@ class UsbActor(DeviceBaseActor):
                     logger.error("Connection to %s lost", self.my_id)
                     reply = {"is_valid": False, "is_last_frame": True}
                     emergency = True
-        if emergency and not self.on_kill:
+        if emergency:
             logger.info("Killing myself")
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
         elif not reply["is_valid"]:
             logger.warning("Invalid binary message from instrument.")
             self.send(sender, RxBinaryMsg(reply["raw"]))
@@ -289,7 +289,7 @@ class UsbActor(DeviceBaseActor):
         logger.debug("_finish_reserve")
         if not self.is_connected and not self.on_kill:
             logger.info("Killing myself")
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
             self._handle_reserve_reply_from_is(Status.NOT_FOUND)
         else:
             self._handle_reserve_reply_from_is(Status.OK)
@@ -372,12 +372,12 @@ class UsbActor(DeviceBaseActor):
         super().receiveMsg_ChildActorExited(msg, sender)
 
     @overrides
-    def receiveMsg_KillMsg(self, msg, sender):
+    def _kill_myself(self, register=True):
         try:
             self.instrument.release_instrument()
         except AttributeError:
             logger.warning("The USB Actor to be killed wasn't initialized properly.")
-        super().receiveMsg_KillMsg(msg, sender)
+        super()._kill_myself(register=register)
 
 
 if __name__ == "__main__":

@@ -96,7 +96,7 @@ class DeviceBaseActor(BaseActor):
                 datetime.now() - self.reserve_lock > RESERVE_TIMEOUT
             ):
                 logger.warning("Pending RESERVE took longer than %s", RESERVE_TIMEOUT)
-                self.send(self.myAddress, KillMsg())
+                self._kill_myself()
                 return
             self.wakeupAfter(
                 timedelta(milliseconds=500),
@@ -184,10 +184,10 @@ class DeviceBaseActor(BaseActor):
             logger.error(
                 "Reservation failed with %s. Removing device from list.", success
             )
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
         elif success == Status.ERROR:
             logger.error("%s during reservation", success)
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
         self._send_reservation_status_msg()
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
@@ -198,7 +198,7 @@ class DeviceBaseActor(BaseActor):
             logger.debug("RESERVE or FREE action pending")
             if self.free_lock and (datetime.now() - self.free_lock > RESERVE_TIMEOUT):
                 logger.warning("Pending FREE took longer than %s", RESERVE_TIMEOUT)
-                self.send(self.myAddress, KillMsg())
+                self._kill_myself()
                 return
             self.wakeupAfter(
                 timedelta(milliseconds=500),
@@ -353,6 +353,6 @@ class DeviceBaseActor(BaseActor):
             self._send_reservation_status_msg()
 
     @overrides
-    def receiveMsg_KillMsg(self, msg, sender):
+    def _kill_myself(self, register=True):
         self._send_reservation_status_msg()
-        super().receiveMsg_KillMsg(msg, sender)
+        super()._kill_myself(register)

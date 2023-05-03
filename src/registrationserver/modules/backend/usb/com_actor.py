@@ -149,10 +149,6 @@ class ComActor(BaseActor):
             return test_instrument
         return None
 
-    def _kill_myself(self):
-        if not self.on_kill:
-            self.send(self.myAddress, KillMsg())
-
     def _do_nothing(self):
         logger.debug("No new instrument found on %s", self.my_id)
 

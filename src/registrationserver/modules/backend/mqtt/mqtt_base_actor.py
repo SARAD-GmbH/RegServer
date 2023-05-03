@@ -154,10 +154,6 @@ class MqttBaseActor(BaseActor):
                     "Shutdown flag detected. Giving up on connecting to MQTT broker."
                 )
 
-    def _kill_myself(self):
-        if not self.on_kill:
-            self.send(self.myAddress, KillMsg())
-
     def _connected(self):
         """Do everything that can only be done if the MQTT client is connected."""
 

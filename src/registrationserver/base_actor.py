@@ -107,14 +107,17 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name, unused-argument
         """Handle the KillMsg for this actor"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self._kill_myself(register=msg.register)
+
+    def _kill_myself(self, register=True):
         if not self.on_kill:
             self.on_kill = True
             if self.get_updates:
                 self._unsubscribe_from_actor_dict_msg()
             if self.child_actors:
-                self._forward_to_children(msg)
+                self._forward_to_children(KillMsg(register=register))
             else:
-                if msg.register:
+                if register:
                     self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
                 self.send(self.myAddress, ActorExitRequest())
 

@@ -17,17 +17,14 @@ from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (FinishFreeMsg, FinishReserveMsg,
                                                FinishSetDeviceStatusMsg,
                                                FinishSetupMdnsActorMsg,
-                                               FinishWakeupMsg, KillMsg,
+                                               FinishWakeupMsg,
                                                ReservationStatusMsg, Status)
 from registrationserver.config import config
 from registrationserver.hostname_functions import compare_hostnames
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
-from registrationserver.shutdown import system_shutdown
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-
-# logger.debug("%s -> %s", __package__, __file__)
 
 CMD_CYCLE_TIMEOUT = 1
 DEFAULT_TIMEOUT = 8  # seconds
@@ -103,24 +100,24 @@ class DeviceActor(DeviceBaseActor):
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
             self.success = Status.IS_NOT_FOUND
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
         else:
             if (self.response is None) or (self.response == {}):
                 logger.error("%s not available", self.device_id)
                 self.success = Status.NOT_FOUND
-                self.send(self.myAddress, KillMsg())
+                self._kill_myself()
             else:
                 device_desc = self.response.get(self.device_id)
                 if (device_desc is None) or (device_desc == {}):
                     logger.error("%s not available", self.device_id)
                     self.success = Status.NOT_FOUND
-                    self.send(self.myAddress, KillMsg())
+                    self._kill_myself()
                 else:
                     ident = device_desc.get("Identification")
                     if ident is None:
                         logger.error("No Identification section available.")
                         self.success = Status.NOT_FOUND
-                        self.send(self.myAddress, KillMsg())
+                        self._kill_myself()
         if purpose == Purpose.SETUP:
             self.send(self.myAddress, FinishSetupMdnsActorMsg())
         elif purpose == Purpose.WAKEUP:
@@ -305,10 +302,10 @@ class DeviceActor(DeviceBaseActor):
             logger.error(
                 "Reservation failed with %s. Removing device from list.", success
             )
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
         elif success == Status.ERROR:
             logger.error("%s during reservation", success)
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
         self._send_reservation_status_msg()
 
     @overrides
