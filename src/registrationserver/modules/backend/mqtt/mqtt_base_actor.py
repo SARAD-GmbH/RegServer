@@ -75,7 +75,7 @@ class MqttBaseActor(BaseActor):
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
-        logger.info("Wakeup %s, payload = %s", self.my_id, msg.payload)
+        logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
         if msg.payload == "connect":
             if self.next_method is None:
                 self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
