@@ -11,6 +11,7 @@
 """
 import datetime
 import json
+from datetime import timedelta
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
@@ -66,6 +67,17 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         self.msg_id["UNSUBSCRIBE"] = None
         self.msg_id["PUBLISH"] = None
         self.is_id = None
+
+    @overrides
+    def receiveMsg_WakeupMessage(self, msg, sender):
+        super().receiveMsg_WakeupMessage(msg, sender)
+        logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
+        if msg.payload == "connect":
+            if self.next_method is None:
+                self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
+            else:
+                self.next_method()
+                self.next_method = None
 
     @overrides
     def receiveMsg_TxBinaryMsg(self, msg, sender):
@@ -148,7 +160,8 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         self.is_id = msg.is_id
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
 
-    def receiveMsg_MqttConnectedMsg(self, _msg, _sender):
+    @overrides
+    def _connected(self):
         # pylint: disable=invalid-name
         """Initial setup of the MQTT client"""
         self.mqttc.on_publish = self.on_publish

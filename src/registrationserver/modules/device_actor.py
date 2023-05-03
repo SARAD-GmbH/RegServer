@@ -83,7 +83,8 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage to retry a waiting reservation task."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        msg.payload[0](msg.payload[1], msg.payload[2])
+        if isinstance(msg.payload, tuple):
+            msg.payload[0](msg.payload[1], msg.payload[2])
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
