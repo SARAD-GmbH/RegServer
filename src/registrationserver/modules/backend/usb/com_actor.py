@@ -95,7 +95,7 @@ class ComActor(BaseActor):
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
-        logger.info("Wakeup %s, payload = %s", self.my_id, msg.payload)
+        logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
         if msg.payload == "loop":
             if self.next_method is None:
                 self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
@@ -154,10 +154,10 @@ class ComActor(BaseActor):
             self.send(self.myAddress, KillMsg())
 
     def _do_nothing(self):
-        logger.info("No new instrument found on %s", self.my_id)
+        logger.debug("No new instrument found on %s", self.my_id)
 
     def _create_and_setup_actor(self):
-        logger.info("[_create_and_setup_actor]")
+        logger.debug("[_create_and_setup_actor]")
         family = self.instrument.family["family_id"]
         instr_id = self.instrument.device_id
         if family == 5:
