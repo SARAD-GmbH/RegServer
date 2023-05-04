@@ -26,8 +26,6 @@ from registrationserver.modules.ismqtt_messages import (ControlType,
                                                         get_instr_reservation,
                                                         get_is_meta)
 
-# logger.debug("%s -> %s", __package__, __file__)
-
 
 class MqttSchedulerActor(MqttBaseActor):
     """Actor interacting with a new device"""
@@ -62,8 +60,8 @@ class MqttSchedulerActor(MqttBaseActor):
         )
         self.pending_control_action = ControlType.UNKNOWN
 
-    def receiveMsg_MqttConnectedMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
+    @overrides
+    def _connected(self):
         """Initial setup of the MQTT client"""
         self.mqttc.message_callback_add(f"{self.group}/+/+/control", self.on_control)
         self.mqttc.message_callback_add(f"{self.group}/+/+/cmd", self.on_cmd)

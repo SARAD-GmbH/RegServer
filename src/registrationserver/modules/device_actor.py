@@ -20,9 +20,8 @@ from registrationserver.config import frontend_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.redirect_actor import RedirectorActor
-from registrationserver.shutdown import system_shutdown
 
-# logger.debug("%s -> %s", __package__, __file__)
+RESERVE_TIMEOUT = timedelta(seconds=10)  # Timeout for RESERVE or FREE operations
 
 
 class DeviceBaseActor(BaseActor):
@@ -65,6 +64,7 @@ class DeviceBaseActor(BaseActor):
         self.return_message = None
         self.instr_id = None
         self.reserve_lock = False
+        self.free_lock = False
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -83,20 +83,27 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage to retry a waiting reservation task."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        msg.payload[0](msg.payload[1], msg.payload[2])
+        if isinstance(msg.payload, tuple):
+            msg.payload[0](msg.payload[1], msg.payload[2])
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for ReserveDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.reserve_lock:
+        if self.free_lock or self.reserve_lock:
             logger.debug("RESERVE or FREE action pending")
+            if self.reserve_lock and (
+                datetime.now() - self.reserve_lock > RESERVE_TIMEOUT
+            ):
+                logger.warning("Pending RESERVE took longer than %s", RESERVE_TIMEOUT)
+                self._kill_myself()
+                return
             self.wakeupAfter(
                 timedelta(milliseconds=500),
                 (self.receiveMsg_ReserveDeviceMsg, msg, sender),
             )
             return
-        self.reserve_lock = True
+        self.reserve_lock = datetime.now()
         if self.sender_api is None:
             self.sender_api = sender
         self.reserve_device_msg = msg
@@ -177,24 +184,28 @@ class DeviceBaseActor(BaseActor):
             logger.error(
                 "Reservation failed with %s. Removing device from list.", success
             )
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
         elif success == Status.ERROR:
-            logger.critical("%s during reservation", success)
-            system_shutdown()
+            logger.error("%s during reservation", success)
+            self._kill_myself()
         self._send_reservation_status_msg()
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for FreeDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.reserve_lock:
+        if self.free_lock or self.reserve_lock:
             logger.debug("RESERVE or FREE action pending")
+            if self.free_lock and (datetime.now() - self.free_lock > RESERVE_TIMEOUT):
+                logger.warning("Pending FREE took longer than %s", RESERVE_TIMEOUT)
+                self._kill_myself()
+                return
             self.wakeupAfter(
                 timedelta(milliseconds=500),
                 (self.receiveMsg_FreeDeviceMsg, msg, sender),
             )
             return
-        self.reserve_lock = True
+        self.free_lock = datetime.now()
         if self.sender_api is None:
             self.sender_api = sender
         self._request_free_at_is()
@@ -276,12 +287,15 @@ class DeviceBaseActor(BaseActor):
         if (
             (self.return_message is not None)
             and (self.sender_api is not None)
-            and self.reserve_lock
+            and (self.reserve_lock or self.free_lock)
         ):
             self.send(self.sender_api, self.return_message)
             self.return_message = None
             self.sender_api = None
-            self.reserve_lock = False
+            if self.reserve_lock:
+                self.reserve_lock = False
+            elif self.free_lock:
+                self.free_lock = False
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -339,6 +353,6 @@ class DeviceBaseActor(BaseActor):
             self._send_reservation_status_msg()
 
     @overrides
-    def receiveMsg_KillMsg(self, msg, sender):
+    def _kill_myself(self, register=True):
         self._send_reservation_status_msg()
-        super().receiveMsg_KillMsg(msg, sender)
+        super()._kill_myself(register)

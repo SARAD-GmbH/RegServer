@@ -24,7 +24,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 PING_INTERVAL = 5  # in minutes
-DEFAULT_TIMEOUT = 5  # seconds
+DEFAULT_TIMEOUT = 8  # seconds
 RETRY = 0  # number of retries for HTTP requests
 
 
@@ -117,8 +117,11 @@ class HostActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SetDeviceStatusMsg initialising the device status information."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        device_id = list(msg.device_status)[0]
-        data = msg.device_status[device_id]
+        self._set_device_status(msg.device_status)
+
+    def _set_device_status(self, device_status):
+        device_id = list(device_status)[0]
+        data = device_status[device_id]
         is_host = data["Remote"]["Address"]
         api_port = data["Remote"]["API port"]
         self.base_url = f"http://{is_host}:{api_port}"
@@ -159,7 +162,7 @@ class HostActor(BaseActor):
             if self.scan_interval:
                 self._forward_to_children(KillMsg())
             else:
-                self.send(self.myAddress, KillMsg())
+                self._kill_myself()
         self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
     def _scan(self):
@@ -194,11 +197,6 @@ class HostActor(BaseActor):
                         device_status["Identification"]["Host"] = self.host
                         device_actor_id = self.mdns_id(device_id)
                         if device_actor_id not in self.child_actors:
-                            self.send(
-                                self.myAddress,
-                                SetDeviceStatusMsg(
-                                    device_status={device_actor_id: device_status}
-                                ),
-                            )
+                            self._set_device_status({device_actor_id: device_status})
         if self.scan_interval:
             self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")

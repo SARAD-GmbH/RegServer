@@ -18,8 +18,7 @@ from datetime import timedelta
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 
-from registrationserver.actor_messages import (Backend, Frontend, KeepAliveMsg,
-                                               KillMsg, Parent,
+from registrationserver.actor_messages import (Backend, Frontend, KillMsg,
                                                PrepareMqttActorMsg,
                                                ReturnDeviceActorMsg,
                                                UpdateActorDictMsg,
@@ -111,14 +110,7 @@ class Registrar(BaseActor):
                     timedelta(seconds=actor_config["KEEPALIVE_INTERVAL"]),
                     payload="keep alive",
                 )
-            self.send(
-                self.myAddress,
-                KeepAliveMsg(
-                    parent=Parent(self.my_id, self.myAddress),
-                    child=self.my_id,
-                    report=CHECK,
-                ),
-            )
+            self._keep_alive_handler(CHECK)
         elif msg.payload == "check":
             for actor_id in self.actor_dict:
                 if not self.actor_dict[actor_id]["is_alive"]:

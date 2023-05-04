@@ -11,12 +11,12 @@ import os
 import socket
 import ssl
 import time
+from datetime import timedelta
 from threading import Thread
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (Frontend, KillMsg,
-                                               MqttConnectedMsg)
+from registrationserver.actor_messages import Frontend, KillMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import frontend_config, mqtt_config
 from registrationserver.logger import logger
@@ -37,13 +37,12 @@ class MqttBaseActor(BaseActor):
             "UNSUBSCRIBE": None,
         }  # store the current message ID to check
         self._subscriptions = {}
-        self.mqtt_broker = None
-        self.port = None
         self.group = None
         self.connect_thread = Thread(
             target=self._connect,
             daemon=True,
         )
+        self.next_method = None
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
@@ -62,8 +61,6 @@ class MqttBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for PrepareMqttActorMsg from MQTT Listener"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.mqtt_broker = mqtt_config["MQTT_BROKER"]
-        self.port = mqtt_config["PORT"]
         self.mqttc = MQTT.Client(msg.client_id)
         self.group = msg.group
         self.mqttc.reinitialise()
@@ -72,7 +69,19 @@ class MqttBaseActor(BaseActor):
         self.mqttc.on_message = self.on_message
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
+        self.wakeupAfter(timedelta(seconds=0.5), payload="connect")
         self.connect_thread.start()
+
+    def receiveMsg_WakeupMessage(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for WakeupMessage"""
+        logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
+        if msg.payload == "connect":
+            if self.next_method is None:
+                self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
+            else:
+                self.next_method()
+                self.next_method = None
 
     def _connect(self):
         """Try to connect the MQTT broker
@@ -83,11 +92,13 @@ class MqttBaseActor(BaseActor):
         """
         retry_interval = mqtt_config["RETRY_INTERVAL"]
         while self.ungr_disconn > 0 and is_flag_set()[0]:
+            mqtt_broker = mqtt_config["MQTT_BROKER"]
+            port = mqtt_config["PORT"]
             try:
                 logger.info(
                     "Attempting to connect to broker %s: %s",
-                    self.mqtt_broker,
-                    self.port,
+                    mqtt_broker,
+                    port,
                 )
                 if mqtt_config["TLS_USE_TLS"] and self.mqttc._ssl_context is None:
                     ca_certs = os.path.expanduser(mqtt_config["TLS_CA_FILE"])
@@ -102,8 +113,8 @@ class MqttBaseActor(BaseActor):
                         keyfile=keyfile,
                         cert_reqs=ssl.CERT_REQUIRED,
                     )
-                self.mqttc.connect(self.mqtt_broker, port=self.port)
-                self.send(self.myAddress, MqttConnectedMsg())
+                self.mqttc.connect(mqtt_broker, port=port)
+                self.next_method = self._connected
                 return
             except FileNotFoundError:
                 logger.critical(
@@ -119,7 +130,7 @@ class MqttBaseActor(BaseActor):
                     system_shutdown()
                 else:
                     logger.warning("Proceed without MQTT.")
-                    self.send(self.myAddress, KillMsg())
+                    self.next_method = self._kill_myself
                 self.is_connected = False
                 return
             except socket.gaierror as exception:
@@ -142,6 +153,9 @@ class MqttBaseActor(BaseActor):
                 logger.info(
                     "Shutdown flag detected. Giving up on connecting to MQTT broker."
                 )
+
+    def _connected(self):
+        """Do everything that can only be done if the MQTT client is connected."""
 
     def on_connect(self, client, userdata, flags, result_code):
         # pylint: disable=unused-argument

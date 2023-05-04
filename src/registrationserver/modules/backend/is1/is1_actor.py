@@ -14,14 +14,11 @@ from threading import Thread
 from time import sleep
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (FinishReserveMsg, Is1Address,
-                                               Is1RemoveMsg, KillMsg,
+from registrationserver.actor_messages import (Is1Address, Is1RemoveMsg,
                                                RxBinaryMsg, Status)
 from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
-
-# logger.debug("%s -> %s", __package__, __file__)
 
 
 class ThreadType(Enum):
@@ -50,6 +47,7 @@ class Is1Actor(DeviceBaseActor):
         self._is: Is1Address = None
         self._com_port = None
         self._socket = None
+        self.status = Status.OK
         self.check_connection_thread = Thread(
             target=self.scan_is,
             daemon=True,
@@ -113,7 +111,7 @@ class Is1Actor(DeviceBaseActor):
                     ),
                     ThreadType.CHECK_CONNECTION,
                 )
-        elif isinstance(msg.payload, Thread):
+        elif isinstance(msg.payload[0], Thread):
             self._start_thread(msg.payload[0], msg.payload[1])
 
     def _establish_socket(self):
@@ -144,7 +142,7 @@ class Is1Actor(DeviceBaseActor):
                     except BlockingIOError:
                         logger.error("BlockingIOError connecting %s", self._is.hostname)
                         retry_counter = 0
-                self.send(self.myAddress, KillMsg())
+                self._kill_myself()
                 self._socket = None
         except OSError as re_exception:
             logger.error("Failed to re-establish socket: %s", re_exception)
@@ -213,7 +211,7 @@ class Is1Actor(DeviceBaseActor):
                     retry_counter = 0
         if not success:
             logger.error("Giving up on %s and removing this actor", self.my_id)
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
             reply = b""
         self.send(self.redirector_actor, RxBinaryMsg(reply))
 
@@ -226,8 +224,8 @@ class Is1Actor(DeviceBaseActor):
         except KeyError:
             is_reserved = False
         if is_reserved:
-            status = Status.OCCUPIED
-            self.send(self.myAddress, FinishReserveMsg(status))
+            self.status = Status.OCCUPIED
+            self._finish_reserve()
         else:
             self._start_thread(
                 Thread(
@@ -251,7 +249,7 @@ class Is1Actor(DeviceBaseActor):
                 reply = self._socket.recv(1024)
             except (TimeoutError, socket.timeout, ConnectionResetError):
                 logger.error("Timeout on waiting for reply to SELECT_COM: %s", cmd_msg)
-                status = Status.IS_NOT_FOUND
+                self.status = Status.IS_NOT_FOUND
             else:
                 checked_reply = check_message(reply, multiframe=False)
                 logger.debug("Reserve at IS1 replied %s", checked_reply)
@@ -260,18 +258,17 @@ class Is1Actor(DeviceBaseActor):
                     and checked_reply["payload"][0].to_bytes(1, byteorder="little")
                     == self.COM_SELECTED
                 ):
-                    status = Status.OK
+                    self.status = Status.OK
                 else:
-                    status = Status.NOT_FOUND
+                    self.status = Status.NOT_FOUND
         else:
-            status = Status.IS_NOT_FOUND
+            self.status = Status.IS_NOT_FOUND
         self._destroy_socket()
-        self.send(self.myAddress, FinishReserveMsg(status))
+        self._finish_reserve()
 
-    def receiveMsg_FinishReserveMsg(self, msg, _sender):
-        # pylint: disable=invalid-name
+    def _finish_reserve(self):
         """Forward the reservation state from the Instrument Server to the REST API."""
-        self._handle_reserve_reply_from_is(msg.status)
+        self._handle_reserve_reply_from_is(self.status)
 
     @overrides
     def _request_free_at_is(self):
@@ -279,10 +276,10 @@ class Is1Actor(DeviceBaseActor):
         self._handle_free_reply_from_is(Status.OK)
 
     @overrides
-    def receiveMsg_KillMsg(self, msg, sender):
+    def _kill_myself(self, register=True):
         self._destroy_socket()
         self.send(self.parent.parent_address, Is1RemoveMsg(is1_address=self._is))
-        super().receiveMsg_KillMsg(msg, sender)
+        super()._kill_myself(register)
 
     def scan_is(self, is1_address: Is1Address):
         """Look for SARAD instruments at the given Instrument Server"""
@@ -305,18 +302,18 @@ class Is1Actor(DeviceBaseActor):
                     sleep(1)
                 except (OSError, TimeoutError, socket.timeout):
                     logger.debug("%s:%d not reachable", is_host, is_port)
-                    self.send(self.myAddress, KillMsg())
+                    self._kill_myself()
                     return
             if retry:
                 logger.error("Connection refused on %s:%d", is_host, is_port)
-                self.send(self.myAddress, KillMsg())
+                self._kill_myself()
                 return
             try:
                 client_socket.sendall(cmd_msg)
                 reply = client_socket.recv(1024)
             except (ConnectionResetError, TimeoutError, socket.timeout) as exception:
                 logger.error("%s. IS1 closed or disconnected.", exception)
-                self.send(self.myAddress, KillMsg())
+                self._kill_myself()
                 return
             checked_reply = check_message(reply, multiframe=False)
             while checked_reply["is_valid"] and checked_reply["payload"] not in [
@@ -333,7 +330,7 @@ class Is1Actor(DeviceBaseActor):
                     socket.timeout,
                 ) as exception:
                     logger.error("%s. IS1 closed or disconnected.", exception)
-                    self.send(self.myAddress, KillMsg())
+                    self._kill_myself()
                     return
                 checked_reply = check_message(reply, multiframe=False)
             client_socket.shutdown(socket.SHUT_WR)

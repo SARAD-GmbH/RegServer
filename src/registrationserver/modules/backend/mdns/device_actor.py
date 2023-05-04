@@ -14,23 +14,16 @@ from threading import Thread
 
 import requests
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (FinishFreeMsg, FinishReserveMsg,
-                                               FinishSetDeviceStatusMsg,
-                                               FinishSetupMdnsActorMsg,
-                                               FinishWakeupMsg, KillMsg,
-                                               ReservationStatusMsg, Status)
+from registrationserver.actor_messages import ReservationStatusMsg, Status
 from registrationserver.config import config
 from registrationserver.hostname_functions import compare_hostnames
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
-from registrationserver.shutdown import system_shutdown
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-# logger.debug("%s -> %s", __package__, __file__)
-
 CMD_CYCLE_TIMEOUT = 1
-DEFAULT_TIMEOUT = 5  # seconds
+DEFAULT_TIMEOUT = 8  # seconds
 RETRY = 0  # number of retries for HTTP requests
 UPDATE_INTERVAL = 3  # in seconds
 
@@ -87,14 +80,13 @@ class DeviceActor(DeviceBaseActor):
                 "endpoint": "",
                 "params": None,
                 "msg": None,
-                "sender": None,
                 "purpose": Purpose.SETUP,
             },
             daemon=True,
         )
 
     def _http_get_function(
-        self, endpoint="", params=None, msg=None, sender=None, purpose=Purpose.SETUP
+        self, endpoint="", params=None, msg=None, purpose=Purpose.SETUP
     ):
         try:
             resp = self.http.get(endpoint, params=params)
@@ -103,34 +95,34 @@ class DeviceActor(DeviceBaseActor):
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
             self.success = Status.IS_NOT_FOUND
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
         else:
             if (self.response is None) or (self.response == {}):
                 logger.error("%s not available", self.device_id)
                 self.success = Status.NOT_FOUND
-                self.send(self.myAddress, KillMsg())
+                self._kill_myself()
             else:
                 device_desc = self.response.get(self.device_id)
                 if (device_desc is None) or (device_desc == {}):
                     logger.error("%s not available", self.device_id)
                     self.success = Status.NOT_FOUND
-                    self.send(self.myAddress, KillMsg())
+                    self._kill_myself()
                 else:
                     ident = device_desc.get("Identification")
                     if ident is None:
                         logger.error("No Identification section available.")
                         self.success = Status.NOT_FOUND
-                        self.send(self.myAddress, KillMsg())
+                        self._kill_myself()
         if purpose == Purpose.SETUP:
-            self.send(self.myAddress, FinishSetupMdnsActorMsg())
+            self._finish_setup_mdns_actor()
         elif purpose == Purpose.WAKEUP:
-            self.send(self.myAddress, FinishWakeupMsg())
+            self._finish_wakeup()
         elif purpose == Purpose.RESERVE:
-            self.send(self.myAddress, FinishReserveMsg(Status.OK))
+            self._finish_reserve()
         elif purpose == Purpose.FREE:
-            self.send(self.myAddress, FinishFreeMsg())
+            self._finish_free()
         elif purpose == Purpose.STATUS:
-            self.send(self.myAddress, FinishSetDeviceStatusMsg(msg, sender))
+            self._finish_set_device_status(msg)
 
     def _start_thread(self, thread):
         if not self.request_thread.is_alive():
@@ -175,15 +167,13 @@ class DeviceActor(DeviceBaseActor):
                     "endpoint": f"{self.base_url}/list/{self.device_id}/",
                     "params": None,
                     "msg": None,
-                    "sender": None,
                     "purpose": Purpose.SETUP,
                 },
                 daemon=True,
             )
         )
 
-    def receiveMsg_FinishSetupMdnsActorMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
+    def _finish_setup_mdns_actor(self):
         """Do everything that is required after receiving the reply to the HTTP request."""
         if self.success == Status.OK:
             self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
@@ -211,7 +201,6 @@ class DeviceActor(DeviceBaseActor):
                             "endpoint": f"{self.base_url}/list/{self.device_id}/",
                             "params": None,
                             "msg": None,
-                            "sender": None,
                             "purpose": Purpose.WAKEUP,
                         },
                         daemon=True,
@@ -220,8 +209,7 @@ class DeviceActor(DeviceBaseActor):
         elif isinstance(msg.payload, Thread):
             self._start_thread(msg.payload)
 
-    def receiveMsg_FinishWakeupMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
+    def _finish_wakeup(self):
         """Handle WakeupMessage for regular updates"""
         if self.success == Status.OK:
             device_desc = self.response[self.device_id]
@@ -245,15 +233,13 @@ class DeviceActor(DeviceBaseActor):
                     "endpoint": f"{self.base_url}/list/{self.device_id}/free",
                     "params": None,
                     "msg": None,
-                    "sender": None,
                     "purpose": Purpose.FREE,
                 },
                 daemon=True,
             )
         )
 
-    def receiveMsg_FinishFreeMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
+    def _finish_free(self):
         """Handle the reply from remote host for FREE request."""
         if self.success == Status.OK:
             success = Status(self.response.get("Error code", 98))
@@ -276,15 +262,13 @@ class DeviceActor(DeviceBaseActor):
                     "endpoint": f"{self.base_url}/list/{self.device_id}/reserve",
                     "params": {"who": who},
                     "msg": None,
-                    "sender": None,
                     "purpose": Purpose.RESERVE,
                 },
                 daemon=True,
             )
         )
 
-    def receiveMsg_FinishReserveMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
+    def _finish_reserve(self):
         """Forward the reservation state from the Instrument Server to the REST API."""
         if self.success == Status.OK:
             success = Status(self.response.get("Error code", 98))
@@ -305,10 +289,10 @@ class DeviceActor(DeviceBaseActor):
             logger.error(
                 "Reservation failed with %s. Removing device from list.", success
             )
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
         elif success == Status.ERROR:
-            logger.critical("%s during reservation", success)
-            system_shutdown()
+            logger.error("%s during reservation", success)
+            self._kill_myself()
         self._send_reservation_status_msg()
 
     @overrides
@@ -325,14 +309,13 @@ class DeviceActor(DeviceBaseActor):
                     "endpoint": f"{self.base_url}/list/{self.device_id}/",
                     "params": None,
                     "msg": msg,
-                    "sender": sender,
                     "purpose": Purpose.STATUS,
                 },
                 daemon=True,
             )
         )
 
-    def receiveMsg_FinishSetDeviceStatusMsg(self, msg, _sender):
+    def _finish_set_device_status(self, msg):
         # pylint: disable=invalid-name
         """Finalize SetDeviceStatusMsg handler after receiving HTTP request."""
         if self.success == Status.OK:

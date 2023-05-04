@@ -17,9 +17,7 @@ from typing import Union
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (FinishReserveMsg,
-                                               FinishWakeupMsg, Gps, KillMsg,
-                                               RecentValueMsg, RescanMsg,
+from registrationserver.actor_messages import (Gps, RecentValueMsg, RescanMsg,
                                                RxBinaryMsg, Status)
 from registrationserver.config import usb_backend_config
 from registrationserver.helpers import short_id
@@ -30,8 +28,6 @@ from sarad.doseman import DosemanInst  # type: ignore
 from sarad.radonscout import RscInst  # type: ignore
 from sarad.sari import SaradInst  # type: ignore
 from serial import SerialException  # type: ignore
-
-# logger.debug("%s -> %s", __package__, __file__)
 
 
 class Purpose(Enum):
@@ -56,9 +52,9 @@ class UsbActor(DeviceBaseActor):
     def __init__(self):
         logger.debug("Initialize a new USB actor.")
         super().__init__()
-        self.mqtt_scheduler = None
         self.instrument: Union[SaradInst, None] = None
         self.is_connected = True
+        self.next_method = None
         self.check_connection_thread = Thread(
             target=self._check_connection,
             daemon=True,
@@ -76,6 +72,11 @@ class UsbActor(DeviceBaseActor):
                 "sensor": None,
                 "measurand": None,
             },
+            daemon=True,
+        )
+        self.setup_thread = Thread(
+            target=self._setup,
+            kwargs={"family_id": None, "poll": False, "route": None},
             daemon=True,
         )
 
@@ -99,11 +100,13 @@ class UsbActor(DeviceBaseActor):
 
     def _check_connection(self, purpose: Purpose = Purpose.WAKEUP):
         logger.debug("Check if %s is still connected", self.my_id)
-        self.is_connected = self.instrument.get_description()
+        if self.instrument is not None:
+            self.is_connected = self.instrument.get_description()
         if purpose == Purpose.WAKEUP:
-            self.send(self.myAddress, FinishWakeupMsg())
+            self.next_method = self._finish_poll
         elif purpose == Purpose.RESERVE:
-            self.send(self.myAddress, FinishReserveMsg(Status.OK))
+            logger.debug("Call _finish_reserve at next Wakeup")
+            self.next_method = self._finish_reserve
 
     def receiveMsg_SetupUsbActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -116,6 +119,16 @@ class UsbActor(DeviceBaseActor):
             sender,
         )
         family_id = msg.family["family_id"]
+        if msg.poll:
+            self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
+        self.setup_thread = Thread(
+            target=self._setup,
+            kwargs={"family_id": family_id, "route": msg.route},
+            daemon=True,
+        )
+        self.setup_thread.start()
+
+    def _setup(self, family_id=None, route=None):
         if family_id == 1:
             family_class = DosemanInst
         elif family_id == 2:
@@ -123,21 +136,28 @@ class UsbActor(DeviceBaseActor):
         elif family_id == 5:
             family_class = DacmInst
         else:
-            logger.error("Family %s not supported", family_id)
-            return None
+            logger.critical("Family %s not supported", family_id)
+            self.is_connected = False
+            return
         self.instrument = family_class()
-        self.instrument.route = msg.route
+        self.instrument.route = route
+        if usb_backend_config["SET_RTC"]:
+            if usb_backend_config["USE_UTC"]:
+                now = datetime.utcnow()
+            else:
+                now = datetime.now()
+            logger.info("Set RTC of %s to %s", self.my_id, now)
+            self.instrument.set_real_time_clock(now)
         self.instrument.release_instrument()
         logger.info("Instrument with Id %s detected.", self.my_id)
-        if msg.poll:
-            self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
-        return None
+        return
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
-        logger.debug("Wakeup %s", self.my_id)
+        logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
         if msg.payload is None:
+            logger.debug("Check connection of %s", self.my_id)
             self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
             try:
                 is_reserved = self.device_status["Reservation"]["Active"]
@@ -152,15 +172,22 @@ class UsbActor(DeviceBaseActor):
                         },
                         daemon=True,
                     )
-        elif isinstance(msg.payload, Thread):
+                self.wakeupAfter(timedelta(seconds=0.5), payload="poll")
+        elif isinstance(msg.payload, tuple) and isinstance(msg.payload[0], Thread):
+            logger.debug("Start %s thread", msg.payload[1])
             self._start_thread(msg.payload[0], msg.payload[1])
+        elif msg.payload in ("reserve", "poll"):
+            if self.next_method is None:
+                self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
+            else:
+                self.next_method()
+                self.next_method = None
 
-    def receiveMsg_FinishWakeupMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
-        """Finalize the handling of WakeupMessage"""
-        if not self.is_connected:
+    def _finish_poll(self):
+        """Finalize the handling of WakeupMessage for regular rescan"""
+        if not self.is_connected and not self.on_kill:
             logger.info("Nothing connected -> Killing myself")
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
         else:
             hid = Hashids()
             instr_id = hid.encode(
@@ -231,7 +258,7 @@ class UsbActor(DeviceBaseActor):
                     emergency = True
         if emergency:
             logger.info("Killing myself")
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
         elif not reply["is_valid"]:
             logger.warning("Invalid binary message from instrument.")
             self.send(sender, RxBinaryMsg(reply["raw"]))
@@ -255,13 +282,14 @@ class UsbActor(DeviceBaseActor):
             ),
             ThreadType.CHECK_CONNECTION,
         )
+        self.wakeupAfter(timedelta(seconds=0.5), payload="reserve")
 
-    def receiveMsg_FinishReserveMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
+    def _finish_reserve(self):
         """Forward the reservation state from the Instrument Server to the REST API."""
-        if not self.is_connected:
+        logger.debug("_finish_reserve")
+        if not self.is_connected and not self.on_kill:
             logger.info("Killing myself")
-            self.send(self.myAddress, KillMsg())
+            self._kill_myself()
             self._handle_reserve_reply_from_is(Status.NOT_FOUND)
         else:
             self._handle_reserve_reply_from_is(Status.OK)
@@ -344,12 +372,12 @@ class UsbActor(DeviceBaseActor):
         super().receiveMsg_ChildActorExited(msg, sender)
 
     @overrides
-    def receiveMsg_KillMsg(self, msg, sender):
+    def _kill_myself(self, register=True):
         try:
             self.instrument.release_instrument()
         except AttributeError:
             logger.warning("The USB Actor to be killed wasn't initialized properly.")
-        super().receiveMsg_KillMsg(msg, sender)
+        super()._kill_myself(register=register)
 
 
 if __name__ == "__main__":

@@ -274,13 +274,19 @@ if os.name == "nt":
 else:
     DEFAULT_POLL_SERIAL_PORTS = ["/dev/ttyS0"]
 DEFAULT_IGNORED_SERIAL_PORTS: List[str] = []
+DEFAULT_IGNORED_HWIDS: List[str] = []
 DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
+DEFAULT_SET_RTC = True
+DEFAULT_USE_UTC = True
 
 if customization.get("usb_backend") is None:
     usb_backend_config = {
         "POLL_SERIAL_PORTS": DEFAULT_POLL_SERIAL_PORTS,
         "IGNORED_SERIAL_PORTS": DEFAULT_IGNORED_SERIAL_PORTS,
+        "IGNORED_HWIDS": DEFAULT_IGNORED_HWIDS,
         "LOCAL_RETRY_INTERVAL": DEFAULT_LOCAL_RETRY_INTERVAL,
+        "SET_RTC": DEFAULT_SET_RTC,
+        "USE_UTC": DEFAULT_USE_UTC,
     }
 else:
     usb_backend_config = {
@@ -290,9 +296,16 @@ else:
         "IGNORED_SERIAL_PORTS": customization["usb_backend"].get(
             "ignored_serial_ports", DEFAULT_IGNORED_SERIAL_PORTS
         ),
+        "IGNORED_HWIDS": customization["usb_backend"].get(
+            "ignored_hwids", DEFAULT_IGNORED_HWIDS
+        ),
         "LOCAL_RETRY_INTERVAL": customization["usb_backend"].get(
             "local_retry_interval", DEFAULT_LOCAL_RETRY_INTERVAL
         ),
+        "SET_RTC": customization["usb_backend"].get(
+            "set_realtime_clock", DEFAULT_SET_RTC
+        ),
+        "USE_UTC": customization["usb_backend"].get("use_utc", DEFAULT_USE_UTC),
     }
 
 rs485_backend_config = customization.get("rs485_backend", {})

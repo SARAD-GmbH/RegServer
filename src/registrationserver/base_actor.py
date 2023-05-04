@@ -107,35 +107,37 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name, unused-argument
         """Handle the KillMsg for this actor"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.on_kill = True
-        if self.get_updates:
-            self._unsubscribe_from_actor_dict_msg()
-        if self.child_actors:
-            self._forward_to_children(msg)
-            self._forward_to_children(ActorExitRequest())
-        else:
-            if msg.register:
-                self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
-            self.send(self.myAddress, ActorExitRequest())
-            if self.is_device_actor:
-                logger.info(
-                    "Device actor %s exited at %s.", self.my_id, self.parent.parent_id
-                )
+        self._kill_myself(register=msg.register)
+
+    def _kill_myself(self, register=True):
+        if not self.on_kill:
+            self.on_kill = True
+            if self.get_updates:
+                self._unsubscribe_from_actor_dict_msg()
+            if self.child_actors:
+                self._forward_to_children(KillMsg(register=register))
+            else:
+                if register:
+                    self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
+                self.send(self.myAddress, ActorExitRequest())
 
     def receiveMsg_KeepAliveMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
         """Handler for KeepAliveMsg from the Registrar"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self._keep_alive_handler(msg.report)
+
+    def _keep_alive_handler(self, report):
         if self.child_actors and not self.on_kill:
             for child_id, child_actor in self.child_actors.items():
                 keep_alive_msg = KeepAliveMsg(
                     parent=Parent(self.my_id, self.myAddress),
                     child=child_id,
-                    report=msg.report,
+                    report=report,
                 )
                 logger.debug("Forward %s to %s", keep_alive_msg, child_id)
                 self.send(child_actor["actor_address"], keep_alive_msg)
-        if msg.report:
+        if report:
             self._subscribe(True)
 
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
@@ -156,14 +158,19 @@ class BaseActor(ActorTypeDispatcher):
         """Handler for ChildActorExited"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         actor_id = self._get_actor_id(msg.childAddress, self.child_actors)
-        self.send(self.registrar, UnsubscribeMsg(actor_id))
-        self.child_actors.pop(actor_id, None)
-        logger.debug(
-            "List of child actors after removal of %s: %s", actor_id, self.child_actors
-        )
+        child_actor = self.child_actors.pop(actor_id, None)
+        if child_actor is not None:
+            # self.send(self.registrar, UnsubscribeMsg(actor_id))
+            logger.debug(
+                "List of child actors after removal of %s: %s",
+                actor_id,
+                self.child_actors,
+            )
         logger.debug("self.on_kill is %s", self.on_kill)
         if (not self.child_actors) and self.on_kill:
-            logger.debug("Unsubscribe and send ActorExitRequest to myself")
+            logger.debug(
+                "Unsubscribe from Registrar and send ActorExitRequest to myself"
+            )
             self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
             self.send(self.myAddress, ActorExitRequest())
 
@@ -171,6 +178,12 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name
         """Handler for ActorExitRequest"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if self.is_device_actor:
+            logger.info(
+                "Device actor %s exited at %s.",
+                self.my_id,
+                self.parent.parent_id,
+            )
         # self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
 
     def receiveMsg_DeadEnvelope(self, msg, sender):

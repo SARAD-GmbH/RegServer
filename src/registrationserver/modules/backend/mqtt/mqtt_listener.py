@@ -13,8 +13,7 @@ in the MQTT network
 import json
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (KillMsg, MqttConnectedMsg,
-                                               PrepareMqttActorMsg,
+from registrationserver.actor_messages import (KillMsg, PrepareMqttActorMsg,
                                                SetDeviceStatusMsg)
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
@@ -67,8 +66,8 @@ class MqttListener(MqttBaseActor):
         super().__init__()
         self._hosts = {}
 
-    def receiveMsg_MqttConnectedMsg(self, _msg, _sender):
-        # pylint: disable=invalid-name
+    @overrides
+    def _connected(self):
         """Initial setup of the MQTT client"""
         self.mqttc.message_callback_add("+/+/meta", self.on_is_meta)
         self.mqttc.message_callback_add("+/+/+/meta", self.on_instr_meta)

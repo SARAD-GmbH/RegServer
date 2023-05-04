@@ -296,6 +296,7 @@ def get_device_status(registrar_actor, device_id: str) -> dict:
         )
         system_shutdown()
         return {}
+    logger.debug("get_device_status() returned with %s", result.device_status)
     return result.device_status
 
 
@@ -448,6 +449,7 @@ def send_free_message(device_id, registrar_actor) -> Status:
 
     Returns: Success status
     """
+    logger.debug("Before FREE operation")
     device_state = get_device_status(registrar_actor, device_id)
     if (device_state == {}) or (
         device_actor := get_actor(registrar_actor, device_id)
