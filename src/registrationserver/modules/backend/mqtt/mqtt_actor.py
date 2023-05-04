@@ -193,7 +193,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             "topic": self.allowed_sys_topics["CTRL"],
             "payload": json.dumps({"Req": "free"}),
             "qos": 0,
-            "retain": True,
+            "retain": False,
         }
         _re = self._publish(_msg)
         logger.info("Unsubscribe MQTT actor from 'msg' topic")
