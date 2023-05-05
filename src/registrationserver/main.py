@@ -200,6 +200,8 @@ def shutdown(startup_tupel, wait_some_time, registrar_is_down, with_error=True):
     kill_residual_processes(end_with_error=with_error)
     if with_error:
         raise SystemExit("Exit with error for automatic restart.")
+    if GLOBAL_LED and not GLOBAL_LED.closed:
+        GLOBAL_LED.close()
     logger.info("RegServer ended gracefully")
 
 
