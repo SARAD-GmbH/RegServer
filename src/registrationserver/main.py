@@ -290,7 +290,7 @@ def check_network():
             continue
         for entry in j:
             if "CONNECTED_" in entry["MESSAGE"]:
-                GLOBAL_LED.on()
+                GLOBAL_LED.close()
             elif "DISCONNECTED" in entry["MESSAGE"]:
                 GLOBAL_LED.blink()
 
@@ -329,7 +329,7 @@ def main():
     interval = actor_config["OUTER_WATCHDOG_INTERVAl"]
     last_trial = datetime.now()
     registrar_is_down = False
-    if GLOBAL_LED:
+    if (Frontend.MQTT not in frontend_config) and GLOBAL_LED:
         check_network_thread = threading.Thread(target=check_network, daemon=True)
         check_network_thread.start()
     while is_flag_set()[0]:
