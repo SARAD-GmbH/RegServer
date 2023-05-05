@@ -16,6 +16,8 @@ import threading
 import time
 from datetime import datetime, timedelta
 
+from gpiozero import LED  # type: ignore
+from gpiozero.exc import BadPinFactory  # type: ignore
 from serial.serialutil import SerialException  # type: ignore
 from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
@@ -112,6 +114,12 @@ def startup():
             daemon=True,
         )
         api_thread.start()
+    if Frontend.MQTT not in frontend_config:
+        try:
+            led = LED(23)
+            led.on()
+        except BadPinFactory:
+            logger.info("On a Rasperry Pi, you could see a LED glowing on GPIO 23.")
     if Frontend.MODBUS_RTU in frontend_config:
         try:
             modbus_rtu = ModbusRtu(registrar_actor)

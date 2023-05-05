@@ -11,6 +11,8 @@ Author
 import json
 import time
 
+from gpiozero import PWMLED  # type: ignore
+from gpiozero.exc import BadPinFactory  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (FreeDeviceMsg, ReserveDeviceMsg,
                                                Status, TxBinaryMsg)
@@ -59,6 +61,12 @@ class MqttSchedulerActor(MqttBaseActor):
             height=config["HEIGHT"],
         )
         self.pending_control_action = ControlType.UNKNOWN
+        try:
+            self.led = PWMLED(23)
+            self.led.pulse()
+        except BadPinFactory:
+            logger.info("On a Raspberry Pi, you could see a LED pulsing on GPIO 23.")
+            self.led = False
 
     @overrides
     def _connected(self):
@@ -74,6 +82,14 @@ class MqttSchedulerActor(MqttBaseActor):
             payload=get_is_meta(self.is_meta._replace(state=0)),
         )
         self.mqttc.loop_start()
+        if self.led:
+            self.led.on()
+
+    @overrides
+    def on_disconnect(self, client, userdata, result_code):
+        super().on_disconnect(client, userdata, result_code)
+        if self.led:
+            self.led.pulse()
 
     @overrides
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
