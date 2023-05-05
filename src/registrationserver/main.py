@@ -71,6 +71,11 @@ def startup():
     # Initialization of the actor system,
     # can be changed to a distributed system here.
     # =======================
+    if GLOBAL_LED:
+        if Frontend.MQTT in frontend_config:
+            GLOBAL_LED.close()  # MQTT scheduler will take over
+        else:
+            GLOBAL_LED.on()  # We are online.
     try:
         system = ActorSystem(
             systemBase=actor_config["systemBase"],
@@ -125,8 +130,6 @@ def startup():
             daemon=True,
         )
         api_thread.start()
-    if (Frontend.MQTT not in frontend_config) and GLOBAL_LED:
-        GLOBAL_LED.on()
     if Frontend.MODBUS_RTU in frontend_config:
         try:
             modbus_rtu = ModbusRtu(registrar_actor)
@@ -290,7 +293,7 @@ def check_network():
             continue
         for entry in j:
             if "CONNECTED_" in entry["MESSAGE"]:
-                GLOBAL_LED.close()
+                GLOBAL_LED.on()
             elif "DISCONNECTED" in entry["MESSAGE"]:
                 GLOBAL_LED.blink()
 
