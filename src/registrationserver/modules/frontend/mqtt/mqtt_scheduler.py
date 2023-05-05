@@ -82,8 +82,6 @@ class MqttSchedulerActor(MqttBaseActor):
             payload=get_is_meta(self.is_meta._replace(state=0)),
         )
         self.mqttc.loop_start()
-        if self.led:
-            self.led.on()
 
     @overrides
     def on_disconnect(self, client, userdata, result_code):
@@ -217,6 +215,8 @@ class MqttSchedulerActor(MqttBaseActor):
     def on_connect(self, client, userdata, flags, result_code):
         """Will be carried out when the client connected to the MQTT broker."""
         super().on_connect(client, userdata, flags, result_code)
+        if self.led:
+            self.led.on()
         self.mqttc.publish(
             retain=True,
             topic=f"{self.group}/{self.is_id}/meta",
