@@ -11,13 +11,12 @@
 """
 
 import os
+import select
 import sys
 import threading
 import time
 from datetime import datetime, timedelta
 
-from gpiozero import LED  # type: ignore
-from gpiozero.exc import BadPinFactory  # type: ignore
 from serial.serialutil import SerialException  # type: ignore
 from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
@@ -38,9 +37,21 @@ from registrationserver.shutdown import (is_flag_set, kill_processes,
 
 if os.name == "nt":
     from registrationserver.modules.backend.usb.win_listener import UsbListener
+
+    GLOBAL_LED = False
 else:
+    from gpiozero import LED  # type: ignore
+    from gpiozero.exc import BadPinFactory  # type: ignore
+    from systemd import journal
+
     from registrationserver.modules.backend.usb.unix_listener import \
         UsbListener
+
+    try:
+        GLOBAL_LED = LED(23)
+    except BadPinFactory:
+        logger.info("On a Rasperry Pi, you could see a LED glowing on GPIO 23.")
+        GLOBAL_LED = False
 
 RETRY_DELAY = 2  # in seconds
 
@@ -114,12 +125,8 @@ def startup():
             daemon=True,
         )
         api_thread.start()
-    if Frontend.MQTT not in frontend_config:
-        try:
-            led = LED(23)
-            led.on()
-        except BadPinFactory:
-            logger.info("On a Rasperry Pi, you could see a LED glowing on GPIO 23.")
+    if (Frontend.MQTT not in frontend_config) and GLOBAL_LED:
+        GLOBAL_LED.on()
     if Frontend.MODBUS_RTU in frontend_config:
         try:
             modbus_rtu = ModbusRtu(registrar_actor)
@@ -269,7 +276,27 @@ def custom_hook(args):
     system_shutdown(with_error=True)
 
 
+def check_network():
+    """Check the Journal for new entries of NetworkManager."""
+    j = journal.Reader()
+    j.add_match("_SYSTEMD_UNIT=NetworkManager.service")
+    j.log_level(journal.LOG_INFO)
+    j.seek_tail()
+    j.get_previous()
+    p = select.poll()  # pylint: disable=invalid-name
+    p.register(j, j.get_events())
+    while p.poll():
+        if j.process() != journal.APPEND:
+            continue
+        for entry in j:
+            if "CONNECTED_" in entry["MESSAGE"]:
+                GLOBAL_LED.on()
+            elif "DISCONNECTED" in entry["MESSAGE"]:
+                GLOBAL_LED.blink()
+
+
 def main():
+    # pylint: disable=too-many-branches
     """Main function of the Registration Server"""
     try:
         with open(LOGFILENAME, "w", encoding="utf8") as _:
@@ -302,6 +329,9 @@ def main():
     interval = actor_config["OUTER_WATCHDOG_INTERVAl"]
     last_trial = datetime.now()
     registrar_is_down = False
+    if GLOBAL_LED:
+        check_network_thread = threading.Thread(target=check_network, daemon=True)
+        check_network_thread.start()
     while is_flag_set()[0]:
         before = datetime.now()
         if (before - last_trial).total_seconds() > interval:
