@@ -9,10 +9,9 @@ Author
 .. uml :: uml-mqtt_scheduler.puml
 """
 import json
+import os
 import time
 
-from gpiozero import PWMLED  # type: ignore
-from gpiozero.exc import BadPinFactory  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (FreeDeviceMsg, ReserveDeviceMsg,
                                                Status, TxBinaryMsg)
@@ -27,6 +26,10 @@ from registrationserver.modules.ismqtt_messages import (ControlType,
                                                         get_instr_control,
                                                         get_instr_reservation,
                                                         get_is_meta)
+
+if os.name != "nt":
+    from gpiozero import PWMLED  # type: ignore
+    from gpiozero.exc import BadPinFactory  # type: ignore
 
 
 class MqttSchedulerActor(MqttBaseActor):
@@ -61,11 +64,16 @@ class MqttSchedulerActor(MqttBaseActor):
             height=config["HEIGHT"],
         )
         self.pending_control_action = ControlType.UNKNOWN
-        try:
-            self.led = PWMLED(23)
-            self.led.pulse()
-        except BadPinFactory:
-            logger.info("On a Raspberry Pi, you could see a LED pulsing on GPIO 23.")
+        if os.name != "nt":
+            try:
+                self.led = PWMLED(23)
+                self.led.pulse()
+            except BadPinFactory:
+                logger.info(
+                    "On a Raspberry Pi, you could see a LED pulsing on GPIO 23."
+                )
+                self.led = False
+        else:
             self.led = False
 
     @overrides
