@@ -1,7 +1,7 @@
 [Unit]
 Description=SARAD Registration Server
-After=network-online.target
-Wants=network-online.target
+After=time-sync.target
+Wants=time-sync.target
 
 [Service]
 WorkingDirectory=/home/pi/RegServer/src
