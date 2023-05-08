@@ -22,7 +22,6 @@ pyyaml = "*"
 appdirs = "*"
 overrides = "*"
 click = "*"
-pywin32 = {version = "*", sys_platform = "== 'win32'"}
 keyboard = "*"
 polling2 = "*"
 pefile = "*"
@@ -32,10 +31,11 @@ requests = "*"
 waitress = "*"
 modbus-tk = "*"
 flask-restx = "*"
+rpi-gpio = "*"
+pywin32 = {version = "*", sys_platform = "== 'win32'"}
+data-collector = {editable = true, git = "https://github.com/SARAD-GmbH/data_collector.git"}
+gpiozero = "*"
+systemd-python = "*"
 
 [requires]
 python_version = "3"
-
-[packages.data-collector]
-editable = true
-git = "https://github.com/SARAD-GmbH/data_collector.git"

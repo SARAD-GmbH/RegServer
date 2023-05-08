@@ -23,8 +23,6 @@ from registrationserver.base_actor import BaseActor
 from registrationserver.config import config, rest_frontend_config
 from registrationserver.logger import logger
 
-# logger.debug("%s -> %s", __package__, __file__)
-
 
 class RedirectorActor(BaseActor):
     """Create listening server socket for binary pakets from a SARAD© Application"""
@@ -44,8 +42,28 @@ class RedirectorActor(BaseActor):
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
-        if msg.payload == "loop" and not self.on_kill:
+        if msg.payload == "loop":
             self._loop()
+
+    def _loop(self):
+        if not self.on_kill:
+            try:
+                # Listen to socket and redirect any message from the socket to the device actor
+                server_socket = self.read_list[0]
+                timeout = 0.1
+                readable, _writable, _errored = select.select(
+                    self.read_list, [], [], timeout
+                )
+                for self.conn in readable:
+                    if self.conn is server_socket:
+                        self._client_socket, self._socket_info = server_socket.accept()
+                        self.read_list.append(self._client_socket)
+                        logger.debug("Connection from %s", self._socket_info)
+                    else:
+                        self._cmd_handler()
+            except (ValueError, IOError) as exception:
+                logger.error("%s in _loop function of redirector", exception)
+            self.wakeupAfter(datetime.timedelta(seconds=0.055), payload="loop")
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -91,27 +109,15 @@ class RedirectorActor(BaseActor):
         logger.debug("Setup finished with %s", return_msg)
         self.send(sender, return_msg)
         logger.debug("Start socket loop")
-        self._loop()
+        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="loop")
 
     @overrides
-    def receiveMsg_KillMsg(self, msg, sender):
-        """Handler to exit the redirector actor."""
-        self.read_list[0].close()
-        super().receiveMsg_KillMsg(msg, sender)
-
-    def _loop(self):
-        """Listen to socket and redirect any message from the socket to the device actor"""
-        server_socket = self.read_list[0]
-        timeout = 0.1
-        readable, _writable, _errored = select.select(self.read_list, [], [], timeout)
-        for self.conn in readable:
-            if self.conn is server_socket:
-                self._client_socket, self._socket_info = server_socket.accept()
-                self.read_list.append(self._client_socket)
-                logger.debug("Connection from %s", self._socket_info)
-            else:
-                self._cmd_handler()
-        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="loop")
+    def _kill_myself(self, register=True):
+        try:
+            self.read_list[0].close()
+        except (ValueError, IOError) as exception:
+            logger.error("%s in KillMsg handler of redirector", exception)
+        super()._kill_myself(register)
 
     def _cmd_handler(self):
         """Handle a binary SARAD command received via the socket."""
@@ -123,12 +129,14 @@ class RedirectorActor(BaseActor):
                 logger.error("Connection reset by SARAD application software.")
                 data = None
                 time.sleep(5)
+            except (ValueError, IOError) as exception:
+                logger.error("%s in _sendall function", exception)
         if data is None:
             logger.critical("Application software seems to be dead.")
-            self.receiveMsg_KillMsg(None, self.my_parent)
+            self._kill_myself()
         elif data == b"":
             logger.debug("The application closed the socket.")
-            self.receiveMsg_KillMsg(None, self.my_parent)
+            self._kill_myself()
         else:
             logger.debug(
                 "Redirect %s from app, socket %s to device actor %s",
@@ -149,5 +157,7 @@ class RedirectorActor(BaseActor):
             except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")
                 time.sleep(5)
+            except (ValueError, IOError) as exception:
+                logger.error("%s in RxBinaryMsg handler", exception)
         logger.critical("Application software seems to be dead.")
-        self.receiveMsg_KillMsg(None, self.my_parent)
+        self._kill_myself()

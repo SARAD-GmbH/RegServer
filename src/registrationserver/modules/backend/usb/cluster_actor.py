@@ -11,7 +11,7 @@ Covers as well USB ports as native RS-232 ports, addressed RS-485 as ZigBee.
 """
 
 import os
-from typing import List, Set
+from typing import Set
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (KillMsg, RescanFinishedMsg,
@@ -135,13 +135,13 @@ class ClusterActor(BaseActor):
         3. via an external USB-serial converter (Prolific, Prolific fake, FTDI, QinHeng Electronics)
         4. via the SARAD ZigBee coordinator with FT232R"""
         # Get the list of accessible native RS-232 ports
-        active_ports = [port for port in comports() if not port.pid]
-        # FTDI USB-to-serial converters
-        active_ports.extend(grep("0403"))
-        # Prolific and no-name USB-to-serial converters
-        active_ports.extend(grep("067B"))
-        # QinHeng Electronics USB-to-serial converters
-        active_ports.extend(grep("1a86"))
+        active_ports = comports()
+        logger.debug("RS-232 or UART ports: %s", [port.device for port in active_ports])
+        toxic_ports = []
+        for hwid_filter in usb_backend_config["IGNORED_HWIDS"]:
+            toxic_ports.extend(grep(hwid_filter))
+        for port in toxic_ports:
+            self.ignore_ports.add(port.device)
         # Actually we don't want the ports but the port devices.
         set_of_ports = set()
         for port in active_ports:

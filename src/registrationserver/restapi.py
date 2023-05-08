@@ -38,8 +38,7 @@ from registrationserver.actor_messages import (AddPortToLoopMsg,
 from registrationserver.config import actor_config, mqtt_config
 from registrationserver.helpers import (check_msg, get_actor,
                                         get_device_status, get_device_statuses,
-                                        get_registrar_actor, sanitize_hn,
-                                        send_free_message,
+                                        get_registrar_actor, send_free_message,
                                         send_reserve_message,
                                         transport_technology)
 from registrationserver.logger import logger  # type: ignore
@@ -222,7 +221,8 @@ class Scan(Resource):
                 reply = scan_sys.ask(
                     cluster_actor, RescanMsg(), timeout=timedelta(seconds=60)
                 )
-            except ConnectionResetError:
+            except ConnectionResetError as exception:
+                logger.debug(exception)
                 reply = None
         reply_is_corrupted = check_msg(reply, RescanFinishedMsg)
         if reply_is_corrupted:
@@ -243,6 +243,7 @@ class ListDevice(Resource):
 
     def get(self, device_id):
         """Get indentifying information for a single available instrument."""
+        logger.debug("ListDevice %s", device_id)
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Actor System. -> Emergency shutdown")
@@ -275,6 +276,7 @@ class ReserveDevice(Resource):
     def get(self, device_id):
         """Reserve an available instrument so that nobody else can use it."""
         # Collect information about who sent the request.
+        logger.debug("ReserveDevice %s", device_id)
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
             logger.critical("No response from Registrar Actor. -> Emergency shutdown")
@@ -290,7 +292,7 @@ class ReserveDevice(Resource):
             attribute_who = request.args.get("who").strip('"')
             application = attribute_who.split(" - ")[0]
             user = attribute_who.split(" - ")[1]
-            request_host = sanitize_hn(attribute_who.split(" - ")[2])
+            request_host = attribute_who.split(" - ")[2]
         except (IndexError, AttributeError):
             logger.warning("Reserve request without proper who attribute.")
             status = Status.ATTRIBUTE_ERROR
@@ -305,6 +307,7 @@ class ReserveDevice(Resource):
             attribute_who,
             request_host,
         )
+        logger.debug("Before RESERVE operation")
         device_state = get_device_status(registrar_actor, device_id)
         if (
             transport_technology(device_id) not in ["local", "is1", "mdns", "mqtt"]
@@ -322,13 +325,21 @@ class ReserveDevice(Resource):
             Status.OK_SKIPPED,
             Status.OK_UPDATED,
             Status.OCCUPIED,
+        ):
+            logger.debug("After RESERVE operation")
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                device_id: get_device_status(registrar_actor, device_id),
+            }
+        if status in (
             Status.NOT_FOUND,
             Status.IS_NOT_FOUND,
         ):
             return {
                 "Error code": status.value,
                 "Error": str(status),
-                device_id: get_device_status(registrar_actor, device_id),
+                device_id: {},
             }
         status = Status.CRITICAL
         logger.critical("No response from Device Actor. -> Emergency shutdown")
@@ -352,6 +363,7 @@ class FreeDevice(Resource):
 
     def get(self, device_id):
         """Free/release a device that was reserved before"""
+        logger.debug("FreeDevice %s", device_id)
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
         else:
@@ -369,10 +381,22 @@ class FreeDevice(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
+        if status in (
+            Status.OK,
+            Status.OK_SKIPPED,
+            Status.OK_UPDATED,
+            Status.OCCUPIED,
+        ):
+            logger.debug("After FREE operation")
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                device_id: get_device_status(registrar_actor, device_id),
+            }
         return {
             "Error code": status.value,
             "Error": str(status),
-            device_id: get_device_status(registrar_actor, device_id),
+            device_id: {},
         }
 
 

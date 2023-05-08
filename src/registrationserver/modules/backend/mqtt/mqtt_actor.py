@@ -11,6 +11,7 @@
 """
 import datetime
 import json
+from datetime import timedelta
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
@@ -65,6 +66,18 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         self.cmd_id = 0
         self.msg_id["UNSUBSCRIBE"] = None
         self.msg_id["PUBLISH"] = None
+        self.is_id = None
+
+    @overrides
+    def receiveMsg_WakeupMessage(self, msg, sender):
+        super().receiveMsg_WakeupMessage(msg, sender)
+        logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
+        if msg.payload == "connect":
+            if self.next_method is None:
+                self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
+            else:
+                self.next_method()
+                self.next_method = None
 
     @overrides
     def receiveMsg_TxBinaryMsg(self, msg, sender):
@@ -144,11 +157,17 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
 
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
+        self.is_id = msg.is_id
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
+
+    @overrides
+    def _connected(self):
+        # pylint: disable=invalid-name
+        """Initial setup of the MQTT client"""
         self.mqttc.on_publish = self.on_publish
         for k in self.allowed_sys_topics:
             self.allowed_sys_topics[k] = (
-                f"{self.group}/{msg.is_id}/"
+                f"{self.group}/{self.is_id}/"
                 + f"{short_id(self.my_id)}/{self.allowed_sys_options[k]}"
             )
             logger.debug("allowed topic: %s", self.allowed_sys_topics[k])
@@ -165,17 +184,16 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             qos=0,
             retain=True,
         )
-        if self._connect(self.mqtt_broker, self.port):
-            self.mqttc.loop_start()
+        self.mqttc.loop_start()
 
     @overrides
-    def receiveMsg_FreeDeviceMsg(self, msg, sender):
-        super().receiveMsg_FreeDeviceMsg(msg, sender)
+    def _request_free_at_is(self):
+        """Forward the free request to the broker."""
         _msg = {
             "topic": self.allowed_sys_topics["CTRL"],
             "payload": json.dumps({"Req": "free"}),
             "qos": 0,
-            "retain": True,
+            "retain": False,
         }
         _re = self._publish(_msg)
         logger.info("Unsubscribe MQTT actor from 'msg' topic")
@@ -185,8 +203,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         """Handler for MQTT messages regarding reservation of instruments"""
         reservation_status = Status.ERROR
         reservation = json.loads(message.payload)
-        logger.debug("Update reservation state of %s: %s", self.my_id, reservation)
-        self.device_status["Reservation"] = reservation
+        logger.debug("[on_reserve] received: %s", reservation)
         if self.state["RESERVE"]["Pending"]:
             instr_status = reservation.get("Active")
             app = reservation.get("App")
@@ -228,6 +245,10 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                 reservation_status
             )  # create redirector actor
             self.state["RESERVE"]["Pending"] = False
+            return
+        if not reservation.get("Active", False):
+            logger.debug("Free status: %s", reservation_status)
+            self._handle_free_reply_from_is(Status.OK)
             return
         logger.warning(
             "MQTT actor received a reply to a non-requested reservation on instrument %s",

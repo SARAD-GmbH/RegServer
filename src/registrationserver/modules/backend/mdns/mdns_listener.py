@@ -20,8 +20,9 @@ from registrationserver.actor_messages import (ActorCreatedMsg, CreateActorMsg,
                                                KillMsg, SetDeviceStatusMsg,
                                                SetupHostActorMsg)
 from registrationserver.config import config, mdns_backend_config
-from registrationserver.helpers import (get_actor, sanitize_hn, sarad_protocol,
-                                        short_id, transport_technology)
+from registrationserver.helpers import (get_actor, sarad_protocol, short_id,
+                                        transport_technology)
+from registrationserver.hostname_functions import compare_hostnames
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mdns.host_actor import HostActor
 from registrationserver.shutdown import system_shutdown
@@ -70,7 +71,9 @@ class MdnsListener(ServiceListener):
             type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
         )
         if not info or not name:
-            logger.error("info in Zeroconf message is None")
+            logger.error(
+                "Cannot convert properties. `info` in Zeroconf message is None"
+            )
             return None
         properties = info.properties
         if properties is not None:
@@ -132,12 +135,12 @@ class MdnsListener(ServiceListener):
         info = zc.get_service_info(
             type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
         )
-        hostname = sanitize_hn(self.get_host_addr(info))
+        hostname = self.get_host_addr(info)
         if hostname is None:
             logger.warning("Cannot handle Zeroconf service with info=%s", info)
             host_actor = None
-        else:
-            host_actor = get_actor(self.registrar, hostname)
+            return host_actor, hostname
+        host_actor = get_actor(self.registrar, hostname)
         return host_actor, hostname
 
     def __init__(self, registrar_actor, service_type):
@@ -155,17 +158,18 @@ class MdnsListener(ServiceListener):
         self.hosts = mdns_backend_config["HOSTS"]
         if self.hosts:
             for host in self.hosts:
-                hostname = sanitize_hn(host[0])
+                hostname = host[0]
                 logger.info("Ask Registrar to create Host Actor %s", hostname)
                 with ActorSystem().private() as add_host:
                     try:
                         reply = add_host.ask(
                             self.registrar, CreateActorMsg(HostActor, hostname)
                         )
-                    except ConnectionResetError:
+                    except ConnectionResetError as exception:
+                        logger.debug(exception)
                         reply = None
                 if not isinstance(reply, ActorCreatedMsg):
-                    logger.critical("Got message object of unexpected type")
+                    logger.critical("Got %s instead of ActorCreateMsg", reply)
                     logger.critical("-> Stop and shutdown system")
                     system_shutdown()
                 elif reply.actor_address is None:
@@ -185,25 +189,30 @@ class MdnsListener(ServiceListener):
         # pylint: disable=invalid-name
         """Hook, being called when a new service
         representing a device is being detected"""
+        logger.debug("[Add] Service %s of type %s", name, type_)
         with self.lock:
             host_actor, hostname = self._get_host_actor(zc, type_, name)
+            logger.debug("hostname: %s, host_actor: %s", hostname, host_actor)
             if hostname is None:
                 return
-            hostname = sanitize_hn(hostname)
+            my_hostname = config["MY_HOSTNAME"]
+            logger.debug("Host to add: %s", hostname)
+            logger.debug("My hostname: %s", my_hostname)
             known_hostnames = set()
             for host in self.hosts:
-                known_hostnames.add(sanitize_hn(host[0]))
-            if (host_actor is None) and (hostname not in known_hostnames):
+                known_hostnames.add(host[0])
+            if (host_actor is None) and (not compare_hostnames(my_hostname, hostname)):
                 logger.info("Ask Registrar to create Host Actor %s", hostname)
-                with ActorSystem().private() as add_host:
+                with ActorSystem().private() as create_host:
                     try:
-                        reply = add_host.ask(
+                        reply = create_host.ask(
                             self.registrar, CreateActorMsg(HostActor, hostname)
                         )
-                    except ConnectionResetError:
+                    except ConnectionResetError as exception:
+                        logger.debug(exception)
                         reply = None
                 if not isinstance(reply, ActorCreatedMsg):
-                    logger.critical("Got message object of unexpected type")
+                    logger.critical("Got %s instead of ActorCreateMsg", reply)
                     logger.critical("-> Stop and shutdown system")
                     system_shutdown()
                 elif reply.actor_address is None:
@@ -211,10 +220,10 @@ class MdnsListener(ServiceListener):
                 else:
                     host_actor = reply.actor_address
             data = self.convert_properties(zc, type_, name)
-            if data is not None:
+            if (data is not None) and (host_actor is not None):
                 logger.debug("Tell Host Actor to setup device actor with %s", data)
                 ActorSystem().tell(host_actor, SetDeviceStatusMsg(data))
-            else:
+            elif data is None:
                 logger.error(
                     "add_service was called with bad parameters: %s, %s, %s",
                     zc,

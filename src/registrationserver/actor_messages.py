@@ -15,7 +15,9 @@ from enum import Enum, unique
 from typing import Any, ByteString, Dict, List, Union
 
 from sarad.sari import FamilyDict, Route  # type: ignore
-from thespian.actors import ActorAddress  # type: ignore
+from thespian.actors import ActorAddress, ActorSystemMessage  # type: ignore
+
+from registrationserver.hostname_functions import compare_hostnames
 
 
 @unique
@@ -114,7 +116,7 @@ class Is1Address:
         return
 
     def __eq__(self, other):
-        return self.hostname == other.hostname
+        return compare_hostnames(self.hostname, other.hostname)
 
 
 @dataclass
@@ -215,6 +217,46 @@ class SetupMdnsActorMsg:
     is_host: str
     api_port: int
     device_id: str
+
+
+@dataclass
+class FinishSetupMdnsActorMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class FinishWakeupMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class FinishReserveMsg:
+    """Internal message of MDNS device Actor"""
+
+    status: Status
+
+
+@dataclass
+class RefreshReserveMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class FinishFreeMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class RefreshFreeMsg:
+    """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class FinishSetDeviceStatusMsg:
+    """Internal message of MDNS device Actor"""
+
+    msg: ActorSystemMessage
+    sender: ActorAddress
 
 
 @dataclass
@@ -365,7 +407,14 @@ class GetActorDictMsg:
 class KillMsg:
     """Message sent to an actor to trigger the exit of this actor. The actor has to
     forward this message to all of its children an finally sends an UnsubscribeMsg
-    to the Registrar actor."""
+    to the Registrar actor.
+
+    Args:
+        register (bool): If True, the receiving actor shall send an UnsubscribeMsg
+                         to the Registrar.
+    """
+
+    register: bool = True
 
 
 @dataclass
@@ -407,7 +456,7 @@ class ReserveDeviceMsg:
 
 @dataclass
 class ReservationStatusMsg:
-    """Message to inform about the result of the ReserveDeviceMsg.
+    """Message to inform the REST API about the result of the ReserveDeviceMsg.
 
     Args:
         instr_id (str): instrument id
@@ -456,9 +505,14 @@ class GetDeviceStatusMsg:
 class UpdateDeviceStatusMsg:
     """Message with updated device status information for an instrument.
 
+    This message will be sent by a device actor whenever the status of the
+    device has changed or when a ReserveDeviceMsg or FreeDeviceMsg was handled
+    completely.
+
     Args:
         device_id (str): Device Id in long form
         device_status (dict): Dictionary with status information of the instrument.
+
     """
 
     device_id: str
@@ -670,7 +724,8 @@ class RecentValueMsg:
         status (Status): Error status
         component_name (str): Name of the DACM component
         sensor_name (str): Name of the sensor within the DACM component (derived from Result Index)
-        measurand_name (str): Name of the measurand delivered by the sensor (derived from Item Index)
+        measurand_name (str): Name of the measurand delivered by the sensor
+                              (derived from Item Index)
         measurand (str): Complete measurand (value and unit) as string
         operator (str): Operator associated (i.e. < or >)
         value (float): Value of the measurand

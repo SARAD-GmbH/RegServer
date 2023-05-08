@@ -14,18 +14,23 @@ Based on work of Riccardo Förster <foerster@sarad.de>.
 """
 import socket
 
+from overrides import overrides  # type: ignore
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import (config, mdns_frontend_config,
+from registrationserver.config import (config, get_hostname, get_ip,
+                                       mdns_frontend_config,
                                        rest_frontend_config)
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
+from registrationserver.shutdown import system_shutdown
 from zeroconf import ServiceInfo, Zeroconf
+from zeroconf._exceptions import EventLoopBlocked, NonUniqueNameException
 
 
 class MdnsAdvertiserActor(BaseActor):
     # pylint: disable=too-many-instance-attributes
     """Actor to advertise a listening server socket via mDNS"""
 
+    @overrides
     def __init__(self):
         super().__init__()
         self.device_actor = None
@@ -65,9 +70,17 @@ class MdnsAdvertiserActor(BaseActor):
             if self.occupied and (not self.virgin):
                 self.__update_service()
         if self.virgin:
-            self.__start_advertising()
+            try:
+                self.__start_advertising()
+            except NonUniqueNameException:
+                logger.warning(
+                    "%s is already availabel from another host in this LAN.",
+                    msg.device_id,
+                )
+                self._kill_myself()
 
-    def receiveMsg_KillMsg(self, msg, sender):
+    @overrides
+    def _kill_myself(self, register=True):
         if self.service is not None:
             try:
                 self.zeroconf.unregister_service(self.service)
@@ -77,7 +90,7 @@ class MdnsAdvertiserActor(BaseActor):
                     "%s raised when trying to unregister Zeroconf service", exception
                 )
         self._unsubscribe_from_device_status_msg(self.device_actor)
-        super().receiveMsg_KillMsg(msg, sender)
+        super()._kill_myself(register)
 
     def __start_advertising(self):
         logger.info("Start advertising %s", self.service_name)
@@ -96,9 +109,14 @@ class MdnsAdvertiserActor(BaseActor):
             weight=0,
             priority=0,
             properties=properties,
+            server=get_hostname(get_ip(False)),
             addresses=[socket.inet_aton(self.address)],
         )
-        self.zeroconf.register_service(self.service)
+        try:
+            self.zeroconf.register_service(self.service)
+        except (EventLoopBlocked, AssertionError) as exception:
+            logger.critical(exception)
+            system_shutdown()
         self.virgin = False
         self.__update_service()
 
@@ -119,6 +137,11 @@ class MdnsAdvertiserActor(BaseActor):
             weight=0,
             priority=0,
             properties=properties,
+            server=get_hostname(get_ip(False)),
             addresses=[socket.inet_aton(self.address)],
         )
-        self.zeroconf.update_service(self.service)
+        try:
+            self.zeroconf.update_service(self.service)
+        except (EventLoopBlocked, AssertionError) as exception:
+            logger.critical(exception)
+            system_shutdown()

@@ -11,6 +11,7 @@
 """
 
 import os
+import select
 import sys
 import threading
 import time
@@ -36,9 +37,21 @@ from registrationserver.shutdown import (is_flag_set, kill_processes,
 
 if os.name == "nt":
     from registrationserver.modules.backend.usb.win_listener import UsbListener
+
+    GLOBAL_LED = False
 else:
+    from gpiozero import LED  # type: ignore
+    from gpiozero.exc import BadPinFactory  # type: ignore
+    from systemd import journal
+
     from registrationserver.modules.backend.usb.unix_listener import \
         UsbListener
+
+    try:
+        GLOBAL_LED = LED(23)
+    except BadPinFactory:
+        logger.info("On a Rasperry Pi, you could see a LED glowing on GPIO 23.")
+        GLOBAL_LED = False
 
 RETRY_DELAY = 2  # in seconds
 
@@ -58,6 +71,11 @@ def startup():
     # Initialization of the actor system,
     # can be changed to a distributed system here.
     # =======================
+    if GLOBAL_LED:
+        if Frontend.MQTT in frontend_config:
+            GLOBAL_LED.close()  # MQTT scheduler will take over
+        else:
+            GLOBAL_LED.on()  # We are online.
     try:
         system = ActorSystem(
             systemBase=actor_config["systemBase"],
@@ -182,6 +200,8 @@ def shutdown(startup_tupel, wait_some_time, registrar_is_down, with_error=True):
     kill_residual_processes(end_with_error=with_error)
     if with_error:
         raise SystemExit("Exit with error for automatic restart.")
+    if GLOBAL_LED and not GLOBAL_LED.closed:
+        GLOBAL_LED.close()
     logger.info("RegServer ended gracefully")
 
 
@@ -225,7 +245,7 @@ def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
                 reply = registrar_status.ask(
                     registrar_address,
                     Thespian_StatusReq(),
-                    timeout=timedelta(seconds=1),
+                    timeout=timedelta(seconds=5),
                 )
             except OSError as exception:
                 logger.critical("We are offline. OSError: %s.", exception)
@@ -255,7 +275,33 @@ def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
     return not registrar_is_down
 
 
+def custom_hook(args):
+    """Custom exception hook to handle exceptions that occured within threads."""
+    logger.critical("Thread failed: %s", args.exc_value)
+    system_shutdown(with_error=True)
+
+
+def check_network():
+    """Check the Journal for new entries of NetworkManager."""
+    j = journal.Reader()
+    j.add_match("_SYSTEMD_UNIT=NetworkManager.service")
+    j.log_level(journal.LOG_INFO)
+    j.seek_tail()
+    j.get_previous()
+    p = select.poll()  # pylint: disable=invalid-name
+    p.register(j, j.get_events())
+    while p.poll():
+        if j.process() != journal.APPEND:
+            continue
+        for entry in j:
+            if "CONNECTED_" in entry["MESSAGE"]:
+                GLOBAL_LED.on()
+            elif "DISCONNECTED" in entry["MESSAGE"]:
+                GLOBAL_LED.blink()
+
+
 def main():
+    # pylint: disable=too-many-branches
     """Main function of the Registration Server"""
     try:
         with open(LOGFILENAME, "w", encoding="utf8") as _:
@@ -265,6 +311,7 @@ def main():
     logger.info("Logging system initialized.")
     # maybe there are processes left from last run
     kill_residual_processes(end_with_error=False)
+    threading.excepthook = custom_hook
     if len(sys.argv) < 2:
         start_stop = "start"
     else:
@@ -287,6 +334,9 @@ def main():
     interval = actor_config["OUTER_WATCHDOG_INTERVAl"]
     last_trial = datetime.now()
     registrar_is_down = False
+    if (Frontend.MQTT not in frontend_config) and GLOBAL_LED:
+        check_network_thread = threading.Thread(target=check_network, daemon=True)
+        check_network_thread.start()
     while is_flag_set()[0]:
         before = datetime.now()
         if (before - last_trial).total_seconds() > interval:

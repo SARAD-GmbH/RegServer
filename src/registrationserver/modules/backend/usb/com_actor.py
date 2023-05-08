@@ -8,7 +8,8 @@
 
 """
 
-import os
+from datetime import timedelta
+from threading import Thread
 from typing import Union
 
 from hashids import Hashids  # type: ignore
@@ -37,6 +38,9 @@ class ComActor(BaseActor):
         self.route = None
         self.loop_interval = 0
         self.poll_doseman = False
+        self.loop_thread = Thread(target=self._loop_function, daemon=True)
+        self.next_method = None
+        self.instrument = None
 
     def receiveMsg_SetupComActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -45,12 +49,12 @@ class ComActor(BaseActor):
         self.route = msg.route
         self.loop_interval = msg.loop_interval
         if self.child_actors:
-            logger.info("Update -- child")
+            logger.debug("Update -- child")
             self._forward_to_children(KillMsg())
             self.stop_loop = self.loop_running
             # refer to receiveMsg_ChildActorExited()
         else:
-            logger.info("Update -- no child")
+            logger.debug("Update -- no child")
             self._do_loop()
             self._start_polling()
 
@@ -62,30 +66,49 @@ class ComActor(BaseActor):
             self._start_polling()
 
     def _do_loop(self) -> None:
-        logger.info("[_do_loop] %s", self.route)
-        instrument = None
+        if not self.loop_thread.is_alive():
+            self.loop_thread = Thread(target=self._loop_function, daemon=True)
+            try:
+                self.loop_thread.start()
+                self.wakeupAfter(timedelta(seconds=0.5), payload="loop")
+            except RuntimeError:
+                pass
+
+    def _loop_function(self) -> None:
+        logger.debug("[_do_loop] %s", self.route)
+        self.instrument = None
         if not self.child_actors:
-            instrument = self._get_instrument(self.route)
-        if instrument is not None:
-            self._create_and_setup_actor(instrument)
+            self.instrument = self._get_instrument(self.route)
+        if self.instrument is not None:
+            self.next_method = self._create_and_setup_actor
+        else:
+            self.next_method = self._do_nothing
 
     def _start_polling(self):
         if self.loop_interval and (not self.loop_running):
-            logger.info("Start polling %s.", self.route)
+            logger.info("Start polling %s every %d s.", self.route, self.loop_interval)
             self.loop_running = True
             self.wakeupAfter(self.loop_interval)
         else:
             self.stop_loop = False
 
-    def receiveMsg_WakeupMessage(self, _msg, _sender):
+    def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
-        if (not self.on_kill) and self.loop_interval and not self.stop_loop:
-            self._do_loop()
-            self.wakeupAfter(self.loop_interval)
-            self.loop_running = True
-        else:
-            self.loop_running = False
+        logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
+        if msg.payload == "loop":
+            if self.next_method is None:
+                self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
+            else:
+                self.next_method()
+                self.next_method = None
+        elif msg.payload is None:
+            if (not self.on_kill) and self.loop_interval and not self.stop_loop:
+                self._do_loop()
+                self.wakeupAfter(self.loop_interval)
+                self.loop_running = True
+            else:
+                self.loop_running = False
 
     def _get_instrument(self, route) -> Union[SI, None]:
         hid = Hashids()
@@ -118,19 +141,21 @@ class ComActor(BaseActor):
                     test_instrument.release_instrument()
                     break
                 test_instrument.release_instrument()
-            except SerialException:
-                logger.error("%s not accessible.", route)
-            except OSError:
-                logger.critical("OSError -- exiting for a restart")
-                os._exit(1)  # pylint: disable=protected-access
+            except (SerialException, OSError) as exception:
+                logger.error("%s not accessible: %s", route, exception)
+                self.next_method = self._kill_myself
+                break
         if instr_id is not None:
             return test_instrument
         return None
 
-    def _create_and_setup_actor(self, instrument):
+    def _do_nothing(self):
+        logger.debug("No new instrument found on %s", self.my_id)
+
+    def _create_and_setup_actor(self):
         logger.debug("[_create_and_setup_actor]")
-        family = instrument.family["family_id"]
-        instr_id = instrument.device_id
+        family = self.instrument.family["family_id"]
+        instr_id = self.instrument.device_id
         if family == 5:
             sarad_type = "sarad-dacm"
         elif family in [1, 2]:
@@ -141,7 +166,7 @@ class ComActor(BaseActor):
                 family,
             )
             sarad_type = "unknown"
-        if (family == 1) and (instrument.type_id in (1, 2)):
+        if (family == 1) and (self.instrument.type_id in (1, 2)):
             # DOSEman and DOSEman Pro are using an IR cradle with USB/ser adapter
             self.poll_doseman = True
             if (not self.loop_running) and not self.loop_interval:
@@ -154,24 +179,24 @@ class ComActor(BaseActor):
         device_actor = self._create_actor(UsbActor, actor_id, None)
         device_status = {
             "Identification": {
-                "Name": instrument.type_name,
+                "Name": self.instrument.type_name,
                 "Family": family,
-                "Type": instrument.type_id,
-                "Serial number": instrument.serial_number,
-                "Firmware version": instrument.software_version,
+                "Type": self.instrument.type_id,
+                "Serial number": self.instrument.serial_number,
+                "Firmware version": self.instrument.software_version,
                 "Host": "127.0.0.1",
                 "Protocol": sarad_type,
                 "Origin": config["IS_ID"],
             },
-            "Serial": instrument.route.port,
+            "Serial": self.instrument.route.port,
         }
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
         self.send(device_actor, SetDeviceStatusMsg(device_status))
         self.send(
             device_actor,
             SetupUsbActorMsg(
-                instrument.route,
-                instrument.family,
+                self.instrument.route,
+                self.instrument.family,
                 bool(self.loop_interval) or self.poll_doseman,
             ),
         )

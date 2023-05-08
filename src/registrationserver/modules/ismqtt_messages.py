@@ -122,7 +122,7 @@ def get_instr_control(json_data, old_reservation) -> Control:
         return Control(
             ctype=ControlType.RESERVE,
             data=Reservation(
-                active=False,
+                active=True,
                 app=data["App"],
                 host=data["Host"],
                 user=data["User"],

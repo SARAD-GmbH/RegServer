@@ -11,16 +11,16 @@ import os
 import socket
 import ssl
 import time
+from datetime import timedelta
+from threading import Thread
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import Frontend
+from registrationserver.actor_messages import Frontend, KillMsg
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import frontend_config, mqtt_config
 from registrationserver.logger import logger
 from registrationserver.shutdown import is_flag_set, system_shutdown
-
-# logger.debug("%s -> %s", __package__, __file__)
 
 
 class MqttBaseActor(BaseActor):
@@ -37,9 +37,12 @@ class MqttBaseActor(BaseActor):
             "UNSUBSCRIBE": None,
         }  # store the current message ID to check
         self._subscriptions = {}
-        self.mqtt_broker = None
-        self.port = None
         self.group = None
+        self.connect_thread = Thread(
+            target=self._connect,
+            daemon=True,
+        )
+        self.next_method = None
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
@@ -58,8 +61,6 @@ class MqttBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for PrepareMqttActorMsg from MQTT Listener"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.mqtt_broker = mqtt_config["MQTT_BROKER"]
-        self.port = mqtt_config["PORT"]
         self.mqttc = MQTT.Client(msg.client_id)
         self.group = msg.group
         self.mqttc.reinitialise()
@@ -68,8 +69,21 @@ class MqttBaseActor(BaseActor):
         self.mqttc.on_message = self.on_message
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
+        self.wakeupAfter(timedelta(seconds=0.5), payload="connect")
+        self.connect_thread.start()
 
-    def _connect(self, mqtt_broker, port):
+    def receiveMsg_WakeupMessage(self, msg, _sender):
+        # pylint: disable=invalid-name
+        """Handler for WakeupMessage"""
+        logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
+        if msg.payload == "connect":
+            if self.next_method is None:
+                self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
+            else:
+                self.next_method()
+                self.next_method = None
+
+    def _connect(self):
         """Try to connect the MQTT broker
 
         Retry forever with RETRY_INTERVAL,
@@ -78,6 +92,8 @@ class MqttBaseActor(BaseActor):
         """
         retry_interval = mqtt_config["RETRY_INTERVAL"]
         while self.ungr_disconn > 0 and is_flag_set()[0]:
+            mqtt_broker = mqtt_config["MQTT_BROKER"]
+            port = mqtt_config["PORT"]
             try:
                 logger.info(
                     "Attempting to connect to broker %s: %s",
@@ -98,7 +114,8 @@ class MqttBaseActor(BaseActor):
                         cert_reqs=ssl.CERT_REQUIRED,
                     )
                 self.mqttc.connect(mqtt_broker, port=port)
-                return True
+                self.next_method = self._connected
+                return
             except FileNotFoundError:
                 logger.critical(
                     "Cannot find files expected in %s, %s, %s",
@@ -113,7 +130,9 @@ class MqttBaseActor(BaseActor):
                     system_shutdown()
                 else:
                     logger.warning("Proceed without MQTT.")
-                return False
+                    self.next_method = self._kill_myself
+                self.is_connected = False
+                return
             except socket.gaierror as exception:
                 logger.error("We are offline and can handle only local instruments.")
                 logger.info(
@@ -134,6 +153,9 @@ class MqttBaseActor(BaseActor):
                 logger.info(
                     "Shutdown flag detected. Giving up on connecting to MQTT broker."
                 )
+
+    def _connected(self):
+        """Do everything that can only be done if the MQTT client is connected."""
 
     def on_connect(self, client, userdata, flags, result_code):
         # pylint: disable=unused-argument
@@ -242,12 +264,12 @@ class MqttBaseActor(BaseActor):
             logger.error("Subscribe failed; result code is: %s", return_code)
             return False
         logger.info("[Subscribe] to %s successful", sub_info)
-        for (topic, qos) in sub_info:
+        for topic, qos in sub_info:
             self._subscriptions[topic] = qos
         return True
 
     def _unsubscribe_topic(self, topics: list) -> bool:
-        logger.info("Unsubscribe topics %s", topics)
+        logger.debug("Unsubscribe topics %s", topics)
         if not self.is_connected:
             logger.error("[Unsubscribe] failed, not connected to broker")
             return False
@@ -255,7 +277,7 @@ class MqttBaseActor(BaseActor):
         if return_code != MQTT.MQTT_ERR_SUCCESS:
             logger.warning("[Unsubscribe] failed; result code is: %s", return_code)
             return False
-        logger.info("[Unsubscribe] from %s successful", topics)
+        logger.debug("[Unsubscribe] from %s successful", topics)
         for topic in topics:
             logger.debug("Pop %s from %s", topic, self._subscriptions)
             try:

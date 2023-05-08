@@ -25,7 +25,14 @@ port_range = [50001, 50500]
 [usb_backend]
 poll_serial_ports = ["COM1"]
 ignored_serial_ports = []
+ignored_hwids = ["BTHENUM"]
+# Serial Bluetooth device: "BTHENUM"
+# FTDI USB-to-serial converters: "0403"
+# Prolific and no-name USB-to-serial converters: "067B"
+# QinHeng Electronics USB-to-serial converters: "1a86"
 local_retry_interval = 10  # in seconds
+set_realtime_clock = true  # set the RTC of instrument on every contact
+use_utc = true  # UTC if true, local time if false
 
 [is1_backend]
 registration_port = 50002
@@ -51,7 +58,9 @@ admin_port = 1900
 
 process_startup_method = "spawn"
 watchdog_interval = 20  # in seconds. 0 = inner watchdog switched off
-watchdog_wait = 5  # in seconds
+watchdog_wait = 35  # in seconds. If IS1 backend is active and watchdog_check is
+                   # True, this must be at least 35. In every other case it
+                   # should be at least 10.
 watchdog_check = true  # if true, each Actor has to re-register at the Registrar
 outer_watchdog_interval = 60  # in seconds
 outer_watchdog_trials = 0  # number of attempts to check Registrar

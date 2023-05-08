@@ -18,8 +18,7 @@ from datetime import timedelta
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 
-from registrationserver.actor_messages import (Backend, Frontend, KeepAliveMsg,
-                                               KillMsg, Parent,
+from registrationserver.actor_messages import (Backend, Frontend, KillMsg,
                                                PrepareMqttActorMsg,
                                                ReturnDeviceActorMsg,
                                                UpdateActorDictMsg,
@@ -85,6 +84,9 @@ class Registrar(BaseActor):
             _is1_listener = self._create_actor(Is1Listener, "is1_listener", None)
         keepalive_interval = actor_config["KEEPALIVE_INTERVAL"]
         if keepalive_interval:
+            logger.debug(
+                "Inner watchdog will be activated every %d s.", keepalive_interval
+            )
             self.wakeupAfter(
                 timedelta(seconds=keepalive_interval), payload="keep alive"
             )
@@ -95,7 +97,7 @@ class Registrar(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         CHECK = actor_config["CHECK"]
         if msg.payload == "keep alive":
-            logger.info("Watchdog: start health check")
+            logger.debug("Watchdog: start health check")
             if CHECK:
                 for actor_id in self.actor_dict:
                     self.actor_dict[actor_id]["is_alive"] = False
@@ -108,14 +110,7 @@ class Registrar(BaseActor):
                     timedelta(seconds=actor_config["KEEPALIVE_INTERVAL"]),
                     payload="keep alive",
                 )
-            self.send(
-                self.myAddress,
-                KeepAliveMsg(
-                    parent=Parent(self.my_id, self.myAddress),
-                    child=self.my_id,
-                    report=CHECK,
-                ),
-            )
+            self._keep_alive_handler(CHECK)
         elif msg.payload == "check":
             for actor_id in self.actor_dict:
                 if not self.actor_dict[actor_id]["is_alive"]:
@@ -124,11 +119,102 @@ class Registrar(BaseActor):
                     )
                     logger.critical("-> Emergency shutdown")
                     system_shutdown()
-            logger.info("Watchdog: health check finished successfully")
+            logger.debug("Watchdog: health check finished successfully")
             self.wakeupAfter(
                 timedelta(seconds=actor_config["KEEPALIVE_INTERVAL"]),
                 payload="keep alive",
             )
+
+    def _is_alive(self, actor_id):
+        """Confirm that the actor is still alive."""
+        try:
+            self.actor_dict[actor_id]["is_alive"] = True
+        except KeyError:
+            logger.error(
+                "Great confusion. %s passed away during handling of KeepAliveMsg.",
+                actor_id,
+            )
+
+    def _handle_existing_actor(self, sender, actor_id, is_device_actor):
+        """Do whatever is required if the SubscribeMsg handler finds an actor
+        that is already existing.
+
+        Args:
+            sender: Actor address of the Actor sending the SubscribeMsg
+            actor_id: Id of the actor that shall be subscribed
+            is_device_actor (bool): indicates a device actor
+        """
+        logger.error("The actor %s already exists in the system.", actor_id)
+        self.send(sender, KillMsg(register=False))
+        if is_device_actor:
+            hid = Hashids()
+            serial_number = hid.decode(short_id(actor_id))[2]
+            if serial_number == 65535:
+                logger.info(
+                    "Someone has attached a virgin SARAD instrument. Ignore it!"
+                )
+            elif transport_technology(actor_id) == "mdns":
+                logger.debug(
+                    "%s is availabel from different hosts. First come, first served.",
+                    actor_id,
+                )
+            else:
+                logger.critical("SN %d != 65535 -> Emergency shutdown", serial_number)
+                system_shutdown()
+        else:
+            logger.critical("-> Emergency shutdown")
+            system_shutdown()
+
+    def _handle_device_actor(self, sender, actor_id):
+        """Do whatever is required if the SubscribeMsg handler finds an Device
+        Actor to be subscribed.
+
+        Args:
+            sender: Actor address of the Actor sending the SubscribeMsg
+            actor_id: Id of the actor that shall be subscribed
+        """
+        keep_new_actor = True
+        new_device_id = actor_id
+        for old_device_id in self.actor_dict:
+            if (
+                (short_id(old_device_id) == short_id(new_device_id))
+                and (new_device_id != old_device_id)
+                and (
+                    transport_technology(old_device_id)
+                    in ["local", "mdns", "mqtt", "is1"]
+                )
+            ):
+                old_tt = transport_technology(old_device_id)
+                new_tt = transport_technology(new_device_id)
+                logger.debug("New device_id: %s", new_device_id)
+                logger.debug("Old device_id: %s", old_device_id)
+                if new_tt == "local":
+                    logger.debug(
+                        "Keep new %s and kill the old %s",
+                        new_device_id,
+                        old_device_id,
+                    )
+                    keep_new_actor = True
+                    self.send(self.actor_dict[old_device_id]["address"], KillMsg())
+                elif (new_tt == "mdns") and (old_tt == "is1"):
+                    logger.debug(
+                        "A WLAN instrument might have been connected to another PC via USB."
+                    )
+                    # TODO Check whether old_device_id is still active
+                    logger.warning(
+                        "A WLAN instrument connected via USB to a remote host will be ignored."
+                    )
+                    keep_new_actor = False
+                    self.send(sender, KillMsg())
+                    return
+                else:
+                    logger.debug("Keep device actor %s in place.", old_device_id)
+                    keep_new_actor = False
+                    self.send(sender, KillMsg())
+                    return
+        if (not self.on_kill) and keep_new_actor:
+            logger.debug("Subscribe %s to device statuses dict", actor_id)
+            self._subscribe_to_device_status_msg(sender)
 
     def receiveMsg_SubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -137,27 +223,10 @@ class Registrar(BaseActor):
         if msg.actor_id in self.pending:
             self.pending.remove(msg.actor_id)
         if msg.keep_alive:
-            self.actor_dict[msg.actor_id]["is_alive"] = True
-            self._send_updates(self.actor_dict)
+            self._is_alive(msg.actor_id)
             return
         if msg.actor_id in self.actor_dict:
-            logger.error("The actor %s already exists in the system.", msg.actor_id)
-            self.send(sender, KillMsg())
-            if msg.is_device_actor:
-                hid = Hashids()
-                serial_number = hid.decode(short_id(msg.actor_id))[2]
-                if serial_number == 65535:
-                    logger.info(
-                        "Someone has attached a virgin SARAD instrument. Ignore it!"
-                    )
-                else:
-                    logger.critical(
-                        "SN %d != 65535 -> Emergency shutdown", serial_number
-                    )
-                    system_shutdown()
-            else:
-                logger.critical("-> Emergency shutdown")
-                system_shutdown()
+            self._handle_existing_actor(sender, msg.actor_id, msg.is_device_actor)
             return
         self.actor_dict[msg.actor_id] = {
             "address": sender,
@@ -167,39 +236,7 @@ class Registrar(BaseActor):
             "is_alive": True,
         }
         if msg.is_device_actor:
-            keep_new_actor = True
-            new_device_id = msg.actor_id
-            for old_device_id in self.actor_dict:
-                if (
-                    (short_id(old_device_id) == short_id(new_device_id))
-                    and (new_device_id != old_device_id)
-                    and (
-                        transport_technology(old_device_id)
-                        in ["local", "mdns", "mqtt", "is1"]
-                    )
-                ):
-                    old_tt = transport_technology(old_device_id)
-                    new_tt = transport_technology(new_device_id)
-                    logger.debug("New device_id: %s", new_device_id)
-                    logger.debug("Old device_id: %s", old_device_id)
-                    if (new_tt == "local") or (
-                        (new_tt == "mdns") and (old_tt == "is1")
-                    ):
-                        logger.debug(
-                            "Keep new %s and kill the old %s",
-                            new_device_id,
-                            old_device_id,
-                        )
-                        keep_new_actor = True
-                        self.send(self.actor_dict[old_device_id]["address"], KillMsg())
-                    else:
-                        logger.debug("Keep device actor %s in place.", old_device_id)
-                        keep_new_actor = False
-                        self.send(sender, KillMsg())
-                        return
-            if (not self.on_kill) and keep_new_actor:
-                logger.debug("Subscribe %s to device statuses dict", msg.actor_id)
-                self._subscribe_to_device_status_msg(sender)
+            self._handle_device_actor(sender, msg.actor_id)
         self._send_updates(self.actor_dict)
         return
 
@@ -240,7 +277,7 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for CreateActorMsg. Create a new actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        logger.info("Pending actors: %s", self.pending)
+        logger.debug("Pending actors: %s", self.pending)
         if (msg.actor_id not in self.actor_dict) and (msg.actor_id not in self.pending):
             _actor_address = self._create_actor(msg.actor_type, msg.actor_id, sender)
             self.pending.append(msg.actor_id)
