@@ -24,5 +24,8 @@
 flycheck*
 # Config files
 !/src/*.toml
+# Helpful scripts
+!/bin/**
 # Distribution
 /src/dist
+
