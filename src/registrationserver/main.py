@@ -277,7 +277,8 @@ def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
 
 def custom_hook(args):
     """Custom exception hook to handle exceptions that occured within threads."""
-    logger.critical("Thread failed: %s", args.exc_value)
+    logger.critical("Thread %s failed with %s", args.thread, args.exc_value)
+    logger.critical("Traceback: %s", args.exc_traceback)
     system_shutdown(with_error=True)
 
 
