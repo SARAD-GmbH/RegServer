@@ -19,7 +19,7 @@ mdns = true
 is1 = false
 
 [rest_frontend]
-api_port = 8008
+api_port = 8000
 port_range = [50001, 50500]
 
 [modbus_rtu_frontend]
