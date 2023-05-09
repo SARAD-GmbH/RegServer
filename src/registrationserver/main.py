@@ -12,6 +12,7 @@
 
 import os
 import select
+import shutil
 import sys
 import threading
 import time
@@ -50,7 +51,6 @@ else:
     try:
         GLOBAL_LED = LED(23)
     except BadPinFactory:
-        logger.info("On a Rasperry Pi, you could see a LED glowing on GPIO 23.")
         GLOBAL_LED = False
 
 RETRY_DELAY = 2  # in seconds
@@ -305,11 +305,14 @@ def main():
     # pylint: disable=too-many-branches
     """Main function of the Registration Server"""
     try:
+        shutil.copy2(LOGFILENAME, f"{LOGFILENAME}.1")
+    except Exception:  # pylint: disable=broad-except
+        logger.warning("There is no old log file %s to copy.", LOGFILENAME)
+    try:
         with open(LOGFILENAME, "w", encoding="utf8") as _:
             logger.info("Log entries go to %s", LOGFILENAME)
     except Exception:  # pylint: disable=broad-except
         logger.error("Initialization of log file failed.")
-    logger.info("Logging system initialized.")
     # maybe there are processes left from last run
     kill_residual_processes(end_with_error=False)
     threading.excepthook = custom_hook
