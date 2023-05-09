@@ -14,12 +14,12 @@ modbus_rtu = false
 
 [backends]
 usb = true
-mqtt = false
+mqtt = true
 mdns = true
 is1 = false
 
 [rest_frontend]
-api_port = 8000
+api_port = 8008
 port_range = [50001, 50500]
 
 [modbus_rtu_frontend]
