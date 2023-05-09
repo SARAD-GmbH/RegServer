@@ -323,13 +323,13 @@ def main():
         if not startup_tupel:
             time.sleep(30)
             shutdown((), False, True, with_error=True)
-            return None
+            return
     elif start_stop == "stop":
         system_shutdown(with_error=False)
-        return None
+        return
     else:
         print("Usage: <program> start|stop")
-        return None
+        return
     logger.debug("Starting the main loop")
     wait_some_time = False
     interval = actor_config["OUTER_WATCHDOG_INTERVAl"]
