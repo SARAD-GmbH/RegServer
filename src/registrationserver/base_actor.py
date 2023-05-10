@@ -158,7 +158,7 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name, unused-argument
         """Handler for ChildActorExited"""
         actor_id = self._get_actor_id(msg.childAddress, self.child_actors)
-        logger.info("%s for %s from %s (%s)", msg, self.my_id, actor_id, sender)
+        logger.debug("%s for %s from %s (%s)", msg, self.my_id, actor_id, sender)
         child_actor = self.child_actors.pop(actor_id, None)
         if child_actor is not None:
             # self.send(self.registrar, UnsubscribeMsg(actor_id))
