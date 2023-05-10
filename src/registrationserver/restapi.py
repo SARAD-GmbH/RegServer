@@ -79,7 +79,9 @@ shutdown_arguments.add_argument(
     "password",
     type=str,
     required=True,
+    help="Requires the correct password as argument.",
     choices=[PASSWORD],
+    trim=True,
 )
 log_arguments = reqparse.RequestParser()
 log_arguments.add_argument(
@@ -150,33 +152,17 @@ class Shutdown(Resource):
         """
         remote_addr = request.remote_addr
         remote_user = request.remote_user
-        try:
-            attribute_password = request.args.get("password").strip('"')
-        except (IndexError, AttributeError):
-            status = Status.ATTRIBUTE_ERROR
-        else:
-            if attribute_password == PASSWORD:
-                status = Status.OK
-            else:
-                status = Status.ATTRIBUTE_ERROR
-        answer = {}
-        if status == Status.OK:
-            logger.info(
-                "Shutdown by user intervention from %s",
-                remote_addr,
-            )
-            system_shutdown()
-            answer = {
-                "Notification": "Registration Server going down for restart.",
-                "Requester": remote_addr,
-            }
-        elif status == Status.ATTRIBUTE_ERROR:
-            logger.warning(
-                "%s requesting shutdown without proper attribute", remote_addr
-            )
-        else:
-            logger.error("Unexpected error in shutdown by user.")
-            status = Status.ERROR
+        shutdown_arguments.parse_args()
+        logger.info(
+            "Shutdown by user intervention from %s",
+            remote_addr,
+        )
+        system_shutdown()
+        answer = {
+            "Notification": "Registration Server going down for restart.",
+            "Requester": remote_addr,
+        }
+        status = Status.OK
         answer["Error code"] = status.value
         answer["Error"] = str(status)
         answer["Remote addr"] = remote_addr
