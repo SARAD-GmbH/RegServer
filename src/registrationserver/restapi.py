@@ -11,6 +11,7 @@
 
 """
 
+import os
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -41,6 +42,7 @@ from registrationserver.helpers import (check_msg, get_actor,
                                         get_registrar_actor, send_free_message,
                                         send_reserve_message,
                                         transport_technology)
+from registrationserver.logdef import LOGFILENAME
 from registrationserver.logger import logger  # type: ignore
 from registrationserver.shutdown import system_shutdown
 
@@ -54,7 +56,7 @@ app = Flask(__name__)
 app.url_map.strict_slashes = False
 api = Api(
     app,
-    version="1.0",
+    version="1.1",
     title="RegServer API",
     description="API to get data from and to control the SARAD Registration Server service",
 )
@@ -78,6 +80,16 @@ shutdown_arguments.add_argument(
     type=str,
     required=True,
     choices=[PASSWORD],
+)
+log_arguments = reqparse.RequestParser()
+log_arguments.add_argument(
+    "age",
+    type=int,
+    required=False,
+    help="Requires age to be either 0 for current or 1 for last log.",
+    default=0,
+    choices=[0, 1],
+    trim=True,
 )
 ports_arguments = reqparse.RequestParser()
 ports_arguments.add_argument("port", type=str, required=False)
@@ -170,6 +182,32 @@ class Shutdown(Resource):
         answer["Remote addr"] = remote_addr
         answer["Remote user"] = remote_user
         return answer
+
+
+@root_ns.route("/log")
+@root_ns.param(
+    "age",
+    "May be 0 for the current log or 1 for the backup of the log "
+    + "from the last run of Registration Server Service.",
+)
+class Log(Resource):
+    """Endpoint to show the content of the log file"""
+
+    @api.expect(log_arguments, validate=True)
+    def get(self):
+        """Show the content of the log file"""
+        logger.debug("Log request received")
+        attribute_age = log_arguments.parse_args()
+        if attribute_age["age"]:
+            log_file_name = f"{LOGFILENAME}.1"
+        else:
+            log_file_name = LOGFILENAME
+        if os.path.isfile(log_file_name):
+            with open(log_file_name, "r", encoding="utf8") as log_file:
+                lines = log_file.readlines()
+            resp = [line.rstrip("\n") for line in lines]
+            return resp
+        return f"{log_file_name} doesn't exist."
 
 
 @list_ns.route("/")
