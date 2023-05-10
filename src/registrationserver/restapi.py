@@ -73,7 +73,16 @@ status_ns = api.namespace(
 )
 values_ns = api.namespace("values", description="Show measuring values")
 reserve_arguments = reqparse.RequestParser()
-reserve_arguments.add_argument("who", type=str, required=True)
+reserve_arguments.add_argument(
+    "who",
+    type=str,
+    required=True,
+    help="Requires an argument `who` identifying the requester."
+    + "Consists of application, user, and requesting host. "
+    + "All three parts are to be devided by ` - `. \n"
+    + "Example: `who=RV8 - mstrey - WS01`",
+    trim=True,
+)
 shutdown_arguments = reqparse.RequestParser()
 shutdown_arguments.add_argument(
     "password",
@@ -88,7 +97,7 @@ log_arguments.add_argument(
     "age",
     type=int,
     required=False,
-    help="Requires age to be either 0 for current or 1 for last log.",
+    help="Requires 'age' to be either 0 for current or 1 for last log.",
     default=0,
     choices=[0, 1],
     trim=True,
@@ -96,10 +105,27 @@ log_arguments.add_argument(
 ports_arguments = reqparse.RequestParser()
 ports_arguments.add_argument("port", type=str, required=False)
 values_arguments = reqparse.RequestParser()
-values_arguments.add_argument("component", type=int, required=True)
-values_arguments.add_argument("sensor", type=int, required=True)
 values_arguments.add_argument(
-    "measurand", type=int, required=True, choices=[0, 1, 2, 3]
+    "component",
+    type=int,
+    required=True,
+    help="Requires component, sensor, measurand.",
+    trim=True,
+)
+values_arguments.add_argument(
+    "sensor",
+    type=int,
+    required=True,
+    help="Requires component, sensor, measurand.",
+    trim=True,
+)
+values_arguments.add_argument(
+    "measurand",
+    type=int,
+    required=True,
+    help="Requires component, sensor, measurand.",
+    choices=[0, 1, 2, 3],
+    trim=True,
 )
 
 
@@ -312,8 +338,9 @@ class ReserveDevice(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
+        arguments = reserve_arguments.parse_args()
         try:
-            attribute_who = request.args.get("who").strip('"')
+            attribute_who = arguments["who"]
             application = attribute_who.split(" - ")[0]
             user = attribute_who.split(" - ")[1]
             request_host = attribute_who.split(" - ")[2]
@@ -458,19 +485,10 @@ class GetValues(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        try:
-            component_id = int(request.args.get("component").strip('"'))
-            sensor_id = int(request.args.get("sensor").strip('"'))
-            measurand_id = int(request.args.get("measurand").strip('"'))
-        except (IndexError, AttributeError):
-            logger.warning("Get recent values request without proper attributes.")
-            status = Status.ATTRIBUTE_ERROR
-            notification = "Requires component, sensor, measurand."
-            return {
-                "Error code": status.value,
-                "Error": str(status),
-                "Notification": notification,
-            }
+        arguments = values_arguments.parse_args()
+        component_id = arguments["component"]
+        sensor_id = arguments["sensor"]
+        measurand_id = arguments["measurand"]
         logger.info(
             "Request value %d/%d/%d of %s",
             component_id,
