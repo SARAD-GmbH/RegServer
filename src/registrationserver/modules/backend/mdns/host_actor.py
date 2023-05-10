@@ -23,7 +23,7 @@ from registrationserver.modules.backend.mdns.device_actor import DeviceActor
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-PING_INTERVAL = 5  # in minutes
+PING_INTERVAL = 0.1  # in minutes
 DEFAULT_TIMEOUT = 8  # seconds
 RETRY = 0  # number of retries for HTTP requests
 

@@ -19,7 +19,7 @@ Actors created in the actor system
 
 from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import ActorTypeDispatcher
+from thespian.actors import ActorTypeDispatcher, ChildActorExited
 
 from registrationserver.actor_messages import (DeadChildMsg, KeepAliveMsg,
                                                KillMsg, Parent,
@@ -119,6 +119,7 @@ class BaseActor(ActorTypeDispatcher):
             else:
                 if register:
                     self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
+                self.send(self.parent.parent_address, ChildActorExited(self.myAddress))
                 self.send(self.myAddress, ActorExitRequest())
 
     def receiveMsg_KeepAliveMsg(self, msg, sender):
@@ -156,8 +157,8 @@ class BaseActor(ActorTypeDispatcher):
     def receiveMsg_ChildActorExited(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
         """Handler for ChildActorExited"""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         actor_id = self._get_actor_id(msg.childAddress, self.child_actors)
+        logger.info("%s for %s from %s (%s)", msg, self.my_id, actor_id, sender)
         child_actor = self.child_actors.pop(actor_id, None)
         if child_actor is not None:
             # self.send(self.registrar, UnsubscribeMsg(actor_id))
@@ -172,6 +173,7 @@ class BaseActor(ActorTypeDispatcher):
                 "Unsubscribe from Registrar and send ActorExitRequest to myself"
             )
             self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
+            self.send(self.parent.parent_address, ChildActorExited(self.myAddress))
             self.send(self.myAddress, ActorExitRequest())
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
