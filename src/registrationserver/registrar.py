@@ -112,18 +112,24 @@ class Registrar(BaseActor):
                 )
             self._keep_alive_handler(CHECK)
         elif msg.payload == "check":
+            success = True
             for actor_id in self.actor_dict:
                 if not self.actor_dict[actor_id]["is_alive"]:
                     logger.critical(
                         "Actor %s did not respond to KeepAliveMsg.", actor_id
                     )
-                    logger.critical("-> Emergency shutdown")
-                    system_shutdown()
-            logger.debug("Watchdog: health check finished successfully")
-            self.wakeupAfter(
-                timedelta(seconds=actor_config["KEEPALIVE_INTERVAL"]),
-                payload="keep alive",
-            )
+                    success = False
+            if success:
+                logger.debug("Watchdog: health check finished successfully")
+                self.wakeupAfter(
+                    timedelta(seconds=actor_config["KEEPALIVE_INTERVAL"]),
+                    payload="keep alive",
+                )
+            else:
+                logger.critical(
+                    "Watchdog: health check finished with failure -> Emergency shutdown"
+                )
+                system_shutdown()
 
     def _is_alive(self, actor_id):
         """Confirm that the actor is still alive."""
