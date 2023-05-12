@@ -184,7 +184,6 @@ class DeviceActor(DeviceBaseActor):
                 self.next_method()
                 self.next_method = None
         elif msg.payload == "update":
-            self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
             if self.occupied:
                 try:
                     logger.debug(
@@ -224,6 +223,7 @@ class DeviceActor(DeviceBaseActor):
             self._publish_status_change()
             if not active:
                 self.occupied = False
+            self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
         elif self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
             self._kill_myself()
 
