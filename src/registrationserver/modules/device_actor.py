@@ -76,6 +76,8 @@ class DeviceBaseActor(BaseActor):
         """Handler for SetDeviceStatusMsg"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.device_status = msg.device_status
+
+    def _set_device_status(self):
         logger.debug("Device status: %s", self.device_status)
         self._publish_status_change()
 
