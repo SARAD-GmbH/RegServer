@@ -304,7 +304,10 @@ class DeviceActor(DeviceBaseActor):
         """Handler for SetDeviceStatusMsg initialising the device status information."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.occupied = False
-        self.device_status = msg.device_status
+        if self.device_status:
+            self.device_status["Reservation"] = msg.device_status.get("Reservation")
+        else:
+            self.device_status = msg.device_status
         logger.debug("Device status: %s", self.device_status)
         self._start_thread(
             Thread(
