@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from serial.serialutil import SerialException  # type: ignore
 from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
+from version import VERSION
 
 from registrationserver.actor_messages import (Backend, Frontend, KillMsg,
                                                SetupMsg)
@@ -310,6 +311,7 @@ def main():
         logger.warning("There is no old log file %s to copy.", LOGFILENAME)
     try:
         with open(LOGFILENAME, "w", encoding="utf8") as _:
+            logger.info("SARAD Registration Server %s", VERSION)
             logger.info("Log entries go to %s", LOGFILENAME)
     except Exception:  # pylint: disable=broad-except
         logger.error("Initialization of log file failed.")
