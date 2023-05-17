@@ -92,6 +92,7 @@ class UsbActor(DeviceBaseActor):
             elif thread_type == ThreadType.TX_BINARY:
                 self.tx_binary_thread = thread
                 self.tx_binary_thread.start()
+                self.wakeupAfter(timedelta(seconds=0.01), payload="tx_binary")
             elif thread_type == ThreadType.RECENT_VALUE:
                 self.get_recent_value_thread = thread
                 self.get_recent_value_thread.start()
@@ -155,7 +156,7 @@ class UsbActor(DeviceBaseActor):
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
-        logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
+        # logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
         if msg.payload is None:
             logger.debug("Check connection of %s", self.my_id)
             self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
@@ -182,6 +183,12 @@ class UsbActor(DeviceBaseActor):
             else:
                 self.next_method()
                 self.next_method = None
+        elif msg.payload == "tx_binary":
+            if self.next_method is None:
+                self.wakeupAfter(timedelta(seconds=0.01), payload=msg.payload)
+            else:
+                self.next_method[0](self.next_method[1])
+                self.next_method = None
 
     def _finish_poll(self):
         """Finalize the handling of WakeupMessage for regular rescan"""
@@ -204,7 +211,7 @@ class UsbActor(DeviceBaseActor):
                 )
                 self.send(self.parent, RescanMsg())
 
-    def dummy_reply(self, data, sender) -> bool:
+    def dummy_reply(self, data) -> Union[bytes, bool]:
         """Filter TX message and give a dummy reply.
 
         This function was invented in order to prevent messages destined for
@@ -213,8 +220,7 @@ class UsbActor(DeviceBaseActor):
         tx_rx = {b"B\x80\x7f\xe6\xe6\x00E": b"B\x80\x7f\xe7\xe7\x00E"}
         if data in tx_rx:
             logger.debug("Reply %s with %s", data, tx_rx[data])
-            self.send(sender, RxBinaryMsg(tx_rx[data]))
-            return True
+            return tx_rx[data]
         return False
 
     @overrides
@@ -232,11 +238,14 @@ class UsbActor(DeviceBaseActor):
         )
 
     def _tx_binary(self, data, sender):
-        if self.dummy_reply(data, sender):
+        dummy_reply = self.dummy_reply(data)
+        if dummy_reply:
+            reply = dummy_reply
+            self.next_method = (self._finish_tx_binary, dummy_reply)
             return
         if not self.instrument.check_cmd(data):
             logger.error("Command %s from app is invalid", data)
-            self.send(sender, RxBinaryMsg(b""))
+            self.next_method = (self._finish_tx_binary, b"")
             return
         emergency = False
         try:
@@ -247,11 +256,11 @@ class UsbActor(DeviceBaseActor):
             emergency = True
         logger.debug("Instrument replied %s", reply)
         if reply["is_valid"]:
-            self.send(sender, RxBinaryMsg(reply["standard_frame"]))
+            self.next_method = (self._finish_tx_binary, reply["standard_frame"])
             while not reply["is_last_frame"]:
                 try:
                     reply = self.instrument.get_next_payload(timeout=1)
-                    self.send(sender, RxBinaryMsg(reply["standard_frame"]))
+                    self.next_method = (self._finish_tx_binary, reply["standard_frame"])
                 except (SerialException, OSError):
                     logger.error("Connection to %s lost", self.my_id)
                     reply = {"is_valid": False, "is_last_frame": True}
@@ -261,7 +270,10 @@ class UsbActor(DeviceBaseActor):
             self._kill_myself()
         elif not reply["is_valid"]:
             logger.warning("Invalid binary message from instrument.")
-            self.send(sender, RxBinaryMsg(reply["raw"]))
+            self.next_method = (self._finish_tx_binary, sender, reply["raw"])
+
+    def _finish_tx_binary(self, data):
+        self.send(self.redirector_actor, RxBinaryMsg(data))
 
     @overrides
     def _request_reserve_at_is(self):
