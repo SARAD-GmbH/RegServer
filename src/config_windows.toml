@@ -47,13 +47,13 @@ scan_interval = 60  # in seconds, 0 = scan only once during startup
 [actor]
 ## Uncomment one of the following three base technologies for the Actor system
 ## A) Experimental multithreading base
-# system_base = "multiprocQueueBase"
+system_base = "multiprocQueueBase"
 ## B) UDP based messages
 # system_base = "multiprocUDPBase"
 # admin_port = 1029
 ## C) TCP based messages
-system_base = "multiprocTCPBase"
-admin_port = 1900
+# system_base = "multiprocTCPBase"
+# admin_port = 1900
 # convention_address = "127.0.0.1"
 
 process_startup_method = "spawn"
