@@ -338,4 +338,30 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handle request to deliver the device statuses of all instruments."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.check_integrity()
         self.send(sender, UpdateDeviceStatusesMsg(self.device_statuses))
+
+    def check_integrity(self) -> bool:
+        """Check integrity between self.actor_dict and self.device_statuses"""
+        for actor_id in self.actor_dict:
+            if self.actor_dict[actor_id]["is_device_actor"]:
+                if actor_id not in self.device_statuses:
+                    logger.critical(
+                        "self.actor_dict contains %s that is not in %s",
+                        actor_id,
+                        self.device_statuses,
+                    )
+                    logger.critical("Emergency shutdown")
+                    system_shutdown(with_error=True)
+                    return False
+        for actor_id in self.device_statuses:
+            if actor_id not in self.actor_dict:
+                logger.critical(
+                    "self.device_statuses contains %s an actor that is not in %s",
+                    actor_id,
+                    self.actor_dict,
+                )
+                logger.critical("Emergency shutdown")
+                system_shutdown(with_error=True)
+                return False
+        return True
