@@ -16,7 +16,7 @@ from threading import Thread
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import Frontend, KillMsg
+from registrationserver.actor_messages import Frontend
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import frontend_config, mqtt_config
 from registrationserver.logger import logger
@@ -24,6 +24,7 @@ from registrationserver.shutdown import is_flag_set, system_shutdown
 
 
 class MqttBaseActor(BaseActor):
+    # pylint: disable=too-many-instance-attributes
     """Actor interacting with a new device"""
 
     @overrides
