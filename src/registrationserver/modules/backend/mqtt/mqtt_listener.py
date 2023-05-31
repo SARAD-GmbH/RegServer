@@ -288,6 +288,6 @@ class MqttListener(MqttBaseActor):
             )
 
     @overrides
-    def on_connect(self, client, userdata, flags, result_code):
-        super().on_connect(client, userdata, flags, result_code)
+    def on_connect(self, client, userdata, flags, reason_code):
+        super().on_connect(client, userdata, flags, reason_code)
         self._subscribe_topic([("+/+/meta", 0)])

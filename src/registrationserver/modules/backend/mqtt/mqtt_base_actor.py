@@ -158,14 +158,14 @@ class MqttBaseActor(BaseActor):
     def _connected(self):
         """Do everything that can only be done if the MQTT client is connected."""
 
-    def on_connect(self, client, userdata, flags, result_code):
+    def on_connect(self, client, userdata, flags, reason_code):
         # pylint: disable=unused-argument
         """Will be carried out when the client connected to the MQTT broker."""
-        if result_code:
+        if reason_code:
             self.is_connected = False
             logger.critical(
                 "[CONNECT] Connection to MQTT broker failed with %s",
-                result_code,
+                reason_code,
             )
             return
         self.is_connected = True
@@ -174,15 +174,15 @@ class MqttBaseActor(BaseActor):
             self.mqttc.subscribe(topic, qos)
         logger.info("[CONNECT] Connected to MQTT broker")
 
-    def on_disconnect(self, client, userdata, result_code):
+    def on_disconnect(self, client, userdata, reason_code):
         # pylint: disable=unused-argument
         """Will be carried out when the client disconnected from the MQTT broker."""
         logger.info("Disconnected from MQTT broker")
-        if result_code >= 1:
+        if reason_code >= 1:
             self.ungr_disconn = 1
             logger.warning(
                 "Ungraceful disconnect from MQTT broker (%s). Trying to reconnect.",
-                result_code,
+                reason_code,
             )
             # There is no need to do anything.
             # With loop_start() in place, re-connections will be handled automatically.

@@ -303,8 +303,8 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         )
 
     @overrides
-    def on_connect(self, client, userdata, flags, result_code):
-        super().on_connect(client, userdata, flags, result_code)
+    def on_connect(self, client, userdata, flags, reason_code):
+        super().on_connect(client, userdata, flags, reason_code)
         logger.debug("Subscribe MQTT actor to the 'reservation' topic")
         reserve_topic = self.allowed_sys_topics["RESERVE"]
         return_code, self.msg_id["SUBSCRIBE"] = self.mqttc.subscribe(reserve_topic, 0)
