@@ -178,10 +178,11 @@ class MqttListener(MqttBaseActor):
         instr_to_remove = []
         for device_id, description in self.child_actors.items():
             if description["host"] == is_id:
-                logger.info("[_rm_host] Remove %s", device_id)
+                logger.debug("[_rm_host] Remove %s", device_id)
                 instr_to_remove.append([is_id, short_id(device_id)])
         for instr in instr_to_remove:
             self._rm_instr(instr[0], instr[1])
+        logger.info("[Remove Host] IS %s removed", self._hosts[is_id].get("Host"))
         del self._hosts[is_id]
 
     def on_is_meta(self, _client, _userdata, message):

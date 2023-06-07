@@ -50,6 +50,7 @@ from registrationserver.shutdown import system_shutdown
 
 STARTTIME = datetime.utcnow()
 PASSWORD = "Diev5Pw."
+TIMEOUT = timedelta(seconds=20)
 
 
 app = Flask(__name__)
@@ -523,7 +524,7 @@ class GetValues(Resource):
                 value_return = value_sys.ask(
                     device_actor,
                     GetRecentValueMsg(component_id, sensor_id, measurand_id),
-                    timeout=timedelta(seconds=10),
+                    timeout=TIMEOUT,
                 )
             except ConnectionResetError:
                 status = Status.CRITICAL
@@ -590,7 +591,7 @@ class GetLocalPorts(Resource):
         with ActorSystem().private() as get_local_ports:
             try:
                 reply = get_local_ports.ask(
-                    cluster_actor, GetLocalPortsMsg(), timeout=timedelta(seconds=10)
+                    cluster_actor, GetLocalPortsMsg(), timeout=TIMEOUT
                 )
             except ConnectionResetError:
                 reply = None
@@ -620,7 +621,7 @@ class GetUsbPorts(Resource):
         with ActorSystem().private() as get_usb_ports:
             try:
                 reply = get_usb_ports.ask(
-                    cluster_actor, GetUsbPortsMsg(), timeout=timedelta(seconds=10)
+                    cluster_actor, GetUsbPortsMsg(), timeout=TIMEOUT
                 )
             except ConnectionResetError:
                 reply = None
@@ -652,7 +653,7 @@ class GetNativePorts(Resource):
                 reply = get_native_ports.ask(
                     cluster_actor,
                     GetNativePortsMsg(),
-                    timeout=timedelta(seconds=10),
+                    timeout=TIMEOUT,
                 )
             except ConnectionResetError:
                 reply = None
@@ -697,7 +698,7 @@ class GetLoopPort(Resource):
                 reply = get_loop_port.ask(
                     cluster_actor,
                     AddPortToLoopMsg(port),
-                    timeout=timedelta(seconds=10),
+                    timeout=TIMEOUT,
                 )
             except ConnectionResetError:
                 reply = None
@@ -741,7 +742,7 @@ class GetStopPort(Resource):
                 reply = get_stop_port.ask(
                     cluster_actor,
                     RemovePortFromLoopMsg(port),
-                    timeout=timedelta(seconds=10),
+                    timeout=TIMEOUT,
                 )
             except ConnectionResetError:
                 reply = None
@@ -777,7 +778,7 @@ class GetStatus(Resource):
                 reply = get_status.ask(
                     actorAddr=actor_address,
                     msg=Thespian_StatusReq(),
-                    timeout=timedelta(seconds=10),
+                    timeout=TIMEOUT,
                 )
             except ConnectionResetError:
                 reply = None
