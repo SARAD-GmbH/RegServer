@@ -274,6 +274,7 @@ class DeviceActor(DeviceBaseActor):
 
     def _finish_reserve(self):
         """Forward the reservation state from the Instrument Server to the REST API."""
+        logger.debug("_finish_reserve")
         if self.success == Status.OK:
             success = Status(self.response.get("Error code", 98))
         else:
@@ -303,23 +304,24 @@ class DeviceActor(DeviceBaseActor):
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         """Handler for SetDeviceStatusMsg initialising the device status information."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.occupied = False
-        if self.device_status:
-            self.device_status["Reservation"] = msg.device_status.get("Reservation")
-        else:
-            self.device_status = msg.device_status
-        logger.debug("Device status: %s", self.device_status)
-        self._start_thread(
-            Thread(
-                target=self._http_get_function,
-                kwargs={
-                    "endpoint": f"{self.base_url}/list/{self.device_id}/",
-                    "params": None,
-                    "purpose": Purpose.STATUS,
-                },
-                daemon=True,
+        if not (self.reserve_lock or self.free_lock):
+            self.occupied = False
+            if self.device_status:
+                self.device_status["Reservation"] = msg.device_status.get("Reservation")
+            else:
+                self.device_status = msg.device_status
+            logger.debug("Device status: %s", self.device_status)
+            self._start_thread(
+                Thread(
+                    target=self._http_get_function,
+                    kwargs={
+                        "endpoint": f"{self.base_url}/list/{self.device_id}/",
+                        "params": None,
+                        "purpose": Purpose.STATUS,
+                    },
+                    daemon=True,
+                )
             )
-        )
 
     def _finish_set_device_status(self):
         # pylint: disable=invalid-name

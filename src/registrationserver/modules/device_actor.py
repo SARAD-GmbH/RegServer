@@ -126,6 +126,7 @@ class DeviceBaseActor(BaseActor):
         Forward the reservation state from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
+        logger.debug("_handle_reserve_reply_from_is")
         self.return_message = ReservationStatusMsg(
             instr_id=self.instr_id, status=success
         )
@@ -285,6 +286,7 @@ class DeviceBaseActor(BaseActor):
         logger.info("Reservation state updated: %s", self.device_status)
 
     def _send_reservation_status_msg(self):
+        logger.debug("_send_reservation_status_msg")
         self._publish_status_change()
         if (
             (self.return_message is not None)
