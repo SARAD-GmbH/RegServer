@@ -72,6 +72,7 @@ class HostActor(BaseActor):
         self.port = None
         self.ping_thread = Thread(target=self._ping_function, daemon=True)
         self.scan_thread = Thread(target=self._scan_function, daemon=True)
+        self.rescan_thread = Thread(target=self._rescan_function, daemon=True)
         self.actor_type = ActorType.HOST
 
     @overrides
@@ -136,6 +137,27 @@ class HostActor(BaseActor):
         else:
             device_actor = self.child_actors[device_id]["actor_address"]
         self.send(device_actor, SetDeviceStatusMsg(data))
+
+    def receiveMsg_RescanMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for RescanMsg causing a re-scan for local instruments at the remote host"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if not self.rescan_thread.is_alive():
+            self.rescan_thread = Thread(target=self._rescan_function, daemon=True)
+            try:
+                self.rescan_thread.start()
+            except RuntimeError:
+                pass
+
+    def _rescan_function(self):
+        logger.debug("Send /scan endpoint to REST API of %s", self.my_id)
+        try:
+            _resp = self.http.get(f"{self.base_url}/scan/")
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.debug("REST API of IS is not responding. %s", exception)
+            success = Status.IS_NOT_FOUND
+            logger.warning("%s: %s", success, self.my_id)
+            self._forward_to_children(KillMsg())
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name

@@ -20,7 +20,8 @@ from overrides import overrides  # type: ignore
 
 from registrationserver.actor_messages import (ActorType, Backend, Frontend,
                                                KillMsg, PrepareMqttActorMsg,
-                                               ReturnDeviceActorMsg,
+                                               RescanFinishedMsg, RescanMsg,
+                                               ReturnDeviceActorMsg, Status,
                                                UpdateActorDictMsg,
                                                UpdateDeviceStatusesMsg)
 from registrationserver.base_actor import BaseActor
@@ -341,6 +342,15 @@ class Registrar(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.check_integrity()
         self.send(sender, UpdateDeviceStatusesMsg(self.device_statuses))
+
+    def receiveMsg_RescanMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forward the RescanMsg to all Host Actors."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        for actor_id in self.actor_dict:
+            if self.actor_dict[actor_id]["actor_type"] == ActorType.HOST:
+                self.send(self.actor_dict[actor_id]["address"], RescanMsg())
+        self.send(sender, RescanFinishedMsg(Status.OK))
 
     def check_integrity(self) -> bool:
         """Check integrity between self.actor_dict and self.device_statuses"""

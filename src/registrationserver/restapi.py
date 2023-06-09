@@ -267,11 +267,10 @@ class Scan(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        cluster_actor = get_actor(registrar_actor, "cluster")
         with ActorSystem().private() as scan_sys:
             try:
                 reply = scan_sys.ask(
-                    cluster_actor, RescanMsg(), timeout=timedelta(seconds=60)
+                    registrar_actor, RescanMsg(), timeout=timedelta(seconds=60)
                 )
             except ConnectionResetError as exception:
                 logger.debug(exception)
