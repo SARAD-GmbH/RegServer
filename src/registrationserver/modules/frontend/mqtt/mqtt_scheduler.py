@@ -280,7 +280,7 @@ class MqttSchedulerActor(MqttBaseActor):
     def on_host_cmd(self, _client, _userdata, message):
         """Event handler for all MQTT messages with cmd topic for the host."""
         logger.debug("[on_host_cmd] %s: %s", message.topic, message.payload)
-        if message.payload == {"Req": "scan"}:
+        if message.payload == "scan":
             self.send(self.registrar, RescanMsg())
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):

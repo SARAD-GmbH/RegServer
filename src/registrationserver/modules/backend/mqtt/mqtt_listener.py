@@ -303,7 +303,7 @@ class MqttListener(MqttBaseActor):
             self._publish(
                 {
                     "topic": f"{self.group}/{is_id}/cmd",
-                    "payload": {"Req": "scan"},
+                    "payload": "scan",
                     "qos": 0,
                 }
             )
