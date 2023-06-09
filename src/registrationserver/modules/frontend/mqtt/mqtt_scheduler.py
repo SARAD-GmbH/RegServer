@@ -280,7 +280,7 @@ class MqttSchedulerActor(MqttBaseActor):
     def on_host_cmd(self, _client, _userdata, message):
         """Event handler for all MQTT messages with cmd topic for the host."""
         logger.debug("[on_host_cmd] %s: %s", message.topic, message.payload)
-        if message.payload == "scan":
+        if message.payload.decode("utf-8") == "scan":
             self.send(self.registrar, RescanMsg())
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):
@@ -346,3 +346,10 @@ class MqttSchedulerActor(MqttBaseActor):
                 if instr_id == short_id(actor_id):
                     return (description["address"], actor_id)
         return (None, "")
+
+    def receiveMsg_RescanFinishedMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for RescanFinishedMsg from Registrar.
+
+        Does nothing else then putting a debug log entry."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
