@@ -38,7 +38,9 @@ from registrationserver.actor_messages import (AddPortToLoopMsg,
                                                ReturnUsbPortsMsg, Status)
 from registrationserver.config import actor_config, mqtt_config
 from registrationserver.helpers import (check_msg, get_actor,
-                                        get_device_status, get_device_statuses,
+                                        get_device_status,
+                                        get_device_status_from_registrar,
+                                        get_device_statuses,
                                         get_registrar_actor, send_free_message,
                                         send_reserve_message,
                                         transport_technology)
@@ -305,7 +307,7 @@ class ListDevice(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        return {device_id: get_device_status(registrar_actor, device_id)}
+        return {device_id: get_device_status_from_registrar(registrar_actor, device_id)}
 
 
 @list_ns.route("/<string:device_id>/reserve")
@@ -360,7 +362,7 @@ class ReserveDevice(Resource):
             request_host,
         )
         logger.debug("Before RESERVE operation")
-        device_state = get_device_status(registrar_actor, device_id)
+        device_state = get_device_status_from_registrar(registrar_actor, device_id)
         if (
             transport_technology(device_id) not in ["local", "is1", "mdns", "mqtt"]
         ) or (device_state == {}):
@@ -382,7 +384,7 @@ class ReserveDevice(Resource):
             return {
                 "Error code": status.value,
                 "Error": str(status),
-                device_id: get_device_status(registrar_actor, device_id),
+                device_id: get_device_status_from_registrar(registrar_actor, device_id),
             }
         if status in (
             Status.NOT_FOUND,
@@ -443,7 +445,7 @@ class FreeDevice(Resource):
             return {
                 "Error code": status.value,
                 "Error": str(status),
-                device_id: get_device_status(registrar_actor, device_id),
+                device_id: get_device_status_from_registrar(registrar_actor, device_id),
             }
         return {
             "Error code": status.value,
@@ -497,7 +499,7 @@ class GetValues(Resource):
             measurand_id,
             device_id,
         )
-        device_state = get_device_status(registrar_actor, device_id)
+        device_state = get_device_status_from_registrar(registrar_actor, device_id)
         if (
             (device_state == {})
             or (transport_technology(device_id) not in ["local"])

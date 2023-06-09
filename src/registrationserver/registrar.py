@@ -219,6 +219,7 @@ class Registrar(BaseActor):
                     self.send(sender, KillMsg())
                     return
         if (not self.on_kill) and keep_new_actor:
+            self.device_statuses[actor_id] = self.device_statuses.get(actor_id, {})
             logger.debug("Subscribe %s to device statuses dict", actor_id)
             self._subscribe_to_device_status_msg(sender)
 
