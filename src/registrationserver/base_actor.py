@@ -21,8 +21,8 @@ from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import ActorTypeDispatcher, ChildActorExited
 
-from registrationserver.actor_messages import (DeadChildMsg, KeepAliveMsg,
-                                               KillMsg, Parent,
+from registrationserver.actor_messages import (ActorType, DeadChildMsg,
+                                               KeepAliveMsg, KillMsg, Parent,
                                                RescanFinishedMsg,
                                                ReservationStatusMsg,
                                                RxBinaryMsg, SetDeviceStatusMsg,
@@ -66,7 +66,7 @@ class BaseActor(ActorTypeDispatcher):
         self.registrar = None
         self.parent = None
         self.my_id = None
-        self.is_device_actor = False
+        self.actor_type = ActorType.NONE
         self.get_updates = False
         self.child_actors = {}  # {actor_id: {"actor_address": <actor address>}}
         self.actor_dict = {}
@@ -82,7 +82,7 @@ class BaseActor(ActorTypeDispatcher):
         if self.registrar is None:
             self.registrar = self.myAddress
         self._subscribe(False)
-        if self.is_device_actor:
+        if self.actor_type == ActorType.DEVICE:
             logger.info("%s created at %s.", self.my_id, self.parent.parent_id)
 
     def _subscribe(self, keep_alive):
@@ -92,7 +92,7 @@ class BaseActor(ActorTypeDispatcher):
             SubscribeMsg(
                 actor_id=self.my_id,
                 parent=self.parent.parent_address,
-                is_device_actor=self.is_device_actor,
+                actor_type=self.actor_type,
                 get_updates=self.get_updates,
                 keep_alive=keep_alive,
             ),
@@ -180,7 +180,7 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name
         """Handler for ActorExitRequest"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.is_device_actor:
+        if self.actor_type == ActorType.DEVICE:
             logger.info(
                 "Device actor %s exited at %s.",
                 self.my_id,

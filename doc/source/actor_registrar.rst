@@ -17,7 +17,7 @@ Data structure (*Actor Dictionary*): ::
       {
        "address": <actor address>,
        "parent": <actor_address>,
-       "is_device_actor": <bool>,
+       "actor_type": <ActorType>,
        "get_updates": <bool>,
        "is_alive": <bool>,
       }

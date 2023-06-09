@@ -13,8 +13,9 @@ import os
 import time
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (FreeDeviceMsg, ReserveDeviceMsg,
-                                               Status, TxBinaryMsg)
+from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
+                                               ReserveDeviceMsg, Status,
+                                               TxBinaryMsg)
 from registrationserver.config import config, get_hostname, get_ip
 from registrationserver.helpers import diff_of_dicts, short_id
 from registrationserver.logger import logger
@@ -42,7 +43,7 @@ class MqttSchedulerActor(MqttBaseActor):
         """Extract only active device actors from actor_dict"""
         active_device_actor_dict = {}
         for actor_id, description in actor_dict.items():
-            if description["is_device_actor"]:
+            if description["actor_type"] == ActorType.DEVICE:
                 active_device_actor_dict[actor_id] = description
         return active_device_actor_dict
 
@@ -210,7 +211,7 @@ class MqttSchedulerActor(MqttBaseActor):
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
         for actor_id, description in self.actor_dict.items():
-            if description["is_device_actor"]:
+            if description["actor_type"] == ActorType.DEVICE:
                 self._remove_instrument(actor_id)
         self.mqttc.publish(
             retain=True,
@@ -235,7 +236,7 @@ class MqttSchedulerActor(MqttBaseActor):
         self._subscribe_topic([(f"{self.group}/{self.is_id}/+/meta", 0)])
         self._subscribe_to_actor_dict_msg()
         for actor_id, description in self.actor_dict.items():
-            if description["is_device_actor"]:
+            if description["actor_type"] == ActorType.DEVICE:
                 self.process_free(short_id(actor_id))
 
     def on_control(self, _client, _userdata, message):
@@ -331,7 +332,7 @@ class MqttSchedulerActor(MqttBaseActor):
     def _device_actor(self, instr_id):
         """Get device actor address and device_id from instr_id"""
         for actor_id, description in self.actor_dict.items():
-            if description["is_device_actor"]:
+            if description["actor_type"] == ActorType.DEVICE:
                 if instr_id == short_id(actor_id):
                     return (description["address"], actor_id)
         return (None, "")

@@ -38,7 +38,6 @@ from registrationserver.actor_messages import (AddPortToLoopMsg,
                                                ReturnUsbPortsMsg, Status)
 from registrationserver.config import actor_config, mqtt_config
 from registrationserver.helpers import (check_msg, get_actor,
-                                        get_device_status,
                                         get_device_status_from_registrar,
                                         get_device_statuses,
                                         get_registrar_actor, send_free_message,

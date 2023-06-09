@@ -18,8 +18,8 @@ from datetime import timedelta
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 
-from registrationserver.actor_messages import (Backend, Frontend, KillMsg,
-                                               PrepareMqttActorMsg,
+from registrationserver.actor_messages import (ActorType, Backend, Frontend,
+                                               KillMsg, PrepareMqttActorMsg,
                                                ReturnDeviceActorMsg,
                                                UpdateActorDictMsg,
                                                UpdateDeviceStatusesMsg)
@@ -141,18 +141,18 @@ class Registrar(BaseActor):
                 actor_id,
             )
 
-    def _handle_existing_actor(self, sender, actor_id, is_device_actor):
+    def _handle_existing_actor(self, sender, actor_id, actor_type):
         """Do whatever is required if the SubscribeMsg handler finds an actor
         that is already existing.
 
         Args:
             sender: Actor address of the Actor sending the SubscribeMsg
             actor_id: Id of the actor that shall be subscribed
-            is_device_actor (bool): indicates a device actor
+            actor_type (ActorType): indicates a device actor
         """
         logger.error("The actor %s already exists in the system.", actor_id)
         self.send(sender, KillMsg(register=False))
-        if is_device_actor:
+        if actor_type == ActorType.DEVICE:
             hid = Hashids()
             serial_number = hid.decode(short_id(actor_id))[2]
             if serial_number == 65535:
@@ -233,16 +233,16 @@ class Registrar(BaseActor):
             self._is_alive(msg.actor_id)
             return
         if msg.actor_id in self.actor_dict:
-            self._handle_existing_actor(sender, msg.actor_id, msg.is_device_actor)
+            self._handle_existing_actor(sender, msg.actor_id, msg.actor_type)
             return
         self.actor_dict[msg.actor_id] = {
             "address": sender,
             "parent": msg.parent,
-            "is_device_actor": msg.is_device_actor,
+            "actor_type": msg.actor_type,
             "get_updates": msg.get_updates,
             "is_alive": True,
         }
-        if msg.is_device_actor:
+        if msg.actor_type == ActorType.DEVICE:
             self._handle_device_actor(sender, msg.actor_id)
         self._send_updates(self.actor_dict)
         return
@@ -296,7 +296,7 @@ class Registrar(BaseActor):
         device_actor_dict = {
             id: dict["address"]
             for id, dict in self.actor_dict.items()
-            if dict["is_device_actor"]
+            if (dict["actor_type"] == ActorType.DEVICE)
         }
         for actor_id, actor_address in device_actor_dict.items():
             if actor_id == msg.device_id:
@@ -345,7 +345,7 @@ class Registrar(BaseActor):
     def check_integrity(self) -> bool:
         """Check integrity between self.actor_dict and self.device_statuses"""
         for actor_id in self.actor_dict:
-            if self.actor_dict[actor_id]["is_device_actor"]:
+            if self.actor_dict[actor_id]["actor_type"] == ActorType.DEVICE:
                 if actor_id not in self.device_statuses:
                     logger.critical(
                         "self.actor_dict contains %s that is not in %s",

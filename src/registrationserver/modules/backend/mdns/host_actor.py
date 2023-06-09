@@ -12,8 +12,8 @@ from threading import Thread
 
 import requests
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (ActorCreatedMsg, KillMsg,
-                                               SetDeviceStatusMsg,
+from registrationserver.actor_messages import (ActorCreatedMsg, ActorType,
+                                               KillMsg, SetDeviceStatusMsg,
                                                SetupMdnsActorMsg, Status)
 from registrationserver.base_actor import BaseActor
 from registrationserver.helpers import (sarad_protocol, short_id,
@@ -72,6 +72,7 @@ class HostActor(BaseActor):
         self.port = None
         self.ping_thread = Thread(target=self._ping_function, daemon=True)
         self.scan_thread = Thread(target=self._scan_function, daemon=True)
+        self.actor_type = ActorType.HOST
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):

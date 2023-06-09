@@ -12,7 +12,7 @@
 from datetime import datetime, timedelta
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (Frontend, KillMsg,
+from registrationserver.actor_messages import (ActorType, Frontend, KillMsg,
                                                ReservationStatusMsg, Status,
                                                UpdateDeviceStatusMsg)
 from registrationserver.base_actor import BaseActor
@@ -59,7 +59,7 @@ class DeviceBaseActor(BaseActor):
         self.subscribers = {}
         self.reserve_device_msg = None
         self.sender_api = None
-        self.is_device_actor = True
+        self.actor_type = ActorType.DEVICE
         self.redirector_actor = None
         self.return_message = None
         self.instr_id = None
