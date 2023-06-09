@@ -294,3 +294,16 @@ class MqttListener(MqttBaseActor):
     def on_connect(self, client, userdata, flags, reason_code):
         super().on_connect(client, userdata, flags, reason_code)
         self._subscribe_topic([("+/+/meta", 0)])
+
+    def receiveMsg_RescanMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forware a rescan command to the remote Instrument Server"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        for is_id in self._hosts:
+            self._publish(
+                {
+                    "topic": f"{self.group}/{is_id}/cmd",
+                    "payload": {"Req": "scan"},
+                    "qos": 0,
+                }
+            )

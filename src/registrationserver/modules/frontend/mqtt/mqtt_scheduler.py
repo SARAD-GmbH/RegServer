@@ -14,8 +14,8 @@ import time
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
-                                               ReserveDeviceMsg, Status,
-                                               TxBinaryMsg)
+                                               RescanMsg, ReserveDeviceMsg,
+                                               Status, TxBinaryMsg)
 from registrationserver.config import config, get_hostname, get_ip
 from registrationserver.helpers import diff_of_dicts, short_id
 from registrationserver.logger import logger
@@ -81,7 +81,10 @@ class MqttSchedulerActor(MqttBaseActor):
     def _connected(self):
         """Initial setup of the MQTT client"""
         self.mqttc.message_callback_add(f"{self.group}/+/+/control", self.on_control)
-        self.mqttc.message_callback_add(f"{self.group}/+/+/cmd", self.on_cmd)
+        self.mqttc.message_callback_add(
+            f"{self.group}/{self.is_id}/cmd", self.on_host_cmd
+        )
+        self.mqttc.message_callback_add(f"{self.group}/{self.is_id}/+/cmd", self.on_cmd)
         self.mqttc.message_callback_add(
             f"{self.group}/{self.is_id}/+/meta", self.on_instr_meta
         )
@@ -234,6 +237,7 @@ class MqttSchedulerActor(MqttBaseActor):
             payload=get_is_meta(self.is_meta._replace(state=2)),
         )
         self._subscribe_topic([(f"{self.group}/{self.is_id}/+/meta", 0)])
+        self._subscribe_topic([(f"{self.group}/{self.is_id}/cmd", 0)])
         self._subscribe_to_actor_dict_msg()
         for actor_id, description in self.actor_dict.items():
             if description["actor_type"] == ActorType.DEVICE:
@@ -262,7 +266,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 )
 
     def on_cmd(self, _client, _userdata, message):
-        """Event handler for all MQTT messages with cmd topic."""
+        """Event handler for all MQTT messages with cmd topic for instruments."""
         logger.debug("[on_cmd] %s: %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
         instr_id = topic_parts[2]
@@ -272,6 +276,12 @@ class MqttSchedulerActor(MqttBaseActor):
         if device_actor is not None:
             logger.debug("Forward %s to %s", cmd, instr_id)
             self.send(device_actor, TxBinaryMsg(cmd))
+
+    def on_host_cmd(self, _client, _userdata, message):
+        """Event handler for all MQTT messages with cmd topic for the host."""
+        logger.debug("[on_host_cmd] %s: %s", message.topic, message.payload)
+        if message.payload == {"Req": "scan"}:
+            self.send(self.registrar, RescanMsg())
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
