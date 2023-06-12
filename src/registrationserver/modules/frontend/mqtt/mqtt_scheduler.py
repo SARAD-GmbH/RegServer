@@ -152,8 +152,9 @@ class MqttSchedulerActor(MqttBaseActor):
         # pylint: disable=invalid-name
         """Handler for UpdateDeviceStatusMsg from Device Actor.
 
-        Adds a new instrument to the list of available instruments."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        Adds a new instrument to the list of available instruments
+        or updates the reservation state."""
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
         instr_id = short_id(msg.device_id)
         device_id = msg.device_id
         device_status = msg.device_status
@@ -193,6 +194,10 @@ class MqttSchedulerActor(MqttBaseActor):
             status=status,
         )
         self.reservations[device_id] = reservation_object
+        reservation_json = get_instr_reservation(reservation_object)
+        topic = f"{self.group}/{self.is_id}/{instr_id}/reservation"
+        logger.debug("Publish %s on %s", reservation_json, topic)
+        self.mqttc.publish(topic=topic, payload=reservation_json, retain=True)
 
     def _remove_instrument(self, device_id):
         # pylint: disable=invalid-name
