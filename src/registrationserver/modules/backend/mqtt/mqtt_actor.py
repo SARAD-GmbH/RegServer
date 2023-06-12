@@ -139,9 +139,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                 "retain": False,
             }
             self.state["RESERVE"]["Pending"] = True
-            if not self._publish(_msg):
-                self.state["RESERVE"]["Pending"] = False
-                return
+            self._publish(_msg)
             logger.debug("[Reserve at IS]: Waiting for reply to reservation request")
 
     @overrides
@@ -203,7 +201,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         """Handler for MQTT messages regarding reservation of instruments"""
         reservation_status = Status.ERROR
         reservation = json.loads(message.payload)
-        logger.debug("[on_reserve] received: %s", reservation)
+        logger.info("[on_reserve] received: %s", reservation)
         instr_status = reservation.get("Active")
         app = reservation.get("App")
         host = reservation.get("Host")
@@ -228,6 +226,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                     logger.error(
                         "Subscription to %s went wrong", self.allowed_sys_topics["MSG"]
                     )
+                    self.state["RESERVE"]["Pending"] = False
                     return
                 reservation_status = Status.OK
             else:
