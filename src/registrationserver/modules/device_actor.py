@@ -75,7 +75,10 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SetDeviceStatusMsg"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.device_status = msg.device_status
+        sections = ["Identification", "Reservation", "Remote"]
+        for section in sections:
+            if msg.device_status.get(section, False):
+                self.device_status[section] = msg.device_status[section]
 
     def _set_device_status(self):
         logger.debug("Device status: %s", self.device_status)

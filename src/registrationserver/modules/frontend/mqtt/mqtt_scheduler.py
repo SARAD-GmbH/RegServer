@@ -15,7 +15,8 @@ import time
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
                                                RescanMsg, ReserveDeviceMsg,
-                                               Status, TxBinaryMsg)
+                                               SetDeviceStatusMsg, Status,
+                                               TxBinaryMsg)
 from registrationserver.config import config, get_hostname, get_ip
 from registrationserver.helpers import (diff_of_dicts, short_id,
                                         transport_technology)
@@ -89,12 +90,16 @@ class MqttSchedulerActor(MqttBaseActor):
         self.mqttc.message_callback_add(
             f"{self.group}/{self.is_id}/+/meta", self.on_instr_meta
         )
+        self.mqttc.message_callback_add(
+            f"{self.group}/{self.is_id}/+/reservation", self.on_reserve
+        )
         self.mqttc.will_set(
             retain=True,
             topic=f"{self.group}/{self.is_id}/meta",
             payload=get_is_meta(self.is_meta._replace(state=0)),
         )
         self.mqttc.loop_start()
+        self._subscribe_topic([(f"{self.group}/{self.is_id}/*/reservation", 0)])
 
     @overrides
     def on_disconnect(self, client, userdata, reason_code):
@@ -361,3 +366,22 @@ class MqttSchedulerActor(MqttBaseActor):
 
         Does nothing else then putting a debug log entry."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+
+    def on_reserve(self, _client, _userdata, message):
+        """Handler for MQTT messages regarding reservation of instruments"""
+        reservation = json.loads(message.payload)
+        logger.info("[on_reserve] received: %s", reservation)
+        topic_parts = message.topic.split("/")
+        instr_id = topic_parts[2]
+        device_actor, device_id = self._device_actor(instr_id)
+        self.reservations[device_id] = Reservation(
+            timestamp=time.time(),
+            active=reservation.get("Active", False),
+            host=reservation.get("Host", ""),
+            app=reservation.get("App", ""),
+            user=reservation.get("User", ""),
+            status=Status.OK,
+        )
+        self.send(
+            device_actor, SetDeviceStatusMsg(device_status={"Reservation": reservation})
+        )

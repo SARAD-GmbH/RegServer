@@ -252,14 +252,13 @@ class BaseActor(ActorTypeDispatcher):
     def receiveUnrecognizedMessage(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for messages that do not fit the spec."""
-        if not is_flag_set():
-            logger.critical(
-                "Unrecognized %s for %s from %s -> Emergency shutdown",
-                msg,
-                self.my_id,
-                sender,
-            )
-            system_shutdown()
+        logger.critical(
+            "Unrecognized %s for %s from %s -> Emergency shutdown",
+            msg,
+            self.my_id,
+            sender,
+        )
+        system_shutdown()
 
     def _subscribe_to_actor_dict_msg(self):
         """Subscribe to receive updates of the Actor Dictionary from Registrar."""
