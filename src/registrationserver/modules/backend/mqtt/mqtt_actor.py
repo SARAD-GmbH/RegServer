@@ -204,7 +204,6 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         reservation_status = Status.ERROR
         reservation = json.loads(message.payload)
         logger.debug("[on_reserve] received: %s", reservation)
-        self.device_status["Reservation"] = reservation
         instr_status = reservation.get("Active")
         app = reservation.get("App")
         host = reservation.get("Host")
@@ -259,6 +258,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             host,
         )
         reservation_status = Status.OCCUPIED
+        self.device_status["Reservation"] = reservation
         self._publish_status_change()
 
     def on_msg(self, _client, _userdata, message):
