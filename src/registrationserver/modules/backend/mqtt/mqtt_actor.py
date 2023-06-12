@@ -204,12 +204,13 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         reservation_status = Status.ERROR
         reservation = json.loads(message.payload)
         logger.debug("[on_reserve] received: %s", reservation)
+        self.device_status["Reservation"] = reservation
+        instr_status = reservation.get("Active")
+        app = reservation.get("App")
+        host = reservation.get("Host")
+        user = reservation.get("User")
+        timestamp = reservation.get("Timestamp")
         if self.state["RESERVE"]["Pending"]:
-            instr_status = reservation.get("Active")
-            app = reservation.get("App")
-            host = reservation.get("Host")
-            user = reservation.get("User")
-            timestamp = reservation.get("Timestamp")
             if (
                 (instr_status)
                 and (app == self.reserve_device_msg.app)
@@ -250,10 +251,15 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             logger.debug("Free status: %s", reservation_status)
             self._handle_free_reply_from_is(Status.OK)
             return
-        logger.warning(
-            "MQTT actor received a reply to a non-requested reservation on instrument %s",
+        logger.info(
+            "%s is now occupied by %s, %s @ %s",
             self.my_id,
+            app,
+            user,
+            host,
         )
+        reservation_status = Status.OCCUPIED
+        self._publish_status_change()
 
     def on_msg(self, _client, _userdata, message):
         """Handler for MQTT messages regarding binary messages from instrument"""
