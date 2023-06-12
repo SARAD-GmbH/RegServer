@@ -17,7 +17,8 @@ from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
                                                RescanMsg, ReserveDeviceMsg,
                                                Status, TxBinaryMsg)
 from registrationserver.config import config, get_hostname, get_ip
-from registrationserver.helpers import diff_of_dicts, short_id
+from registrationserver.helpers import (diff_of_dicts, short_id,
+                                        transport_technology)
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
     MqttBaseActor
@@ -155,6 +156,8 @@ class MqttSchedulerActor(MqttBaseActor):
         Adds a new instrument to the list of available instruments
         or updates the reservation state."""
         logger.info("%s for %s from %s", msg, self.my_id, sender)
+        if transport_technology(msg.device_id) == "mqtt":
+            return
         instr_id = short_id(msg.device_id)
         device_id = msg.device_id
         device_status = msg.device_status

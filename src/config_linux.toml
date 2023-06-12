@@ -8,14 +8,14 @@ debug_level = "info"
 
 [frontends]
 rest = true
-mqtt = false
-mdns = true
+mqtt = true
+mdns = false
 modbus_rtu = false
 
 [backends]
 usb = true
 mqtt = true
-mdns = true
+mdns = false
 is1 = false
 
 [rest_frontend]
@@ -67,14 +67,14 @@ system_base = "multiprocQueueBase"
 # # convention_address = "127.0.0.1"
 
 process_startup_method = "fork"
-watchdog_interval = 2  # in seconds. 0 = inner watchdog switched off
-watchdog_wait = 5  # in seconds
+watchdog_interval = 0  # in seconds. 0 = inner watchdog switched off
+watchdog_wait = 2  # in seconds
 watchdog_check = true  # if true, each Actor has to re-register at the Registrar
 outer_watchdog_interval = 60  # in seconds
-outer_watchdog_trials = 1  # number of attempts to check Registrar
+outer_watchdog_trials = 0  # number of attempts to check Registrar
 
 [mqtt]
-group = "sarad-0001"
+group = "sawleipzig-0001"
 mqtt_broker = "sarad.de"
 port = 8883
 retry_interval = 5

@@ -35,7 +35,7 @@ from registrationserver.actor_messages import (ActorType, DeadChildMsg,
                                                UnsubscribeMsg,
                                                UpdateActorDictMsg)
 from registrationserver.logger import logger
-from registrationserver.shutdown import system_shutdown
+from registrationserver.shutdown import is_flag_set, system_shutdown
 
 
 class BaseActor(ActorTypeDispatcher):
@@ -252,13 +252,14 @@ class BaseActor(ActorTypeDispatcher):
     def receiveUnrecognizedMessage(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for messages that do not fit the spec."""
-        logger.critical(
-            "Unrecognized %s for %s from %s -> Emergency shutdown",
-            msg,
-            self.my_id,
-            sender,
-        )
-        system_shutdown()
+        if not is_flag_set():
+            logger.critical(
+                "Unrecognized %s for %s from %s -> Emergency shutdown",
+                msg,
+                self.my_id,
+                sender,
+            )
+            system_shutdown()
 
     def _subscribe_to_actor_dict_msg(self):
         """Subscribe to receive updates of the Actor Dictionary from Registrar."""
