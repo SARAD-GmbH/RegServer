@@ -304,6 +304,6 @@ class MqttListener(MqttBaseActor):
                 {
                     "topic": f"{self.group}/{is_id}/cmd",
                     "payload": "scan",
-                    "qos": 0,
+                    "qos": self.qos,
                 }
             )

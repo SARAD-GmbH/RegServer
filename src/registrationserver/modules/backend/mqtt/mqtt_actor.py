@@ -99,7 +99,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         _msg = {
             "topic": self.allowed_sys_topics["CMD"],
             "payload": bytes([self.cmd_id]) + data,
-            "qos": 0,
+            "qos": self.qos,
         }
         _re = self._publish(_msg)
         if self.cmd_id == 255:
@@ -135,7 +135,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                         "User": self.reserve_device_msg.user,
                     }
                 ),
-                "qos": 0,
+                "qos": self.qos,
                 "retain": False,
             }
             self.state["RESERVE"]["Pending"] = True
@@ -181,7 +181,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         self.mqttc.will_set(
             self.allowed_sys_topics["CTRL"],
             payload=json.dumps({"Req": "free"}),
-            qos=0,
+            qos=self.qos,
             retain=True,
         )
         self.mqttc.loop_start()
@@ -192,7 +192,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         _msg = {
             "topic": self.allowed_sys_topics["CTRL"],
             "payload": json.dumps({"Req": "free"}),
-            "qos": 0,
+            "qos": self.qos,
             "retain": False,
         }
         _re = self._publish(_msg)

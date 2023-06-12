@@ -423,6 +423,8 @@ else:
 DEFAULT_MQTT_CLIENT_ID = "RegistrationServer"
 DEFAULT_MQTT_BROKER = "85.214.243.156"  # Mosquitto running on sarad.de
 DEFAULT_MQTT_PORT = 1883
+DEFAULT_KEEPALIVE = 60
+DEFAULT_QOS = 0
 DEFAULT_RETRY_INTERVAL = 5
 DEFAULT_TLS_USE_TLS = False
 DEFAULT_GROUP = "lan"
@@ -436,6 +438,8 @@ if customization.get("mqtt") is None:
         "MQTT_BROKER": DEFAULT_MQTT_BROKER,
         "GROUP": DEFAULT_GROUP,
         "PORT": DEFAULT_MQTT_PORT,
+        "KEEPALIVE": DEFAULT_KEEPALIVE,
+        "QOS": DEFAULT_QOS,
         "RETRY_INTERVAL": DEFAULT_RETRY_INTERVAL,
         "TLS_CA_FILE": DEFAULT_TLS_CA_FILE,
         "TLS_CERT_FILE": DEFAULT_TLS_CERT_FILE,
@@ -451,6 +455,8 @@ else:
         "MQTT_BROKER": customization["mqtt"].get("mqtt_broker", DEFAULT_MQTT_BROKER),
         "GROUP": customization["mqtt"].get("group", DEFAULT_GROUP),
         "PORT": customization["mqtt"].get("port", DEFAULT_MQTT_PORT),
+        "KEEPALIVE": customization["mqtt"].get("keepalive", DEFAULT_KEEPALIVE),
+        "QOS": customization["mqtt"].get("qos", DEFAULT_QOS),
         "RETRY_INTERVAL": customization["mqtt"].get(
             "retry_interval", DEFAULT_RETRY_INTERVAL
         ),

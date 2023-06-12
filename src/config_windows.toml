@@ -69,5 +69,7 @@ outer_watchdog_trials = 1  # number of attempts to check Registrar
 group = "Registration Server"
 mqtt_broker = "sarad.de"
 port = 8883
+keepalive = 60
+qos = 0
 retry_interval = 5
 tls_use_tls = true

@@ -44,6 +44,7 @@ class MqttBaseActor(BaseActor):
             daemon=True,
         )
         self.next_method = None
+        self.qos = mqtt_config["QOS"]
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
@@ -114,7 +115,9 @@ class MqttBaseActor(BaseActor):
                         keyfile=keyfile,
                         cert_reqs=ssl.CERT_REQUIRED,
                     )
-                self.mqttc.connect(mqtt_broker, port=port)
+                self.mqttc.connect(
+                    mqtt_broker, port=port, keepalive=mqtt_config["KEEPALIVE"]
+                )
                 self.next_method = self._connected
                 return
             except FileNotFoundError:
