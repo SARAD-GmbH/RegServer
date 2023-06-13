@@ -80,10 +80,6 @@ class DeviceBaseActor(BaseActor):
             if msg.device_status.get(section, False):
                 self.device_status[section] = msg.device_status[section]
 
-    def _set_device_status(self):
-        logger.debug("Device status: %s", self.device_status)
-        self._publish_status_change()
-
     def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage to retry a waiting reservation task."""
