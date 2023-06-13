@@ -89,9 +89,6 @@ class MqttSchedulerActor(MqttBaseActor):
         self.mqttc.message_callback_add(
             f"{self.group}/{self.is_id}/+/meta", self.on_instr_meta
         )
-        self.mqttc.message_callback_add(
-            f"{self.group}/{self.is_id}/+/reservation", self.on_reserve
-        )
         self.mqttc.will_set(
             retain=True,
             topic=f"{self.group}/{self.is_id}/meta",
