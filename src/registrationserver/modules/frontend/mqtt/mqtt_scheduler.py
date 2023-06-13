@@ -15,8 +15,7 @@ import time
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
                                                RescanMsg, ReserveDeviceMsg,
-                                               SetDeviceStatusMsg, Status,
-                                               TxBinaryMsg)
+                                               Status, TxBinaryMsg)
 from registrationserver.config import config, get_hostname, get_ip
 from registrationserver.helpers import (diff_of_dicts, short_id,
                                         transport_technology)
@@ -366,24 +365,3 @@ class MqttSchedulerActor(MqttBaseActor):
 
         Does nothing else then putting a debug log entry."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-
-    def on_reserve(self, _client, _userdata, message):
-        """Handler for MQTT messages regarding reservation of instruments"""
-        reservation = json.loads(message.payload)
-        logger.info("[on_reserve] received: %s", reservation)
-        topic_parts = message.topic.split("/")
-        instr_id = topic_parts[2]
-        device_actor, device_id = self._device_actor(instr_id)
-        # TODO Das funktioniert so nicht richtig!
-        # Ich bin mir nicht einmal sicher, ob das überhaupt nötig ist.
-        # self.reservations[device_id] = Reservation(
-        #     timestamp=time.time(),
-        #     active=reservation.get("Active", False),
-        #     host=reservation.get("Host", ""),
-        #     app=reservation.get("App", ""),
-        #     user=reservation.get("User", ""),
-        #     status=Status.OK,
-        # )
-        # self.send(
-        #     device_actor, SetDeviceStatusMsg(device_status={"Reservation": reservation})
-        # )
