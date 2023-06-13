@@ -11,7 +11,7 @@ import os
 import socket
 import ssl
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from threading import Thread
 
 import paho.mqtt.client as MQTT  # type: ignore
@@ -45,6 +45,7 @@ class MqttBaseActor(BaseActor):
         )
         self.next_method = None
         self.qos = mqtt_config["QOS"]
+        self.last_pingresp = datetime.now()
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
@@ -71,8 +72,10 @@ class MqttBaseActor(BaseActor):
         self.mqttc.on_message = self.on_message
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
+        self.mqttc.on_log = self.on_log
         self.wakeupAfter(timedelta(seconds=0.5), payload="connect")
         self.connect_thread.start()
+        self.wakeupAfter(timedelta(seconds=60), payload="watchdog")
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
@@ -84,6 +87,13 @@ class MqttBaseActor(BaseActor):
             else:
                 self.next_method()
                 self.next_method = None
+        if msg.payload == "watchdog":
+            if (datetime.now() - self.last_pingresp) > (
+                2 * timedelta(seconds=mqtt_config["KEEPALIVE"])
+            ):
+                logger.critical(
+                    "No PINGRESP. MQTT client or MQTT broker stopped working."
+                )
 
     def _connect(self):
         """Try to connect the MQTT broker
@@ -227,6 +237,21 @@ class MqttBaseActor(BaseActor):
             logger.warning("The payload is none")
         else:
             logger.warning("Unknown MQTT message")
+
+    def on_log(self, _client, _userdata, level, buf):
+        """Handler for MQTT logging information."""
+        if level in [
+            MQTT.MQTT_LOG_INFO,
+            MQTT.MQTT_LOG_NOTICE,
+            MQTT.MQTT_LOG_DEBUG,
+        ]:
+            logger.debug(buf)
+        if level in [MQTT.MQTT_LOG_WARNING]:
+            logger.warning(buf)
+        if level in [MQTT.MQTT_LOG_ERR]:
+            logger.error(buf)
+        if "Received PINGRES" in buf:
+            self.last_pingresp = datetime.now()
 
     def _publish(self, msg) -> bool:
         if not self.is_connected:
