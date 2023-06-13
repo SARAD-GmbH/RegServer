@@ -128,8 +128,11 @@ class MqttListener(MqttBaseActor):
             logger.debug("Instrument unknown")
             return
         logger.info("[rm_instr] %s", device_id)
-        device_actor = self.child_actors[device_id]["actor_address"]
-        self.send(device_actor, KillMsg())
+        if self.child_actors.get(device_id, False):
+            device_actor = self.child_actors[device_id]["actor_address"]
+            self.send(device_actor, KillMsg())
+        else:
+            logger.warning("Device actor %s doesn't exist.", device_id)
 
     def _update_instr(self, is_id, instr_id, payload) -> None:
         if (is_id is None) or (instr_id is None) or (payload is None):
