@@ -374,14 +374,16 @@ class MqttSchedulerActor(MqttBaseActor):
         topic_parts = message.topic.split("/")
         instr_id = topic_parts[2]
         device_actor, device_id = self._device_actor(instr_id)
-        self.reservations[device_id] = Reservation(
-            timestamp=time.time(),
-            active=reservation.get("Active", False),
-            host=reservation.get("Host", ""),
-            app=reservation.get("App", ""),
-            user=reservation.get("User", ""),
-            status=Status.OK,
-        )
-        self.send(
-            device_actor, SetDeviceStatusMsg(device_status={"Reservation": reservation})
-        )
+        # TODO Das funktioniert so nicht richtig!
+        # Ich bin mir nicht einmal sicher, ob das überhaupt nötig ist.
+        # self.reservations[device_id] = Reservation(
+        #     timestamp=time.time(),
+        #     active=reservation.get("Active", False),
+        #     host=reservation.get("Host", ""),
+        #     app=reservation.get("App", ""),
+        #     user=reservation.get("User", ""),
+        #     status=Status.OK,
+        # )
+        # self.send(
+        #     device_actor, SetDeviceStatusMsg(device_status={"Reservation": reservation})
+        # )
