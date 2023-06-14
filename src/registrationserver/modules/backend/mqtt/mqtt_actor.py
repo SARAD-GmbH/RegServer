@@ -166,15 +166,6 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             self.allowed_sys_topics["RESERVE"], self.on_reserve
         )
         self.mqttc.message_callback_add(self.allowed_sys_topics["MSG"], self.on_msg)
-        logger.debug(
-            "When I die, the instrument shall be given free. This is my last will."
-        )
-        self.mqttc.will_set(
-            self.allowed_sys_topics["CTRL"],
-            payload=json.dumps({"Req": "free"}),
-            qos=self.qos,
-            retain=True,
-        )
 
     @overrides
     def _request_free_at_is(self):
@@ -318,6 +309,13 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
 
     @overrides
     def _kill_myself(self, register=True):
-        self._request_free_at_is()
+        try:
+            _ip = self.device_status["Reservation"]["IP"]
+            logger.debug(
+                "%s is still reserved by my host -> sending Free request", self.my_id
+            )
+            self._request_free_at_is()
+        except KeyError:
+            pass
         DeviceBaseActor._kill_myself(register)
         MqttBaseActor._kill_myself(register)
