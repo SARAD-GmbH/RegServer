@@ -112,14 +112,17 @@ class MqttListener(MqttBaseActor):
             instr_id,
             device_id,
         )
-        device_actor = self._create_actor(MqttActor, device_id, None)
-        self.child_actors[device_id]["host"] = is_id
-        self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
-        client_id = f"{device_id}.client"
-        self.send(
-            device_actor,
-            PrepareMqttActorMsg(is_id, client_id, self.group),
-        )
+        if device_id in self.child_actors:
+            logger.warning("%s already exists. Nothing to do.", device_id)
+        else:
+            device_actor = self._create_actor(MqttActor, device_id, None)
+            self.child_actors[device_id]["host"] = is_id
+            self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
+            client_id = f"{device_id}.client"
+            self.send(
+                device_actor,
+                PrepareMqttActorMsg(is_id, client_id, self.group),
+            )
 
     def _rm_instr(self, is_id, instr_id) -> None:
         logger.debug("[rm_instr] %s, %s", is_id, instr_id)
