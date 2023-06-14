@@ -19,7 +19,8 @@ from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 
 from registrationserver.actor_messages import (ActorType, Backend, Frontend,
-                                               KillMsg, PrepareMqttActorMsg,
+                                               KillMsg, MqttConnectMsg,
+                                               PrepareMqttActorMsg,
                                                RescanFinishedMsg, RescanMsg,
                                                ReturnDeviceActorMsg, Status,
                                                UpdateActorDictMsg,
@@ -65,6 +66,7 @@ class Registrar(BaseActor):
                     group=mqtt_config["GROUP"],
                 ),
             )
+            self.send(mqtt_scheduler, MqttConnectMsg())
         if Frontend.MDNS in frontend_config:
             _mdns_scheduler = self._create_actor(
                 MdnsSchedulerActor, "mdns_scheduler", None
@@ -81,6 +83,7 @@ class Registrar(BaseActor):
                     group=mqtt_config["GROUP"],
                 ),
             )
+            self.send(mqtt_listener, MqttConnectMsg())
         if Backend.IS1 in backend_config:
             _is1_listener = self._create_actor(Is1Listener, "is1_listener", None)
         keepalive_interval = actor_config["KEEPALIVE_INTERVAL"]

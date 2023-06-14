@@ -67,7 +67,7 @@ class MdnsAdvertiserActor(BaseActor):
             self.occupied = False
         else:
             self.occupied = msg.device_status["Reservation"].get("Active", False)
-            if self.occupied and (not self.virgin):
+            if not self.virgin:
                 self.__update_service()
         if self.virgin:
             try:

@@ -79,8 +79,8 @@ class MqttSchedulerActor(MqttBaseActor):
             self.led = False
 
     @overrides
-    def _connected(self):
-        """Initial setup of the MQTT client"""
+    def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
+        super().receiveMsg_PrepareMqttActorMsg(msg, sender)
         self.mqttc.message_callback_add(f"{self.group}/+/+/control", self.on_control)
         self.mqttc.message_callback_add(
             f"{self.group}/{self.is_id}/cmd", self.on_host_cmd
@@ -94,7 +94,10 @@ class MqttSchedulerActor(MqttBaseActor):
             topic=f"{self.group}/{self.is_id}/meta",
             payload=get_is_meta(self.is_meta._replace(state=0)),
         )
-        self.mqttc.loop_start()
+
+    @overrides
+    def _connected(self):
+        super()._connected()
         self._subscribe_topic([(f"{self.group}/{self.is_id}/*/reservation", 0)])
 
     @overrides

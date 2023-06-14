@@ -14,6 +14,7 @@ import json
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, KillMsg,
+                                               MqttConnectMsg,
                                                PrepareMqttActorMsg,
                                                SetDeviceStatusMsg)
 from registrationserver.helpers import short_id
@@ -69,11 +70,10 @@ class MqttListener(MqttBaseActor):
         self.actor_type = ActorType.HOST
 
     @overrides
-    def _connected(self):
-        """Initial setup of the MQTT client"""
+    def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
+        super().receiveMsg_PrepareMqttActorMsg(msg, sender)
         self.mqttc.message_callback_add("+/+/meta", self.on_is_meta)
         self.mqttc.message_callback_add("+/+/+/meta", self.on_instr_meta)
-        self.mqttc.loop_start()
 
     def _add_instr(self, is_id, instr_id, payload: dict) -> None:
         # pylint: disable=too-many-return-statements
@@ -122,6 +122,10 @@ class MqttListener(MqttBaseActor):
             self.send(
                 device_actor,
                 PrepareMqttActorMsg(is_id, client_id, self.group),
+            )
+            self.send(
+                device_actor,
+                MqttConnectMsg(),
             )
 
     def _rm_instr(self, is_id, instr_id) -> None:

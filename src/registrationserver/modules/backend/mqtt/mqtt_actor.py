@@ -23,8 +23,6 @@ from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.shutdown import system_shutdown
 
-# logger.debug("%s -> %s", __package__, __file__)
-
 
 class MqttActor(DeviceBaseActor, MqttBaseActor):
     """Actor interacting with a new device"""
@@ -155,13 +153,8 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
 
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
-        self.is_id = msg.is_id
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
-
-    @overrides
-    def _connected(self):
-        # pylint: disable=invalid-name
-        """Initial setup of the MQTT client"""
+        self.is_id = msg.is_id
         self.mqttc.on_publish = self.on_publish
         for k in self.allowed_sys_topics:
             self.allowed_sys_topics[k] = (
@@ -182,7 +175,6 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             qos=self.qos,
             retain=True,
         )
-        self.mqttc.loop_start()
 
     @overrides
     def _request_free_at_is(self):
@@ -323,3 +315,9 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         logger.debug("[on_publish] Message-ID %d was published to the broker", msg_id)
         if msg_id == self.msg_id["PUBLISH"]:
             logger.debug("Publish: msg_id is matched")
+
+    @overrides
+    def _kill_myself(self, register=True):
+        self._request_free_at_is()
+        DeviceBaseActor._kill_myself(register)
+        MqttBaseActor._kill_myself(register)

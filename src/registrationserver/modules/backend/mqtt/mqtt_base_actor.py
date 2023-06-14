@@ -48,7 +48,7 @@ class MqttBaseActor(BaseActor):
         self.last_pingresp = datetime.now()
 
     @overrides
-    def receiveMsg_KillMsg(self, msg, sender):
+    def _kill_myself(self, register=True):
         if self.ungr_disconn == 2:
             logger.debug("To disconnect from the MQTT-broker!")
             self.mqttc.disconnect()
@@ -58,7 +58,7 @@ class MqttBaseActor(BaseActor):
         logger.debug("To stop the MQTT thread!")
         self.mqttc.loop_stop()
         logger.debug("Disconnected gracefully")
-        super().receiveMsg_KillMsg(msg, sender)
+        super()._kill_myself()
 
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -73,6 +73,11 @@ class MqttBaseActor(BaseActor):
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
         self.mqttc.on_log = self.on_log
+
+    def receiveMsg_MqttConnectMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Connect the MQTT client"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.wakeupAfter(timedelta(seconds=0.5), payload="connect")
         self.connect_thread.start()
         self.wakeupAfter(timedelta(seconds=60), payload="watchdog")
@@ -170,6 +175,7 @@ class MqttBaseActor(BaseActor):
 
     def _connected(self):
         """Do everything that can only be done if the MQTT client is connected."""
+        self.mqttc.loop_start()
 
     def on_connect(self, client, userdata, flags, reason_code):
         # pylint: disable=unused-argument

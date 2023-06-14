@@ -661,6 +661,11 @@ class PrepareMqttActorMsg:
 
 
 @dataclass
+class MqttConnectMsg:
+    """Request to connect the MQTT client of the receiving MQTT Actor."""
+
+
+@dataclass
 class CreateActorMsg:
     """Request to the Registrar to create a new actor.
     This is usually sent to the Registrar from the surrounding program
