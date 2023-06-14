@@ -357,5 +357,8 @@ class DeviceBaseActor(BaseActor):
 
     @overrides
     def _kill_myself(self, register=True):
-        self._send_reservation_status_msg()
+        try:
+            self._send_reservation_status_msg()
+        except AttributeError as exception:
+            logger.error(exception)
         super()._kill_myself(register)
