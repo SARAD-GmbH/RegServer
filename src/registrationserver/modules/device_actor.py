@@ -12,7 +12,7 @@
 from datetime import datetime, timedelta
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (Frontend, KillMsg,
+from registrationserver.actor_messages import (ActorType, Frontend, KillMsg,
                                                ReservationStatusMsg, Status,
                                                UpdateDeviceStatusMsg)
 from registrationserver.base_actor import BaseActor
@@ -59,7 +59,7 @@ class DeviceBaseActor(BaseActor):
         self.subscribers = {}
         self.reserve_device_msg = None
         self.sender_api = None
-        self.is_device_actor = True
+        self.actor_type = ActorType.DEVICE
         self.redirector_actor = None
         self.return_message = None
         self.instr_id = None
@@ -75,9 +75,10 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SetDeviceStatusMsg"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.device_status = msg.device_status
-        logger.debug("Device status: %s", self.device_status)
-        self._publish_status_change()
+        sections = ["Identification", "Reservation", "Remote"]
+        for section in sections:
+            if msg.device_status.get(section, False):
+                self.device_status[section] = msg.device_status[section]
 
     def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name
@@ -124,6 +125,7 @@ class DeviceBaseActor(BaseActor):
         Forward the reservation state from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
+        logger.debug("_handle_reserve_reply_from_is")
         self.return_message = ReservationStatusMsg(
             instr_id=self.instr_id, status=success
         )
@@ -283,6 +285,7 @@ class DeviceBaseActor(BaseActor):
         logger.info("Reservation state updated: %s", self.device_status)
 
     def _send_reservation_status_msg(self):
+        logger.debug("_send_reservation_status_msg")
         self._publish_status_change()
         if (
             (self.return_message is not None)
@@ -354,5 +357,11 @@ class DeviceBaseActor(BaseActor):
 
     @overrides
     def _kill_myself(self, register=True):
-        self._send_reservation_status_msg()
-        super()._kill_myself(register)
+        try:
+            self._send_reservation_status_msg()
+        except AttributeError as exception:
+            logger.error(exception)
+        try:
+            super()._kill_myself(register)
+        except TypeError:
+            pass

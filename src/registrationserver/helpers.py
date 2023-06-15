@@ -8,7 +8,6 @@ Authors
 """
 import fnmatch
 import os
-import re
 from collections.abc import MutableMapping
 from contextlib import suppress
 from datetime import timedelta
@@ -17,7 +16,8 @@ from typing import List
 from thespian.actors import (Actor, ActorSystem,  # type: ignore
                              ActorSystemFailure)
 
-from registrationserver.actor_messages import (FreeDeviceMsg, GetActorDictMsg,
+from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
+                                               GetActorDictMsg,
                                                GetDeviceStatusesMsg,
                                                GetDeviceStatusMsg,
                                                ReservationStatusMsg,
@@ -151,19 +151,6 @@ def transport_technology(device_id: str) -> str:
         str: the id of the transport technology
     """
     return device_id.split(".", 2)[-1]
-
-
-def is_device_actor(actor_id: str) -> bool:
-    """Check whether the actor is an device actor.
-    Device actor ids are having the structure instr_id.protocoll.tt
-
-    Args:
-        actor_id (str): if it is a device actor, this is the device_id
-
-    Returns:
-        bool: True if the actor_id has the structure of a device_id
-    """
-    return bool(len(actor_id.split(".")) == 3)
 
 
 def find(pattern, path):
@@ -350,7 +337,7 @@ def get_instr_id_actor_dict(registrar_actor):
     return {
         short_id(id): dict["address"]
         for id, dict in actor_dict.items()
-        if dict["is_device_actor"]
+        if (dict["actor_type"] == ActorType.DEVICE)
     }
 
 

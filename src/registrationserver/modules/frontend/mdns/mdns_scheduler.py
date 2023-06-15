@@ -11,7 +11,7 @@ Author
 
 """
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (KillMsg,
+from registrationserver.actor_messages import (ActorType, KillMsg,
                                                SetupMdnsAdvertiserActorMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.helpers import diff_of_dicts, transport_technology
@@ -34,7 +34,7 @@ class MdnsSchedulerActor(BaseActor):
         """Extract only active device actors from actor_dict"""
         active_device_actor_dict = {}
         for actor_id, description in actor_dict.items():
-            if description["is_device_actor"]:
+            if description["actor_type"] == ActorType.DEVICE:
                 active_device_actor_dict[actor_id] = description
         return active_device_actor_dict
 

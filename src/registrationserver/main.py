@@ -12,6 +12,7 @@
 
 import os
 import select
+import shutil
 import sys
 import threading
 import time
@@ -20,6 +21,7 @@ from datetime import datetime, timedelta
 from serial.serialutil import SerialException  # type: ignore
 from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
+from version import VERSION
 
 from registrationserver.actor_messages import (Backend, Frontend, KillMsg,
                                                SetupMsg)
@@ -50,7 +52,6 @@ else:
     try:
         GLOBAL_LED = LED(23)
     except BadPinFactory:
-        logger.info("On a Rasperry Pi, you could see a LED glowing on GPIO 23.")
         GLOBAL_LED = False
 
 RETRY_DELAY = 2  # in seconds
@@ -277,7 +278,8 @@ def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
 
 def custom_hook(args):
     """Custom exception hook to handle exceptions that occured within threads."""
-    logger.critical("Thread failed: %s", args.exc_value)
+    logger.critical("Thread %s failed with %s", args.thread, args.exc_value)
+    logger.critical("Traceback: %s", args.exc_traceback)
     system_shutdown(with_error=True)
 
 
@@ -304,11 +306,15 @@ def main():
     # pylint: disable=too-many-branches
     """Main function of the Registration Server"""
     try:
+        shutil.copy2(LOGFILENAME, f"{LOGFILENAME}.1")
+    except Exception:  # pylint: disable=broad-except
+        logger.warning("There is no old log file %s to copy.", LOGFILENAME)
+    try:
         with open(LOGFILENAME, "w", encoding="utf8") as _:
+            logger.info("SARAD Registration Server %s", VERSION)
             logger.info("Log entries go to %s", LOGFILENAME)
     except Exception:  # pylint: disable=broad-except
         logger.error("Initialization of log file failed.")
-    logger.info("Logging system initialized.")
     # maybe there are processes left from last run
     kill_residual_processes(end_with_error=False)
     threading.excepthook = custom_hook
@@ -322,13 +328,13 @@ def main():
         if not startup_tupel:
             time.sleep(30)
             shutdown((), False, True, with_error=True)
-            return None
+            return
     elif start_stop == "stop":
         system_shutdown(with_error=False)
-        return None
+        return
     else:
         print("Usage: <program> start|stop")
-        return None
+        return
     logger.debug("Starting the main loop")
     wait_some_time = False
     interval = actor_config["OUTER_WATCHDOG_INTERVAl"]

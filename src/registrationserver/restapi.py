@@ -11,6 +11,7 @@
 
 """
 
+import os
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -37,10 +38,12 @@ from registrationserver.actor_messages import (AddPortToLoopMsg,
                                                ReturnUsbPortsMsg, Status)
 from registrationserver.config import actor_config, mqtt_config
 from registrationserver.helpers import (check_msg, get_actor,
-                                        get_device_status, get_device_statuses,
+                                        get_device_status_from_registrar,
+                                        get_device_statuses,
                                         get_registrar_actor, send_free_message,
                                         send_reserve_message,
                                         transport_technology)
+from registrationserver.logdef import LOGFILENAME
 from registrationserver.logger import logger  # type: ignore
 from registrationserver.shutdown import system_shutdown
 
@@ -48,13 +51,14 @@ from registrationserver.shutdown import system_shutdown
 
 STARTTIME = datetime.utcnow()
 PASSWORD = "Diev5Pw."
+TIMEOUT = timedelta(seconds=20)
 
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
 api = Api(
     app,
-    version="1.0",
+    version="1.1",
     title="RegServer API",
     description="API to get data from and to control the SARAD Registration Server service",
 )
@@ -71,21 +75,59 @@ status_ns = api.namespace(
 )
 values_ns = api.namespace("values", description="Show measuring values")
 reserve_arguments = reqparse.RequestParser()
-reserve_arguments.add_argument("who", type=str, required=True)
+reserve_arguments.add_argument(
+    "who",
+    type=str,
+    required=True,
+    help="Requires an argument `who` identifying the requester."
+    + "Consists of application, user, and requesting host. "
+    + "All three parts are to be devided by ` - `. \n"
+    + "Example: `who=RV8 - mstrey - WS01`",
+    trim=True,
+)
 shutdown_arguments = reqparse.RequestParser()
 shutdown_arguments.add_argument(
     "password",
     type=str,
     required=True,
+    help="Requires the correct password as argument.",
     choices=[PASSWORD],
+    trim=True,
+)
+log_arguments = reqparse.RequestParser()
+log_arguments.add_argument(
+    "age",
+    type=int,
+    required=False,
+    help="Requires 'age' to be either 0 for current or 1 for last log.",
+    default=0,
+    choices=[0, 1],
+    trim=True,
 )
 ports_arguments = reqparse.RequestParser()
 ports_arguments.add_argument("port", type=str, required=False)
 values_arguments = reqparse.RequestParser()
-values_arguments.add_argument("component", type=int, required=True)
-values_arguments.add_argument("sensor", type=int, required=True)
 values_arguments.add_argument(
-    "measurand", type=int, required=True, choices=[0, 1, 2, 3]
+    "component",
+    type=int,
+    required=True,
+    help="Requires component, sensor, measurand.",
+    trim=True,
+)
+values_arguments.add_argument(
+    "sensor",
+    type=int,
+    required=True,
+    help="Requires component, sensor, measurand.",
+    trim=True,
+)
+values_arguments.add_argument(
+    "measurand",
+    type=int,
+    required=True,
+    help="Requires component, sensor, measurand.",
+    choices=[0, 1, 2, 3],
+    trim=True,
 )
 
 
@@ -138,38 +180,48 @@ class Shutdown(Resource):
         """
         remote_addr = request.remote_addr
         remote_user = request.remote_user
-        try:
-            attribute_password = request.args.get("password").strip('"')
-        except (IndexError, AttributeError):
-            status = Status.ATTRIBUTE_ERROR
-        else:
-            if attribute_password == PASSWORD:
-                status = Status.OK
-            else:
-                status = Status.ATTRIBUTE_ERROR
-        answer = {}
-        if status == Status.OK:
-            logger.info(
-                "Shutdown by user intervention from %s",
-                remote_addr,
-            )
-            system_shutdown()
-            answer = {
-                "Notification": "Registration Server going down for restart.",
-                "Requester": remote_addr,
-            }
-        elif status == Status.ATTRIBUTE_ERROR:
-            logger.warning(
-                "%s requesting shutdown without proper attribute", remote_addr
-            )
-        else:
-            logger.error("Unexpected error in shutdown by user.")
-            status = Status.ERROR
+        shutdown_arguments.parse_args()
+        logger.info(
+            "Shutdown by user intervention from %s",
+            remote_addr,
+        )
+        system_shutdown()
+        answer = {
+            "Notification": "Registration Server going down for restart.",
+            "Requester": remote_addr,
+        }
+        status = Status.OK
         answer["Error code"] = status.value
         answer["Error"] = str(status)
         answer["Remote addr"] = remote_addr
         answer["Remote user"] = remote_user
         return answer
+
+
+@root_ns.route("/log")
+@root_ns.param(
+    "age",
+    "May be 0 for the current log or 1 for the backup of the log "
+    + "from the last run of Registration Server Service.",
+)
+class Log(Resource):
+    """Endpoint to show the content of the log file"""
+
+    @api.expect(log_arguments, validate=True)
+    def get(self):
+        """Show the content of the log file"""
+        logger.debug("Log request received")
+        attribute_age = log_arguments.parse_args()
+        if attribute_age["age"]:
+            log_file_name = f"{LOGFILENAME}.1"
+        else:
+            log_file_name = LOGFILENAME
+        if os.path.isfile(log_file_name):
+            with open(log_file_name, "r", encoding="utf8") as log_file:
+                lines = log_file.readlines()
+            resp = [line.rstrip("\n") for line in lines]
+            return resp
+        return f"{log_file_name} doesn't exist."
 
 
 @list_ns.route("/")
@@ -215,11 +267,10 @@ class Scan(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        cluster_actor = get_actor(registrar_actor, "cluster")
         with ActorSystem().private() as scan_sys:
             try:
                 reply = scan_sys.ask(
-                    cluster_actor, RescanMsg(), timeout=timedelta(seconds=60)
+                    registrar_actor, RescanMsg(), timeout=timedelta(seconds=60)
                 )
             except ConnectionResetError as exception:
                 logger.debug(exception)
@@ -254,7 +305,7 @@ class ListDevice(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        return {device_id: get_device_status(registrar_actor, device_id)}
+        return {device_id: get_device_status_from_registrar(registrar_actor, device_id)}
 
 
 @list_ns.route("/<string:device_id>/reserve")
@@ -288,8 +339,9 @@ class ReserveDevice(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
+        arguments = reserve_arguments.parse_args()
         try:
-            attribute_who = request.args.get("who").strip('"')
+            attribute_who = arguments["who"]
             application = attribute_who.split(" - ")[0]
             user = attribute_who.split(" - ")[1]
             request_host = attribute_who.split(" - ")[2]
@@ -308,7 +360,7 @@ class ReserveDevice(Resource):
             request_host,
         )
         logger.debug("Before RESERVE operation")
-        device_state = get_device_status(registrar_actor, device_id)
+        device_state = get_device_status_from_registrar(registrar_actor, device_id)
         if (
             transport_technology(device_id) not in ["local", "is1", "mdns", "mqtt"]
         ) or (device_state == {}):
@@ -330,7 +382,7 @@ class ReserveDevice(Resource):
             return {
                 "Error code": status.value,
                 "Error": str(status),
-                device_id: get_device_status(registrar_actor, device_id),
+                device_id: get_device_status_from_registrar(registrar_actor, device_id),
             }
         if status in (
             Status.NOT_FOUND,
@@ -391,7 +443,7 @@ class FreeDevice(Resource):
             return {
                 "Error code": status.value,
                 "Error": str(status),
-                device_id: get_device_status(registrar_actor, device_id),
+                device_id: get_device_status_from_registrar(registrar_actor, device_id),
             }
         return {
             "Error code": status.value,
@@ -434,19 +486,10 @@ class GetValues(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        try:
-            component_id = int(request.args.get("component").strip('"'))
-            sensor_id = int(request.args.get("sensor").strip('"'))
-            measurand_id = int(request.args.get("measurand").strip('"'))
-        except (IndexError, AttributeError):
-            logger.warning("Get recent values request without proper attributes.")
-            status = Status.ATTRIBUTE_ERROR
-            notification = "Requires component, sensor, measurand."
-            return {
-                "Error code": status.value,
-                "Error": str(status),
-                "Notification": notification,
-            }
+        arguments = values_arguments.parse_args()
+        component_id = arguments["component"]
+        sensor_id = arguments["sensor"]
+        measurand_id = arguments["measurand"]
         logger.info(
             "Request value %d/%d/%d of %s",
             component_id,
@@ -454,7 +497,7 @@ class GetValues(Resource):
             measurand_id,
             device_id,
         )
-        device_state = get_device_status(registrar_actor, device_id)
+        device_state = get_device_status_from_registrar(registrar_actor, device_id)
         if (
             (device_state == {})
             or (transport_technology(device_id) not in ["local"])
@@ -481,7 +524,7 @@ class GetValues(Resource):
                 value_return = value_sys.ask(
                     device_actor,
                     GetRecentValueMsg(component_id, sensor_id, measurand_id),
-                    timeout=timedelta(seconds=10),
+                    timeout=TIMEOUT,
                 )
             except ConnectionResetError:
                 status = Status.CRITICAL
@@ -548,7 +591,7 @@ class GetLocalPorts(Resource):
         with ActorSystem().private() as get_local_ports:
             try:
                 reply = get_local_ports.ask(
-                    cluster_actor, GetLocalPortsMsg(), timeout=timedelta(seconds=10)
+                    cluster_actor, GetLocalPortsMsg(), timeout=TIMEOUT
                 )
             except ConnectionResetError:
                 reply = None
@@ -578,7 +621,7 @@ class GetUsbPorts(Resource):
         with ActorSystem().private() as get_usb_ports:
             try:
                 reply = get_usb_ports.ask(
-                    cluster_actor, GetUsbPortsMsg(), timeout=timedelta(seconds=10)
+                    cluster_actor, GetUsbPortsMsg(), timeout=TIMEOUT
                 )
             except ConnectionResetError:
                 reply = None
@@ -610,7 +653,7 @@ class GetNativePorts(Resource):
                 reply = get_native_ports.ask(
                     cluster_actor,
                     GetNativePortsMsg(),
-                    timeout=timedelta(seconds=10),
+                    timeout=TIMEOUT,
                 )
             except ConnectionResetError:
                 reply = None
@@ -655,7 +698,7 @@ class GetLoopPort(Resource):
                 reply = get_loop_port.ask(
                     cluster_actor,
                     AddPortToLoopMsg(port),
-                    timeout=timedelta(seconds=10),
+                    timeout=TIMEOUT,
                 )
             except ConnectionResetError:
                 reply = None
@@ -699,7 +742,7 @@ class GetStopPort(Resource):
                 reply = get_stop_port.ask(
                     cluster_actor,
                     RemovePortFromLoopMsg(port),
-                    timeout=timedelta(seconds=10),
+                    timeout=TIMEOUT,
                 )
             except ConnectionResetError:
                 reply = None
@@ -735,7 +778,7 @@ class GetStatus(Resource):
                 reply = get_status.ask(
                     actorAddr=actor_address,
                     msg=Thespian_StatusReq(),
-                    timeout=timedelta(seconds=10),
+                    timeout=TIMEOUT,
                 )
             except ConnectionResetError:
                 reply = None

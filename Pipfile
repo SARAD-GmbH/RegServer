@@ -31,11 +31,11 @@ requests = "*"
 waitress = "*"
 modbus-tk = "*"
 flask-restx = "*"
-rpi-gpio = "*"
+rpi-gpio = {version = "*", sys_platform = "== 'linux'"}
 pywin32 = {version = "*", sys_platform = "== 'win32'"}
 data-collector = {editable = true, git = "https://github.com/SARAD-GmbH/data_collector.git"}
-gpiozero = "*"
-systemd-python = "*"
+gpiozero = {version = "*", sys_platform = "== 'linux'"}
+systemd-python = {version = "*", sys_platform = "== 'linux'"}
 
 [requires]
 python_version = "3"

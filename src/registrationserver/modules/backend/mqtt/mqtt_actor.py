@@ -23,8 +23,6 @@ from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
 from registrationserver.modules.device_actor import DeviceBaseActor
 from registrationserver.shutdown import system_shutdown
 
-# logger.debug("%s -> %s", __package__, __file__)
-
 
 class MqttActor(DeviceBaseActor, MqttBaseActor):
     """Actor interacting with a new device"""
@@ -99,7 +97,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         _msg = {
             "topic": self.allowed_sys_topics["CMD"],
             "payload": bytes([self.cmd_id]) + data,
-            "qos": 0,
+            "qos": self.qos,
         }
         _re = self._publish(_msg)
         if self.cmd_id == 255:
@@ -135,13 +133,11 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                         "User": self.reserve_device_msg.user,
                     }
                 ),
-                "qos": 0,
+                "qos": self.qos,
                 "retain": False,
             }
             self.state["RESERVE"]["Pending"] = True
-            if not self._publish(_msg):
-                self.state["RESERVE"]["Pending"] = False
-                return
+            self._publish(_msg)
             logger.debug("[Reserve at IS]: Waiting for reply to reservation request")
 
     @overrides
@@ -157,13 +153,8 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
 
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
-        self.is_id = msg.is_id
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
-
-    @overrides
-    def _connected(self):
-        # pylint: disable=invalid-name
-        """Initial setup of the MQTT client"""
+        self.is_id = msg.is_id
         self.mqttc.on_publish = self.on_publish
         for k in self.allowed_sys_topics:
             self.allowed_sys_topics[k] = (
@@ -175,16 +166,6 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             self.allowed_sys_topics["RESERVE"], self.on_reserve
         )
         self.mqttc.message_callback_add(self.allowed_sys_topics["MSG"], self.on_msg)
-        logger.debug(
-            "When I die, the instrument shall be given free. This is my last will."
-        )
-        self.mqttc.will_set(
-            self.allowed_sys_topics["CTRL"],
-            payload=json.dumps({"Req": "free"}),
-            qos=0,
-            retain=True,
-        )
-        self.mqttc.loop_start()
 
     @overrides
     def _request_free_at_is(self):
@@ -192,7 +173,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         _msg = {
             "topic": self.allowed_sys_topics["CTRL"],
             "payload": json.dumps({"Req": "free"}),
-            "qos": 0,
+            "qos": self.qos,
             "retain": False,
         }
         _re = self._publish(_msg)
@@ -203,13 +184,13 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         """Handler for MQTT messages regarding reservation of instruments"""
         reservation_status = Status.ERROR
         reservation = json.loads(message.payload)
-        logger.debug("[on_reserve] received: %s", reservation)
+        logger.info("[on_reserve] received: %s", reservation)
+        instr_status = reservation.get("Active")
+        app = reservation.get("App")
+        host = reservation.get("Host")
+        user = reservation.get("User")
+        timestamp = reservation.get("Timestamp")
         if self.state["RESERVE"]["Pending"]:
-            instr_status = reservation.get("Active")
-            app = reservation.get("App")
-            host = reservation.get("Host")
-            user = reservation.get("User")
-            timestamp = reservation.get("Timestamp")
             if (
                 (instr_status)
                 and (app == self.reserve_device_msg.app)
@@ -228,6 +209,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                     logger.error(
                         "Subscription to %s went wrong", self.allowed_sys_topics["MSG"]
                     )
+                    self.state["RESERVE"]["Pending"] = False
                     return
                 reservation_status = Status.OK
             else:
@@ -250,10 +232,16 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             logger.debug("Free status: %s", reservation_status)
             self._handle_free_reply_from_is(Status.OK)
             return
-        logger.warning(
-            "MQTT actor received a reply to a non-requested reservation on instrument %s",
+        logger.info(
+            "%s is now occupied by %s, %s @ %s",
             self.my_id,
+            app,
+            user,
+            host,
         )
+        reservation_status = Status.OCCUPIED
+        self.device_status["Reservation"] = reservation
+        self._publish_status_change()
 
     def on_msg(self, _client, _userdata, message):
         """Handler for MQTT messages regarding binary messages from instrument"""
@@ -303,8 +291,8 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         )
 
     @overrides
-    def on_connect(self, client, userdata, flags, result_code):
-        super().on_connect(client, userdata, flags, result_code)
+    def on_connect(self, client, userdata, flags, reason_code):
+        super().on_connect(client, userdata, flags, reason_code)
         logger.debug("Subscribe MQTT actor to the 'reservation' topic")
         reserve_topic = self.allowed_sys_topics["RESERVE"]
         return_code, self.msg_id["SUBSCRIBE"] = self.mqttc.subscribe(reserve_topic, 0)
@@ -318,3 +306,31 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         logger.debug("[on_publish] Message-ID %d was published to the broker", msg_id)
         if msg_id == self.msg_id["PUBLISH"]:
             logger.debug("Publish: msg_id is matched")
+
+    @overrides
+    def _kill_myself(self, register=True):
+        try:
+            _ip = self.device_status["Reservation"]["IP"]
+            logger.debug(
+                "%s is still reserved by my host -> sending Free request", self.my_id
+            )
+            self._request_free_at_is()
+        except KeyError:
+            pass
+        if self.ungr_disconn == 2:
+            logger.debug("To disconnect from the MQTT-broker!")
+            self.mqttc.disconnect()
+        elif self.ungr_disconn in (1, 0):
+            self.ungr_disconn = 2
+            logger.debug("Already disconnected")
+        logger.debug("To stop the MQTT thread!")
+        self.mqttc.loop_stop()
+        logger.debug("Disconnected gracefully")
+        try:
+            self._send_reservation_status_msg()
+        except AttributeError as exception:
+            logger.error(exception)
+        try:
+            super()._kill_myself(register)
+        except TypeError:
+            pass

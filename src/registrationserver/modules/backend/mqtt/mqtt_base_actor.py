@@ -11,12 +11,12 @@ import os
 import socket
 import ssl
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from threading import Thread
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import Frontend, KillMsg
+from registrationserver.actor_messages import Frontend
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import frontend_config, mqtt_config
 from registrationserver.logger import logger
@@ -24,6 +24,7 @@ from registrationserver.shutdown import is_flag_set, system_shutdown
 
 
 class MqttBaseActor(BaseActor):
+    # pylint: disable=too-many-instance-attributes
     """Actor interacting with a new device"""
 
     @overrides
@@ -43,9 +44,11 @@ class MqttBaseActor(BaseActor):
             daemon=True,
         )
         self.next_method = None
+        self.qos = mqtt_config["QOS"]
+        self.last_pingresp = datetime.now()
 
     @overrides
-    def receiveMsg_KillMsg(self, msg, sender):
+    def _kill_myself(self, register=True):
         if self.ungr_disconn == 2:
             logger.debug("To disconnect from the MQTT-broker!")
             self.mqttc.disconnect()
@@ -55,7 +58,7 @@ class MqttBaseActor(BaseActor):
         logger.debug("To stop the MQTT thread!")
         self.mqttc.loop_stop()
         logger.debug("Disconnected gracefully")
-        super().receiveMsg_KillMsg(msg, sender)
+        super()._kill_myself()
 
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -69,8 +72,15 @@ class MqttBaseActor(BaseActor):
         self.mqttc.on_message = self.on_message
         self.mqttc.on_subscribe = self.on_subscribe
         self.mqttc.on_unsubscribe = self.on_unsubscribe
+        self.mqttc.on_log = self.on_log
+
+    def receiveMsg_MqttConnectMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Connect the MQTT client"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.wakeupAfter(timedelta(seconds=0.5), payload="connect")
         self.connect_thread.start()
+        self.wakeupAfter(timedelta(seconds=60), payload="watchdog")
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
@@ -82,6 +92,13 @@ class MqttBaseActor(BaseActor):
             else:
                 self.next_method()
                 self.next_method = None
+        if msg.payload == "watchdog":
+            if (datetime.now() - self.last_pingresp) > (
+                2 * timedelta(seconds=mqtt_config["KEEPALIVE"])
+            ):
+                logger.critical(
+                    "No PINGRESP. MQTT client or MQTT broker stopped working."
+                )
 
     def _connect(self):
         """Try to connect the MQTT broker
@@ -113,7 +130,9 @@ class MqttBaseActor(BaseActor):
                         keyfile=keyfile,
                         cert_reqs=ssl.CERT_REQUIRED,
                     )
-                self.mqttc.connect(mqtt_broker, port=port)
+                self.mqttc.connect(
+                    mqtt_broker, port=port, keepalive=mqtt_config["KEEPALIVE"]
+                )
                 self.next_method = self._connected
                 return
             except FileNotFoundError:
@@ -156,15 +175,16 @@ class MqttBaseActor(BaseActor):
 
     def _connected(self):
         """Do everything that can only be done if the MQTT client is connected."""
+        self.mqttc.loop_start()
 
-    def on_connect(self, client, userdata, flags, result_code):
+    def on_connect(self, client, userdata, flags, reason_code):
         # pylint: disable=unused-argument
         """Will be carried out when the client connected to the MQTT broker."""
-        if result_code:
+        if reason_code:
             self.is_connected = False
             logger.critical(
                 "[CONNECT] Connection to MQTT broker failed with %s",
-                result_code,
+                reason_code,
             )
             return
         self.is_connected = True
@@ -173,15 +193,15 @@ class MqttBaseActor(BaseActor):
             self.mqttc.subscribe(topic, qos)
         logger.info("[CONNECT] Connected to MQTT broker")
 
-    def on_disconnect(self, client, userdata, result_code):
+    def on_disconnect(self, client, userdata, reason_code):
         # pylint: disable=unused-argument
         """Will be carried out when the client disconnected from the MQTT broker."""
         logger.info("Disconnected from MQTT broker")
-        if result_code >= 1:
+        if reason_code >= 1:
             self.ungr_disconn = 1
             logger.warning(
                 "Ungraceful disconnect from MQTT broker (%s). Trying to reconnect.",
-                result_code,
+                reason_code,
             )
             # There is no need to do anything.
             # With loop_start() in place, re-connections will be handled automatically.
@@ -223,6 +243,21 @@ class MqttBaseActor(BaseActor):
             logger.warning("The payload is none")
         else:
             logger.warning("Unknown MQTT message")
+
+    def on_log(self, _client, _userdata, level, buf):
+        """Handler for MQTT logging information."""
+        if level in [
+            MQTT.MQTT_LOG_INFO,
+            MQTT.MQTT_LOG_NOTICE,
+            MQTT.MQTT_LOG_DEBUG,
+        ]:
+            logger.debug(buf)
+        if level in [MQTT.MQTT_LOG_WARNING]:
+            logger.warning(buf)
+        if level in [MQTT.MQTT_LOG_ERR]:
+            logger.error(buf)
+        if "Received PINGRES" in buf:
+            self.last_pingresp = datetime.now()
 
     def _publish(self, msg) -> bool:
         if not self.is_connected:

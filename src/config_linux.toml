@@ -1,5 +1,5 @@
 debug_level = "info"
-is_id = "Wettinquelle"
+is_id = "Binker"
 # description = "A longer text describing this Instrument Server"
 # place = "A text describing where the Instrument Controller running this Instrument Server is placed"
 # latitude = 51.0764194  # positive values for North, negative for South
@@ -68,9 +68,7 @@ system_base = "multiprocQueueBase"
 
 process_startup_method = "fork"
 watchdog_interval = 2  # in seconds. 0 = inner watchdog switched off
-watchdog_wait = 3  # in seconds. If IS1 backend is active and watchdog_check is
-                   # True, this must be at least 35. In every other case it
-                   # should be at least 10.
+watchdog_wait = 2  # in seconds
 watchdog_check = true  # if true, each Actor has to re-register at the Registrar
 outer_watchdog_interval = 60  # in seconds
 outer_watchdog_trials = 1  # number of attempts to check Registrar
@@ -79,5 +77,7 @@ outer_watchdog_trials = 1  # number of attempts to check Registrar
 group = "sawleipzig-0001"
 mqtt_broker = "sarad.de"
 port = 8883
+keepalive = 60
+qos = 2
 retry_interval = 5
 tls_use_tls = true

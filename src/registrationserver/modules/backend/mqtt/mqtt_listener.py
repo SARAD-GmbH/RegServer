@@ -13,7 +13,9 @@ in the MQTT network
 import json
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (KillMsg, PrepareMqttActorMsg,
+from registrationserver.actor_messages import (ActorType, KillMsg,
+                                               MqttConnectMsg,
+                                               PrepareMqttActorMsg,
                                                SetDeviceStatusMsg)
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
@@ -65,13 +67,13 @@ class MqttListener(MqttBaseActor):
     def __init__(self):
         super().__init__()
         self._hosts = {}
+        self.actor_type = ActorType.HOST
 
     @overrides
-    def _connected(self):
-        """Initial setup of the MQTT client"""
+    def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
+        super().receiveMsg_PrepareMqttActorMsg(msg, sender)
         self.mqttc.message_callback_add("+/+/meta", self.on_is_meta)
         self.mqttc.message_callback_add("+/+/+/meta", self.on_instr_meta)
-        self.mqttc.loop_start()
 
     def _add_instr(self, is_id, instr_id, payload: dict) -> None:
         # pylint: disable=too-many-return-statements
@@ -110,14 +112,21 @@ class MqttListener(MqttBaseActor):
             instr_id,
             device_id,
         )
-        device_actor = self._create_actor(MqttActor, device_id, None)
-        self.child_actors[device_id]["host"] = is_id
-        self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
-        client_id = f"{device_id}.client"
-        self.send(
-            device_actor,
-            PrepareMqttActorMsg(is_id, client_id, self.group),
-        )
+        if device_id in self.child_actors:
+            logger.warning("%s already exists. Nothing to do.", device_id)
+        else:
+            device_actor = self._create_actor(MqttActor, device_id, None)
+            self.child_actors[device_id]["host"] = is_id
+            self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
+            client_id = f"{device_id}.client"
+            self.send(
+                device_actor,
+                PrepareMqttActorMsg(is_id, client_id, self.group),
+            )
+            self.send(
+                device_actor,
+                MqttConnectMsg(),
+            )
 
     def _rm_instr(self, is_id, instr_id) -> None:
         logger.debug("[rm_instr] %s, %s", is_id, instr_id)
@@ -126,8 +135,11 @@ class MqttListener(MqttBaseActor):
             logger.debug("Instrument unknown")
             return
         logger.info("[rm_instr] %s", device_id)
-        device_actor = self.child_actors[device_id]["actor_address"]
-        self.send(device_actor, KillMsg())
+        if self.child_actors.get(device_id, False):
+            device_actor = self.child_actors[device_id]["actor_address"]
+            self.send(device_actor, KillMsg())
+        else:
+            logger.warning("Device actor %s doesn't exist.", device_id)
 
     def _update_instr(self, is_id, instr_id, payload) -> None:
         if (is_id is None) or (instr_id is None) or (payload is None):
@@ -178,10 +190,11 @@ class MqttListener(MqttBaseActor):
         instr_to_remove = []
         for device_id, description in self.child_actors.items():
             if description["host"] == is_id:
-                logger.info("[_rm_host] Remove %s", device_id)
+                logger.debug("[_rm_host] Remove %s", device_id)
                 instr_to_remove.append([is_id, short_id(device_id)])
         for instr in instr_to_remove:
             self._rm_instr(instr[0], instr[1])
+        logger.info("[Remove Host] IS %s removed", self._hosts[is_id].get("Host"))
         del self._hosts[is_id]
 
     def on_is_meta(self, _client, _userdata, message):
@@ -288,6 +301,19 @@ class MqttListener(MqttBaseActor):
             )
 
     @overrides
-    def on_connect(self, client, userdata, flags, result_code):
-        super().on_connect(client, userdata, flags, result_code)
+    def on_connect(self, client, userdata, flags, reason_code):
+        super().on_connect(client, userdata, flags, reason_code)
         self._subscribe_topic([("+/+/meta", 0)])
+
+    def receiveMsg_RescanMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forware a rescan command to the remote Instrument Server"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        for is_id in self._hosts:
+            self._publish(
+                {
+                    "topic": f"{self.group}/{is_id}/cmd",
+                    "payload": "scan",
+                    "qos": self.qos,
+                }
+            )

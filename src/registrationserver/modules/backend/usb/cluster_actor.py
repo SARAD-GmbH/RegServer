@@ -14,12 +14,12 @@ import os
 from typing import Set
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (KillMsg, RescanFinishedMsg,
+from registrationserver.actor_messages import (ActorType, KillMsg,
                                                ReturnLocalPortsMsg,
                                                ReturnLoopPortsMsg,
                                                ReturnNativePortsMsg,
                                                ReturnUsbPortsMsg,
-                                               SetupComActorMsg, Status)
+                                               SetupComActorMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import rs485_backend_config, usb_backend_config
 from registrationserver.logger import logger
@@ -77,6 +77,7 @@ class ClusterActor(BaseActor):
         # self.zigbee_ports = zigbee_backend_config
         self.zigbee_ports = []
         super().__init__()
+        self.actor_type = ActorType.HOST
         logger.debug("ClusterActor initialized")
 
     @overrides
@@ -270,4 +271,3 @@ class ClusterActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._rescan()
         self._update()
-        self.send(sender, RescanFinishedMsg(Status.OK))

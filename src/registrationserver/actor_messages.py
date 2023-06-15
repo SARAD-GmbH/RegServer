@@ -88,6 +88,16 @@ class Backend(Enum):
     IS1 = 8
 
 
+class ActorType(Enum):
+    """Class to identify the type of an Actor.
+
+    Used in BaseActor."""
+
+    NONE = 0
+    DEVICE = 1
+    HOST = 2
+
+
 @dataclass(frozen=True)
 class Is1Address:
     """Object containing the address information of an Instrument Server 1
@@ -290,7 +300,7 @@ class SubscribeMsg:
         actor_id (str): Unique Id of the actor.
                         Can be used to identify the device if the actor is a device actor.
         parent (ActorAddress): Address of the parent actor.
-        is_device_actor (bool): True if the actor is a Device Actor.
+        actor_type (ActorType): Used to identify whether this is a Device or Host Actor.
         get_updates (bool): True if the actor shall receive updates
                             of the Actor Dictionary from the Registrar actor.
         keep_alive (bool): True indicates that this is a follow-up SubscribeMsg.
@@ -299,7 +309,7 @@ class SubscribeMsg:
 
     actor_id: str
     parent: ActorAddress
-    is_device_actor: bool = False
+    actor_type: ActorType = ActorType.NONE
     get_updates: bool = False
     keep_alive: bool = False
 
@@ -386,7 +396,7 @@ class UpdateActorDictMsg:
     {actor_id: {"is_alive": bool,
                 "address": actor address,
                 "parent": actor_address,
-                "is_device_actor": bool,
+                "actor_type": ActorType,
                 "get_updates": bool,  # actually not used in subscribers!
                }
     }
@@ -569,7 +579,10 @@ class InstrRemovedMsg:
 
 @dataclass
 class RescanMsg:
-    """Request to rebuild the list of instruments."""
+    """Request to rebuild the list of instruments.
+
+    The RescanMsg can be sent to the Cluster Actor, a Host Actor or to the MQTT Listener.
+    """
 
 
 @dataclass
@@ -645,6 +658,11 @@ class PrepareMqttActorMsg:
     is_id: Union[str, None]
     client_id: str
     group: str
+
+
+@dataclass
+class MqttConnectMsg:
+    """Request to connect the MQTT client of the receiving MQTT Actor."""
 
 
 @dataclass

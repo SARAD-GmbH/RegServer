@@ -13,10 +13,12 @@ import os
 import time
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (FreeDeviceMsg, ReserveDeviceMsg,
+from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
+                                               RescanMsg, ReserveDeviceMsg,
                                                Status, TxBinaryMsg)
 from registrationserver.config import config, get_hostname, get_ip
-from registrationserver.helpers import diff_of_dicts, short_id
+from registrationserver.helpers import (diff_of_dicts, short_id,
+                                        transport_technology)
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
     MqttBaseActor
@@ -42,7 +44,7 @@ class MqttSchedulerActor(MqttBaseActor):
         """Extract only active device actors from actor_dict"""
         active_device_actor_dict = {}
         for actor_id, description in actor_dict.items():
-            if description["is_device_actor"]:
+            if description["actor_type"] == ActorType.DEVICE:
                 active_device_actor_dict[actor_id] = description
         return active_device_actor_dict
 
@@ -77,10 +79,13 @@ class MqttSchedulerActor(MqttBaseActor):
             self.led = False
 
     @overrides
-    def _connected(self):
-        """Initial setup of the MQTT client"""
+    def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
+        super().receiveMsg_PrepareMqttActorMsg(msg, sender)
         self.mqttc.message_callback_add(f"{self.group}/+/+/control", self.on_control)
-        self.mqttc.message_callback_add(f"{self.group}/+/+/cmd", self.on_cmd)
+        self.mqttc.message_callback_add(
+            f"{self.group}/{self.is_id}/cmd", self.on_host_cmd
+        )
+        self.mqttc.message_callback_add(f"{self.group}/{self.is_id}/+/cmd", self.on_cmd)
         self.mqttc.message_callback_add(
             f"{self.group}/{self.is_id}/+/meta", self.on_instr_meta
         )
@@ -89,11 +94,15 @@ class MqttSchedulerActor(MqttBaseActor):
             topic=f"{self.group}/{self.is_id}/meta",
             payload=get_is_meta(self.is_meta._replace(state=0)),
         )
-        self.mqttc.loop_start()
 
     @overrides
-    def on_disconnect(self, client, userdata, result_code):
-        super().on_disconnect(client, userdata, result_code)
+    def _connected(self):
+        super()._connected()
+        self._subscribe_topic([(f"{self.group}/{self.is_id}/*/reservation", 0)])
+
+    @overrides
+    def on_disconnect(self, client, userdata, reason_code):
+        super().on_disconnect(client, userdata, reason_code)
         if self.led:
             self.led.pulse()
 
@@ -148,8 +157,11 @@ class MqttSchedulerActor(MqttBaseActor):
         # pylint: disable=invalid-name
         """Handler for UpdateDeviceStatusMsg from Device Actor.
 
-        Adds a new instrument to the list of available instruments."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        Adds a new instrument to the list of available instruments
+        or updates the reservation state."""
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        if transport_technology(msg.device_id) == "mqtt":
+            return
         instr_id = short_id(msg.device_id)
         device_id = msg.device_id
         device_status = msg.device_status
@@ -189,6 +201,10 @@ class MqttSchedulerActor(MqttBaseActor):
             status=status,
         )
         self.reservations[device_id] = reservation_object
+        reservation_json = get_instr_reservation(reservation_object)
+        topic = f"{self.group}/{self.is_id}/{instr_id}/reservation"
+        logger.debug("Publish %s on %s", reservation_json, topic)
+        self.mqttc.publish(topic=topic, payload=reservation_json, retain=True)
 
     def _remove_instrument(self, device_id):
         # pylint: disable=invalid-name
@@ -210,7 +226,7 @@ class MqttSchedulerActor(MqttBaseActor):
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
         for actor_id, description in self.actor_dict.items():
-            if description["is_device_actor"]:
+            if description["actor_type"] == ActorType.DEVICE:
                 self._remove_instrument(actor_id)
         self.mqttc.publish(
             retain=True,
@@ -222,9 +238,9 @@ class MqttSchedulerActor(MqttBaseActor):
         super().receiveMsg_KillMsg(msg, sender)
 
     @overrides
-    def on_connect(self, client, userdata, flags, result_code):
+    def on_connect(self, client, userdata, flags, reason_code):
         """Will be carried out when the client connected to the MQTT broker."""
-        super().on_connect(client, userdata, flags, result_code)
+        super().on_connect(client, userdata, flags, reason_code)
         if self.led:
             self.led.on()
         self.mqttc.publish(
@@ -233,9 +249,10 @@ class MqttSchedulerActor(MqttBaseActor):
             payload=get_is_meta(self.is_meta._replace(state=2)),
         )
         self._subscribe_topic([(f"{self.group}/{self.is_id}/+/meta", 0)])
+        self._subscribe_topic([(f"{self.group}/{self.is_id}/cmd", 0)])
         self._subscribe_to_actor_dict_msg()
         for actor_id, description in self.actor_dict.items():
-            if description["is_device_actor"]:
+            if description["actor_type"] == ActorType.DEVICE:
                 self.process_free(short_id(actor_id))
 
     def on_control(self, _client, _userdata, message):
@@ -261,7 +278,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 )
 
     def on_cmd(self, _client, _userdata, message):
-        """Event handler for all MQTT messages with cmd topic."""
+        """Event handler for all MQTT messages with cmd topic for instruments."""
         logger.debug("[on_cmd] %s: %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
         instr_id = topic_parts[2]
@@ -271,6 +288,12 @@ class MqttSchedulerActor(MqttBaseActor):
         if device_actor is not None:
             logger.debug("Forward %s to %s", cmd, instr_id)
             self.send(device_actor, TxBinaryMsg(cmd))
+
+    def on_host_cmd(self, _client, _userdata, message):
+        """Event handler for all MQTT messages with cmd topic for the host."""
+        logger.debug("[on_host_cmd] %s: %s", message.topic, message.payload)
+        if message.payload.decode("utf-8") == "scan":
+            self.send(self.registrar, RescanMsg())
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -331,7 +354,14 @@ class MqttSchedulerActor(MqttBaseActor):
     def _device_actor(self, instr_id):
         """Get device actor address and device_id from instr_id"""
         for actor_id, description in self.actor_dict.items():
-            if description["is_device_actor"]:
+            if description["actor_type"] == ActorType.DEVICE:
                 if instr_id == short_id(actor_id):
                     return (description["address"], actor_id)
         return (None, "")
+
+    def receiveMsg_RescanFinishedMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for RescanFinishedMsg from Registrar.
+
+        Does nothing else then putting a debug log entry."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)

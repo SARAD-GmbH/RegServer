@@ -18,9 +18,11 @@ from datetime import timedelta
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 
-from registrationserver.actor_messages import (Backend, Frontend, KillMsg,
+from registrationserver.actor_messages import (ActorType, Backend, Frontend,
+                                               KillMsg, MqttConnectMsg,
                                                PrepareMqttActorMsg,
-                                               ReturnDeviceActorMsg,
+                                               RescanFinishedMsg, RescanMsg,
+                                               ReturnDeviceActorMsg, Status,
                                                UpdateActorDictMsg,
                                                UpdateDeviceStatusesMsg)
 from registrationserver.base_actor import BaseActor
@@ -64,6 +66,7 @@ class Registrar(BaseActor):
                     group=mqtt_config["GROUP"],
                 ),
             )
+            self.send(mqtt_scheduler, MqttConnectMsg())
         if Frontend.MDNS in frontend_config:
             _mdns_scheduler = self._create_actor(
                 MdnsSchedulerActor, "mdns_scheduler", None
@@ -80,6 +83,7 @@ class Registrar(BaseActor):
                     group=mqtt_config["GROUP"],
                 ),
             )
+            self.send(mqtt_listener, MqttConnectMsg())
         if Backend.IS1 in backend_config:
             _is1_listener = self._create_actor(Is1Listener, "is1_listener", None)
         keepalive_interval = actor_config["KEEPALIVE_INTERVAL"]
@@ -112,18 +116,24 @@ class Registrar(BaseActor):
                 )
             self._keep_alive_handler(CHECK)
         elif msg.payload == "check":
+            success = True
             for actor_id in self.actor_dict:
                 if not self.actor_dict[actor_id]["is_alive"]:
                     logger.critical(
                         "Actor %s did not respond to KeepAliveMsg.", actor_id
                     )
-                    logger.critical("-> Emergency shutdown")
-                    system_shutdown()
-            logger.debug("Watchdog: health check finished successfully")
-            self.wakeupAfter(
-                timedelta(seconds=actor_config["KEEPALIVE_INTERVAL"]),
-                payload="keep alive",
-            )
+                    success = False
+            if success:
+                logger.debug("Watchdog: health check finished successfully")
+                self.wakeupAfter(
+                    timedelta(seconds=actor_config["KEEPALIVE_INTERVAL"]),
+                    payload="keep alive",
+                )
+            else:
+                logger.critical(
+                    "Watchdog: health check finished with failure -> Emergency shutdown"
+                )
+                system_shutdown()
 
     def _is_alive(self, actor_id):
         """Confirm that the actor is still alive."""
@@ -135,18 +145,18 @@ class Registrar(BaseActor):
                 actor_id,
             )
 
-    def _handle_existing_actor(self, sender, actor_id, is_device_actor):
+    def _handle_existing_actor(self, sender, actor_id, actor_type):
         """Do whatever is required if the SubscribeMsg handler finds an actor
         that is already existing.
 
         Args:
             sender: Actor address of the Actor sending the SubscribeMsg
             actor_id: Id of the actor that shall be subscribed
-            is_device_actor (bool): indicates a device actor
+            actor_type (ActorType): indicates a device actor
         """
         logger.error("The actor %s already exists in the system.", actor_id)
         self.send(sender, KillMsg(register=False))
-        if is_device_actor:
+        if actor_type == ActorType.DEVICE:
             hid = Hashids()
             serial_number = hid.decode(short_id(actor_id))[2]
             if serial_number == 65535:
@@ -213,6 +223,7 @@ class Registrar(BaseActor):
                     self.send(sender, KillMsg())
                     return
         if (not self.on_kill) and keep_new_actor:
+            self.device_statuses[actor_id] = self.device_statuses.get(actor_id, {})
             logger.debug("Subscribe %s to device statuses dict", actor_id)
             self._subscribe_to_device_status_msg(sender)
 
@@ -226,16 +237,16 @@ class Registrar(BaseActor):
             self._is_alive(msg.actor_id)
             return
         if msg.actor_id in self.actor_dict:
-            self._handle_existing_actor(sender, msg.actor_id, msg.is_device_actor)
+            self._handle_existing_actor(sender, msg.actor_id, msg.actor_type)
             return
         self.actor_dict[msg.actor_id] = {
             "address": sender,
             "parent": msg.parent,
-            "is_device_actor": msg.is_device_actor,
+            "actor_type": msg.actor_type,
             "get_updates": msg.get_updates,
             "is_alive": True,
         }
-        if msg.is_device_actor:
+        if msg.actor_type == ActorType.DEVICE:
             self._handle_device_actor(sender, msg.actor_id)
         self._send_updates(self.actor_dict)
         return
@@ -289,7 +300,7 @@ class Registrar(BaseActor):
         device_actor_dict = {
             id: dict["address"]
             for id, dict in self.actor_dict.items()
-            if dict["is_device_actor"]
+            if (dict["actor_type"] == ActorType.DEVICE)
         }
         for actor_id, actor_address in device_actor_dict.items():
             if actor_id == msg.device_id:
@@ -332,4 +343,39 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handle request to deliver the device statuses of all instruments."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.check_integrity()
         self.send(sender, UpdateDeviceStatusesMsg(self.device_statuses))
+
+    def receiveMsg_RescanMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forward the RescanMsg to all Host Actors."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        for actor_id in self.actor_dict:
+            if self.actor_dict[actor_id]["actor_type"] == ActorType.HOST:
+                self.send(self.actor_dict[actor_id]["address"], RescanMsg())
+        self.send(sender, RescanFinishedMsg(Status.OK))
+
+    def check_integrity(self) -> bool:
+        """Check integrity between self.actor_dict and self.device_statuses"""
+        for actor_id in self.actor_dict:
+            if self.actor_dict[actor_id]["actor_type"] == ActorType.DEVICE:
+                if actor_id not in self.device_statuses:
+                    logger.critical(
+                        "self.actor_dict contains %s that is not in %s",
+                        actor_id,
+                        self.device_statuses,
+                    )
+                    logger.critical("Emergency shutdown")
+                    system_shutdown(with_error=True)
+                    return False
+        for actor_id in self.device_statuses:
+            if actor_id not in self.actor_dict:
+                logger.critical(
+                    "self.device_statuses contains %s an actor that is not in %s",
+                    actor_id,
+                    self.actor_dict,
+                )
+                logger.critical("Emergency shutdown")
+                system_shutdown(with_error=True)
+                return False
+        return True
