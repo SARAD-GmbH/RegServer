@@ -217,6 +217,8 @@ class MqttSchedulerActor(MqttBaseActor):
             topic=f"{self.group}/{self.is_id}/meta",
             payload=json.dumps({"State": 0}),
         )
+        if self.led and not self.led.closed:
+            self.led.close()
         super().receiveMsg_KillMsg(msg, sender)
 
     @overrides
