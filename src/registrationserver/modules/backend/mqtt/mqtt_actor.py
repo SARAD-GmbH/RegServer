@@ -317,5 +317,20 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             self._request_free_at_is()
         except KeyError:
             pass
-        DeviceBaseActor._kill_myself(register)
-        MqttBaseActor._kill_myself(register)
+        if self.ungr_disconn == 2:
+            logger.debug("To disconnect from the MQTT-broker!")
+            self.mqttc.disconnect()
+        elif self.ungr_disconn in (1, 0):
+            self.ungr_disconn = 2
+            logger.debug("Already disconnected")
+        logger.debug("To stop the MQTT thread!")
+        self.mqttc.loop_stop()
+        logger.debug("Disconnected gracefully")
+        try:
+            self._send_reservation_status_msg()
+        except AttributeError as exception:
+            logger.error(exception)
+        try:
+            super()._kill_myself(register)
+        except TypeError:
+            pass
