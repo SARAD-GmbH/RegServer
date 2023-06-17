@@ -35,7 +35,7 @@ from registrationserver.actor_messages import (ActorType, DeadChildMsg,
                                                UnsubscribeMsg,
                                                UpdateActorDictMsg)
 from registrationserver.logger import logger
-from registrationserver.shutdown import is_flag_set, system_shutdown
+from registrationserver.shutdown import system_shutdown
 
 
 class BaseActor(ActorTypeDispatcher):
@@ -151,7 +151,6 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name
         """Handler for PoisonMessage"""
         logger.critical("%s for %s from %s", msg, self.my_id, sender)
-        logger.critical("-> Emergency shutdown.")
         system_shutdown()
 
     def receiveMsg_ChildActorExited(self, msg, sender):
@@ -232,7 +231,7 @@ class BaseActor(ActorTypeDispatcher):
                 DeadChildMsg(msg.deadMessage.child),
             )
         else:
-            logger.critical("-> Emergency shutdown")
+            logger.critical("%s -> Emergency shutdown", self.my_id)
             system_shutdown()
 
     def receiveMsg_DeadChildMsg(self, msg, sender):
@@ -242,9 +241,11 @@ class BaseActor(ActorTypeDispatcher):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if msg.child in self.child_actors:
             logger.critical(
-                "%s doesn't exist but is still in %s", msg.child, self.child_actors
+                "%s doesn't exist as child of %s but is still in %s",
+                msg.child,
+                self.my_id,
+                self.child_actors,
             )
-            logger.debug("-> Emergency shutdown")
             system_shutdown()
         else:
             logger.debug("Don't worry about the Dead Letter caused by %s!", msg.child)

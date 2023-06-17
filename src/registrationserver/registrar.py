@@ -337,7 +337,12 @@ class Registrar(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         device_id = msg.device_id
         device_status = msg.device_status
-        self.device_statuses[device_id] = device_status
+        if device_id in self.device_statuses:
+            self.device_statuses[device_id] = device_status
+        else:
+            logger.warning(
+                "Received %s from %s, but the actor is not registered.", msg, device_id
+            )
 
     def receiveMsg_GetDeviceStatusesMsg(self, msg, sender):
         # pylint: disable=invalid-name

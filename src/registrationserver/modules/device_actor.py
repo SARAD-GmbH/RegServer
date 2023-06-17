@@ -96,7 +96,11 @@ class DeviceBaseActor(BaseActor):
             if self.reserve_lock and (
                 datetime.now() - self.reserve_lock > RESERVE_TIMEOUT
             ):
-                logger.warning("Pending RESERVE took longer than %s", RESERVE_TIMEOUT)
+                logger.warning(
+                    "Pending RESERVE on %s took longer than %s",
+                    self.my_id,
+                    RESERVE_TIMEOUT,
+                )
                 self._kill_myself()
                 return
             self.wakeupAfter(
@@ -160,7 +164,10 @@ class DeviceBaseActor(BaseActor):
             if Frontend.REST in frontend_config:
                 # create redirector
                 if not self._create_redirector():
-                    logger.warning("Tried to create a redirector that already exists.")
+                    logger.warning(
+                        "%s tried to create a redirector that already exists.",
+                        self.my_id,
+                    )
                     reservation = {
                         "Active": True,
                         "App": self.reserve_device_msg.app,
@@ -184,11 +191,13 @@ class DeviceBaseActor(BaseActor):
             return
         if success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
             logger.error(
-                "Reservation failed with %s. Removing device from list.", success
+                "Reservation of %s failed with %s. Removing device from list.",
+                self.my_id,
+                success,
             )
             self._kill_myself()
         elif success == Status.ERROR:
-            logger.error("%s during reservation", success)
+            logger.error("%s during reservation of %s", success, self.my_id)
             self._kill_myself()
         self._send_reservation_status_msg()
 
@@ -199,7 +208,11 @@ class DeviceBaseActor(BaseActor):
         if self.free_lock or self.reserve_lock:
             logger.debug("RESERVE or FREE action pending")
             if self.free_lock and (datetime.now() - self.free_lock > RESERVE_TIMEOUT):
-                logger.warning("Pending FREE took longer than %s", RESERVE_TIMEOUT)
+                logger.warning(
+                    "Pending FREE on %s took longer than %s",
+                    self.my_id,
+                    RESERVE_TIMEOUT,
+                )
                 self._kill_myself()
                 return
             self.wakeupAfter(
@@ -360,7 +373,7 @@ class DeviceBaseActor(BaseActor):
         try:
             self._send_reservation_status_msg()
         except AttributeError as exception:
-            logger.error(exception)
+            logger.error("%s on %s", exception, self.my_id)
         try:
             super()._kill_myself(register)
         except TypeError:
