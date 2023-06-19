@@ -259,11 +259,11 @@ def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
                 logger.critical("Exception: %s.", exception)
                 registrar_is_down = True
         if registrar_is_down:
-            number_of_trials = 0  # don't retry, stop it!
+            attempts_left = 0  # don't retry, stop it!
         else:
             if isinstance(reply, Thespian_ActorStatus):
                 # logger.debug("Aye Sir!")
-                number_of_trials = 0
+                attempts_left = 0
                 registrar_is_down = False
             else:
                 attempts_left = attempts_left - 1
