@@ -55,7 +55,6 @@ class ComActor(BaseActor):
             # refer to receiveMsg_ChildActorExited()
         else:
             logger.debug("%s: Update -- no child", self.my_id)
-            self.instrument = None
             self._do_loop()
             self._start_polling()
 
