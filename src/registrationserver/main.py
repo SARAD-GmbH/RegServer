@@ -266,13 +266,14 @@ def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
                 number_of_trials = 0
                 registrar_is_down = False
             else:
+                attempts_left = attempts_left - 1
                 logger.error(
-                    "Registrar replied %s instead of Thespian_ActorStatus. Retrying %d",
+                    "Registrar replied %s instead of Thespian_ActorStatus. %d of %d attempts left.",
                     reply,
+                    attempts_left,
                     number_of_trials,
                 )
                 time.sleep(0.5)
-                number_of_trials = number_of_trials - 1
                 registrar_is_down = True
     return not registrar_is_down
 
