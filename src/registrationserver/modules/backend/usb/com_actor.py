@@ -160,7 +160,11 @@ class ComActor(BaseActor):
 
     def _create_and_setup_actor(self):
         logger.debug("[_create_and_setup_actor] on %s", self.my_id)
-        family = self.instrument.family["family_id"]
+        try:
+            family = self.instrument.family["family_id"]
+        except AttributeError:
+            logger.error("_create_and_setup_called but self.instrument is %s", self.instrument)
+            return
         instr_id = self.instrument.device_id
         if family == 5:
             sarad_type = "sarad-dacm"
