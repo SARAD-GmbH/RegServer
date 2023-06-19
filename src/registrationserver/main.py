@@ -237,7 +237,8 @@ def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
        True if the Registrar is alive.
     """
     registrar_is_down = False
-    while number_of_trials:
+    attempts_left = number_of_trials
+    while attempts_left:
         logger.debug("Run outer watchdog")
         registrar_is_down = False
         with ActorSystem().private() as registrar_status:
