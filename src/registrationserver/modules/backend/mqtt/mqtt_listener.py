@@ -216,7 +216,7 @@ class MqttListener(MqttBaseActor):
             return
         if payload["State"] in (2, 1):
             logger.debug(
-                "[+/meta] Store the properties of cluster %s",
+                "[+/meta] Store the properties of %s",
                 is_id,
             )
             if is_id in self._hosts:
@@ -226,18 +226,18 @@ class MqttListener(MqttBaseActor):
         elif payload["State"] == 0:
             if is_id in self._hosts:
                 logger.debug(
-                    "[+/meta] Remove host file for cluster %s",
+                    "[+/meta] Remove host file for %s",
                     is_id,
                 )
                 self._rm_host(is_id)
             else:
-                logger.warning(
-                    "[+/meta] Subscriber disconnected from unknown IS %s",
+                logger.info(
+                    "[+/meta] IS %s is known but offline",
                     is_id,
                 )
         else:
             logger.warning(
-                "[+/meta] Subscriber received a meta message of an unknown cluster %s",
+                "[+/meta] Subscriber received a meta message of an unknown host %s",
                 is_id,
             )
 
