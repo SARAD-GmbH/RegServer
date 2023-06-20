@@ -22,7 +22,9 @@ from registrationserver.actor_messages import (ActorType, Backend, Frontend,
                                                KillMsg, MqttConnectMsg,
                                                PrepareMqttActorMsg,
                                                RescanFinishedMsg, RescanMsg,
-                                               ReturnDeviceActorMsg, Status,
+                                               ReturnDeviceActorMsg,
+                                               ShutdownFinishedMsg,
+                                               ShutdownMsg, Status,
                                                UpdateActorDictMsg,
                                                UpdateDeviceStatusesMsg)
 from registrationserver.base_actor import BaseActor
@@ -359,6 +361,15 @@ class Registrar(BaseActor):
             if self.actor_dict[actor_id]["actor_type"] == ActorType.HOST:
                 self.send(self.actor_dict[actor_id]["address"], RescanMsg())
         self.send(sender, RescanFinishedMsg(Status.OK))
+
+    def receiveMsg_ShutdownMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forward the ShutdownMsg to all Host Actors."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        for actor_id in self.actor_dict:
+            if self.actor_dict[actor_id]["actor_type"] == ActorType.HOST:
+                self.send(self.actor_dict[actor_id]["address"], ShutdownMsg())
+        self.send(sender, ShutdownFinishedMsg(Status.OK))
 
     def check_integrity(self) -> bool:
         """Check integrity between self.actor_dict and self.device_statuses"""

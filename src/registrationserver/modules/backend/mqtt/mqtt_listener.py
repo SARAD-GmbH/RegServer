@@ -308,13 +308,28 @@ class MqttListener(MqttBaseActor):
 
     def receiveMsg_RescanMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Forware a rescan command to the remote Instrument Server"""
+        """Forward a rescan command to the remote Instrument Server"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        for is_id in self._hosts:
-            self._publish(
-                {
-                    "topic": f"{self.group}/{is_id}/cmd",
-                    "payload": "scan",
-                    "qos": self.qos,
-                }
-            )
+        for is_id, host_descr in self._hosts.items():
+            if (msg.host is None) or (msg.host == host_descr.get("Host")):
+                self._publish(
+                    {
+                        "topic": f"{self.group}/{is_id}/cmd",
+                        "payload": "scan",
+                        "qos": self.qos,
+                    }
+                )
+
+    def receiveMsg_ShutdownMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forward a shutdown command to the remote Instrument Server"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        for is_id, host_descr in self._hosts.items():
+            if (msg.host is None) or (msg.host == host_descr.get("Host")):
+                self._publish(
+                    {
+                        "topic": f"{self.group}/{is_id}/cmd",
+                        "payload": "shutdown",
+                        "qos": self.qos,
+                    }
+                )

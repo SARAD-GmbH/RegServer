@@ -15,7 +15,8 @@ import time
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
                                                RescanMsg, ReserveDeviceMsg,
-                                               Status, TxBinaryMsg)
+                                               ShutdownMsg, Status,
+                                               TxBinaryMsg)
 from registrationserver.config import config, get_hostname, get_ip
 from registrationserver.helpers import (diff_of_dicts, short_id,
                                         transport_technology)
@@ -294,6 +295,8 @@ class MqttSchedulerActor(MqttBaseActor):
         logger.debug("[on_host_cmd] %s: %s", message.topic, message.payload)
         if message.payload.decode("utf-8") == "scan":
             self.send(self.registrar, RescanMsg())
+        elif message.payload.decode("utf-8") == "shutdown":
+            self.send(self.registrar, ShutdownMsg())
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -362,6 +365,13 @@ class MqttSchedulerActor(MqttBaseActor):
     def receiveMsg_RescanFinishedMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for RescanFinishedMsg from Registrar.
+
+        Does nothing else then putting a debug log entry."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+
+    def receiveMsg_ShutdownFinishedMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for ShutdownFinishedMsg from Registrar.
 
         Does nothing else then putting a debug log entry."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)

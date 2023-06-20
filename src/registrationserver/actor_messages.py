@@ -98,6 +98,84 @@ class ActorType(Enum):
     HOST = 2
 
 
+class TransportTechnology(Enum):
+    """Class to identify the transport technology used to connect an instrument."""
+
+    LOCAL = 0
+    LAN = 1
+    MQTT = 2
+
+    def __str__(self):
+        longform = {
+            0: "local",
+            1: "LAN, advertised by ZeroConf",
+            2: "MQTT",
+        }
+        return longform[self.value]
+
+
+class Family(Enum):
+    """Class to identify the instrument family."""
+
+    DOSEMAN = 1
+    RSC = 2
+    DACM = 5
+
+    def __str__(self):
+        longform = {
+            1: "Doseman family",
+            2: "Radon Scout family",
+            5: "DACM family",
+        }
+        return longform[self.value]
+
+
+@dataclass
+class Instrument:
+    """Object containing the properties identifying and describing a SARAD
+    instrument within the SARAD network.
+
+    Args:
+        instr_id: A unique id identifying every SARAD instrument.
+                  Encoding name, family and type.
+        serial_number: Serial number of the instrument.
+        firmware_version: Version of the firmware on the instrument.
+        host: FQDN of the host the instrument is physically connected to.
+    """
+
+    instr_id: str
+    serial_number: int
+    firmware_version: int
+    host: str
+
+
+@dataclass
+class Host:
+    # pylint: disable=too-many-instance-attributes
+    """Object containing the properties identifying and describing a host
+    within the SARAD network.
+
+    Args:
+        host: FQDN of the host the instrument is physically connected to.
+        transport_technology: How is the instrument connected to this RegServer?
+        origin: Alias of the host give as 'is_id' in the configuration.
+        description: Free text string describing the host.
+        place: Name of the place where the host is situated.
+        lat: Latitude of the place. Positive values are north, negatives are south.
+        lon: Longitude of the place. Positive values are east, negatives are west.
+        height: Height of the place.
+    """
+
+    host: str
+    transport_technology: TransportTechnology
+    origin: str
+    description: str
+    place: str
+    lat: float
+    lon: float
+    height: int
+
+
 @dataclass(frozen=True)
 class Is1Address:
     """Object containing the address information of an Instrument Server 1
@@ -582,12 +660,39 @@ class RescanMsg:
     """Request to rebuild the list of instruments.
 
     The RescanMsg can be sent to the Cluster Actor, a Host Actor or to the MQTT Listener.
+
+    Args:
+       host: FQDN of the host that shall receive the command.
+             If None, all availabel hosts will be addressed.
     """
+
+    host: Union[str, None] = None
 
 
 @dataclass
 class RescanFinishedMsg:
     """Confirmation that the RescanMsg was handled properly."""
+
+    status: Status
+
+
+@dataclass
+class ShutdownMsg:
+    """Request to shutdown the Regserver on a given host for a restart.
+
+    The ShutdownMsg can be sent to the Cluster Actor, a Host Actor or to the MQTT Listener.
+
+    Args:
+       host: FQDN of the host that shall receive the command.
+             If None, all availabel hosts will be addressed.
+    """
+
+    host: Union[str, None] = None
+
+
+@dataclass
+class ShutdownFinishedMsg:
+    """Confirmation that the ShutdownMsg was handled properly."""
 
     status: Status
 

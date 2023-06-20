@@ -271,3 +271,8 @@ class ClusterActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._rescan()
         self._update()
+
+    def receiveMsg_ShutdownMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for ShutdownMsg. Does nothing."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
