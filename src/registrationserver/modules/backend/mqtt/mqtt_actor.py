@@ -177,14 +177,14 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             "retain": False,
         }
         _re = self._publish(_msg)
-        logger.info("Unsubscribe MQTT actor from 'msg' topic")
+        logger.info("Unsubscribe %s from 'msg' topic", self.my_id)
         self._unsubscribe_topic([self.allowed_sys_topics["MSG"]])
 
     def on_reserve(self, _client, _userdata, message):
         """Handler for MQTT messages regarding reservation of instruments"""
         reservation_status = Status.ERROR
         reservation = json.loads(message.payload)
-        logger.info("[on_reserve] received: %s", reservation)
+        logger.info("%s received [on_reserve]: %s", self.my_id, reservation)
         instr_status = reservation.get("Active")
         app = reservation.get("App")
         host = reservation.get("Host")
