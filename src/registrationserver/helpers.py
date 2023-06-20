@@ -326,6 +326,7 @@ def get_device_statuses(registrar_actor):
             system_shutdown()
             return None
     # logger.debug("Device statuses: %s", result.device_statuses)
+
     return result.device_statuses
 
 

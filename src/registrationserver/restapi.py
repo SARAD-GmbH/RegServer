@@ -17,7 +17,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from flask import Flask, request
-from flask_restx import Api, Resource, reqparse  # type: ignore
+from flask_restx import Api, Resource, fields, reqparse  # type: ignore
 from thespian.actors import ActorSystem  # type: ignore
 from thespian.actors import Thespian_ActorStatus
 from thespian.system.messages.status import (  # type: ignore
@@ -58,14 +58,23 @@ app = Flask(__name__)
 app.url_map.strict_slashes = False
 api = Api(
     app,
-    version="1.1",
+    version="2.0",
     title="RegServer API",
     description="API to get data from and to control the SARAD Registration Server service",
 )
 api.namespaces.clear()
 root_ns = api.namespace("/", description="Administrative functions")
 list_ns = api.namespace(
-    "list", description="List SARAD instruments, reserve or release them"
+    "list",
+    description="Collection of SARAD instruments,"
+    + " alias of 'instruments' for backward compatibility",
+)
+instruments_ns = api.namespace(
+    "instruments", description="Collection of SARAD instruments"
+)
+instrument = api.model(
+    "Instrument",
+    {"instr_id", fields.String(description="The instrument unique identifier")},
 )
 ports_ns = api.namespace(
     "ports", description="Endpoints to list available serial ports for debugging"
@@ -147,7 +156,7 @@ class Dummy:
 class Ping(Resource):
     """Request a sign of life to confirm that the host is online."""
 
-    def get(self):
+    def post(self):
         """Request a sign of life to confirm that the host is online."""
         logger.debug("Ping received")
         return {
@@ -170,7 +179,7 @@ class Shutdown(Resource):
     """Shutdown the SARAD Registration Server."""
 
     @api.expect(shutdown_arguments, validate=True)
-    def get(self):
+    def post(self):
         """Shutdown the SARAD Registration Server.
 
         The service will be terminated with error and thus be restarted
@@ -225,6 +234,7 @@ class Log(Resource):
 
 
 @list_ns.route("/")
+@instruments_ns.route("/")
 class List(Resource):
     """Endpoint for getting the list of active devices"""
 
@@ -240,14 +250,18 @@ class List(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        return get_device_statuses(registrar_actor)
+        response = {}
+        for device_id, device_status in get_device_statuses(registrar_actor).items():
+            response[device_id] = device_status
+            response[device_id]["href"] = ""
+        return response
 
 
 @root_ns.route("/scan")
 class Scan(Resource):
     """Refresh the list of active devices"""
 
-    def get(self):
+    def post(self):
         """Refresh the list of active devices.
 
         This might be required for SARAD instruments that are connected via
