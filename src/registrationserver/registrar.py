@@ -13,15 +13,15 @@ device actors referenced in the dictionary.
 
 """
 
+from dataclasses import replace
 from datetime import timedelta
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 
 from registrationserver.actor_messages import (ActorType, Backend, Frontend,
-                                               GetHostInfoMsg, Host,
-                                               HostInfoMsg, KillMsg,
-                                               MqttConnectMsg,
+                                               GetHostInfoMsg, HostInfoMsg,
+                                               KillMsg, MqttConnectMsg,
                                                PrepareMqttActorMsg,
                                                RescanFinishedMsg, RescanMsg,
                                                ReturnDeviceActorMsg,
@@ -231,6 +231,13 @@ class Registrar(BaseActor):
             self.device_statuses[actor_id] = self.device_statuses.get(actor_id, {})
             logger.debug("Subscribe %s to device statuses dict", actor_id)
             self._subscribe_to_device_status_msg(sender)
+            if transport_technology(actor_id) == "local":
+                for idx, host in enumerate(self.hosts):
+                    if host.host == "127.0.0.1":
+                        para = {"state": 2}
+                        host = replace(host, **para)
+                        self.hosts[idx] = host
+                        break
 
     def receiveMsg_SubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -263,7 +270,21 @@ class Registrar(BaseActor):
         """Handler for UnsubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         actor_id = msg.actor_id
-        self.device_statuses.pop(actor_id, None)
+        status_dict = self.device_statuses.pop(actor_id, None)
+        if (status_dict is not None) and (transport_technology(actor_id) == "local"):
+            local_device_connected = False
+            for device_id in self.device_statuses:
+                if transport_technology(device_id) == "local":
+                    local_device_connected = True
+                    break
+            if not local_device_connected:
+                for idx, host in enumerate(self.hosts):
+                    if host.host == "127.0.0.1":
+                        para = {"state": 1}
+                        host = replace(host, **para)
+                        self.hosts[idx] = host
+                        break
+
         removed_actor = self.actor_dict.pop(actor_id, None)
         if removed_actor is not None:
             self._send_updates(self.actor_dict)

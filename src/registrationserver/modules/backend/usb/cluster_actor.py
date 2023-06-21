@@ -203,14 +203,12 @@ class ClusterActor(BaseActor):
         logger.debug("[_create_and_setup_actor]")
         com_actor = self._create_actor(ComActor, self._route_id(route), None)
         self.send(com_actor, SetupComActorMsg(route, loop_interval))
-        self.instr_counter = self.instr_counter + 1
 
     def _remove_actor(self, route):
         route_id = self._route_id(route)
         logger.debug("[_remove_actor] %s", route_id)
         try:
             self.send(self.child_actors[route_id]["actor_address"], KillMsg())
-            self.instr_counter = self.instr_counter - 1
         except IndexError:
             logger.error("Tried to remove %s, that never was added properly.", route_id)
 
@@ -286,10 +284,6 @@ class ClusterActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for GetHostInfoMsg asking to send the list of hosts"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.instr_counter:
-            state = 2
-        else:
-            state = 1
         self.send(
             sender,
             HostInfoMsg(
@@ -303,7 +297,7 @@ class ClusterActor(BaseActor):
                         lat=config["LATITUDE"],
                         lon=config["LONGITUDE"],
                         height=config["HEIGHT"],
-                        state=state,
+                        state=1,
                     )
                 ]
             ),

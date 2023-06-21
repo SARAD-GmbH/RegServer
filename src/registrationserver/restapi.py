@@ -78,6 +78,9 @@ host = api.model(
     "Host",
     {
         "host": fields.String(description="The FQDN of the host"),
+        "state": fields.Integer(
+            description="0 = offline; 1 = online, no instrument; 2 = online, functional"
+        ),
         "transport_technology": fields.Integer(
             description="How is the instrument connected to this RegServer"
         ),
