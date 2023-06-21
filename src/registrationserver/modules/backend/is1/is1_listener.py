@@ -108,8 +108,8 @@ class Is1Listener(BaseActor):
         return "Unknown"
 
     @staticmethod
-    def _deduplicate(is1_addresses: List[Is1Address]):
-        return list(set(is1_addresses))
+    def _deduplicate(list_of_objects: List[Is1Address]):
+        return list(set(list_of_objects))
 
     @overrides
     def __init__(self):
