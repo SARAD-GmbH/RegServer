@@ -19,7 +19,9 @@ from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 
 from registrationserver.actor_messages import (ActorType, Backend, Frontend,
-                                               KillMsg, MqttConnectMsg,
+                                               GetHostInfoMsg, Host,
+                                               HostInfoMsg, KillMsg,
+                                               MqttConnectMsg,
                                                PrepareMqttActorMsg,
                                                RescanFinishedMsg, RescanMsg,
                                                ReturnDeviceActorMsg,
@@ -51,6 +53,7 @@ class Registrar(BaseActor):
         self.device_statuses = {}  # {device_id: {status_dict}}
         # a list of actors that are already created but not yet subscribed
         self.pending = []
+        self.hosts = []  # List of Host objects seen since start
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -178,7 +181,7 @@ class Registrar(BaseActor):
             system_shutdown()
 
     def _handle_device_actor(self, sender, actor_id):
-        """Do whatever is required if the SubscribeMsg handler finds an Device
+        """Do whatever is required if the SubscribeMsg handler finds a Device
         Actor to be subscribed.
 
         Args:
@@ -250,6 +253,8 @@ class Registrar(BaseActor):
         }
         if msg.actor_type == ActorType.DEVICE:
             self._handle_device_actor(sender, msg.actor_id)
+        elif msg.actor_type == ActorType.HOST:
+            self.send(sender, GetHostInfoMsg())
         self._send_updates(self.actor_dict)
         return
 
@@ -370,6 +375,29 @@ class Registrar(BaseActor):
             if self.actor_dict[actor_id]["actor_type"] == ActorType.HOST:
                 self.send(self.actor_dict[actor_id]["address"], ShutdownMsg())
         self.send(sender, ShutdownFinishedMsg(Status.OK))
+
+    def receiveMsg_HostInfoMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for HostInfoMsg indicating a change in the host information"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        for new_host in msg.hosts:
+            known = False
+            for known_host in self.hosts:
+                if new_host.host == known_host.host:
+                    known = True
+                    if new_host not in self.hosts:
+                        index = self.hosts.index(known_host)
+                        self.hosts.pop(index)
+                        self.hosts.insert(index, new_host)
+                    break
+            if not known:
+                self.hosts.append(new_host)
+
+    def receiveMsg_GetHostInfoMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for GetHostInfoMsg asking to send the list of hosts"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.send(sender, HostInfoMsg(hosts=self.hosts))
 
     def check_integrity(self) -> bool:
         """Check integrity between self.actor_dict and self.device_statuses"""

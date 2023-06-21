@@ -164,6 +164,7 @@ class Host:
         lat: Latitude of the place. Positive values are north, negatives are south.
         lon: Longitude of the place. Positive values are east, negatives are west.
         height: Height of the place.
+        state (int): 2 = online, 1 = connected, no instruments, 0 = offline
     """
 
     host: str
@@ -174,6 +175,7 @@ class Host:
     lat: float
     lon: float
     height: int
+    state: int
 
 
 @dataclass(frozen=True)
@@ -874,7 +876,7 @@ class RecentValueMsg:
 class GetHostInfoMsg:
     """Message that can be sent to any Actor holding host information.
 
-    These might be the Registrar, Host Actors, MQTT Listener.
+    These might be the Registrar, Host Actors, MQTT Listener, IS1 Listener and Cluster.
     The Actor has to respond with a HostInfoMsg.
     Usually the Registrar will send this message to the
     MQTT Listener and to the Host Actors in its receiveMsg_SubscribeMsg handler.
@@ -885,15 +887,15 @@ class GetHostInfoMsg:
                     about all hosts he is aware about.
     """
 
-    host: Union[str, None]
+    host: Union[str, None] = None
 
 
 @dataclass
 class HostInfoMsg:
     """Message containing information about at least one host.
 
-    Has to be sent from the Registrar, Host Actors, MQTT Listener
-    as reply to a GetHostInfoMsg.
+    Has to be sent from the Registrar, Host Actors, MQTT Listener, IS1 Listener
+    or Cluster as reply to a GetHostInfoMsg.
     The MQTT Listener sends HostInfoMsg to the Registrar on every host update.
 
     Args:

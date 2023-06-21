@@ -13,7 +13,8 @@ from threading import Thread
 import requests
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorCreatedMsg, ActorType,
-                                               KillMsg, SetDeviceStatusMsg,
+                                               HostInfoMsg, KillMsg,
+                                               SetDeviceStatusMsg,
                                                SetupMdnsActorMsg, Status)
 from registrationserver.base_actor import BaseActor
 from registrationserver.helpers import (sarad_protocol, short_id,

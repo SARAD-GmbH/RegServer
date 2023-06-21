@@ -20,6 +20,7 @@ from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
                                                GetActorDictMsg,
                                                GetDeviceStatusesMsg,
                                                GetDeviceStatusMsg,
+                                               GetHostInfoMsg, HostInfoMsg,
                                                ReservationStatusMsg,
                                                ReserveDeviceMsg, Status,
                                                UpdateActorDictMsg,
@@ -325,9 +326,30 @@ def get_device_statuses(registrar_actor):
             )
             system_shutdown()
             return None
-    # logger.debug("Device statuses: %s", result.device_statuses)
-
     return result.device_statuses
+
+
+def get_hosts(registrar_actor):
+    """Return a list of Host objects with information about known hosts."""
+    with ActorSystem().private() as h_get_hosts:
+        try:
+            result = h_get_hosts.ask(
+                registrar_actor, GetHostInfoMsg(), timeout=timedelta(seconds=5)
+            )
+        except ConnectionResetError as exception:
+            logger.debug(exception)
+            result = None
+        if result is None:
+            logger.debug("Timeout at GetHostInfoMsg.")
+            return None
+        if not isinstance(result, HostInfoMsg):
+            logger.critical(
+                "Emergency shutdown. Registrar replied %s instead of HostInfoMsg",
+                result,
+            )
+            system_shutdown()
+            return None
+    return result.hosts
 
 
 def get_instr_id_actor_dict(registrar_actor):

@@ -29,21 +29,18 @@ from registrationserver.actor_messages import (AddPortToLoopMsg,
                                                GetLocalPortsMsg,
                                                GetNativePortsMsg,
                                                GetRecentValueMsg,
-                                               GetUsbPortsMsg, Host,
-                                               Instrument, RecentValueMsg,
+                                               GetUsbPortsMsg, Instrument,
+                                               RecentValueMsg,
                                                RemovePortFromLoopMsg,
                                                RescanFinishedMsg, RescanMsg,
                                                ReturnLocalPortsMsg,
                                                ReturnLoopPortsMsg,
                                                ReturnNativePortsMsg,
-                                               ReturnUsbPortsMsg,
-                                               ShutdownFinishedMsg,
-                                               ShutdownMsg, Status,
-                                               TransportTechnology)
-from registrationserver.config import actor_config, config, mqtt_config
+                                               ReturnUsbPortsMsg, Status)
+from registrationserver.config import actor_config, mqtt_config
 from registrationserver.helpers import (check_msg, get_actor,
                                         get_device_status_from_registrar,
-                                        get_device_statuses,
+                                        get_device_statuses, get_hosts,
                                         get_registrar_actor, send_free_message,
                                         send_reserve_message, short_id,
                                         transport_technology)
@@ -509,39 +506,6 @@ class FreeDevice(Resource):
 class Hosts(Resource):
     """Endpoint for getting the list of active hosts"""
 
-    def _host(self, _device_id, device_status):
-        try:
-            this_host = device_status["Identification"]["Host"]
-            if this_host == "127.0.0.1":
-                technology = int(TransportTechnology.LOCAL)
-                origin = config["IS_ID"]
-                description = config["DESCRIPTION"]
-                place = config["PLACE"]
-                lat = config["LATITUDE"]
-                lon = config["LONGITUDE"]
-                height = config["HEIGHT"]
-            else:
-                technology = TransportTechnology.MQTT
-                origin = device_status["Identification"]["Origin"]
-                description = ""
-                place = ""
-                lat = 0
-                lon = 0
-                height = 0
-
-        except AttributeError:
-            return None
-        return Host(
-            host=this_host,
-            transport_technology=technology,
-            origin=origin,
-            description=description,
-            place=place,
-            lat=lat,
-            lon=lon,
-            height=height,
-        )
-
     @api.marshal_list_with(host)
     def get(self):
         """List available hosts"""
@@ -555,10 +519,7 @@ class Hosts(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        response = []
-        for device_id, device_status in get_device_statuses(registrar_actor).items():
-            response.append(self._host(device_id, device_status))
-        return response
+        return get_hosts(registrar_actor)
 
 
 @instruments_ns.route("/")
