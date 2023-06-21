@@ -29,7 +29,8 @@ from registrationserver.actor_messages import (AddPortToLoopMsg,
                                                GetLocalPortsMsg,
                                                GetNativePortsMsg,
                                                GetRecentValueMsg,
-                                               GetUsbPortsMsg, RecentValueMsg,
+                                               GetUsbPortsMsg, Host,
+                                               Instrument, RecentValueMsg,
                                                RemovePortFromLoopMsg,
                                                RescanFinishedMsg, RescanMsg,
                                                ReturnLocalPortsMsg,
@@ -37,13 +38,14 @@ from registrationserver.actor_messages import (AddPortToLoopMsg,
                                                ReturnNativePortsMsg,
                                                ReturnUsbPortsMsg,
                                                ShutdownFinishedMsg,
-                                               ShutdownMsg, Status)
-from registrationserver.config import actor_config, mqtt_config
+                                               ShutdownMsg, Status,
+                                               TransportTechnology)
+from registrationserver.config import actor_config, config, mqtt_config
 from registrationserver.helpers import (check_msg, get_actor,
                                         get_device_status_from_registrar,
                                         get_device_statuses,
                                         get_registrar_actor, send_free_message,
-                                        send_reserve_message,
+                                        send_reserve_message, short_id,
                                         transport_technology)
 from registrationserver.logdef import LOGFILENAME
 from registrationserver.logger import logger  # type: ignore
@@ -71,12 +73,50 @@ list_ns = api.namespace(
     description="Collection of SARAD instruments,"
     + " alias of 'instruments' for backward compatibility",
 )
+hosts_ns = api.namespace(
+    "hosts",
+    description="Collection of available hosts with SARAD instruments connected",
+)
+host = api.model(
+    "Host",
+    {
+        "host": fields.String(description="The FQDN of the host"),
+        "transport_technology": fields.Integer(
+            description="How is the instrument connected to this RegServer"
+        ),
+        "origin": fields.String(
+            description="Alias of the host given as 'is_id' in its configuration"
+        ),
+        "description": fields.String(
+            description="Free text string describing the host"
+        ),
+        "place": fields.String(
+            description="Name of the place where the host is situated"
+        ),
+        "lat": fields.Float(
+            description="Latitude of the place. Positive values are north, negatives are south"
+        ),
+        "lon": fields.Float(
+            description="Longitude of the place. Positive values are east, negatives are west"
+        ),
+        "height": fields.Integer(description="Height of the place."),
+    },
+)
 instruments_ns = api.namespace(
     "instruments", description="Collection of SARAD instruments"
 )
 instrument = api.model(
     "Instrument",
-    {"instr_id", fields.String(description="The instrument unique identifier")},
+    {
+        "instr_id": fields.String(description="The instrument unique identifier"),
+        "serial_number": fields.Integer(description="The instrument serial number"),
+        "firmware_version": fields.Integer(
+            description="The number of the firmware version"
+        ),
+        "host": fields.String(
+            description="The FQDN of the host the instrument is connected to"
+        ),
+    },
 )
 ports_ns = api.namespace(
     "ports", description="Endpoints to list available serial ports for debugging"
@@ -235,30 +275,6 @@ class Log(Resource):
         return f"{log_file_name} doesn't exist."
 
 
-@list_ns.route("/")
-@instruments_ns.route("/")
-class List(Resource):
-    """Endpoint for getting the list of active devices"""
-
-    def get(self):
-        """List available SARAD instruments"""
-        if (registrar_actor := get_registrar_actor()) is None:
-            status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
-            return {
-                "Error code": status.value,
-                "Error": str(status),
-                "Notification": "Registration Server going down for restart.",
-                "Requester": "Emergency shutdown",
-            }
-        response = {}
-        for device_id, device_status in get_device_statuses(registrar_actor).items():
-            response[device_id] = device_status
-            response[device_id]["href"] = ""
-        return response
-
-
 @root_ns.route("/scan")
 class Scan(Resource):
     """Refresh the list of active devices"""
@@ -298,6 +314,27 @@ class Scan(Resource):
             "Error code": reply.status.value,
             "Error": str(reply.status),
         }
+
+
+@list_ns.route("/")
+class List(Resource):
+    """Endpoint for getting the list of active devices.
+
+    This endpoint is deprecated and only for backward compatibility."""
+
+    def get(self):
+        """List available SARAD instruments"""
+        if (registrar_actor := get_registrar_actor()) is None:
+            status = Status.CRITICAL
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+        return get_device_statuses(registrar_actor)
 
 
 @list_ns.route("/<string:device_id>")
@@ -466,6 +503,100 @@ class FreeDevice(Resource):
             "Error": str(status),
             device_id: {},
         }
+
+
+@hosts_ns.route("/")
+class Hosts(Resource):
+    """Endpoint for getting the list of active hosts"""
+
+    def _host(self, _device_id, device_status):
+        try:
+            this_host = device_status["Identification"]["Host"]
+            if this_host == "127.0.0.1":
+                technology = int(TransportTechnology.LOCAL)
+                origin = config["IS_ID"]
+                description = config["DESCRIPTION"]
+                place = config["PLACE"]
+                lat = config["LATITUDE"]
+                lon = config["LONGITUDE"]
+                height = config["HEIGHT"]
+            else:
+                technology = TransportTechnology.MQTT
+                origin = device_status["Identification"]["Origin"]
+                description = ""
+                place = ""
+                lat = 0
+                lon = 0
+                height = 0
+
+        except AttributeError:
+            return None
+        return Host(
+            host=this_host,
+            transport_technology=technology,
+            origin=origin,
+            description=description,
+            place=place,
+            lat=lat,
+            lon=lon,
+            height=height,
+        )
+
+    @api.marshal_list_with(host)
+    def get(self):
+        """List available hosts"""
+        if (registrar_actor := get_registrar_actor()) is None:
+            status = Status.CRITICAL
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+        response = []
+        for device_id, device_status in get_device_statuses(registrar_actor).items():
+            response.append(self._host(device_id, device_status))
+        return response
+
+
+@instruments_ns.route("/")
+class Instruments(Resource):
+    """Endpoint for getting the list of active devices"""
+
+    def _instrument(self, device_id, device_status):
+        try:
+            instr_id = short_id(device_id)
+            serial_number = device_status["Identification"]["Serial number"]
+            firmware_version = device_status["Identification"]["Firmware version"]
+            instr_host = device_status["Identification"]["Host"]
+        except AttributeError:
+            return None
+        return Instrument(
+            instr_id=instr_id,
+            serial_number=serial_number,
+            firmware_version=firmware_version,
+            host=instr_host,
+        )
+
+    @api.marshal_list_with(instrument)
+    def get(self):
+        """List available SARAD instruments"""
+        if (registrar_actor := get_registrar_actor()) is None:
+            status = Status.CRITICAL
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+        response = []
+        for device_id, device_status in get_device_statuses(registrar_actor).items():
+            response.append(self._instrument(device_id, device_status))
+        return response
 
 
 @values_ns.route("/<string:device_id>")

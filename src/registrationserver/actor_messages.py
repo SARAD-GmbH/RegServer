@@ -11,7 +11,7 @@ commands and data within the actor system
 import socket
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum, unique
+from enum import Enum, IntEnum, unique
 from typing import Any, ByteString, Dict, List, Union
 
 from sarad.sari import FamilyDict, Route  # type: ignore
@@ -98,7 +98,7 @@ class ActorType(Enum):
     HOST = 2
 
 
-class TransportTechnology(Enum):
+class TransportTechnology(IntEnum):
     """Class to identify the transport technology used to connect an instrument."""
 
     LOCAL = 0
@@ -158,7 +158,7 @@ class Host:
     Args:
         host: FQDN of the host the instrument is physically connected to.
         transport_technology: How is the instrument connected to this RegServer?
-        origin: Alias of the host give as 'is_id' in the configuration.
+        origin: Alias of the host given as 'is_id' in its configuration.
         description: Free text string describing the host.
         place: Name of the place where the host is situated.
         lat: Latitude of the place. Positive values are north, negatives are south.
@@ -841,6 +841,7 @@ class Gps:
 
 @dataclass
 class RecentValueMsg:
+    # pylint: disable=too-many-instance-attributes
     """Message sent from the Device Actor of an DACM instrument as reply to a GetRecentValueMsg.
 
     Args:
@@ -867,3 +868,36 @@ class RecentValueMsg:
     unit: str = ""
     timestamp: Union[datetime, None] = None
     gps: Union[Gps, None] = None
+
+
+@dataclass
+class GetHostInfoMsg:
+    """Message that can be sent to any Actor holding host information.
+
+    These might be the Registrar, Host Actors, MQTT Listener.
+    The Actor has to respond with a HostInfoMsg.
+    Usually the Registrar will send this message to the
+    MQTT Listener and to the Host Actors in its receiveMsg_SubscribeMsg handler.
+
+    Args:
+        host (str): FQDN of the host or None.
+                    In the latter case the Actor shall give back information
+                    about all hosts he is aware about.
+    """
+
+    host: Union[str, None]
+
+
+@dataclass
+class HostInfoMsg:
+    """Message containing information about at least one host.
+
+    Has to be sent from the Registrar, Host Actors, MQTT Listener
+    as reply to a GetHostInfoMsg.
+    The MQTT Listener sends HostInfoMsg to the Registrar on every host update.
+
+    Args:
+        hosts (List[Host]): List of Host objects
+    """
+
+    hosts: List[Host]
