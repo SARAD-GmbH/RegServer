@@ -31,7 +31,7 @@ from registrationserver.actor_messages import (ActorType, Backend, Frontend,
                                                UpdateDeviceStatusesMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import (actor_config, backend_config, config,
-                                       frontend_config, mqtt_config)
+                                       frontend_config, mqtt_config, unique_id)
 from registrationserver.helpers import short_id, transport_technology
 from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_listener import Is1Listener
@@ -67,7 +67,7 @@ class Registrar(BaseActor):
                 mqtt_scheduler,
                 PrepareMqttActorMsg(
                     is_id=None,
-                    client_id=config["IS_ID"],
+                    client_id=unique_id(config["IS_ID"]),
                     group=mqtt_config["GROUP"],
                 ),
             )

@@ -64,9 +64,8 @@ class MqttBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for PrepareMqttActorMsg from MQTT Listener"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.mqttc = MQTT.Client(msg.client_id)
+        self.mqttc = MQTT.Client(client_id=msg.client_id, clean_session=False)
         self.group = msg.group
-        self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
         self.mqttc.on_disconnect = self.on_disconnect
         self.mqttc.on_message = self.on_message

@@ -18,6 +18,7 @@ from registrationserver.actor_messages import (ActorType, Host, HostInfoMsg,
                                                PrepareMqttActorMsg,
                                                SetDeviceStatusMsg,
                                                TransportTechnology)
+from registrationserver.config import unique_id
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mqtt.mqtt_actor import MqttActor
@@ -144,7 +145,7 @@ class MqttListener(MqttBaseActor):
             device_actor = self._create_actor(MqttActor, device_id, None)
             self.child_actors[device_id]["host"] = is_id
             self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
-            client_id = f"{device_id}.client"
+            client_id = unique_id(f"{device_id}.client")
             self.send(
                 device_actor,
                 PrepareMqttActorMsg(is_id, client_id, self.group),
