@@ -213,44 +213,6 @@ class Ping(Resource):
         }
 
 
-@root_ns.route("/shutdown")
-@root_ns.param(
-    "password",
-    "This is not really a password since it is given here. "
-    + "It is only there to prevent shutdown by mistake.",
-)
-class Shutdown(Resource):
-    """Shutdown the SARAD Registration Server."""
-
-    @api.expect(shutdown_arguments, validate=True)
-    def post(self):
-        """Shutdown the SARAD Registration Server.
-
-        The service will be terminated with error and thus be restarted
-        automatically by the Service Manager (Windows) or Systemd (Linux)
-        resp.
-
-        """
-        remote_addr = request.remote_addr
-        remote_user = request.remote_user
-        shutdown_arguments.parse_args()
-        logger.info(
-            "Shutdown by user intervention from %s",
-            remote_addr,
-        )
-        system_shutdown()
-        answer = {
-            "Notification": "Registration Server going down for restart.",
-            "Requester": remote_addr,
-        }
-        status = Status.OK
-        answer["Error code"] = status.value
-        answer["Error"] = str(status)
-        answer["Remote addr"] = remote_addr
-        answer["Remote user"] = remote_user
-        return answer
-
-
 @root_ns.route("/log")
 @root_ns.param(
     "age",
@@ -277,6 +239,47 @@ class Log(Resource):
         return f"{log_file_name} doesn't exist."
 
 
+@root_ns.route("/restart")
+@root_ns.param(
+    "password",
+    "This is not really a password since it is given here. "
+    + "It is only there to prevent restart by mistake.",
+)
+class Shutdown(Resource):
+    """Restart the SARAD Registration Server."""
+
+    @api.expect(shutdown_arguments, validate=True)
+    def post(self):
+        """Restart the SARAD Registration Server.
+
+        The service will be terminated with error and thus be restarted
+        automatically by the Service Manager (Windows) or Systemd (Linux)
+        resp.
+
+        *WARNING*
+        Calling this method from here will forward the Restart command
+        to the local host and to all remote hosts! This might affect other users.
+        """
+        remote_addr = request.remote_addr
+        remote_user = request.remote_user
+        shutdown_arguments.parse_args()
+        logger.info(
+            "Shutdown by user intervention from %s",
+            remote_addr,
+        )
+        system_shutdown()
+        answer = {
+            "Notification": "Registration Server going down for restart.",
+            "Requester": remote_addr,
+        }
+        status = Status.OK
+        answer["Error code"] = status.value
+        answer["Error"] = str(status)
+        answer["Remote addr"] = remote_addr
+        answer["Remote user"] = remote_user
+        return answer
+
+
 @root_ns.route("/scan")
 class Scan(Resource):
     """Refresh the list of active devices"""
@@ -290,6 +293,9 @@ class Scan(Resource):
         instruments by their USB connection or, if configured, by polling. This
         function was implemented as fallback.
 
+        *WARNING*
+        Calling this method from here will forward the Scan command
+        to the local host and to all remote hosts! This might affect other users.
         """
         if (registrar_actor := get_registrar_actor()) is None:
             status = Status.CRITICAL
@@ -318,6 +324,7 @@ class Scan(Resource):
         }
 
 
+@api.deprecated
 @list_ns.route("/")
 class List(Resource):
     """Endpoint for getting the list of active devices.
@@ -511,7 +518,6 @@ class FreeDevice(Resource):
 class Hosts(Resource):
     """Endpoint for getting the list of active hosts"""
 
-    @api.doc("get collection of hosts")
     @api.marshal_list_with(host_model)
     def get(self):
         """List available hosts"""
@@ -537,7 +543,6 @@ class Hosts(Resource):
 class Host(Resource):
     """Endpoint for one active host"""
 
-    @api.doc("get one host")
     @api.marshal_with(host_model)
     def get(self, host):
         """Get information about one host"""
