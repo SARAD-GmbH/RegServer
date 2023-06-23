@@ -221,8 +221,12 @@ class MqttSchedulerActor(MqttBaseActor):
         topic = f"{self.group}/{self.is_id}/meta"
         if self.reservations:
             payload = get_is_meta(self.is_meta._replace(state=2))
+            if self.led and self.is_connected:
+                self.led.on()
         else:
             payload = get_is_meta(self.is_meta._replace(state=1))
+            if self.led:
+                self.led.pulse()
         self.mqttc.publish(
             retain=True,
             topic=topic,
