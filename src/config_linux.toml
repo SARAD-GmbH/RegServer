@@ -1,5 +1,5 @@
 debug_level = "info"
-# is_id = "aranea0003"
+is_id = "Binker"
 # description = "A longer text describing this Instrument Server"
 # place = "A text describing where the Instrument Controller running this Instrument Server is placed"
 # latitude = 51.0764194  # positive values for North, negative for South
@@ -14,7 +14,7 @@ modbus_rtu = false
 
 [backends]
 usb = true
-mqtt = true
+mqtt = false
 mdns = false
 is1 = false
 
@@ -64,14 +64,14 @@ system_base = "multiprocQueueBase"
 ## C) TCP based messages
 # system_base = "multiprocTCPBase"
 # admin_port = 1900
-# # convention_address = "127.0.0.1"
+# convention_address = "127.0.0.1"
 
 process_startup_method = "fork"
-watchdog_interval = 0  # in seconds. 0 = inner watchdog switched off
+watchdog_interval = 2  # in seconds. 0 = inner watchdog switched off
 watchdog_wait = 2  # in seconds
 watchdog_check = true  # if true, each Actor has to re-register at the Registrar
 outer_watchdog_interval = 60  # in seconds
-outer_watchdog_trials = 0  # number of attempts to check Registrar
+outer_watchdog_trials = 1  # number of attempts to check Registrar
 
 [mqtt]
 group = "sawleipzig-0001"
