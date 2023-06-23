@@ -233,7 +233,7 @@ class MqttListener(MqttBaseActor):
 
     def on_is_meta(self, _client, _userdata, message):
         """Handler for all messages of topic +/meta."""
-        logger.debug("[on_is_meta] %s, %s", message.topic, message.payload)
+        logger.info("[on_is_meta] %s, %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
         is_id = topic_parts[1]
         payload = json.loads(message.payload)

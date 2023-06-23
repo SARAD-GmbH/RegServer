@@ -217,18 +217,17 @@ class MqttSchedulerActor(MqttBaseActor):
 
     def _instruments_connected(self):
         """Check whether there are connected instruments"""
+        topic = f"{self.group}/{self.is_id}/meta"
         if self.reservations:
-            self.mqttc.publish(
-                retain=True,
-                topic=f"{self.group}/{self.is_id}/meta",
-                payload=get_is_meta(self.is_meta._replace(state=2)),
-            )
+            payload = get_is_meta(self.is_meta._replace(state=2))
         else:
-            self.mqttc.publish(
-                retain=True,
-                topic=f"{self.group}/{self.is_id}/meta",
-                payload=get_is_meta(self.is_meta._replace(state=1)),
-            )
+            payload = get_is_meta(self.is_meta._replace(state=1))
+        self.mqttc.publish(
+            retain=True,
+            topic=topic,
+            payload=payload,
+        )
+        logger.info("Publish %s on %s", payload, topic)
 
     def _remove_instrument(self, device_id):
         # pylint: disable=invalid-name
