@@ -268,11 +268,7 @@ class MqttSchedulerActor(MqttBaseActor):
         super().on_connect(client, userdata, flags, reason_code)
         if self.led:
             self.led.on()
-        self.mqttc.publish(
-            retain=True,
-            topic=f"{self.group}/{self.is_id}/meta",
-            payload=get_is_meta(self.is_meta._replace(state=1)),
-        )
+        self._instruments_connected()
         self._subscribe_topic([(f"{self.group}/{self.is_id}/+/meta", 0)])
         self._subscribe_topic([(f"{self.group}/{self.is_id}/cmd", 0)])
         self._subscribe_to_actor_dict_msg()
