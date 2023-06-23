@@ -157,8 +157,8 @@ class Host:
 
     Args:
         host: FQDN of the host the instrument is physically connected to.
+        is_id: An alias identifying the Instrument Server.
         transport_technology: How is the instrument connected to this RegServer?
-        origin: Alias of the host given as 'is_id' in its configuration.
         description: Free text string describing the host.
         place: Name of the place where the host is situated.
         lat: Latitude of the place. Positive values are north, negatives are south.
@@ -168,8 +168,8 @@ class Host:
     """
 
     host: str
+    is_id: str
     transport_technology: TransportTechnology
-    origin: str
     description: str
     place: str
     lat: float

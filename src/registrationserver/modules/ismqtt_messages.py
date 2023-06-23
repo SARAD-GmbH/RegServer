@@ -21,6 +21,7 @@ class InstrumentServerMeta(NamedTuple):
 
     state: int
     host: str
+    is_id: str
     description: str
     place: str
     latitude: Decimal

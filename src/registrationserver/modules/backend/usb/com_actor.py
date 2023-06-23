@@ -198,7 +198,7 @@ class ComActor(BaseActor):
                 "Firmware version": self.instrument.software_version,
                 "Host": "127.0.0.1",
                 "Protocol": sarad_type,
-                "Origin": config["IS_ID"],
+                "IS Id": config["IS_ID"],
             },
             "Serial": self.instrument.route.port,
             "State": 2,

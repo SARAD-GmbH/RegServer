@@ -331,7 +331,7 @@ class DeviceActor(DeviceBaseActor):
             logger.debug("device_desc: %s", device_desc)
             ident = self.device_status["Identification"]
             remote_ident = device_desc["Identification"]
-            ident["Origin"] = remote_ident.get("Origin")
+            ident["IS Id"] = remote_ident.get("IS Id")
             ident["Firmware version"] = remote_ident.get("Firmware version")
             self.device_status["Identification"] = ident
             reservation = device_desc.get("Reservation")

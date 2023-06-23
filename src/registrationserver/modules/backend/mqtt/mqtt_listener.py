@@ -72,8 +72,8 @@ class MqttListener(MqttBaseActor):
             host = fqdn
         return Host(
             host=host,
+            is_id=is_id,
             transport_technology=TransportTechnology.MQTT,
-            origin=is_id,
             description=host_info.get("Description", ""),
             place=host_info.get("Place", ""),
             lat=host_info.get("Lat", 0),

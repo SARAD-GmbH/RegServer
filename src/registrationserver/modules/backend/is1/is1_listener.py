@@ -380,7 +380,7 @@ class Is1Listener(BaseActor):
                 "Serial number": hid.decode(instr_id)[2],
                 "Host": is1_address.hostname,
                 "Firmware version": firmware_version,
-                "Origin": is1_address.hostname,
+                "IS Id": is1_address.hostname,
                 "Protocol": sarad_type,
             },
             "State": 2,

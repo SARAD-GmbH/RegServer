@@ -59,7 +59,8 @@ class MqttSchedulerActor(MqttBaseActor):
         self.is_id = config["IS_ID"]
         self.is_meta = InstrumentServerMeta(
             state=0,
-            host=self.is_id,
+            host=config["MY_HOSTNAME"],
+            is_id=self.is_id,
             description=config["DESCRIPTION"],
             place=config["PLACE"],
             latitude=config["LATITUDE"],
@@ -177,7 +178,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 ]
                 self._subscribe_topic(new_subscriptions)
                 identification = device_status["Identification"]
-                identification["Host"] = get_hostname(get_ip(False))
+                identification["Host"] = self.is_id.host
                 message = {"State": 2, "Identification": identification}
                 self.mqttc.publish(
                     topic=f"{self.group}/{self.is_id}/{instr_id}/meta",

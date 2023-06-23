@@ -291,7 +291,7 @@ class ClusterActor(BaseActor):
                     Host(
                         host="127.0.0.1",
                         transport_technology=int(TransportTechnology.LOCAL),
-                        origin=config["IS_ID"],
+                        is_id=config["IS_ID"],
                         description=config["DESCRIPTION"],
                         place=config["PLACE"],
                         lat=config["LATITUDE"],

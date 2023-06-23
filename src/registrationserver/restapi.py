@@ -74,18 +74,19 @@ hosts_ns = api.namespace(
     "hosts",
     description="Collection of available hosts with SARAD instruments connected",
 )
-host = api.model(
+host_model = api.model(
     "Host",
     {
         "host": fields.String(description="The FQDN of the host"),
+        "is_id": fields.String(
+            description="An alias identifying the Instrument Server."
+            + " Given in the remote config."
+        ),
         "state": fields.Integer(
             description="0 = offline; 1 = online, no instrument; 2 = online, functional"
         ),
         "transport_technology": fields.Integer(
             description="How is the instrument connected to this RegServer"
-        ),
-        "origin": fields.String(
-            description="Alias of the host given as 'is_id' in its configuration"
         ),
         "description": fields.String(
             description="Free text string describing the host"
@@ -100,6 +101,7 @@ host = api.model(
             description="Longitude of the place. Positive values are east, negatives are west"
         ),
         "height": fields.Integer(description="Height of the place."),
+        "link": fields.Url("hosts_host", absolute=True),
     },
 )
 instruments_ns = api.namespace(
@@ -509,7 +511,8 @@ class FreeDevice(Resource):
 class Hosts(Resource):
     """Endpoint for getting the list of active hosts"""
 
-    @api.marshal_list_with(host)
+    @api.doc("get collection of hosts")
+    @api.marshal_list_with(host_model)
     def get(self):
         """List available hosts"""
         if (registrar_actor := get_registrar_actor()) is None:
@@ -523,6 +526,35 @@ class Hosts(Resource):
                 "Requester": "Emergency shutdown",
             }
         return get_hosts(registrar_actor)
+
+
+@hosts_ns.route("/<string:host>")
+@hosts_ns.param(
+    "host",
+    "FQDN of the host",
+)
+@hosts_ns.response(404, "Host not found")
+class Host(Resource):
+    """Endpoint for one active host"""
+
+    @api.doc("get one host")
+    @api.marshal_with(host_model)
+    def get(self, host):
+        """Get information about one host"""
+        if (registrar_actor := get_registrar_actor()) is None:
+            status = Status.CRITICAL
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+        for host_object in get_hosts(registrar_actor):
+            if host_object.host == host:
+                return host_object
+        return None
 
 
 @instruments_ns.route("/")
