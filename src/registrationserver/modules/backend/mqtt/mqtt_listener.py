@@ -144,6 +144,7 @@ class MqttListener(MqttBaseActor):
         else:
             device_actor = self._create_actor(MqttActor, device_id, None)
             self.child_actors[device_id]["host"] = is_id
+            payload["State"] = 2
             self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
             client_id = unique_id(f"{device_id}.client")
             self.send(
@@ -181,6 +182,7 @@ class MqttListener(MqttBaseActor):
             return
         logger.info("[update_instr] %s", device_id)
         device_actor = self.child_actors[device_id]["actor_address"]
+        payload["State"] = 2
         self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
 
     def _add_host(self, is_id, data) -> None:

@@ -75,7 +75,7 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SetDeviceStatusMsg"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        sections = ["Identification", "Reservation", "Remote"]
+        sections = ["Identification", "Reservation", "Remote", "State"]
         for section in sections:
             if msg.device_status.get(section, False):
                 self.device_status[section] = msg.device_status[section]
@@ -370,6 +370,7 @@ class DeviceBaseActor(BaseActor):
 
     @overrides
     def _kill_myself(self, register=True):
+        self.device_status["State"] = 1
         try:
             self._send_reservation_status_msg()
         except AttributeError as exception:

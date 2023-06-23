@@ -162,7 +162,9 @@ class ComActor(BaseActor):
         try:
             family = self.instrument.family["family_id"]
         except AttributeError:
-            logger.error("_create_and_setup_called but self.instrument is %s", self.instrument)
+            logger.error(
+                "_create_and_setup_called but self.instrument is %s", self.instrument
+            )
             return
         instr_id = self.instrument.device_id
         if family == 5:
@@ -199,6 +201,7 @@ class ComActor(BaseActor):
                 "Origin": config["IS_ID"],
             },
             "Serial": self.instrument.route.port,
+            "State": 2,
         }
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
         self.send(device_actor, SetDeviceStatusMsg(device_status))

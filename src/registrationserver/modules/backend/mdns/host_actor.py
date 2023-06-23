@@ -138,6 +138,7 @@ class HostActor(BaseActor):
             )
         else:
             device_actor = self.child_actors[device_id]["actor_address"]
+        data["State"] = 2
         self.send(device_actor, SetDeviceStatusMsg(data))
 
     def receiveMsg_RescanMsg(self, msg, sender):
