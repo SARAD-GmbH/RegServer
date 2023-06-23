@@ -26,10 +26,10 @@ class UsbListener(BaseListener):
 
     @staticmethod
     def __get_device_hash(device):
-        id_model = device.get("ID_MODEL_ID")
-        id_vendor = device.get("ID_VENDOR_ID")
-        enc_vendor = device.get("ID_VENDOR_ENC")
-        if not id_model or not id_vendor or not enc_vendor:
+        id_model = device.get("ID_MODEL_ID", "")
+        id_vendor = device.get("ID_VENDOR_ID", "")
+        enc_vendor = device.get("ID_VENDOR_ENC", "")
+        if not id_model or not id_vendor:
             return None
         identifier_string = id_model + id_vendor + enc_vendor
         return hashlib.sha224(identifier_string.encode("utf-8")).hexdigest()
