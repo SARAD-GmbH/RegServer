@@ -224,7 +224,7 @@ class MqttListener(MqttBaseActor):
         for instr in instr_to_remove:
             self._rm_instr(instr[0], instr[1])
         logger.info("[Remove Host] IS %s removed", self._hosts[is_id].get("Host"))
-        self._hosts[is_id]["State"] = 0
+        self._hosts[is_id]["State"] = state
         self.send(
             self.registrar,
             HostInfoMsg([self._host_dict_to_object(is_id, self._hosts[is_id])]),
@@ -313,7 +313,7 @@ class MqttListener(MqttBaseActor):
                     instr_id,
                     is_id,
                 )
-        elif payload["State"] == 0:
+        elif payload["State"] in (0, 10):
             logger.debug("disconnection message")
             try:
                 self._rm_instr(is_id, instr_id)
