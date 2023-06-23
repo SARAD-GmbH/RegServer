@@ -17,7 +17,7 @@ from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
                                                RescanMsg, ReserveDeviceMsg,
                                                ShutdownMsg, Status,
                                                TxBinaryMsg)
-from registrationserver.config import config, get_hostname, get_ip
+from registrationserver.config import config
 from registrationserver.helpers import (diff_of_dicts, short_id,
                                         transport_technology)
 from registrationserver.logger import logger
@@ -178,7 +178,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 ]
                 self._subscribe_topic(new_subscriptions)
                 identification = device_status["Identification"]
-                identification["Host"] = self.is_id.host
+                identification["Host"] = self.is_meta.host
                 message = {"State": 2, "Identification": identification}
                 self.mqttc.publish(
                     topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
