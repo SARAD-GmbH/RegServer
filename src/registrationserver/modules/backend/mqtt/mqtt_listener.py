@@ -13,17 +13,17 @@ in the MQTT network
 import json
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (ActorType, KillMsg,
-                                               MqttConnectMsg,
+from registrationserver.actor_messages import (ActorType, Host, HostInfoMsg,
+                                               KillMsg, MqttConnectMsg,
                                                PrepareMqttActorMsg,
-                                               SetDeviceStatusMsg)
+                                               SetDeviceStatusMsg,
+                                               TransportTechnology)
+from registrationserver.config import unique_id
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mqtt.mqtt_actor import MqttActor
 from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
     MqttBaseActor
-
-# logger.debug("%s -> %s", __package__, __file__)
 
 
 class MqttListener(MqttBaseActor):
@@ -54,6 +54,33 @@ class MqttListener(MqttBaseActor):
             ...
         }
     """
+
+    @staticmethod
+    def _host_dict_to_object(is_id, host_info):
+        """Convert an entry of the dictionary of hosts into a Host object.
+
+        Args:
+            is_id (str): Instrument server id as given in its configuration.
+            host_info (Dict[str]): Dictionary containing host information.
+
+        Returns: A single Host object
+        """
+        fqdn = host_info.get("Host", "127.0.0.1")
+        if fqdn == "127.0.0.1":
+            host = is_id
+        else:
+            host = fqdn
+        return Host(
+            host=host,
+            transport_technology=TransportTechnology.MQTT,
+            origin=is_id,
+            description=host_info.get("Description", ""),
+            place=host_info.get("Place", ""),
+            lat=host_info.get("Lat", 0),
+            lon=host_info.get("Lon", 0),
+            height=host_info.get("Heigth", 0),
+            state=host_info.get("State", 0),
+        )
 
     def device_id(self, is_id, instr_id):
         """Deliver device_id belonging to the instr_id on is_id in the argument."""
@@ -117,8 +144,9 @@ class MqttListener(MqttBaseActor):
         else:
             device_actor = self._create_actor(MqttActor, device_id, None)
             self.child_actors[device_id]["host"] = is_id
+            payload["State"] = 2
             self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
-            client_id = f"{device_id}.client"
+            client_id = unique_id(f"{device_id}.client")
             self.send(
                 device_actor,
                 PrepareMqttActorMsg(is_id, client_id, self.group),
@@ -154,20 +182,20 @@ class MqttListener(MqttBaseActor):
             return
         logger.info("[update_instr] %s", device_id)
         device_actor = self.child_actors[device_id]["actor_address"]
+        payload["State"] = 2
         self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
 
     def _add_host(self, is_id, data) -> None:
         if (is_id is None) or (data is None):
-            logger.error(
-                "[Add Host] One or both of the IS ID and the meta message are None."
-            )
+            logger.error("One or both of the IS ID and the meta message are None.")
             return
         logger.debug(
-            "[Add Host] Found a new connected host with IS ID %s",
+            "Found a new connected host with IS ID %s",
             is_id,
         )
         self._hosts[is_id] = data
         self._subscribe_topic([(f"{self.group}/{is_id}/+/meta", 0)])
+        self.send(self.registrar, HostInfoMsg([self._host_dict_to_object(is_id, data)]))
         logger.info("[Add Host] IS %s added", is_id)
 
     def _update_host(self, is_id, data) -> None:
@@ -182,6 +210,7 @@ class MqttListener(MqttBaseActor):
             is_id,
         )
         self._hosts[is_id] = data
+        self.send(self.registrar, HostInfoMsg([self._host_dict_to_object(is_id, data)]))
         return
 
     def _rm_host(self, is_id) -> None:
@@ -195,10 +224,16 @@ class MqttListener(MqttBaseActor):
         for instr in instr_to_remove:
             self._rm_instr(instr[0], instr[1])
         logger.info("[Remove Host] IS %s removed", self._hosts[is_id].get("Host"))
+        self._hosts[is_id]["State"] = 0
+        self.send(
+            self.registrar,
+            HostInfoMsg([self._host_dict_to_object(is_id, self._hosts[is_id])]),
+        )
         del self._hosts[is_id]
 
     def on_is_meta(self, _client, _userdata, message):
         """Handler for all messages of topic +/meta."""
+        logger.debug("[on_is_meta] %s, %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
         is_id = topic_parts[1]
         payload = json.loads(message.payload)
@@ -216,7 +251,7 @@ class MqttListener(MqttBaseActor):
             return
         if payload["State"] in (2, 1):
             logger.debug(
-                "[+/meta] Store the properties of cluster %s",
+                "[+/meta] Store the properties of %s",
                 is_id,
             )
             if is_id in self._hosts:
@@ -226,18 +261,18 @@ class MqttListener(MqttBaseActor):
         elif payload["State"] == 0:
             if is_id in self._hosts:
                 logger.debug(
-                    "[+/meta] Remove host file for cluster %s",
+                    "[+/meta] Remove host file for %s",
                     is_id,
                 )
                 self._rm_host(is_id)
             else:
-                logger.warning(
-                    "[+/meta] Subscriber disconnected from unknown IS %s",
+                logger.info(
+                    "[+/meta] IS %s is known but offline",
                     is_id,
                 )
         else:
             logger.warning(
-                "[+/meta] Subscriber received a meta message of an unknown cluster %s",
+                "[+/meta] Subscriber received a meta message of an unknown host %s",
                 is_id,
             )
 
@@ -307,13 +342,37 @@ class MqttListener(MqttBaseActor):
 
     def receiveMsg_RescanMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Forware a rescan command to the remote Instrument Server"""
+        """Forward a rescan command to the remote Instrument Server"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        for is_id in self._hosts:
-            self._publish(
-                {
-                    "topic": f"{self.group}/{is_id}/cmd",
-                    "payload": "scan",
-                    "qos": self.qos,
-                }
-            )
+        for is_id, host_descr in self._hosts.items():
+            if (msg.host is None) or (msg.host == host_descr.get("Host")):
+                self._publish(
+                    {
+                        "topic": f"{self.group}/{is_id}/cmd",
+                        "payload": "scan",
+                        "qos": self.qos,
+                    }
+                )
+
+    def receiveMsg_ShutdownMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forward a shutdown command to the remote Instrument Server"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        for is_id, host_descr in self._hosts.items():
+            if (msg.host is None) or (msg.host == host_descr.get("Host")):
+                self._publish(
+                    {
+                        "topic": f"{self.group}/{is_id}/cmd",
+                        "payload": "shutdown",
+                        "qos": self.qos,
+                    }
+                )
+
+    def receiveMsg_GetHostInfoMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for GetHostInfoMsg asking for an updated list of connected hosts"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        hosts = []
+        for is_id, host_info in self._hosts.items():
+            hosts.append(self._host_dict_to_object(is_id, host_info))
+        self.send(sender, HostInfoMsg(hosts=hosts))

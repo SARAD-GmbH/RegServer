@@ -11,7 +11,7 @@ commands and data within the actor system
 import socket
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum, unique
+from enum import Enum, IntEnum, unique
 from typing import Any, ByteString, Dict, List, Union
 
 from sarad.sari import FamilyDict, Route  # type: ignore
@@ -96,6 +96,86 @@ class ActorType(Enum):
     NONE = 0
     DEVICE = 1
     HOST = 2
+
+
+class TransportTechnology(IntEnum):
+    """Class to identify the transport technology used to connect an instrument."""
+
+    LOCAL = 0
+    LAN = 1
+    MQTT = 2
+
+    def __str__(self):
+        longform = {
+            0: "local",
+            1: "LAN, advertised by ZeroConf",
+            2: "MQTT",
+        }
+        return longform[self.value]
+
+
+class Family(Enum):
+    """Class to identify the instrument family."""
+
+    DOSEMAN = 1
+    RSC = 2
+    DACM = 5
+
+    def __str__(self):
+        longform = {
+            1: "Doseman family",
+            2: "Radon Scout family",
+            5: "DACM family",
+        }
+        return longform[self.value]
+
+
+@dataclass
+class Instrument:
+    """Object containing the properties identifying and describing a SARAD
+    instrument within the SARAD network.
+
+    Args:
+        instr_id: A unique id identifying every SARAD instrument.
+                  Encoding name, family and type.
+        serial_number: Serial number of the instrument.
+        firmware_version: Version of the firmware on the instrument.
+        host: FQDN of the host the instrument is physically connected to.
+    """
+
+    instr_id: str
+    serial_number: int
+    firmware_version: int
+    host: str
+
+
+@dataclass
+class Host:
+    # pylint: disable=too-many-instance-attributes
+    """Object containing the properties identifying and describing a host
+    within the SARAD network.
+
+    Args:
+        host: FQDN of the host the instrument is physically connected to.
+        transport_technology: How is the instrument connected to this RegServer?
+        origin: Alias of the host given as 'is_id' in its configuration.
+        description: Free text string describing the host.
+        place: Name of the place where the host is situated.
+        lat: Latitude of the place. Positive values are north, negatives are south.
+        lon: Longitude of the place. Positive values are east, negatives are west.
+        height: Height of the place.
+        state (int): 2 = online, 1 = connected, no instruments, 0 = offline
+    """
+
+    host: str
+    transport_technology: TransportTechnology
+    origin: str
+    description: str
+    place: str
+    lat: float
+    lon: float
+    height: int
+    state: int
 
 
 @dataclass(frozen=True)
@@ -582,12 +662,39 @@ class RescanMsg:
     """Request to rebuild the list of instruments.
 
     The RescanMsg can be sent to the Cluster Actor, a Host Actor or to the MQTT Listener.
+
+    Args:
+       host: FQDN of the host that shall receive the command.
+             If None, all availabel hosts will be addressed.
     """
+
+    host: Union[str, None] = None
 
 
 @dataclass
 class RescanFinishedMsg:
     """Confirmation that the RescanMsg was handled properly."""
+
+    status: Status
+
+
+@dataclass
+class ShutdownMsg:
+    """Request to shutdown the Regserver on a given host for a restart.
+
+    The ShutdownMsg can be sent to the Cluster Actor, a Host Actor or to the MQTT Listener.
+
+    Args:
+       host: FQDN of the host that shall receive the command.
+             If None, all availabel hosts will be addressed.
+    """
+
+    host: Union[str, None] = None
+
+
+@dataclass
+class ShutdownFinishedMsg:
+    """Confirmation that the ShutdownMsg was handled properly."""
 
     status: Status
 
@@ -736,6 +843,7 @@ class Gps:
 
 @dataclass
 class RecentValueMsg:
+    # pylint: disable=too-many-instance-attributes
     """Message sent from the Device Actor of an DACM instrument as reply to a GetRecentValueMsg.
 
     Args:
@@ -762,3 +870,36 @@ class RecentValueMsg:
     unit: str = ""
     timestamp: Union[datetime, None] = None
     gps: Union[Gps, None] = None
+
+
+@dataclass
+class GetHostInfoMsg:
+    """Message that can be sent to any Actor holding host information.
+
+    These might be the Registrar, Host Actors, MQTT Listener, IS1 Listener and Cluster.
+    The Actor has to respond with a HostInfoMsg.
+    Usually the Registrar will send this message to the
+    MQTT Listener and to the Host Actors in its receiveMsg_SubscribeMsg handler.
+
+    Args:
+        host (str): FQDN of the host or None.
+                    In the latter case the Actor shall give back information
+                    about all hosts he is aware about.
+    """
+
+    host: Union[str, None] = None
+
+
+@dataclass
+class HostInfoMsg:
+    """Message containing information about at least one host.
+
+    Has to be sent from the Registrar, Host Actors, MQTT Listener, IS1 Listener
+    or Cluster as reply to a GetHostInfoMsg.
+    The MQTT Listener sends HostInfoMsg to the Registrar on every host update.
+
+    Args:
+        hosts (List[Host]): List of Host objects
+    """
+
+    hosts: List[Host]

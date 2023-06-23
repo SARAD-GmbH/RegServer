@@ -49,6 +49,15 @@ class Reservation(NamedTuple):
     user: str = ""
     status: Status = Status.OK
 
+    def __eq__(self, other):
+        return (
+            self.active == other.active
+            and self.app == other.app
+            and self.host == other.host
+            and self.user == other.user
+            and self.status == other.status
+        )
+
 
 class ControlType(Enum):
     """Types of control messages"""

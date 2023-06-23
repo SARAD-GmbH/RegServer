@@ -49,12 +49,12 @@ class ComActor(BaseActor):
         self.route = msg.route
         self.loop_interval = msg.loop_interval
         if self.child_actors:
-            logger.debug("Update -- child")
+            logger.debug("%s: Update device actor", self.my_id)
             self._forward_to_children(KillMsg())
             self.stop_loop = self.loop_running
             # refer to receiveMsg_ChildActorExited()
         else:
-            logger.debug("Update -- no child")
+            logger.debug("%s: Update -- no child", self.my_id)
             self._do_loop()
             self._start_polling()
 
@@ -86,7 +86,12 @@ class ComActor(BaseActor):
 
     def _start_polling(self):
         if self.loop_interval and (not self.loop_running):
-            logger.info("Start polling %s every %d s.", self.route, self.loop_interval)
+            logger.info(
+                "%s: Start polling %s every %d s.",
+                self.my_id,
+                self.route,
+                self.loop_interval,
+            )
             self.loop_running = True
             self.wakeupAfter(self.loop_interval)
         else:
@@ -142,7 +147,7 @@ class ComActor(BaseActor):
                     break
                 test_instrument.release_instrument()
             except (SerialException, OSError) as exception:
-                logger.error("%s not accessible: %s", route, exception)
+                logger.error("%s: %s not accessible: %s", self.my_id, route, exception)
                 self.next_method = self._kill_myself
                 break
         if instr_id is not None:
@@ -153,8 +158,14 @@ class ComActor(BaseActor):
         logger.debug("No new instrument found on %s", self.my_id)
 
     def _create_and_setup_actor(self):
-        logger.debug("[_create_and_setup_actor]")
-        family = self.instrument.family["family_id"]
+        logger.debug("[_create_and_setup_actor] on %s", self.my_id)
+        try:
+            family = self.instrument.family["family_id"]
+        except AttributeError:
+            logger.error(
+                "_create_and_setup_called but self.instrument is %s", self.instrument
+            )
+            return
         instr_id = self.instrument.device_id
         if family == 5:
             sarad_type = "sarad-dacm"
@@ -162,7 +173,8 @@ class ComActor(BaseActor):
             sarad_type = "sarad-1688"
         else:
             logger.error(
-                "[Add Instrument]: unknown instrument family (index: %s)",
+                "Add Instrument on %s: unknown instrument family (index: %s)",
+                self.my_id,
                 family,
             )
             sarad_type = "unknown"
@@ -175,7 +187,7 @@ class ComActor(BaseActor):
         else:
             self.poll_doseman = False
         actor_id = f"{instr_id}.{sarad_type}.local"
-        logger.debug("Create actor %s", actor_id)
+        logger.debug("Create actor %s on %s", actor_id, self.my_id)
         device_actor = self._create_actor(UsbActor, actor_id, None)
         device_status = {
             "Identification": {
@@ -189,6 +201,7 @@ class ComActor(BaseActor):
                 "Origin": config["IS_ID"],
             },
             "Serial": self.instrument.route.port,
+            "State": 2,
         }
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
         self.send(device_actor, SetDeviceStatusMsg(device_status))
@@ -202,13 +215,14 @@ class ComActor(BaseActor):
         )
 
     def _remove_child_actor(self):
-        logger.debug("Send KillMsg to device actor.")
+        logger.debug("%s sending KillMsg to device actor.")
         try:
             actor_id = list(self.child_actors.keys())[0]
             self.send(self.child_actors[actor_id]["actor_address"], KillMsg())
             self.child_actors.pop(actor_id, None)
         except IndexError:
             logger.error(
-                "Tried to remove instrument from %s, that never was added properly.",
+                "%s: Tried to remove instrument from %s, that never was added properly.",
+                self.my_id,
                 self.route,
             )

@@ -237,7 +237,8 @@ def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
        True if the Registrar is alive.
     """
     registrar_is_down = False
-    while number_of_trials:
+    attempts_left = number_of_trials
+    while attempts_left:
         logger.debug("Run outer watchdog")
         registrar_is_down = False
         with ActorSystem().private() as registrar_status:
@@ -258,20 +259,21 @@ def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
                 logger.critical("Exception: %s.", exception)
                 registrar_is_down = True
         if registrar_is_down:
-            number_of_trials = 0  # don't retry, stop it!
+            attempts_left = 0  # don't retry, stop it!
         else:
             if isinstance(reply, Thespian_ActorStatus):
                 # logger.debug("Aye Sir!")
-                number_of_trials = 0
+                attempts_left = 0
                 registrar_is_down = False
             else:
+                attempts_left = attempts_left - 1
                 logger.error(
-                    "Registrar replied %s instead of Thespian_ActorStatus. Retrying %d",
+                    "Registrar replied %s instead of Thespian_ActorStatus. %d of %d attempts left.",
                     reply,
+                    attempts_left,
                     number_of_trials,
                 )
                 time.sleep(0.5)
-                number_of_trials = number_of_trials - 1
                 registrar_is_down = True
     return not registrar_is_down
 

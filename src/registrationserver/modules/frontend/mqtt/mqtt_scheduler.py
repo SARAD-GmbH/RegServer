@@ -15,7 +15,8 @@ import time
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
                                                RescanMsg, ReserveDeviceMsg,
-                                               Status, TxBinaryMsg)
+                                               ShutdownMsg, Status,
+                                               TxBinaryMsg)
 from registrationserver.config import config, get_hostname, get_ip
 from registrationserver.helpers import (diff_of_dicts, short_id,
                                         transport_technology)
@@ -154,62 +155,85 @@ class MqttSchedulerActor(MqttBaseActor):
             self.pending_control_action = ControlType.UNKNOWN
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
-        # pylint: disable=invalid-name
+        # pylint: disable=invalid-name, too-many-locals
         """Handler for UpdateDeviceStatusMsg from Device Actor.
 
         Adds a new instrument to the list of available instruments
         or updates the reservation state."""
-        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if transport_technology(msg.device_id) == "mqtt":
             return
         instr_id = short_id(msg.device_id)
         device_id = msg.device_id
         device_status = msg.device_status
-        if device_id not in self.reservations:
-            logger.debug("Publish %s as new instrument.", instr_id)
-            new_subscriptions = [
-                (f"{self.group}/{self.is_id}/{instr_id}/control", 0),
-                (f"{self.group}/{self.is_id}/{instr_id}/cmd", 0),
-            ]
-            self._subscribe_topic(new_subscriptions)
-            identification = device_status["Identification"]
-            identification["Host"] = get_hostname(get_ip(False))
-            message = {"State": 2, "Identification": identification}
+        new_instrument_connected = False
+        if not device_status.get("State", 2) < 2:
+            if device_id not in self.reservations:
+                logger.debug("Publish %s as new instrument.", instr_id)
+                new_instrument_connected = True
+                new_subscriptions = [
+                    (f"{self.group}/{self.is_id}/{instr_id}/control", 0),
+                    (f"{self.group}/{self.is_id}/{instr_id}/cmd", 0),
+                ]
+                self._subscribe_topic(new_subscriptions)
+                identification = device_status["Identification"]
+                identification["Host"] = get_hostname(get_ip(False))
+                message = {"State": 2, "Identification": identification}
+                self.mqttc.publish(
+                    topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
+                    payload=json.dumps(message),
+                    retain=True,
+                )
+            reservation = device_status.get("Reservation")
+            if reservation is None:
+                logger.debug("%s has never been reserved.", instr_id)
+                self.reservations[device_id] = Reservation(
+                    status=Status.OK_SKIPPED, timestamp=time.time()
+                )
+                reservation = {"Active": False}
+            saved_reservation_object = self.reservations.get(device_id)
+            if saved_reservation_object is not None:
+                status = saved_reservation_object.status
+            else:
+                status = Status.OK
+            reservation_object = Reservation(
+                timestamp=time.time(),
+                active=reservation.get("Active", False),
+                host=reservation.get("Host", ""),
+                app=reservation.get("App", ""),
+                user=reservation.get("User", ""),
+                status=status,
+            )
+            if (
+                not (self.reservations[device_id] == reservation_object)
+                or new_instrument_connected
+            ):
+                self.reservations[device_id] = reservation_object
+                reservation_json = get_instr_reservation(reservation_object)
+                topic = f"{self.group}/{self.is_id}/{instr_id}/reservation"
+                logger.info("Publish %s on %s", reservation_json, topic)
+                self.mqttc.publish(topic=topic, payload=reservation_json, retain=True)
+                self._instruments_connected()
+
+    def _instruments_connected(self):
+        """Check whether there are connected instruments"""
+        if self.reservations:
             self.mqttc.publish(
-                topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
-                payload=json.dumps(message),
                 retain=True,
+                topic=f"{self.group}/{self.is_id}/meta",
+                payload=get_is_meta(self.is_meta._replace(state=2)),
             )
-        reservation = device_status.get("Reservation")
-        if reservation is None:
-            logger.debug("%s has never been reserved.", instr_id)
-            self.reservations[device_id] = Reservation(
-                status=Status.OK_SKIPPED, timestamp=time.time()
-            )
-            reservation = {"Active": False}
-        saved_reservation_object = self.reservations.get(device_id)
-        if saved_reservation_object is not None:
-            status = saved_reservation_object.status
         else:
-            status = Status.OK
-        reservation_object = Reservation(
-            timestamp=time.time(),
-            active=reservation.get("Active", False),
-            host=reservation.get("Host", ""),
-            app=reservation.get("App", ""),
-            user=reservation.get("User", ""),
-            status=status,
-        )
-        self.reservations[device_id] = reservation_object
-        reservation_json = get_instr_reservation(reservation_object)
-        topic = f"{self.group}/{self.is_id}/{instr_id}/reservation"
-        logger.debug("Publish %s on %s", reservation_json, topic)
-        self.mqttc.publish(topic=topic, payload=reservation_json, retain=True)
+            self.mqttc.publish(
+                retain=True,
+                topic=f"{self.group}/{self.is_id}/meta",
+                payload=get_is_meta(self.is_meta._replace(state=1)),
+            )
 
     def _remove_instrument(self, device_id):
         # pylint: disable=invalid-name
         """Removes an instrument from the list of available instruments."""
-        logger.debug("Remove %s", device_id)
+        logger.info("Remove %s", device_id)
         if self.reservations.pop(device_id, None) is not None:
             instr_id = short_id(device_id)
             gone_subscriptions = [
@@ -222,6 +246,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
                 payload=json.dumps({"State": 0}),
             )
+        self._instruments_connected()
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
@@ -246,7 +271,7 @@ class MqttSchedulerActor(MqttBaseActor):
         self.mqttc.publish(
             retain=True,
             topic=f"{self.group}/{self.is_id}/meta",
-            payload=get_is_meta(self.is_meta._replace(state=2)),
+            payload=get_is_meta(self.is_meta._replace(state=1)),
         )
         self._subscribe_topic([(f"{self.group}/{self.is_id}/+/meta", 0)])
         self._subscribe_topic([(f"{self.group}/{self.is_id}/cmd", 0)])
@@ -294,6 +319,8 @@ class MqttSchedulerActor(MqttBaseActor):
         logger.debug("[on_host_cmd] %s: %s", message.topic, message.payload)
         if message.payload.decode("utf-8") == "scan":
             self.send(self.registrar, RescanMsg())
+        elif message.payload.decode("utf-8") == "shutdown":
+            self.send(self.registrar, ShutdownMsg())
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -362,6 +389,13 @@ class MqttSchedulerActor(MqttBaseActor):
     def receiveMsg_RescanFinishedMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for RescanFinishedMsg from Registrar.
+
+        Does nothing else then putting a debug log entry."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+
+    def receiveMsg_ShutdownFinishedMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for ShutdownFinishedMsg from Registrar.
 
         Does nothing else then putting a debug log entry."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)

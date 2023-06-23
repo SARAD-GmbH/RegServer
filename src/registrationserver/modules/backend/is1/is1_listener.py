@@ -16,7 +16,8 @@ from typing import List
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (Is1Address, SetDeviceStatusMsg,
+from registrationserver.actor_messages import (ActorType, Is1Address,
+                                               SetDeviceStatusMsg,
                                                SetupIs1ActorMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import app_folder, config, is1_backend_config
@@ -108,8 +109,8 @@ class Is1Listener(BaseActor):
         return "Unknown"
 
     @staticmethod
-    def _deduplicate(is1_addresses: List[Is1Address]):
-        return list(set(is1_addresses))
+    def _deduplicate(list_of_objects: List[Is1Address]):
+        return list(set(list_of_objects))
 
     @overrides
     def __init__(self):
@@ -142,6 +143,7 @@ class Is1Listener(BaseActor):
         self.pickle_file_name = f"{app_folder}wlan_instruments.pickle"
         self.scan_is_thread = Thread(target=self._scan_is_function, daemon=True)
         self.cmd_thread = Thread(target=self._cmd_handler_function, daemon=True)
+        self.actor_type = ActorType.HOST
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):

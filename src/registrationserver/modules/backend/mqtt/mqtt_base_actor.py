@@ -64,9 +64,8 @@ class MqttBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for PrepareMqttActorMsg from MQTT Listener"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.mqttc = MQTT.Client(msg.client_id)
+        self.mqttc = MQTT.Client(client_id=msg.client_id, clean_session=False)
         self.group = msg.group
-        self.mqttc.reinitialise()
         self.mqttc.on_connect = self.on_connect
         self.mqttc.on_disconnect = self.on_disconnect
         self.mqttc.on_message = self.on_message
@@ -97,7 +96,8 @@ class MqttBaseActor(BaseActor):
                 2 * timedelta(seconds=mqtt_config["KEEPALIVE"])
             ):
                 logger.critical(
-                    "No PINGRESP. MQTT client or MQTT broker stopped working."
+                    "%s: No PINGRESP. MQTT client or MQTT broker stopped working.",
+                    self.my_id,
                 )
 
     def _connect(self):
@@ -113,7 +113,8 @@ class MqttBaseActor(BaseActor):
             port = mqtt_config["PORT"]
             try:
                 logger.info(
-                    "Attempting to connect to broker %s: %s",
+                    "%s attempting to connect to broker %s: %s",
+                    self.my_id,
                     mqtt_broker,
                     port,
                 )
@@ -122,7 +123,11 @@ class MqttBaseActor(BaseActor):
                     certfile = os.path.expanduser(mqtt_config["TLS_CERT_FILE"])
                     keyfile = os.path.expanduser(mqtt_config["TLS_KEY_FILE"])
                     logger.info(
-                        "Setting up TLS: %s | %s | %s", ca_certs, certfile, keyfile
+                        "%s setting up TLS: %s | %s | %s",
+                        self.my_id,
+                        ca_certs,
+                        certfile,
+                        keyfile,
                     )
                     self.mqttc.tls_set(
                         ca_certs=ca_certs,
@@ -137,41 +142,47 @@ class MqttBaseActor(BaseActor):
                 return
             except FileNotFoundError:
                 logger.critical(
-                    "Cannot find files expected in %s, %s, %s",
+                    "%s cannot find files expected in %s, %s, %s",
+                    self.my_id,
                     mqtt_config["TLS_CA_FILE"],
                     mqtt_config["TLS_CERT_FILE"],
                     mqtt_config["TLS_KEY_FILE"],
                 )
                 if Frontend.MQTT in frontend_config:
                     logger.critical(
-                        "I cannot live without MQTT broker. -> Emergency shutdown"
+                        "%s cannot live without MQTT broker. -> Emergency shutdown",
+                        self.my_id,
                     )
                     system_shutdown()
                 else:
-                    logger.warning("Proceed without MQTT.")
+                    logger.warning("%s proceeding without MQTT.", self.my_id)
                     self.next_method = self._kill_myself
                 self.is_connected = False
                 return
             except socket.gaierror as exception:
-                logger.error("We are offline and can handle only local instruments.")
+                logger.error(
+                    "%s is offline and can handle only local instruments.",
+                    self.my_id,
+                )
                 logger.info(
                     "Check your network connection and IP address in config_<os>.toml!"
                 )
                 connect_exception = exception
             except OSError as exception:  # pylint: disable=broad-except
-                logger.error("%s. Check port in config_<os>.toml!", exception)
+                logger.error(
+                    "%s on %s. Check port in config_<os>.toml!", exception, self.my_id
+                )
                 connect_exception = exception
             if is_flag_set()[0]:
                 logger.error(
-                    "I will be retrying after %d seconds: %s",
+                    "%s will be retrying after %d seconds: %s",
+                    self.my_id,
                     retry_interval,
                     connect_exception,
                 )
                 time.sleep(retry_interval)
             else:
-                logger.info(
-                    "Shutdown flag detected. Giving up on connecting to MQTT broker."
-                )
+                logger.info("%s giving up on connecting to MQTT broker.", self.my_id)
 
     def _connected(self):
         """Do everything that can only be done if the MQTT client is connected."""
@@ -183,7 +194,8 @@ class MqttBaseActor(BaseActor):
         if reason_code:
             self.is_connected = False
             logger.critical(
-                "[CONNECT] Connection to MQTT broker failed with %s",
+                "Connection of %s to MQTT broker failed with %s",
+                self.my_id,
                 reason_code,
             )
             return
@@ -191,16 +203,17 @@ class MqttBaseActor(BaseActor):
         for topic, qos in self._subscriptions.items():
             logger.debug("Restore subscription to %s", topic)
             self.mqttc.subscribe(topic, qos)
-        logger.info("[CONNECT] Connected to MQTT broker")
+        logger.info("%s connected to MQTT broker", self.my_id)
 
     def on_disconnect(self, client, userdata, reason_code):
         # pylint: disable=unused-argument
         """Will be carried out when the client disconnected from the MQTT broker."""
-        logger.info("Disconnected from MQTT broker")
+        logger.info("%s disconnected from MQTT broker", self.my_id)
         if reason_code >= 1:
             self.ungr_disconn = 1
             logger.warning(
-                "Ungraceful disconnect from MQTT broker (%s). Trying to reconnect.",
+                "%s ungracefully disconnected from MQTT broker (%s). Trying to reconnect.",
+                self.my_id,
                 reason_code,
             )
             # There is no need to do anything.
@@ -232,17 +245,16 @@ class MqttBaseActor(BaseActor):
         if msg_id == self.msg_id["UNSUBSCRIBE"]:
             logger.debug("Unsubscribed from topic")
 
-    @staticmethod
-    def on_message(_client, _userdata, message):
+    def on_message(self, _client, _userdata, message):
         """Handler for all MQTT messages that cannot be handled by special handlers."""
         logger.debug("message received: %s", message.payload)
         logger.debug("message topic: %s", message.topic)
         logger.debug("message qos: %s", message.qos)
         logger.debug("message retain flag: %s", message.retain)
         if message.payload is None:
-            logger.warning("The payload is none")
+            logger.warning("%s: The payload is none", self.my_id)
         else:
-            logger.warning("Unknown MQTT message")
+            logger.warning("%s: Unknown MQTT message", self.my_id)
 
     def on_log(self, _client, _userdata, level, buf):
         """Handler for MQTT logging information."""
@@ -251,17 +263,19 @@ class MqttBaseActor(BaseActor):
             MQTT.MQTT_LOG_NOTICE,
             MQTT.MQTT_LOG_DEBUG,
         ]:
-            logger.debug(buf)
+            logger.debug("%s: %s", self.my_id, buf)
         if level in [MQTT.MQTT_LOG_WARNING]:
-            logger.warning(buf)
+            logger.warning("%s: %s", self.my_id, buf)
         if level in [MQTT.MQTT_LOG_ERR]:
-            logger.error(buf)
+            logger.error("%s: %s", self.my_id, buf)
         if "Received PINGRES" in buf:
             self.last_pingresp = datetime.now()
 
     def _publish(self, msg) -> bool:
         if not self.is_connected:
-            logger.warning("Failed to publish the message because of disconnection")
+            logger.warning(
+                "%s failed to publish the message because of disconnection", self.my_id
+            )
             return False
         mqtt_topic = msg["topic"]
         mqtt_payload = msg["payload"]
@@ -275,7 +289,9 @@ class MqttBaseActor(BaseActor):
             retain=retain,
         )
         if return_code != MQTT.MQTT_ERR_SUCCESS:
-            logger.warning("Publish failed; result code is: %s", return_code)
+            logger.warning(
+                "%s: Publish failed; result code is: %s", self.my_id, return_code
+            )
             return False
         return True
 
@@ -292,13 +308,15 @@ class MqttBaseActor(BaseActor):
         """
         logger.debug("Work state: subscribe")
         if not self.is_connected:
-            logger.error("[Subscribe] failed, not connected to broker")
+            logger.error("%s: Subscribe failed, not connected to broker", self.my_id)
             return False
         return_code, self.msg_id["SUBSCRIBE"] = self.mqttc.subscribe(sub_info)
         if return_code != MQTT.MQTT_ERR_SUCCESS:
-            logger.error("Subscribe failed; result code is: %s", return_code)
+            logger.error(
+                "%s: Subscribe failed; result code is: %s", self.my_id, return_code
+            )
             return False
-        logger.info("[Subscribe] to %s successful", sub_info)
+        logger.info("%s: Subscribe to %s successful", self.my_id, sub_info)
         for topic, qos in sub_info:
             self._subscriptions[topic] = qos
         return True
@@ -306,17 +324,21 @@ class MqttBaseActor(BaseActor):
     def _unsubscribe_topic(self, topics: list) -> bool:
         logger.debug("Unsubscribe topics %s", topics)
         if not self.is_connected:
-            logger.error("[Unsubscribe] failed, not connected to broker")
+            logger.error("%s: Unsubscribe failed, not connected to broker", self.my_id)
             return False
         return_code, self.msg_id["UNSUBSCRIBE"] = self.mqttc.unsubscribe(topics)
         if return_code != MQTT.MQTT_ERR_SUCCESS:
-            logger.warning("[Unsubscribe] failed; result code is: %s", return_code)
+            logger.warning(
+                "Unsubscribing %s failed; result code is: %s", self.my_id, return_code
+            )
             return False
-        logger.debug("[Unsubscribe] from %s successful", topics)
+        logger.debug("Unsubscribing %s from %s successful", self.my_id, topics)
         for topic in topics:
             logger.debug("Pop %s from %s", topic, self._subscriptions)
             try:
                 self._subscriptions.pop(topic)
             except KeyError:
-                logger.warning("%s not in list of subscribed topics", topic)
+                logger.warning(
+                    "%s: %s not in list of subscribed topics", self.my_id, topic
+                )
         return True

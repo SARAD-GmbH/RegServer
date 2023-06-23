@@ -14,14 +14,16 @@ import os
 from typing import Set
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (ActorType, KillMsg,
-                                               ReturnLocalPortsMsg,
+from registrationserver.actor_messages import (ActorType, Host, HostInfoMsg,
+                                               KillMsg, ReturnLocalPortsMsg,
                                                ReturnLoopPortsMsg,
                                                ReturnNativePortsMsg,
                                                ReturnUsbPortsMsg,
-                                               SetupComActorMsg)
+                                               SetupComActorMsg,
+                                               TransportTechnology)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import rs485_backend_config, usb_backend_config
+from registrationserver.config import (config, rs485_backend_config,
+                                       usb_backend_config)
 from registrationserver.logger import logger
 from registrationserver.modules.backend.usb.com_actor import ComActor
 from sarad.sari import Route  # type: ignore
@@ -78,6 +80,7 @@ class ClusterActor(BaseActor):
         self.zigbee_ports = []
         super().__init__()
         self.actor_type = ActorType.HOST
+        self.instr_counter = 0  # counting connected instruments
         logger.debug("ClusterActor initialized")
 
     @overrides
@@ -271,3 +274,31 @@ class ClusterActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._rescan()
         self._update()
+
+    def receiveMsg_ShutdownMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for ShutdownMsg. Does nothing."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+
+    def receiveMsg_GetHostInfoMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for GetHostInfoMsg asking to send the list of hosts"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.send(
+            sender,
+            HostInfoMsg(
+                hosts=[
+                    Host(
+                        host="127.0.0.1",
+                        transport_technology=int(TransportTechnology.LOCAL),
+                        origin=config["IS_ID"],
+                        description=config["DESCRIPTION"],
+                        place=config["PLACE"],
+                        lat=config["LATITUDE"],
+                        lon=config["LONGITUDE"],
+                        height=config["HEIGHT"],
+                        state=1,
+                    )
+                ]
+            ),
+        )

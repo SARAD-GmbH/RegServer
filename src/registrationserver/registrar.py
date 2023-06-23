@@ -13,21 +13,25 @@ device actors referenced in the dictionary.
 
 """
 
+from dataclasses import replace
 from datetime import timedelta
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 
 from registrationserver.actor_messages import (ActorType, Backend, Frontend,
+                                               GetHostInfoMsg, HostInfoMsg,
                                                KillMsg, MqttConnectMsg,
                                                PrepareMqttActorMsg,
                                                RescanFinishedMsg, RescanMsg,
-                                               ReturnDeviceActorMsg, Status,
+                                               ReturnDeviceActorMsg,
+                                               ShutdownFinishedMsg,
+                                               ShutdownMsg, Status,
                                                UpdateActorDictMsg,
                                                UpdateDeviceStatusesMsg)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import (actor_config, backend_config, config,
-                                       frontend_config, mqtt_config)
+                                       frontend_config, mqtt_config, unique_id)
 from registrationserver.helpers import short_id, transport_technology
 from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_listener import Is1Listener
@@ -49,6 +53,7 @@ class Registrar(BaseActor):
         self.device_statuses = {}  # {device_id: {status_dict}}
         # a list of actors that are already created but not yet subscribed
         self.pending = []
+        self.hosts = []  # List of Host objects seen since start
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -62,7 +67,7 @@ class Registrar(BaseActor):
                 mqtt_scheduler,
                 PrepareMqttActorMsg(
                     is_id=None,
-                    client_id=config["IS_ID"],
+                    client_id=unique_id(config["IS_ID"]),
                     group=mqtt_config["GROUP"],
                 ),
             )
@@ -176,7 +181,7 @@ class Registrar(BaseActor):
             system_shutdown()
 
     def _handle_device_actor(self, sender, actor_id):
-        """Do whatever is required if the SubscribeMsg handler finds an Device
+        """Do whatever is required if the SubscribeMsg handler finds a Device
         Actor to be subscribed.
 
         Args:
@@ -226,6 +231,13 @@ class Registrar(BaseActor):
             self.device_statuses[actor_id] = self.device_statuses.get(actor_id, {})
             logger.debug("Subscribe %s to device statuses dict", actor_id)
             self._subscribe_to_device_status_msg(sender)
+            if transport_technology(actor_id) == "local":
+                for idx, host in enumerate(self.hosts):
+                    if host.host == "127.0.0.1":
+                        para = {"state": 2}
+                        host = replace(host, **para)
+                        self.hosts[idx] = host
+                        break
 
     def receiveMsg_SubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -248,6 +260,8 @@ class Registrar(BaseActor):
         }
         if msg.actor_type == ActorType.DEVICE:
             self._handle_device_actor(sender, msg.actor_id)
+        elif msg.actor_type == ActorType.HOST:
+            self.send(sender, GetHostInfoMsg())
         self._send_updates(self.actor_dict)
         return
 
@@ -256,7 +270,21 @@ class Registrar(BaseActor):
         """Handler for UnsubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         actor_id = msg.actor_id
-        self.device_statuses.pop(actor_id, None)
+        status_dict = self.device_statuses.pop(actor_id, None)
+        if (status_dict is not None) and (transport_technology(actor_id) == "local"):
+            local_device_connected = False
+            for device_id in self.device_statuses:
+                if transport_technology(device_id) == "local":
+                    local_device_connected = True
+                    break
+            if not local_device_connected:
+                for idx, host in enumerate(self.hosts):
+                    if host.host == "127.0.0.1":
+                        para = {"state": 1}
+                        host = replace(host, **para)
+                        self.hosts[idx] = host
+                        break
+
         removed_actor = self.actor_dict.pop(actor_id, None)
         if removed_actor is not None:
             self._send_updates(self.actor_dict)
@@ -337,7 +365,12 @@ class Registrar(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         device_id = msg.device_id
         device_status = msg.device_status
-        self.device_statuses[device_id] = device_status
+        if device_id in self.device_statuses:
+            self.device_statuses[device_id] = device_status
+        else:
+            logger.warning(
+                "Received %s from %s, but the actor is not registered.", msg, device_id
+            )
 
     def receiveMsg_GetDeviceStatusesMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -354,6 +387,38 @@ class Registrar(BaseActor):
             if self.actor_dict[actor_id]["actor_type"] == ActorType.HOST:
                 self.send(self.actor_dict[actor_id]["address"], RescanMsg())
         self.send(sender, RescanFinishedMsg(Status.OK))
+
+    def receiveMsg_ShutdownMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forward the ShutdownMsg to all Host Actors."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        for actor_id in self.actor_dict:
+            if self.actor_dict[actor_id]["actor_type"] == ActorType.HOST:
+                self.send(self.actor_dict[actor_id]["address"], ShutdownMsg())
+        self.send(sender, ShutdownFinishedMsg(Status.OK))
+
+    def receiveMsg_HostInfoMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for HostInfoMsg indicating a change in the host information"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        for new_host in msg.hosts:
+            known = False
+            for known_host in self.hosts:
+                if new_host.host == known_host.host:
+                    known = True
+                    if new_host not in self.hosts:
+                        index = self.hosts.index(known_host)
+                        self.hosts.pop(index)
+                        self.hosts.insert(index, new_host)
+                    break
+            if not known:
+                self.hosts.append(new_host)
+
+    def receiveMsg_GetHostInfoMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for GetHostInfoMsg asking to send the list of hosts"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.send(sender, HostInfoMsg(hosts=self.hosts))
 
     def check_integrity(self) -> bool:
         """Check integrity between self.actor_dict and self.device_statuses"""
