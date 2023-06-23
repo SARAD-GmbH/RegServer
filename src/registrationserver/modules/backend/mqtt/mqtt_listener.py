@@ -213,7 +213,7 @@ class MqttListener(MqttBaseActor):
         self.send(self.registrar, HostInfoMsg([self._host_dict_to_object(is_id, data)]))
         return
 
-    def _rm_host(self, is_id) -> None:
+    def _rm_host(self, is_id, state) -> None:
         logger.debug("[_rm_host] %s", is_id)
         self._unsubscribe_topic([f"{self.group}/{is_id}/+/meta"])
         instr_to_remove = []
@@ -258,13 +258,13 @@ class MqttListener(MqttBaseActor):
                 self._update_host(is_id, payload)
             else:
                 self._add_host(is_id, payload)
-        elif payload["State"] == 0:
+        elif payload["State"] in (0, 10):
             if is_id in self._hosts:
                 logger.debug(
-                    "[+/meta] Remove host file for %s",
+                    "[+/meta] Remove host for %s",
                     is_id,
                 )
-                self._rm_host(is_id)
+                self._rm_host(is_id, payload["State"])
             else:
                 logger.info(
                     "[+/meta] IS %s is known but offline",
