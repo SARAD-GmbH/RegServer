@@ -75,14 +75,14 @@ class MqttListener(MqttBaseActor):
             host=host,
             is_id=is_id,
             transport_technology=TransportTechnology.MQTT,
-            description=host_info.get("Description", ""),
+            description=host_info.get("Descr", ""),
             place=host_info.get("Place", ""),
             lat=host_info.get("Lat", 0),
             lon=host_info.get("Lon", 0),
-            height=host_info.get("Heigth", 0),
+            height=host_info.get("Height", 0),
             state=host_info.get("State", 0),
-            version=host_info.get("version", ""),
-            running_since=host_info.get("version", datetime(year=1970, month=1, day=1)),
+            version=host_info.get("Ver", ""),
+            running_since=host_info.get("Since", datetime(year=1970, month=1, day=1)),
         )
 
     def device_id(self, is_id, instr_id):

@@ -8,6 +8,7 @@ Author:
 """
 import json
 import time
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum, auto
 from typing import NamedTuple
@@ -27,6 +28,8 @@ class InstrumentServerMeta(NamedTuple):
     latitude: Decimal
     longitude: Decimal
     height: Decimal
+    version: str
+    running_since: datetime
 
 
 class InstrumentMeta(NamedTuple):
@@ -81,11 +84,13 @@ def get_is_meta(data: InstrumentServerMeta) -> str:
         {
             "State": data.state or 0,
             "Host": data.host or "unknown",
-            "Description": data.description or "SARAD Instrument Server2 Mqtt",
+            "Descr": data.description or "SARAD Instrument Server2 Mqtt",
             "Place": data.place or "No description given",
             "Lat": data.latitude or 0,
             "Lon": data.longitude or 0,
             "Height": data.height or 0,
+            "Ver": data.version or "uknown",
+            "Since": data.running_since or datetime(year=1970, month=1, day=1),
         }
     )
 
