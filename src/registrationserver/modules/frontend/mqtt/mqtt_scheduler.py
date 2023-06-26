@@ -320,7 +320,7 @@ class MqttSchedulerActor(MqttBaseActor):
         if message.payload.decode("utf-8") == "scan":
             self.send(self.registrar, RescanMsg())
         elif message.payload.decode("utf-8") == "shutdown":
-            self.send(self.registrar, ShutdownMsg())
+            self.send(self.registrar, ShutdownMsg(password="", host=None))
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
