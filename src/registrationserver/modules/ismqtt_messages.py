@@ -89,9 +89,9 @@ def get_is_meta(data: InstrumentServerMeta) -> str:
             "Lat": data.latitude or 0,
             "Lon": data.longitude or 0,
             "Height": data.height or 0,
-            "Ver": data.version or "uknown",
-            "Since": data.running_since or datetime(year=1970, month=1, day=1),
-        }
+            "Ver": data.version or "unknown",
+            "Since": data.running_since.strftime("%Y-%m-%d %H:%M:%S") or "",
+        },
     )
 
 

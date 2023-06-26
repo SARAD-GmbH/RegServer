@@ -82,7 +82,13 @@ class MqttListener(MqttBaseActor):
             height=host_info.get("Height", 0),
             state=host_info.get("State", 0),
             version=host_info.get("Ver", ""),
-            running_since=host_info.get("Since", datetime(year=1970, month=1, day=1)),
+            running_since=datetime.strptime(
+                host_info.get(
+                    "Since",
+                    (datetime(year=1970, month=1, day=1)).strftime("%Y-%m-%d %H:%M:%S"),
+                ),
+                "%Y-%m-%d %H:%M:%S",
+            ),
         )
 
     def device_id(self, is_id, instr_id):
