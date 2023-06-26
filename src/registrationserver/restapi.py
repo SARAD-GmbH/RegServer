@@ -103,6 +103,14 @@ host_model = api.model(
             description="Longitude of the place. Positive values are east, negatives are west"
         ),
         "height": fields.Integer(description="Height of the place."),
+        "version": fields.String(
+            description="Software revision of the SARAD Registration Server"
+            + "service running on this host."
+        ),
+        "running_since": fields.DateTime(
+            description="Date and time (UTC) of the latest restart"
+            + "of the SARAD Registration Server service."
+        ),
         "link": fields.Url("hosts_host", absolute=True),
     },
 )

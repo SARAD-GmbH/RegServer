@@ -165,6 +165,10 @@ class Host:
         lon: Longitude of the place. Positive values are east, negatives are west.
         height: Height of the place.
         state (int): 2 = online, 1 = connected, no instruments, 0 = offline
+        version: Software revision of the SARAD Registration Server service
+                 running on this host.
+        running_since (datetime): Date and time (UTC) of the latest restart
+                                  of the SARAD Registration Server service.
     """
 
     host: str
@@ -176,6 +180,8 @@ class Host:
     lon: float
     height: int
     state: int
+    version: str
+    running_since: datetime
 
 
 @dataclass(frozen=True)

@@ -11,6 +11,7 @@ in the MQTT network
 .. uml :: uml-mqtt_listener.puml
 """
 import json
+from datetime import datetime
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, Host, HostInfoMsg,
@@ -80,6 +81,8 @@ class MqttListener(MqttBaseActor):
             lon=host_info.get("Lon", 0),
             height=host_info.get("Heigth", 0),
             state=host_info.get("State", 0),
+            version=host_info.get("version", ""),
+            running_since=host_info.get("version", datetime(year=1970, month=1, day=1)),
         )
 
     def device_id(self, is_id, instr_id):

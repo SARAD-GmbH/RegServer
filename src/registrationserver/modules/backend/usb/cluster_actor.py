@@ -11,6 +11,7 @@ Covers as well USB ports as native RS-232 ports, addressed RS-485 as ZigBee.
 """
 
 import os
+from datetime import datetime
 from typing import Set
 
 from overrides import overrides  # type: ignore
@@ -28,6 +29,7 @@ from registrationserver.logger import logger
 from registrationserver.modules.backend.usb.com_actor import ComActor
 from sarad.sari import Route  # type: ignore
 from serial.tools.list_ports import comports, grep  # type: ignore
+from version import VERSION
 
 
 class ClusterActor(BaseActor):
@@ -298,6 +300,8 @@ class ClusterActor(BaseActor):
                         lon=config["LONGITUDE"],
                         height=config["HEIGHT"],
                         state=1,
+                        version=VERSION,
+                        running_since=datetime.utcnow(),
                     )
                 ]
             ),
