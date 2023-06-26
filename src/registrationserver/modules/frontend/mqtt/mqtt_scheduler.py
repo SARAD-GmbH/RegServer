@@ -11,6 +11,7 @@ Author
 import json
 import os
 import time
+from datetime import datetime
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
@@ -29,6 +30,7 @@ from registrationserver.modules.ismqtt_messages import (ControlType,
                                                         get_instr_control,
                                                         get_instr_reservation,
                                                         get_is_meta)
+from version import VERSION
 
 if os.name != "nt":
     from gpiozero import PWMLED  # type: ignore
@@ -66,6 +68,8 @@ class MqttSchedulerActor(MqttBaseActor):
             latitude=config["LATITUDE"],
             longitude=config["LONGITUDE"],
             height=config["HEIGHT"],
+            version=VERSION,
+            running_since=datetime.utcnow(),
         )
         self.pending_control_action = ControlType.UNKNOWN
         if os.name != "nt":
