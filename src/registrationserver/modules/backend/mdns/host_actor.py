@@ -76,6 +76,7 @@ class HostActor(BaseActor):
         self.rescan_thread = Thread(target=self._rescan_function, daemon=True)
         self.shutdown_thread = Thread(target=self._shutdown_function, daemon=True)
         self.actor_type = ActorType.HOST
+        self.shutdown_password = ""
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -155,7 +156,7 @@ class HostActor(BaseActor):
     def _rescan_function(self):
         logger.debug("Send /scan endpoint to REST API of %s", self.my_id)
         try:
-            _resp = self.http.get(f"{self.base_url}/scan/")
+            _resp = self.http.post(f"{self.base_url}/scan")
         except Exception as exception:  # pylint: disable=broad-except
             logger.debug("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
@@ -165,7 +166,8 @@ class HostActor(BaseActor):
     def receiveMsg_ShutdownMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for ShutdownMsg causing a shutdown for restart at the remote host"""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        self.shutdown_password = msg.password
         if (msg.host is None) or (msg.host == self.host):
             if not self.shutdown_thread.is_alive():
                 self.shutdown_thread = Thread(
@@ -179,7 +181,9 @@ class HostActor(BaseActor):
     def _shutdown_function(self):
         logger.debug("Send /shutdown endpoint to REST API of %s", self.my_id)
         try:
-            _resp = self.http.get(f"{self.base_url}/shutdown/")
+            _resp = self.http.post(
+                f"{self.base_url}/restart?password={self.shutdown_password}"
+            )
         except Exception as exception:  # pylint: disable=broad-except
             logger.debug("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
@@ -204,7 +208,7 @@ class HostActor(BaseActor):
 
     def _ping_function(self):
         try:
-            _resp = self.http.get(f"{self.base_url}/ping/")
+            _resp = self.http.post(f"{self.base_url}/ping")
         except Exception as exception:  # pylint: disable=broad-except
             logger.debug("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
@@ -226,7 +230,7 @@ class HostActor(BaseActor):
     def _scan_function(self):
         logger.debug("Scan REST API of %s for new instruments", self.my_id)
         try:
-            resp = self.http.get(f"{self.base_url}/list/")
+            resp = self.http.get(f"{self.base_url}/list")
             device_list = resp.json()
         except Exception as exception:  # pylint: disable=broad-except
             logger.debug("REST API of IS is not responding. %s", exception)

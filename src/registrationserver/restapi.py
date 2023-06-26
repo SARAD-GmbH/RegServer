@@ -36,7 +36,9 @@ from registrationserver.actor_messages import (AddPortToLoopMsg,
                                                ReturnLocalPortsMsg,
                                                ReturnLoopPortsMsg,
                                                ReturnNativePortsMsg,
-                                               ReturnUsbPortsMsg, Status)
+                                               ReturnUsbPortsMsg,
+                                               ShutdownFinishedMsg,
+                                               ShutdownMsg, Status)
 from registrationserver.config import actor_config, mqtt_config
 from registrationserver.helpers import (check_msg, get_actor,
                                         get_device_status_from_registrar,
@@ -262,22 +264,42 @@ class Shutdown(Resource):
         """
         remote_addr = request.remote_addr
         remote_user = request.remote_user
-        shutdown_arguments.parse_args()
+        args = shutdown_arguments.parse_args()
         logger.info(
             "Shutdown by user intervention from %s",
             remote_addr,
         )
+        if (registrar_actor := get_registrar_actor()) is None:
+            status = Status.CRITICAL
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+        with ActorSystem().private() as restart_sys:
+            try:
+                reply = restart_sys.ask(
+                    registrar_actor,
+                    ShutdownMsg(password=args["password"], host=None),
+                    timeout=timedelta(seconds=60),
+                )
+            except ConnectionResetError as exception:
+                logger.debug(exception)
+                reply = None
+        reply_is_corrupted = check_msg(reply, ShutdownFinishedMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
         system_shutdown()
-        answer = {
+        return {
+            "Error code": reply.status.value,
+            "Error": str(reply.status),
             "Notification": "Registration Server going down for restart.",
-            "Requester": remote_addr,
+            "Requesting host": remote_addr,
+            "Requesting user": remote_user,
         }
-        status = Status.OK
-        answer["Error code"] = status.value
-        answer["Error"] = str(status)
-        answer["Remote addr"] = remote_addr
-        answer["Remote user"] = remote_user
-        return answer
 
 
 @root_ns.route("/scan")

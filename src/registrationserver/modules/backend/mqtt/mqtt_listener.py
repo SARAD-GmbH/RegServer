@@ -357,7 +357,7 @@ class MqttListener(MqttBaseActor):
     def receiveMsg_ShutdownMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Forward a shutdown command to the remote Instrument Server"""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
         for is_id, host_descr in self._hosts.items():
             if (msg.host is None) or (msg.host == host_descr.get("Host")):
                 self._publish(

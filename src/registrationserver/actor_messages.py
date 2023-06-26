@@ -685,10 +685,12 @@ class ShutdownMsg:
     The ShutdownMsg can be sent to the Cluster Actor, a Host Actor or to the MQTT Listener.
 
     Args:
+       password: Forward password given on the REST API
        host: FQDN of the host that shall receive the command.
              If None, all availabel hosts will be addressed.
     """
 
+    password: str
     host: Union[str, None] = None
 
 

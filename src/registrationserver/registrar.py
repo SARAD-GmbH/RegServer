@@ -391,10 +391,13 @@ class Registrar(BaseActor):
     def receiveMsg_ShutdownMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Forward the ShutdownMsg to all Host Actors."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
         for actor_id in self.actor_dict:
             if self.actor_dict[actor_id]["actor_type"] == ActorType.HOST:
-                self.send(self.actor_dict[actor_id]["address"], ShutdownMsg())
+                self.send(
+                    self.actor_dict[actor_id]["address"],
+                    ShutdownMsg(password=msg.password, host=msg.host),
+                )
         self.send(sender, ShutdownFinishedMsg(Status.OK))
 
     def receiveMsg_HostInfoMsg(self, msg, sender):
