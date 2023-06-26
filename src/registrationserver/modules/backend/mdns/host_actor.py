@@ -146,12 +146,13 @@ class HostActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for RescanMsg causing a re-scan for local instruments at the remote host"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if not self.rescan_thread.is_alive():
-            self.rescan_thread = Thread(target=self._rescan_function, daemon=True)
-            try:
-                self.rescan_thread.start()
-            except RuntimeError:
-                pass
+        if (msg.host is None) or (msg.host == self.host):
+            if not self.rescan_thread.is_alive():
+                self.rescan_thread = Thread(target=self._rescan_function, daemon=True)
+                try:
+                    self.rescan_thread.start()
+                except RuntimeError:
+                    pass
 
     def _rescan_function(self):
         logger.debug("Send /scan endpoint to REST API of %s", self.my_id)

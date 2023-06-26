@@ -583,6 +583,102 @@ class Host(Resource):
         return None
 
 
+@hosts_ns.route("/<string:host>/restart")
+@hosts_ns.param(
+    "password",
+    "This is not really a password since it is given here. "
+    + "It is only there to prevent restart by mistake.",
+)
+class ShutdownHost(Resource):
+    """Restart the SARAD Registration Server."""
+
+    @api.expect(shutdown_arguments, validate=True)
+    def post(self, host):
+        """Restart the SARAD Registration Server.
+
+        The service will be terminated with error and thus be restarted
+        automatically by the Service Manager (Windows) or Systemd (Linux)
+        resp.
+        """
+        remote_addr = request.remote_addr
+        remote_user = request.remote_user
+        args = shutdown_arguments.parse_args()
+        logger.info(
+            "Shutdown by user intervention from %s",
+            remote_addr,
+        )
+        if (registrar_actor := get_registrar_actor()) is None:
+            status = Status.CRITICAL
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+        with ActorSystem().private() as restart_sys:
+            try:
+                reply = restart_sys.ask(
+                    registrar_actor,
+                    ShutdownMsg(password=args["password"], host=host),
+                    timeout=timedelta(seconds=60),
+                )
+            except ConnectionResetError as exception:
+                logger.debug(exception)
+                reply = None
+        reply_is_corrupted = check_msg(reply, ShutdownFinishedMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
+        return {
+            "Error code": reply.status.value,
+            "Error": str(reply.status),
+            "Notification": "Registration Server going down for restart.",
+            "Requesting host": remote_addr,
+            "Requesting user": remote_user,
+        }
+
+
+@hosts_ns.route("/<string:host>/scan")
+class ScanHost(Resource):
+    """Refresh the list of active devices"""
+
+    def post(self, host):
+        """Refresh the list of active devices.
+
+        This might be required for SARAD instruments that are connected via
+        USB/RS-232 adapters like the instruments of the DOSEman family that are
+        connected via their IR cradle. The Registration Server is detecting
+        instruments by their USB connection or, if configured, by polling. This
+        function was implemented as fallback.
+        """
+        if (registrar_actor := get_registrar_actor()) is None:
+            status = Status.CRITICAL
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+        with ActorSystem().private() as scan_sys:
+            try:
+                reply = scan_sys.ask(
+                    registrar_actor, RescanMsg(host), timeout=timedelta(seconds=60)
+                )
+            except ConnectionResetError as exception:
+                logger.debug(exception)
+                reply = None
+        reply_is_corrupted = check_msg(reply, RescanFinishedMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
+        return {
+            "Error code": reply.status.value,
+            "Error": str(reply.status),
+        }
+
+
 @instruments_ns.route("/")
 class Instruments(Resource):
     """Endpoint for getting the list of active devices"""
