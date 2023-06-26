@@ -399,6 +399,7 @@ class Registrar(BaseActor):
                     ShutdownMsg(password=msg.password, host=msg.host),
                 )
         self.send(sender, ShutdownFinishedMsg(Status.OK))
+        system_shutdown()
 
     def receiveMsg_HostInfoMsg(self, msg, sender):
         # pylint: disable=invalid-name

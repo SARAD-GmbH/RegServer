@@ -292,7 +292,6 @@ class Shutdown(Resource):
         reply_is_corrupted = check_msg(reply, ShutdownFinishedMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
-        system_shutdown()
         return {
             "Error code": reply.status.value,
             "Error": str(reply.status),
