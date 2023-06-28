@@ -18,7 +18,8 @@ import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import Frontend
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import frontend_config, mqtt_config
+from registrationserver.config import (frontend_config, mqtt_config,
+                                       mqtt_frontend_config)
 from registrationserver.logger import logger
 from registrationserver.shutdown import is_flag_set, system_shutdown
 
@@ -79,7 +80,7 @@ class MqttBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.wakeupAfter(timedelta(seconds=0.5), payload="connect")
         self.connect_thread.start()
-        self.wakeupAfter(timedelta(seconds=60), payload="watchdog")
+        self.wakeupAfter(timedelta(seconds=50), payload="watchdog")
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
@@ -92,13 +93,17 @@ class MqttBaseActor(BaseActor):
                 self.next_method()
                 self.next_method = None
         if msg.payload == "watchdog":
-            if (datetime.now() - self.last_pingresp) > (
-                2 * timedelta(seconds=mqtt_config["KEEPALIVE"])
-            ):
-                logger.critical(
-                    "%s: No PINGRESP. MQTT client or MQTT broker stopped working.",
-                    self.my_id,
-                )
+            if mqtt_frontend_config["REBOOT_AFTER"]:
+                if (datetime.now() - self.last_pingresp) > (
+                    timedelta(minutes=mqtt_frontend_config["REBOOT_AFTER"])
+                ):
+                    logger.critical(
+                        "%s: No PINGRESP. MQTT client or MQTT broker stopped working."
+                        + "Reboot!",
+                        self.my_id,
+                    )
+                    os.system("reboot")
+            self.wakeupAfter(timedelta(seconds=50), payload="watchdog")
 
     def _connect(self):
         """Try to connect the MQTT broker

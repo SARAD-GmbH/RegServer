@@ -475,3 +475,15 @@ else:
         ),
     }
 # TODO Read GROUP from TLS_CERT_FILE
+
+# Configuration of MQTT frontend
+DEFAULT_REBOOT_AFTER = 0
+
+if customization.get("mqtt_frontend") is None:
+    mqtt_frontend_config = {"REBOOT_AFTER": DEFAULT_REBOOT_AFTER}
+else:
+    mqtt_frontend_config = {
+        "REBOOT_AFTER": customization["mqtt_frontend"].get(
+            "reboot_after", DEFAULT_REBOOT_AFTER
+        ),
+    }

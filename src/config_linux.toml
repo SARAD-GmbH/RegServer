@@ -81,3 +81,6 @@ keepalive = 60
 qos = 2
 retry_interval = 5
 tls_use_tls = true
+
+[mqtt_frontend]
+reboot_after = 60  # Time in minutes after disconnect causing a reboot. 0 = never.
