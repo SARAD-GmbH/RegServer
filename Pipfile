@@ -38,4 +38,4 @@ gpiozero = {version = "*", sys_platform = "== 'linux'"}
 systemd-python = {version = "*", sys_platform = "== 'linux'"}
 
 [requires]
-python_version = "3"
+python_version = "3.9"
