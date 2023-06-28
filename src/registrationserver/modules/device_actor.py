@@ -157,27 +157,18 @@ class DeviceBaseActor(BaseActor):
                         self.return_message = ReservationStatusMsg(
                             self.instr_id, Status.OCCUPIED
                         )
-                    self._send_reservation_status_msg()
-                    return
+                        self._send_reservation_status_msg()
+                        logger.debug("_send_reservation_status_msg case A")
+                        return
             except KeyError:
                 logger.debug("First reservation since restart of RegServer")
             if Frontend.REST in frontend_config:
-                # create redirector
-                if not self._create_redirector():
-                    logger.warning(
-                        "%s tried to create a redirector that already exists.",
-                        self.my_id,
-                    )
-                    reservation = {
-                        "Active": True,
-                        "App": self.reserve_device_msg.app,
-                        "Host": self.reserve_device_msg.host,
-                        "User": self.reserve_device_msg.user,
-                        "Timestamp": datetime.utcnow().isoformat(timespec="seconds")
-                        + "Z",
-                    }
-                    self._update_reservation_status(reservation)
+                if not self.child_actors:
+                    logger.debug("Create redirector for %s", self.my_id)
+                    self._create_redirector()
+                else:
                     self._send_reservation_status_msg()
+                    logger.debug("_send_reservation_status_msg case F")
             else:
                 reservation = {
                     "Active": True,
@@ -188,6 +179,7 @@ class DeviceBaseActor(BaseActor):
                 }
                 self._update_reservation_status(reservation)
                 self._send_reservation_status_msg()
+                logger.debug("_send_reservation_status_msg case C")
             return
         if success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
             logger.error(
@@ -200,6 +192,7 @@ class DeviceBaseActor(BaseActor):
             logger.error("%s during reservation of %s", success, self.my_id)
             self._kill_myself()
         self._send_reservation_status_msg()
+        logger.debug("_send_reservation_status_msg case D")
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -243,10 +236,6 @@ class DeviceBaseActor(BaseActor):
                 if self.device_status["Reservation"]["Active"]:
                     logger.info("Free active %s", self.my_id)
                     self.device_status["Reservation"]["Active"] = False
-                    if self.device_status["Reservation"].get("IP") is not None:
-                        self.device_status["Reservation"].pop("IP")
-                    if self.device_status["Reservation"].get("Port") is not None:
-                        self.device_status["Reservation"].pop("Port")
                     self.device_status["Reservation"]["Timestamp"] = (
                         datetime.utcnow().isoformat(timespec="seconds") + "Z"
                     )
@@ -279,6 +268,7 @@ class DeviceBaseActor(BaseActor):
                 self.instr_id, Status.UNKNOWN_PORT
             )
             self._send_reservation_status_msg()
+            logger.debug("_send_reservation_status_msg case E")
             return
         # Write Reservation section into device status
         reservation = {
@@ -292,6 +282,7 @@ class DeviceBaseActor(BaseActor):
         }
         self._update_reservation_status(reservation)
         self._send_reservation_status_msg()
+        logger.debug("_send_reservation_status_msg case B")
 
     def _update_reservation_status(self, reservation):
         self.device_status["Reservation"] = reservation
@@ -349,7 +340,7 @@ class DeviceBaseActor(BaseActor):
             )
 
     def _publish_status(self, new_subscribers: list):
-        """Publish a device status to all members of device_actors."""
+        """Publish a device status to all new_subscribers."""
         for actor_address in new_subscribers:
             self.send(
                 actor_address,
@@ -364,9 +355,13 @@ class DeviceBaseActor(BaseActor):
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
-        super().receiveMsg_ChildActorExited(msg, sender)
+        if self.device_status["Reservation"].get("IP") is not None:
+            self.device_status["Reservation"].pop("IP")
+        if self.device_status["Reservation"].get("Port") is not None:
+            self.device_status["Reservation"].pop("Port")
         if self.return_message is not None:
             self._send_reservation_status_msg()
+        super().receiveMsg_ChildActorExited(msg, sender)
 
     @overrides
     def _kill_myself(self, register=True):

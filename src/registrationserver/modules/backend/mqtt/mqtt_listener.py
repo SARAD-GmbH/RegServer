@@ -143,7 +143,7 @@ class MqttListener(MqttBaseActor):
             )
             self._add_host(is_id, None)
         device_id = instr_id + "." + sarad_type + ".mqtt"
-        logger.info(
+        logger.debug(
             "[add_instr] Instrument ID %s, actorname %s",
             instr_id,
             device_id,
@@ -171,7 +171,7 @@ class MqttListener(MqttBaseActor):
         if device_id is None:
             logger.debug("Instrument unknown")
             return
-        logger.info("[rm_instr] %s", device_id)
+        logger.debug("[rm_instr] %s", device_id)
         if self.child_actors.get(device_id, False):
             device_actor = self.child_actors[device_id]["actor_address"]
             self.send(device_actor, KillMsg())
@@ -189,7 +189,7 @@ class MqttListener(MqttBaseActor):
         if device_id is None:
             logger.warning("[update_instr] Instrument unknown")
             return
-        logger.info("[update_instr] %s", device_id)
+        logger.debug("[update_instr] %s", device_id)
         device_actor = self.child_actors[device_id]["actor_address"]
         payload["State"] = 2
         self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
@@ -205,7 +205,7 @@ class MqttListener(MqttBaseActor):
         self._hosts[is_id] = data
         self._subscribe_topic([(f"{self.group}/{is_id}/+/meta", 0)])
         self.send(self.registrar, HostInfoMsg([self._host_dict_to_object(is_id, data)]))
-        logger.info("[Add Host] IS %s added", is_id)
+        logger.debug("[Add Host] IS %s added", is_id)
 
     def _update_host(self, is_id, data) -> None:
         if (is_id is None) or (data is None):
@@ -214,7 +214,7 @@ class MqttListener(MqttBaseActor):
                 "and the meta message are none"
             )
             return
-        logger.info(
+        logger.debug(
             "[Update Host] Update an already connected host with IS ID %s",
             is_id,
         )
@@ -232,7 +232,7 @@ class MqttListener(MqttBaseActor):
                 instr_to_remove.append([is_id, short_id(device_id)])
         for instr in instr_to_remove:
             self._rm_instr(instr[0], instr[1])
-        logger.info("[Remove Host] IS %s removed", self._hosts[is_id].get("Host"))
+        logger.debug("[Remove Host] IS %s removed", self._hosts[is_id].get("Host"))
         self._hosts[is_id]["State"] = state
         self.send(
             self.registrar,
@@ -242,7 +242,7 @@ class MqttListener(MqttBaseActor):
 
     def on_is_meta(self, _client, _userdata, message):
         """Handler for all messages of topic +/meta."""
-        logger.info("[on_is_meta] %s, %s", message.topic, message.payload)
+        logger.debug("[on_is_meta] %s, %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
         is_id = topic_parts[1]
         payload = json.loads(message.payload)
@@ -275,7 +275,7 @@ class MqttListener(MqttBaseActor):
                 )
                 self._rm_host(is_id, payload["State"])
             else:
-                logger.info(
+                logger.debug(
                     "[+/meta] IS %s is known but offline",
                     is_id,
                 )
@@ -366,7 +366,7 @@ class MqttListener(MqttBaseActor):
     def receiveMsg_ShutdownMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Forward a shutdown command to the remote Instrument Server"""
-        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for is_id, host_descr in self._hosts.items():
             if (msg.host is None) or (msg.host == host_descr.get("Host")):
                 self._publish(

@@ -316,7 +316,7 @@ class MqttBaseActor(BaseActor):
                 "%s: Subscribe failed; result code is: %s", self.my_id, return_code
             )
             return False
-        logger.info("%s: Subscribe to %s successful", self.my_id, sub_info)
+        logger.debug("%s: Subscribe to %s successful", self.my_id, sub_info)
         for topic, qos in sub_info:
             self._subscriptions[topic] = qos
         return True

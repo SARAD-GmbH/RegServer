@@ -177,14 +177,14 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             "retain": False,
         }
         _re = self._publish(_msg)
-        logger.info("Unsubscribe %s from 'msg' topic", self.my_id)
+        logger.debug("Unsubscribe %s from 'msg' topic", self.my_id)
         self._unsubscribe_topic([self.allowed_sys_topics["MSG"]])
 
     def on_reserve(self, _client, _userdata, message):
         """Handler for MQTT messages regarding reservation of instruments"""
         reservation_status = Status.ERROR
         reservation = json.loads(message.payload)
-        logger.info("%s received [on_reserve]: %s", self.my_id, reservation)
+        logger.debug("%s received [on_reserve]: %s", self.my_id, reservation)
         instr_status = reservation.get("Active")
         app = reservation.get("App")
         host = reservation.get("Host")
@@ -232,7 +232,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             logger.debug("Free status: %s", reservation_status)
             self._handle_free_reply_from_is(Status.OK)
             return
-        logger.info(
+        logger.debug(
             "%s is now occupied by %s, %s @ %s",
             self.my_id,
             app,
@@ -240,8 +240,12 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             host,
         )
         reservation_status = Status.OCCUPIED
+        if self.device_status.get("Reservation", False):
+            if self.device_status["Reservation"].get("IP", False):
+                reservation["IP"] = self.device_status["Reservation"]["IP"]
+            if self.device_status["Reservation"].get("Port", False):
+                reservation["Port"] = self.device_status["Reservation"]["Port"]
         self.device_status["Reservation"] = reservation
-        self._publish_status_change()
 
     def on_msg(self, _client, _userdata, message):
         """Handler for MQTT messages regarding binary messages from instrument"""
