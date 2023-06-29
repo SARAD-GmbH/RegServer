@@ -7,15 +7,18 @@
     | Michael Strey <strey@sarad.de>
 
 """
-from datetime import timedelta
+import time
+from dataclasses import replace
+from datetime import datetime, timedelta
 from threading import Thread
 
 import requests
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorCreatedMsg, ActorType,
-                                               HostInfoMsg, KillMsg,
+                                               Host, HostInfoMsg, KillMsg,
                                                SetDeviceStatusMsg,
-                                               SetupMdnsActorMsg, Status)
+                                               SetupMdnsActorMsg, Status,
+                                               TransportTechnology)
 from registrationserver.base_actor import BaseActor
 from registrationserver.helpers import (sarad_protocol, short_id,
                                         transport_technology)
@@ -69,12 +72,27 @@ class HostActor(BaseActor):
         self._asys = None
         self.http = None
         self.scan_interval = 0
-        self.host = None
+        self.host = Host(
+            host="",
+            is_id="",
+            transport_technology=TransportTechnology.LAN,
+            description="",
+            place="",
+            lat=0,
+            lon=0,
+            height=0,
+            state=1,
+            version="",
+            running_since=datetime(year=1970, month=1, day=1),
+        )
         self.port = None
         self.ping_thread = Thread(target=self._ping_function, daemon=True)
         self.scan_thread = Thread(target=self._scan_function, daemon=True)
         self.rescan_thread = Thread(target=self._rescan_function, daemon=True)
         self.shutdown_thread = Thread(target=self._shutdown_function, daemon=True)
+        self.get_host_info_thread = Thread(
+            target=self._get_host_info_function, daemon=True
+        )
         self.actor_type = ActorType.HOST
         self.shutdown_password = ""
 
@@ -108,11 +126,10 @@ class HostActor(BaseActor):
 
     def receiveMsg_SetupHostActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Handler for SetDeviceStatusMsg initialising the device status information."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        """Handler for SetupHostActorMsg initialising the host status information."""
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
         self.scan_interval = msg.scan_interval
         self.base_url = f"http://{msg.host}:{msg.port}"
-        self.host = msg.host
         self.port = msg.port
         self._scan()
         if self.scan_interval:
@@ -123,6 +140,12 @@ class HostActor(BaseActor):
         """Handler for SetDeviceStatusMsg initialising the device status information."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._set_device_status(msg.device_status)
+
+    def receiveMsg_GetHostInfoMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for GetHostInfoMsg asking to send back a HostInfoMsg."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self._get_host_info()
 
     def _set_device_status(self, device_status):
         device_id = list(device_status)[0]
@@ -146,7 +169,7 @@ class HostActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for RescanMsg causing a re-scan for local instruments at the remote host"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if (msg.host is None) or (msg.host == self.host):
+        if (msg.host is None) or (msg.host == self.host.host):
             if not self.rescan_thread.is_alive():
                 self.rescan_thread = Thread(target=self._rescan_function, daemon=True)
                 try:
@@ -158,18 +181,21 @@ class HostActor(BaseActor):
         logger.debug("Send /scan endpoint to REST API of %s", self.my_id)
         try:
             _resp = self.http.post(f"{self.base_url}/scan")
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.debug("REST API of IS is not responding. %s", exception)
-            success = Status.IS_NOT_FOUND
-            logger.warning("%s: %s", success, self.my_id)
-            self._forward_to_children(KillMsg())
+        except Exception:  # pylint: disable=broad-except
+            try:
+                _resp = self.http.get(f"{self.base_url}/scan")
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.debug("REST API of IS is not responding. %s", exception)
+                success = Status.IS_NOT_FOUND
+                logger.warning("%s in _rescan_function of %s", success, self.my_id)
+                self._forward_to_children(KillMsg())
 
     def receiveMsg_ShutdownMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for ShutdownMsg causing a shutdown for restart at the remote host"""
         logger.info("%s for %s from %s", msg, self.my_id, sender)
         self.shutdown_password = msg.password
-        if (msg.host is None) or (msg.host == self.host):
+        if (msg.host is None) or (msg.host == self.host.host):
             if not self.shutdown_thread.is_alive():
                 self.shutdown_thread = Thread(
                     target=self._shutdown_function, daemon=True
@@ -188,7 +214,7 @@ class HostActor(BaseActor):
         except Exception as exception:  # pylint: disable=broad-except
             logger.debug("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
-            logger.warning("%s: %s", success, self.my_id)
+            logger.warning("%s in _shutdown_function of %s", success, self.my_id)
             self._forward_to_children(KillMsg())
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
@@ -209,19 +235,41 @@ class HostActor(BaseActor):
 
     def _ping_function(self):
         try:
-            _resp = self.http.post(f"{self.base_url}/ping")
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.debug("REST API of IS is not responding. %s", exception)
-            success = Status.IS_NOT_FOUND
-            logger.error("%s: %s", success, self.my_id)
-            if self.scan_interval:
-                self._forward_to_children(KillMsg())
-            else:
-                self._kill_myself()
+            resp = self.http.post(f"{self.base_url}/ping")
+            ping_dict = resp.json()
+        except Exception:  # pylint: disable=broad-except
+            try:
+                resp = self.http.get(f"{self.base_url}/ping")
+                ping_dict = resp.json()
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.debug("REST API of IS is not responding. %s", exception)
+                success = Status.IS_NOT_FOUND
+                logger.error("%s in _ping_function of %s", success, self.my_id)
+                if self.scan_interval:
+                    self._forward_to_children(KillMsg())
+                else:
+                    self._kill_myself()
+        if ping_dict:
+            self.host = replace(
+                self.host,
+                version=ping_dict.get("version", self.host.version),
+                running_since=datetime.strptime(
+                    ping_dict.get(
+                        "running_since",
+                        self.host.running_since.strftime("%Y-%m-%d %H:%M:%S"),
+                    ),
+                    "%Y-%m-%dT%H:%M:%S+00:00",
+                ),
+            )
+            self.send(self.registrar, HostInfoMsg([self.host]))
         self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
     def _scan(self):
-        if (not self.scan_thread.is_alive()) and (not self.ping_thread.is_alive()):
+        if (
+            (not self.scan_thread.is_alive())
+            and (not self.ping_thread.is_alive())
+            and (not self.get_host_info_thread.is_alive())
+        ):
             self.scan_thread = Thread(target=self._scan_function, daemon=True)
             try:
                 self.scan_thread.start()
@@ -229,29 +277,125 @@ class HostActor(BaseActor):
                 pass
 
     def _scan_function(self):
-        logger.debug("Scan REST API of %s for new instruments", self.my_id)
+        logger.debug(
+            "Scan REST API of %s for new instruments and host info", self.my_id
+        )
+        while not self.base_url:
+            time.sleep(0.5)
         try:
             resp = self.http.get(f"{self.base_url}/list")
             device_list = resp.json()
         except Exception as exception:  # pylint: disable=broad-except
             logger.debug("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
-            logger.warning("%s: %s", success, self.my_id)
+            logger.warning("%s in _scan_function of %s", success, self.my_id)
             self._forward_to_children(KillMsg())
         else:
             if (device_list is None) or (device_list == {}):
-                logger.warning("Instrument list on remote host %s is empty.", self.host)
+                logger.warning(
+                    "Instrument list on remote host %s is empty.", self.host.host
+                )
             else:
                 for device_id, device_status in device_list.items():
                     if transport_technology(device_id) in ("local", "is1", "mqtt"):
                         device_status["Remote"] = {
-                            "Address": self.host,
+                            "Address": self.host.host,
                             "API port": self.port,
                             "Device Id": device_id,
                         }
-                        device_status["Identification"]["Host"] = self.host
+                        device_status["Identification"]["Host"] = self.host.host
                         device_actor_id = self.mdns_id(device_id)
                         if device_actor_id not in self.child_actors:
                             self._set_device_status({device_actor_id: device_status})
         if self.scan_interval:
             self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")
+
+    def _get_host_info(self):
+        self.get_host_info_thread = Thread(
+            target=self._get_host_info_function, daemon=True
+        )
+        try:
+            self.get_host_info_thread.start()
+        except RuntimeError:
+            pass
+
+    def _get_host_info_function(self):
+        while not self.base_url:
+            time.sleep(0.5)
+        if self.child_actors:
+            host_state = 2  # host online, fully functional
+        else:
+            host_state = 1  # host online, no instruments connected
+        try:
+            host_resp = self.http.get(f"{self.base_url}/hosts/127.0.0.1")
+            host_info = host_resp.json()
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.warning("REST API of IS is not responding. %s", exception)
+            self._no_host_info(host_state)
+        else:
+            if (host_info is None) or (host_info == {}):
+                logger.warning("No host information available on %s.", self.host.host)
+                self._no_host_info(host_state)
+            else:
+                self._replace_host_info(host_info)
+        self.send(self.registrar, HostInfoMsg([self.host]))
+
+    def _no_host_info(self, state):
+        self.host = replace(
+            self.host,
+            host=self.my_id,
+            is_id=self.my_id,
+            state=state,
+            description="No host information retrievable from REST API of this host.",
+        )
+        try:
+            resp = self.http.post(f"{self.base_url}/ping")
+            ping_dict = resp.json()
+        except Exception:  # pylint: disable=broad-except
+            try:
+                resp = self.http.get(f"{self.base_url}/ping")
+                ping_dict = resp.json()
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.debug("REST API of IS is not responding. %s", exception)
+                success = Status.IS_NOT_FOUND
+                logger.error("%s in _no_host_info of %s", success, self.my_id)
+                if self.scan_interval:
+                    self._forward_to_children(KillMsg())
+                else:
+                    self._kill_myself()
+        if ping_dict:
+            self.host = replace(
+                self.host,
+                version=ping_dict.get("version", self.host.version),
+                running_since=datetime.strptime(
+                    ping_dict.get(
+                        "running_since",
+                        self.host.running_since.strftime("%Y-%m-%d %H:%M:%S"),
+                    ),
+                    "%Y-%m-%dT%H:%M:%S+00:00",
+                ),
+            )
+
+    def _replace_host_info(self, host_info: dict):
+        if self.child_actors:
+            default_state = 2
+        else:
+            default_state = 1
+        default_time = "1970-01-01T00:00:00"
+        self.host = replace(
+            self.host,
+            is_id=host_info.get("is_id", self.host),
+            state=host_info.get("state", default_state),
+            description=host_info.get("description", ""),
+            place=host_info.get("place", ""),
+            lat=host_info.get("lat", 0),
+            lon=host_info.get("lon", 0),
+            height=host_info.get("height", 0),
+            version=host_info.get("version", ""),
+            running_since=(
+                datetime.strptime(
+                    host_info.get("running_since", default_time),
+                    "%Y-%m-%dT%H:%M:%S",
+                ),
+            ),
+        )
