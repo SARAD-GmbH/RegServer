@@ -478,12 +478,19 @@ else:
 
 # Configuration of MQTT frontend
 DEFAULT_REBOOT_AFTER = 0
+DEFAULT_RESTART_INSTEAD_OF_REBOOT = 0
 
 if customization.get("mqtt_frontend") is None:
-    mqtt_frontend_config = {"REBOOT_AFTER": DEFAULT_REBOOT_AFTER}
+    mqtt_frontend_config = {
+        "REBOOT_AFTER": DEFAULT_REBOOT_AFTER,
+        "RESTART_INSTEAD_OF_REBOOT": DEFAULT_RESTART_INSTEAD_OF_REBOOT,
+    }
 else:
     mqtt_frontend_config = {
         "REBOOT_AFTER": customization["mqtt_frontend"].get(
             "reboot_after", DEFAULT_REBOOT_AFTER
+        ),
+        "RESTART_INSTEAD_OF_REBOOT": customization["mqtt_frontend"].get(
+            "restart_instead_of_reboot", DEFAULT_RESTART_INSTEAD_OF_REBOOT
         ),
     }

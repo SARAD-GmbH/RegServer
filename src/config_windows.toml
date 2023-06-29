@@ -73,3 +73,8 @@ keepalive = 60
 qos = 0
 retry_interval = 5
 tls_use_tls = true
+
+[mqtt_frontend]
+reboot_after = 10  # Time in minutes after disconnect causing a reboot. 0 = never.
+restart_instead_of_reboot = 1  # If set, the RegServer will be restarted instead
+                               # of performing a reboot.

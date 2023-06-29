@@ -102,7 +102,10 @@ class MqttBaseActor(BaseActor):
                         + "Reboot!",
                         self.my_id,
                     )
-                    os.system("reboot")
+                    if mqtt_frontend_config["RESTART_INSTEAD_OF_REBOOT"]:
+                        system_shutdown()
+                    else:
+                        os.system("reboot")
             self.wakeupAfter(timedelta(seconds=50), payload="watchdog")
 
     def _connect(self):
