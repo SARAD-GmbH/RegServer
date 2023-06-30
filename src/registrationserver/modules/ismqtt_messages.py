@@ -8,7 +8,7 @@ Author:
 """
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum, auto
 from typing import NamedTuple
@@ -90,7 +90,7 @@ def get_is_meta(data: InstrumentServerMeta) -> str:
             "Lon": data.longitude or 0,
             "Height": data.height or 0,
             "Ver": data.version or "unknown",
-            "Since": data.running_since.strftime("%Y-%m-%d %H:%M:%S") or "",
+            "Since": data.running_since.isoformat(timespec="seconds") or "",
         },
     )
 
@@ -102,9 +102,7 @@ def get_instr_reservation(data: Reservation) -> str:
             "Active": data.active,
             "App": data.app,
             "Host": data.host,
-            "Timestamp": time.strftime(
-                "%Y-%m-%dT%H:%M:%SZ", time.gmtime(data.timestamp)
-            ),
+            "Timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "User": data.user,
         }
     )

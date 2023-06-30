@@ -10,7 +10,7 @@
 .. uml :: uml-usb_actor.puml
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from threading import Thread
 from typing import Union
@@ -144,7 +144,7 @@ class UsbActor(DeviceBaseActor):
         self.instrument.route = route
         if usb_backend_config["SET_RTC"]:
             if usb_backend_config["USE_UTC"]:
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
             else:
                 now = datetime.now()
             logger.info("Set RTC of %s to %s", self.my_id, now)
@@ -369,7 +369,7 @@ class UsbActor(DeviceBaseActor):
             if measurand:
                 timestamp = reply["datetime"]
             else:
-                timestamp = datetime.utcnow()
+                timestamp = datetime.now(timezone.utc)
             answer = RecentValueMsg(
                 component_name=reply["component_name"],
                 sensor_name=reply["sensor_name"],

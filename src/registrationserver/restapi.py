@@ -52,7 +52,7 @@ from registrationserver.shutdown import system_shutdown
 
 # logger.debug("%s -> %s", __package__, __file__)
 
-STARTTIME = datetime.utcnow()
+STARTTIME = datetime.now(timezone.utc).replace(microsecond=0)
 PASSWORD = "Diev5Pw."
 TIMEOUT = timedelta(seconds=20)
 
@@ -109,7 +109,8 @@ host_model = api.model(
         ),
         "running_since": fields.DateTime(
             description="Date and time (UTC) of the latest restart"
-            + "of the SARAD Registration Server service."
+            + "of the SARAD Registration Server service.",
+            dt_format="iso8601",
         ),
         "link": fields.Url("hosts_host", absolute=True),
     },
@@ -218,7 +219,7 @@ class Ping(Resource):
             "version": VERSION,
             "running_since": STARTTIME.replace(
                 tzinfo=timezone.utc, microsecond=0
-            ).isoformat(),
+            ).isoformat(timespec=seconds),
             "system_base": actor_config["systemBase"],
         }
 
@@ -833,7 +834,7 @@ class GetValues(Resource):
             "Value": value_return.value,
             "Unit": value_return.unit,
             "Timestamp": timestamp,
-            "Fetched": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "Fetched": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "GPS": {
                 "Valid": value_return.gps.valid,
                 "Latitude": value_return.gps.latitude,

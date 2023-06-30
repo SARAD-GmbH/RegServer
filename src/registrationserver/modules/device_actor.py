@@ -9,7 +9,7 @@
 
 .. uml :: uml-device_actor.puml
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, Frontend, KillMsg,
@@ -175,7 +175,9 @@ class DeviceBaseActor(BaseActor):
                     "App": self.reserve_device_msg.app,
                     "Host": self.reserve_device_msg.host,
                     "User": self.reserve_device_msg.user,
-                    "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+                    "Timestamp": datetime.now(timezone.utc).isoformat(
+                        timespec="seconds"
+                    ),
                 }
                 self._update_reservation_status(reservation)
                 self._send_reservation_status_msg()
@@ -236,9 +238,9 @@ class DeviceBaseActor(BaseActor):
                 if self.device_status["Reservation"]["Active"]:
                     logger.info("Free active %s", self.my_id)
                     self.device_status["Reservation"]["Active"] = False
-                    self.device_status["Reservation"]["Timestamp"] = (
-                        datetime.utcnow().isoformat(timespec="seconds") + "Z"
-                    )
+                    self.device_status["Reservation"]["Timestamp"] = datetime.now(
+                        timezone.utc
+                    ).isoformat(timespec="seconds")
                 else:
                     success = Status.OK_SKIPPED
             except KeyError:
@@ -278,7 +280,7 @@ class DeviceBaseActor(BaseActor):
             "User": self.reserve_device_msg.user,
             "IP": msg.ip_address,
             "Port": msg.port,
-            "Timestamp": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "Timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }
         self._update_reservation_status(reservation)
         self._send_reservation_status_msg()

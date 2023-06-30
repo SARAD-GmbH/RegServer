@@ -9,9 +9,8 @@
 
 .. uml :: uml-mqtt_actor.puml
 """
-import datetime
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
@@ -202,9 +201,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                     self.my_id,
                 )
                 if timestamp is None:
-                    timestamp = (
-                        datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z"
-                    )
+                    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
                 if not self._subscribe_topic([(self.allowed_sys_topics["MSG"], 0)]):
                     logger.error(
                         "Subscription to %s went wrong", self.allowed_sys_topics["MSG"]

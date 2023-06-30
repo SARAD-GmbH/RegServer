@@ -253,12 +253,11 @@ class HostActor(BaseActor):
             self.host = replace(
                 self.host,
                 version=ping_dict.get("version", self.host.version),
-                running_since=datetime.strptime(
+                running_since=datetime.fromisoformat(
                     ping_dict.get(
                         "running_since",
-                        self.host.running_since.strftime("%Y-%m-%d %H:%M:%S"),
+                        self.host.running_since.isoformat(timespec="seconds"),
                     ),
-                    "%Y-%m-%dT%H:%M:%S+00:00",
                 ),
             )
             self.send(self.registrar, HostInfoMsg([self.host]))
@@ -367,12 +366,11 @@ class HostActor(BaseActor):
             self.host = replace(
                 self.host,
                 version=ping_dict.get("version", self.host.version),
-                running_since=datetime.strptime(
+                running_since=datetime.fromisoformat(
                     ping_dict.get(
                         "running_since",
-                        self.host.running_since.strftime("%Y-%m-%d %H:%M:%S"),
+                        self.host.running_since.isoformat(timespec="seconds"),
                     ),
-                    "%Y-%m-%dT%H:%M:%S+00:00",
                 ),
             )
 
@@ -393,9 +391,6 @@ class HostActor(BaseActor):
             height=host_info.get("height", 0),
             version=host_info.get("version", ""),
             running_since=(
-                datetime.strptime(
-                    host_info.get("running_since", default_time),
-                    "%Y-%m-%dT%H:%M:%S",
-                ),
+                datetime.fromisoformat(host_info.get("running_since", default_time)),
             ),
         )

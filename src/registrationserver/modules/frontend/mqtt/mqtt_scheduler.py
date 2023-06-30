@@ -11,7 +11,7 @@ Author
 import json
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
@@ -69,7 +69,7 @@ class MqttSchedulerActor(MqttBaseActor):
             longitude=config["LONGITUDE"],
             height=config["HEIGHT"],
             version=VERSION,
-            running_since=datetime.utcnow(),
+            running_since=datetime.now(timezone.utc).replace(microsecond=0),
         )
         self.pending_control_action = ControlType.UNKNOWN
         if os.name != "nt":

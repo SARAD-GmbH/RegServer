@@ -11,7 +11,7 @@ Covers as well USB ports as native RS-232 ports, addressed RS-485 as ZigBee.
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Set
 
 from overrides import overrides  # type: ignore
@@ -301,7 +301,7 @@ class ClusterActor(BaseActor):
                         height=config["HEIGHT"],
                         state=1,
                         version=VERSION,
-                        running_since=datetime.utcnow(),
+                        running_since=datetime.now(timezone.utc).replace(microsecond=0),
                     )
                 ]
             ),

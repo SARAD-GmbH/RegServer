@@ -82,12 +82,11 @@ class MqttListener(MqttBaseActor):
             height=host_info.get("Height", 0),
             state=host_info.get("State", 0),
             version=host_info.get("Ver", ""),
-            running_since=datetime.strptime(
+            running_since=datetime.fromisoformat(
                 host_info.get(
                     "Since",
-                    (datetime(year=1970, month=1, day=1)).strftime("%Y-%m-%d %H:%M:%S"),
-                ),
-                "%Y-%m-%d %H:%M:%S",
+                    (datetime(year=1970, month=1, day=1)).isoformat(timespec="seconds"),
+                )
             ),
         )
 
