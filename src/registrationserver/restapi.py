@@ -209,6 +209,7 @@ class Dummy:
 
 @root_ns.route("/ping")
 class Ping(Resource):
+    # pylint: disable=too-few-public-methods
     """Request a sign of life to confirm that the host is online."""
 
     def post(self):
@@ -217,9 +218,7 @@ class Ping(Resource):
         return {
             "service": "SARAD Registration Server",
             "version": VERSION,
-            "running_since": STARTTIME.replace(
-                tzinfo=timezone.utc, microsecond=0
-            ).isoformat(timespec=seconds),
+            "running_since": STARTTIME.isoformat(timespec="seconds"),
             "system_base": actor_config["systemBase"],
         }
 
@@ -231,6 +230,7 @@ class Ping(Resource):
     + "from the last run of Registration Server Service.",
 )
 class Log(Resource):
+    # pylint: disable=too-few-public-methods
     """Endpoint to show the content of the log file"""
 
     @api.expect(log_arguments, validate=True)
@@ -257,6 +257,7 @@ class Log(Resource):
     + "It is only there to prevent restart by mistake.",
 )
 class Shutdown(Resource):
+    # pylint: disable=too-few-public-methods
     """Restart the SARAD Registration Server."""
 
     @api.expect(shutdown_arguments, validate=True)
@@ -312,6 +313,7 @@ class Shutdown(Resource):
 
 @root_ns.route("/scan")
 class Scan(Resource):
+    # pylint: disable=too-few-public-methods
     """Refresh the list of active devices"""
 
     def post(self):
@@ -357,6 +359,7 @@ class Scan(Resource):
 @api.deprecated
 @list_ns.route("/")
 class List(Resource):
+    # pylint: disable=too-few-public-methods
     """Endpoint for getting the list of active devices.
 
     This endpoint is deprecated and only for backward compatibility."""
@@ -382,6 +385,7 @@ class List(Resource):
     "ID of the connected device as gathered as key from the `/list` endpoint",
 )
 class ListDevice(Resource):
+    # pylint: disable=too-few-public-methods
     """Endpoint for getting information for a single active device"""
 
     def get(self, device_id):
@@ -413,6 +417,7 @@ class ListDevice(Resource):
     + "Example: `who=RV8 - mstrey - WS01`",
 )
 class ReserveDevice(Resource):
+    # pylint: disable=too-few-public-methods
     """Endpoint for reserving an available instrument"""
 
     @api.expect(reserve_arguments, validate=True)
@@ -503,6 +508,7 @@ class ReserveDevice(Resource):
     "ID of the connected device as gathered as key from the `/list` endpoint",
 )
 class FreeDevice(Resource):
+    # pylint: disable=too-few-public-methods
     """Endpoint for freeing a reserved instrument"""
 
     def get(self, device_id):
@@ -546,6 +552,7 @@ class FreeDevice(Resource):
 
 @hosts_ns.route("/")
 class Hosts(Resource):
+    # pylint: disable=too-few-public-methods
     """Endpoint for getting the list of active hosts"""
 
     @api.marshal_list_with(host_model)
@@ -571,6 +578,7 @@ class Hosts(Resource):
 )
 @hosts_ns.response(404, "Host not found")
 class Host(Resource):
+    # pylint: disable=too-few-public-methods
     """Endpoint for one active host"""
 
     @api.marshal_with(host_model)
@@ -599,6 +607,7 @@ class Host(Resource):
     + "It is only there to prevent restart by mistake.",
 )
 class ShutdownHost(Resource):
+    # pylint: disable=too-few-public-methods
     """Restart the SARAD Registration Server."""
 
     @api.expect(shutdown_arguments, validate=True)
@@ -650,6 +659,7 @@ class ShutdownHost(Resource):
 
 @hosts_ns.route("/<string:host>/scan")
 class ScanHost(Resource):
+    # pylint: disable=too-few-public-methods
     """Refresh the list of active devices"""
 
     def post(self, host):
@@ -690,6 +700,7 @@ class ScanHost(Resource):
 
 @instruments_ns.route("/")
 class Instruments(Resource):
+    # pylint: disable=too-few-public-methods
     """Endpoint for getting the list of active devices"""
 
     def _instrument(self, device_id, device_status):
@@ -744,6 +755,7 @@ class Instruments(Resource):
     "Measurand index found in dVision. 0 = Recent, 1 = Average, 2 = Minimum, 3 = Maximum",
 )
 class GetValues(Resource):
+    # pylint: disable=too-few-public-methods
     """Endpoint to get measuring values from a SARAD instrument"""
 
     @api.expect(values_arguments, validate=True)
@@ -847,6 +859,7 @@ class GetValues(Resource):
 
 @ports_ns.route("/")
 class GetLocalPorts(Resource):
+    # pylint: disable=too-few-public-methods
     """Lists local serial ports"""
 
     def get(self):
@@ -877,6 +890,7 @@ class GetLocalPorts(Resource):
 
 @ports_ns.route("/list-usb")
 class GetUsbPorts(Resource):
+    # pylint: disable=too-few-public-methods
     """List local USB devices with virtual serial ports"""
 
     def get(self):
@@ -907,6 +921,7 @@ class GetUsbPorts(Resource):
 
 @ports_ns.route("/list-native")
 class GetNativePorts(Resource):
+    # pylint: disable=too-few-public-methods
     """List local RS-232 ports"""
 
     def get(self):
@@ -940,6 +955,7 @@ class GetNativePorts(Resource):
 @ports_ns.route("/loop")
 @ports_ns.param("port", "ID of the serial port as gathered from the `/ports` endpoint")
 class GetLoopPort(Resource):
+    # pylint: disable=too-few-public-methods
     """Start polling on the given port"""
 
     @api.expect(ports_arguments, validate=True)
@@ -985,6 +1001,7 @@ class GetLoopPort(Resource):
 @ports_ns.route("/stop")
 @ports_ns.param("port", "ID of the serial port as gathered from the `/ports` endpoint")
 class GetStopPort(Resource):
+    # pylint: disable=too-few-public-methods
     """Stop polling on the given port"""
 
     @api.expect(ports_arguments, validate=True)
@@ -1032,6 +1049,7 @@ class GetStopPort(Resource):
     "ID of an Actor existing in the Thespian Actor System of the Registration Server",
 )
 class GetStatus(Resource):
+    # pylint: disable=too-few-public-methods
     """Ask Actor System to output Actor status to debug log"""
 
     def get(self, actor_id):
