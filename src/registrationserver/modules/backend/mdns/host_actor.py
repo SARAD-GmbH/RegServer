@@ -234,6 +234,7 @@ class HostActor(BaseActor):
                 pass
 
     def _ping_function(self):
+        ping_dict = {}
         try:
             resp = self.http.post(f"{self.base_url}/ping")
             ping_dict = resp.json()
