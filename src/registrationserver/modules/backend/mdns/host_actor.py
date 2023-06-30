@@ -251,7 +251,7 @@ class HostActor(BaseActor):
                 else:
                     self._kill_myself()
         if ping_dict:
-            self.host = replace(
+            updated_host = replace(
                 self.host,
                 version=ping_dict.get("version", self.host.version),
                 running_since=datetime.fromisoformat(
@@ -261,6 +261,7 @@ class HostActor(BaseActor):
                     ),
                 ),
             )
+            self.host = updated_host
             self.send(self.registrar, HostInfoMsg([self.host]))
         self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
@@ -383,6 +384,7 @@ class HostActor(BaseActor):
         default_time = "1970-01-01T00:00:00"
         self.host = replace(
             self.host,
+            host=self.my_id,
             is_id=host_info.get("is_id", self.host),
             state=host_info.get("state", default_state),
             description=host_info.get("description", ""),
@@ -391,7 +393,7 @@ class HostActor(BaseActor):
             lon=host_info.get("lon", 0),
             height=host_info.get("height", 0),
             version=host_info.get("version", ""),
-            running_since=(
-                datetime.fromisoformat(host_info.get("running_since", default_time)),
+            running_since=datetime.fromisoformat(
+                host_info.get("running_since", default_time)
             ),
         )
