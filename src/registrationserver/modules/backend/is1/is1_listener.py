@@ -445,4 +445,20 @@ class Is1Listener(BaseActor):
                     running_since=datetime(year=1970, month=1, day=1),
                 )
             )
+        for is1_address in self.is1_addresses:
+            hosts.append(
+                Host(
+                    host=is1_address.hostname,
+                    is_id=is1_address.hostname,
+                    transport_technology=TransportTechnology.IS1,
+                    description="Instrument with WLAN module",
+                    place="unknown",
+                    lat=0,
+                    lon=0,
+                    height=0,
+                    state=0,
+                    version="IS1",
+                    running_since=datetime(year=1970, month=1, day=1),
+                )
+            )
         self.send(self.registrar, HostInfoMsg(hosts=hosts))
