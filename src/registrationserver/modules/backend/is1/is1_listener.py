@@ -10,15 +10,16 @@ import pickle
 import select
 import socket
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from threading import Thread
 from typing import List
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (ActorType, Is1Address,
-                                               SetDeviceStatusMsg,
-                                               SetupIs1ActorMsg)
+from registrationserver.actor_messages import (ActorType, Host, HostInfoMsg,
+                                               Is1Address, SetDeviceStatusMsg,
+                                               SetupIs1ActorMsg,
+                                               TransportTechnology)
 from registrationserver.base_actor import BaseActor
 from registrationserver.config import app_folder, config, is1_backend_config
 from registrationserver.helpers import check_message, make_command_msg
@@ -251,6 +252,7 @@ class Is1Listener(BaseActor):
                 address.hostname,
             )
             self._scan_one_is(address)
+        self._update_host_info()
 
     def _scan_one_is(self, address: Is1Address):
         is_host = address.hostname
@@ -413,6 +415,34 @@ class Is1Listener(BaseActor):
                 )
             )
             self.is1_addresses = self._deduplicate(self.is1_addresses)
+            self._update_host_info()
         except ValueError:
             logger.error("%s not in self.active_is1_addresses.", msg.is1_address)
             logger.info("Hopefully this error can be ignored.")
+
+    def receiveMsg_GetHostInfoMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for GetHostInfoMsg asking for an updated list of connected hosts"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self._update_host_info()
+
+    def _update_host_info(self):
+        """Provide the registrar with updated list of hosts."""
+        hosts = []
+        for is1_address in self.active_is1_addresses:
+            hosts.append(
+                Host(
+                    host=is1_address.hostname,
+                    is_id=is1_address.hostname,
+                    transport_technology=TransportTechnology.IS1,
+                    description="Instrument with WLAN module",
+                    place="unknown",
+                    lat=0,
+                    lon=0,
+                    height=0,
+                    state=2,
+                    version="IS1",
+                    running_since=datetime(year=1970, month=1, day=1),
+                )
+            )
+        self.send(self.registrar, HostInfoMsg(hosts=hosts))

@@ -104,12 +104,14 @@ class TransportTechnology(IntEnum):
     LOCAL = 0
     LAN = 1
     MQTT = 2
+    IS1 = 3
 
     def __str__(self):
         longform = {
             0: "local",
             1: "LAN, advertised by ZeroConf",
             2: "MQTT",
+            3: "IS1 via WLAN",
         }
         return longform[self.value]
 
