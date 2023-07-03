@@ -322,9 +322,9 @@ class MqttSchedulerActor(MqttBaseActor):
         """Event handler for all MQTT messages with cmd topic for the host."""
         logger.debug("[on_host_cmd] %s: %s", message.topic, message.payload)
         if message.payload.decode("utf-8") == "scan":
-            self.send(self.registrar, RescanMsg())
+            self.send(self.registrar, RescanMsg(host="127.0.0.1"))
         elif message.payload.decode("utf-8") == "shutdown":
-            self.send(self.registrar, ShutdownMsg(password="", host=None))
+            self.send(self.registrar, ShutdownMsg(password="", host="127.0.0.1"))
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name

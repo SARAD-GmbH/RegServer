@@ -180,7 +180,7 @@ class HostActor(BaseActor):
     def _rescan_function(self):
         logger.debug("Send /scan endpoint to REST API of %s", self.my_id)
         try:
-            _resp = self.http.post(f"{self.base_url}/scan")
+            _resp = self.http.post(f"{self.base_url}/hosts/127.0.0.1/scan")
         except Exception:  # pylint: disable=broad-except
             try:
                 _resp = self.http.get(f"{self.base_url}/scan")
@@ -209,7 +209,7 @@ class HostActor(BaseActor):
         logger.debug("Send /shutdown endpoint to REST API of %s", self.my_id)
         try:
             _resp = self.http.post(
-                f"{self.base_url}/restart?password={self.shutdown_password}"
+                f"{self.base_url}/hosts/127.0.0.1/restart?password={self.shutdown_password}"
             )
         except Exception as exception:  # pylint: disable=broad-except
             logger.debug("REST API of IS is not responding. %s", exception)
