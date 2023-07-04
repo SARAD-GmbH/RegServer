@@ -385,7 +385,9 @@ class Registrar(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for actor_id in self.actor_dict:
             if self.actor_dict[actor_id]["actor_type"] == ActorType.HOST:
-                self.send(self.actor_dict[actor_id]["address"], RescanMsg())
+                self.send(
+                    self.actor_dict[actor_id]["address"], RescanMsg(host=msg.host)
+                )
         self.send(sender, RescanFinishedMsg(Status.OK))
 
     def receiveMsg_ShutdownMsg(self, msg, sender):
