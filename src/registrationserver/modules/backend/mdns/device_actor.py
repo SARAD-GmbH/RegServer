@@ -360,6 +360,4 @@ class DeviceActor(DeviceBaseActor):
                     self.device_status.pop("Reservation", None)
             self._publish_status_change()
         else:
-            self._set_device_status()
-        if self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
             self._kill_myself()
