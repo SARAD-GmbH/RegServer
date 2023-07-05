@@ -64,6 +64,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         self.msg_id["UNSUBSCRIBE"] = None
         self.msg_id["PUBLISH"] = None
         self.is_id = None
+        self.last_message = ""
 
     @overrides
     def receiveMsg_WakeupMessage(self, msg, sender):
@@ -183,6 +184,10 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
         """Handler for MQTT messages regarding reservation of instruments"""
         reservation_status = Status.ERROR
         reservation = json.loads(message.payload)
+        if reservation == self.last_message:
+            logger.debug("We have already got message %s", reservation)
+            return
+        self.last_message = reservation
         logger.debug("%s received [on_reserve]: %s", self.my_id, reservation)
         instr_status = reservation.get("Active")
         app = reservation.get("App")
