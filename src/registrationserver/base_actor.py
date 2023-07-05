@@ -87,16 +87,17 @@ class BaseActor(ActorTypeDispatcher):
 
     def _subscribe(self, keep_alive):
         """Subscribe at Registrar actor."""
-        self.send(
-            self.registrar,
-            SubscribeMsg(
-                actor_id=self.my_id,
-                parent=self.parent.parent_address,
-                actor_type=self.actor_type,
-                get_updates=self.get_updates,
-                keep_alive=keep_alive,
-            ),
-        )
+        if self.my_id is not None:
+            self.send(
+                self.registrar,
+                SubscribeMsg(
+                    actor_id=self.my_id,
+                    parent=self.parent.parent_address,
+                    actor_type=self.actor_type,
+                    get_updates=self.get_updates,
+                    keep_alive=keep_alive,
+                ),
+            )
 
     def _forward_to_children(self, msg):
         for child_id, child_actor in self.child_actors.items():
