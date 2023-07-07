@@ -105,6 +105,7 @@ class TransportTechnology(IntEnum):
     LAN = 1
     MQTT = 2
     IS1 = 3
+    NONE = 10
 
     def __str__(self):
         longform = {
@@ -112,6 +113,7 @@ class TransportTechnology(IntEnum):
             1: "LAN, advertised by ZeroConf",
             2: "MQTT",
             3: "IS1 via WLAN",
+            10: "None",
         }
         return longform[self.value]
 
@@ -152,7 +154,7 @@ class Instrument:
 
 
 @dataclass
-class Host:
+class HostObj:
     # pylint: disable=too-many-instance-attributes
     """Object containing the properties identifying and describing a host
     within the SARAD network.
@@ -909,7 +911,7 @@ class HostInfoMsg:
     The MQTT Listener sends HostInfoMsg to the Registrar on every host update.
 
     Args:
-        hosts (List[Host]): List of Host objects
+        hosts (List[HostObj]): List of Host objects
     """
 
-    hosts: List[Host]
+    hosts: List[HostObj]

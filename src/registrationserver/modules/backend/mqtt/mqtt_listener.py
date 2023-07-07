@@ -14,7 +14,7 @@ import json
 from datetime import datetime
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (ActorType, Host, HostInfoMsg,
+from registrationserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                                KillMsg, MqttConnectMsg,
                                                PrepareMqttActorMsg,
                                                SetDeviceStatusMsg,
@@ -71,7 +71,7 @@ class MqttListener(MqttBaseActor):
             host = is_id
         else:
             host = fqdn
-        return Host(
+        return HostObj(
             host=host,
             is_id=is_id,
             transport_technology=TransportTechnology.MQTT,

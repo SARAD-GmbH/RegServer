@@ -341,14 +341,14 @@ def get_hosts(registrar_actor):
             result = None
         if result is None:
             logger.debug("Timeout at GetHostInfoMsg.")
-            return None
+            return []
         if not isinstance(result, HostInfoMsg):
             logger.critical(
                 "Emergency shutdown. Registrar replied %s instead of HostInfoMsg",
                 result,
             )
             system_shutdown()
-            return None
+            return []
     return result.hosts
 
 

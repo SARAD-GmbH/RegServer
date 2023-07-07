@@ -15,7 +15,7 @@ from threading import Thread
 import requests
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorCreatedMsg, ActorType,
-                                               Host, HostInfoMsg, KillMsg,
+                                               HostInfoMsg, HostObj, KillMsg,
                                                SetDeviceStatusMsg,
                                                SetupMdnsActorMsg, Status,
                                                TransportTechnology)
@@ -72,7 +72,7 @@ class HostActor(BaseActor):
         self._asys = None
         self.http = None
         self.scan_interval = 0
-        self.host = Host(
+        self.host = HostObj(
             host="",
             is_id="",
             transport_technology=TransportTechnology.LAN,

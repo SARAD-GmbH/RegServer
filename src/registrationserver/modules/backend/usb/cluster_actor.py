@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Set
 
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (ActorType, Host, HostInfoMsg,
+from registrationserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                                KillMsg, ReturnLocalPortsMsg,
                                                ReturnLoopPortsMsg,
                                                ReturnNativePortsMsg,
@@ -290,7 +290,7 @@ class ClusterActor(BaseActor):
             sender,
             HostInfoMsg(
                 hosts=[
-                    Host(
+                    HostObj(
                         host="127.0.0.1",
                         transport_technology=int(TransportTechnology.LOCAL),
                         is_id=config["IS_ID"],

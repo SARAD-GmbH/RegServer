@@ -16,7 +16,7 @@ from typing import List
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import (ActorType, Host, HostInfoMsg,
+from registrationserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                                Is1Address, SetDeviceStatusMsg,
                                                SetupIs1ActorMsg,
                                                TransportTechnology)
@@ -431,7 +431,7 @@ class Is1Listener(BaseActor):
         hosts = []
         for is1_address in self.active_is1_addresses:
             hosts.append(
-                Host(
+                HostObj(
                     host=is1_address.hostname,
                     is_id=is1_address.hostname,
                     transport_technology=TransportTechnology.IS1,
@@ -447,7 +447,7 @@ class Is1Listener(BaseActor):
             )
         for is1_address in self.is1_addresses:
             hosts.append(
-                Host(
+                HostObj(
                     host=is1_address.hostname,
                     is_id=is1_address.hostname,
                     transport_technology=TransportTechnology.IS1,
