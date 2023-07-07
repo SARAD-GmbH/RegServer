@@ -384,3 +384,9 @@ class MqttListener(MqttBaseActor):
         for is_id, host_info in self._hosts.items():
             hosts.append(self._host_dict_to_object(is_id, host_info))
         self.send(sender, HostInfoMsg(hosts=hosts))
+
+    def receiveMsg_ResurrectMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for ResurrectMsg asking for resurrect a killed Device Actor (child)"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self._add_instr(msg.is_id, msg.instr_id, msg.device_status)

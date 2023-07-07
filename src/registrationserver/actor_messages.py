@@ -915,3 +915,18 @@ class HostInfoMsg:
     """
 
     hosts: List[HostObj]
+
+
+@dataclass
+class ResurrectMsg:
+    """Message causing a parent actor to resurrect a killed Device Actor.
+
+    Args:
+        is_id (str): Id of the Instrument Server
+        instr_id (str): Id of the instrument
+        device_status (dict): Identification and status information about the instrument
+    """
+
+    is_id: str
+    instr_id: str
+    device_status: dict
