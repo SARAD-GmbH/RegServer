@@ -475,8 +475,6 @@ class ReserveDevice(Resource):
             status = send_reserve_message(
                 device_id, registrar_actor, request_host, user, application
             )
-        if status == Status.CRITICAL:
-            status = Status.IS_NOT_FOUND
         if status in (
             Status.OK,
             Status.OK_SKIPPED,
@@ -498,7 +496,6 @@ class ReserveDevice(Resource):
                 "Error": str(status),
                 device_id: {},
             }
-        status = Status.CRITICAL
         logger.critical("No response from Device Actor. -> Emergency shutdown")
         system_shutdown()
         return {

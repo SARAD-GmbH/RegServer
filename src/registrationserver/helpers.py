@@ -434,10 +434,7 @@ def send_reserve_message(device_id, registrar_actor, request_host, user, app) ->
             reserve_return = None
     if reserve_return is None:
         logger.error("No response from Device Actor %s", device_id)
-        device_actor = get_actor(registrar_actor, device_id)
-        if device_actor is None:
-            return Status.NOT_FOUND
-        return Status.CRITICAL
+        return Status.NOT_FOUND
     reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
     if reply_is_corrupted:
         return reply_is_corrupted
