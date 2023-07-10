@@ -22,6 +22,7 @@ from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import ActorTypeDispatcher, ChildActorExited
 
 from registrationserver.actor_messages import (ActorType, DeadChildMsg,
+                                               GetDeviceStatusMsg,
                                                KeepAliveMsg, KillMsg, Parent,
                                                RescanFinishedMsg,
                                                ReservationStatusMsg,
@@ -208,6 +209,7 @@ class BaseActor(ActorTypeDispatcher):
             msg.deadMessage,
             (
                 ActorExitRequest,
+                GetDeviceStatusMsg,
                 KillMsg,
                 SubscribeToDeviceStatusMsg,
                 UnSubscribeFromDeviceStatusMsg,
