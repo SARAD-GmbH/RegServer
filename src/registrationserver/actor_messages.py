@@ -12,7 +12,7 @@ import socket
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, IntEnum, unique
-from typing import Any, ByteString, Dict, List, Union
+from typing import Any, ByteString, Dict, List, Tuple, Union
 
 from sarad.sari import FamilyDict, Route  # type: ignore
 from thespian.actors import ActorAddress, ActorSystemMessage  # type: ignore
@@ -930,3 +930,43 @@ class ResurrectMsg:
     is_id: str
     instr_id: str
     device_status: dict
+
+
+@dataclass
+class MqttPublishMsg:
+    """Message instructing the singleton MQTT Client Actor to publish a message.
+
+    Args:
+        topic (str): The MQTT topic.
+        payload (str): The MQTT payload.
+        qos (int): Quality of service.
+        retain (bool): True if the message shall be retained by the broker.
+    """
+
+    topic: str
+    payload: str
+    qos: int
+    retain: bool
+
+
+@dataclass
+class MqttSubscribeMsg:
+    """Message instructing the singleton MQTT Client Actor to subscribe to a topic.
+
+    Args:
+        sub_info (List[Tupel[str, int]]): List of tupels of (topic, qos)
+        to subscribe to.
+    """
+
+    sub_info: List[Tuple[str, int]]
+
+
+@dataclass
+class MqttUnsubscribeMsg:
+    """Message instructing the singleton MQTT Client Actor to unsubscribe from a topic.
+
+    Args:
+        topics (List[str]): List of topics.
+    """
+
+    topics: List[str]

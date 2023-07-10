@@ -307,7 +307,7 @@ class MqttBaseActor(BaseActor):
         """Subscribe to all topics listed in sub_info
 
         Args:
-            sub_info (List[Tupel[str, int]]): List of tupels of (topic, qos)
+            sub_info (List[Tuple[str, int]]): List of tupels of (topic, qos)
             to subscribe to
 
         Returns:
