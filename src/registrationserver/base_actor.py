@@ -161,7 +161,12 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name, unused-argument
         """Handler for ChildActorExited"""
         actor_id = self._get_actor_id(msg.childAddress, self.child_actors)
-        logger.debug("%s for %s from %s (%s)", msg, self.my_id, actor_id, sender)
+        if actor_id is None:
+            return
+        if self.my_id in ("registrar"):
+            logger.info("%s for %s from %s (%s)", msg, self.my_id, actor_id, sender)
+        else:
+            logger.debug("%s for %s from %s (%s)", msg, self.my_id, actor_id, sender)
         child_actor = self.child_actors.pop(actor_id, None)
         if child_actor is not None:
             logger.debug(
@@ -171,10 +176,13 @@ class BaseActor(ActorTypeDispatcher):
             )
         logger.debug("self.on_kill is %s", self.on_kill)
         if (not self.child_actors) and self.on_kill:
-            logger.debug(
-                "Unsubscribe from Registrar and send ActorExitRequest to myself"
-            )
-            self.send(self.registrar, UnsubscribeMsg(actor_address=self.myAddress))
+            if self.my_id in ("registrar"):
+                logger.info("Last man (%s) standing!", self.my_id)
+            else:
+                logger.debug(
+                    "Unsubscribe from Registrar and send ActorExitRequest to myself"
+                )
+                self.send(self.registrar, UnsubscribeMsg(actor_address=self.myAddress))
             self.send(self.parent.parent_address, ChildActorExited(self.myAddress))
             self.send(self.myAddress, ActorExitRequest())
 
