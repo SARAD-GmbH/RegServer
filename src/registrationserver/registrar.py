@@ -227,7 +227,7 @@ class Registrar(BaseActor):
                     keep_new_actor = False
                     self.send(sender, KillMsg())
                     return
-        if (not self.on_kill) and keep_new_actor:
+        if keep_new_actor:
             self.device_statuses[actor_id] = self.device_statuses.get(actor_id, {})
             logger.debug("Subscribe %s to device statuses dict", actor_id)
             self._subscribe_to_device_status_msg(sender)
@@ -242,6 +242,8 @@ class Registrar(BaseActor):
     def receiveMsg_SubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SubscribeMsg from any actor."""
+        if self.on_kill:
+            return
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if msg.actor_id in self.pending:
             self.pending.remove(msg.actor_id)
