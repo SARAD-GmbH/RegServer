@@ -223,13 +223,7 @@ class BaseActor(ActorTypeDispatcher):
                 RescanFinishedMsg,
             ),
         ):
-            actor_dict = self.actor_dict.copy()
-            for actor in actor_dict:
-                if actor_dict[actor]["address"] == msg.deadAddress:
-                    self.actor_dict.pop(actor, None)
-                    logger.warning(
-                        "Remove not existing actor %s from self.actor_dict", actor
-                    )
+            self.send(self.registrar, UnsubscribeMsg(msg.deadAddress))
             logger.info("The above warning can safely be ignored.")
         elif isinstance(msg.deadMessage, KeepAliveMsg):
             self.send(
