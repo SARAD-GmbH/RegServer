@@ -35,7 +35,7 @@ from registrationserver.actor_messages import (ActorType, DeadChildMsg,
                                                UnsubscribeMsg,
                                                UpdateActorDictMsg)
 from registrationserver.logger import logger
-from registrationserver.shutdown import system_shutdown
+from registrationserver.shutdown import is_flag_set, system_shutdown
 
 
 class BaseActor(ActorTypeDispatcher):
@@ -201,6 +201,8 @@ class BaseActor(ActorTypeDispatcher):
         See #210.
 
         """
+        if not is_flag_set()[0]:
+            return
         logger.warning("%s for %s from %s", msg, self.my_id, sender)
         if isinstance(
             msg.deadMessage,
