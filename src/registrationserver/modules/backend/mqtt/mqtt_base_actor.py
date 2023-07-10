@@ -58,7 +58,7 @@ class MqttBaseActor(BaseActor):
             logger.debug("Already disconnected")
         logger.debug("To stop the MQTT thread!")
         self.mqttc.loop_stop()
-        logger.debug("Disconnected gracefully")
+        logger.info("%s: Client loop stopped", self.my_id)
         super()._kill_myself()
 
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
