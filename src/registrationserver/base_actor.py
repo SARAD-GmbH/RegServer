@@ -120,7 +120,9 @@ class BaseActor(ActorTypeDispatcher):
                 self._forward_to_children(KillMsg(register=register))
             else:
                 if register:
-                    self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
+                    self.send(
+                        self.registrar, UnsubscribeMsg(actor_address=self.myAddress)
+                    )
                 self.send(self.parent.parent_address, ChildActorExited(self.myAddress))
                 self.send(self.myAddress, ActorExitRequest())
 
@@ -162,7 +164,6 @@ class BaseActor(ActorTypeDispatcher):
         logger.debug("%s for %s from %s (%s)", msg, self.my_id, actor_id, sender)
         child_actor = self.child_actors.pop(actor_id, None)
         if child_actor is not None:
-            # self.send(self.registrar, UnsubscribeMsg(actor_id))
             logger.debug(
                 "List of child actors after removal of %s: %s",
                 actor_id,
@@ -173,7 +174,7 @@ class BaseActor(ActorTypeDispatcher):
             logger.debug(
                 "Unsubscribe from Registrar and send ActorExitRequest to myself"
             )
-            self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
+            self.send(self.registrar, UnsubscribeMsg(actor_address=self.myAddress))
             self.send(self.parent.parent_address, ChildActorExited(self.myAddress))
             self.send(self.myAddress, ActorExitRequest())
 
@@ -187,7 +188,7 @@ class BaseActor(ActorTypeDispatcher):
                 self.my_id,
                 self.parent.parent_id,
             )
-        # self.send(self.registrar, UnsubscribeMsg(actor_id=self.my_id))
+        # self.send(self.registrar, UnsubscribeMsg(actor_address=self.myAddress))
 
     def receiveMsg_DeadEnvelope(self, msg, sender):
         # pylint: disable=invalid-name

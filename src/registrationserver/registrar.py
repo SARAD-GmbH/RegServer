@@ -269,7 +269,13 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Handler for UnsubscribeMsg from any actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        actor_id = msg.actor_id
+        actor_id = None
+        for this_actor_id in self.actor_dict:
+            if self.actor_dict[this_actor_id]["address"] == msg.actor_address:
+                actor_id = this_actor_id
+                break
+        if actor_id is None:
+            return
         status_dict = self.device_statuses.pop(actor_id, None)
         if (status_dict is not None) and (transport_technology(actor_id) == "local"):
             local_device_connected = False

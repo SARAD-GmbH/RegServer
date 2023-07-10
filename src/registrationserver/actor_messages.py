@@ -410,11 +410,10 @@ class UnsubscribeMsg:
     actor to confirm the exit of this actor.
 
     Args:
-        actor_id (str): Unique Id of the actor.
-                        Can be used to identify the device if the actor is a device actor.
+        actor_address (ActorAddress): Address of the Actor that is about to disappear.
     """
 
-    actor_id: str
+    actor_address: ActorAddress
 
 
 @dataclass
