@@ -196,16 +196,17 @@ class DeviceActor(DeviceBaseActor):
                         "%s occupied, but we don't know by whom", self.device_id
                     )
                 if not self.request_thread.is_alive():
-                    self.request_thread = Thread(
-                        target=self._http_get_function,
-                        kwargs={
-                            "endpoint": f"{self.base_url}/list/{self.device_id}/",
-                            "params": None,
-                            "purpose": Purpose.WAKEUP,
-                        },
-                        daemon=True,
+                    self._start_thread(
+                        Thread(
+                            target=self._http_get_function,
+                            kwargs={
+                                "endpoint": f"{self.base_url}/list/{self.device_id}/",
+                                "params": None,
+                                "purpose": Purpose.WAKEUP,
+                            },
+                            daemon=True,
+                        )
                     )
-                    self.request_thread.start()
         elif isinstance(msg.payload, Thread):
             self._start_thread(msg.payload)
 
@@ -355,6 +356,9 @@ class DeviceActor(DeviceBaseActor):
                         self.occupied = True
                         reservation.pop("IP", None)
                         reservation.pop("Port", None)
+                    self.wakeupAfter(
+                        timedelta(seconds=UPDATE_INTERVAL), payload="update"
+                    )
                     self.device_status["Reservation"] = reservation
                 else:
                     self.device_status.pop("Reservation", None)
