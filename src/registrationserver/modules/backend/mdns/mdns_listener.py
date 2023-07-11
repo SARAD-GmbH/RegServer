@@ -159,7 +159,7 @@ class MdnsListener(ServiceListener):
         if self.hosts:
             for host in self.hosts:
                 hostname = host[0]
-                logger.info("Ask Registrar to create Host Actor %s", hostname)
+                logger.debug("Ask Registrar to create Host Actor %s", hostname)
                 with ActorSystem().private() as add_host:
                     try:
                         reply = add_host.ask(
@@ -202,7 +202,7 @@ class MdnsListener(ServiceListener):
             for host in self.hosts:
                 known_hostnames.add(host[0])
             if (host_actor is None) and (not compare_hostnames(my_hostname, hostname)):
-                logger.info("Ask Registrar to create Host Actor %s", hostname)
+                logger.debug("Ask Registrar to create Host Actor %s", hostname)
                 with ActorSystem().private() as create_host:
                     try:
                         reply = create_host.ask(
@@ -243,7 +243,7 @@ class MdnsListener(ServiceListener):
         """Hook, being called when a regular shutdown of a service
         representing a device is being detected"""
         with self.lock:
-            logger.info("[Del] Service %s of type %s", name, type_)
+            logger.debug("[Del] Service %s of type %s", name, type_)
             info = zc.get_service_info(
                 type_, name, timeout=int(mdns_backend_config["MDNS_TIMEOUT"])
             )

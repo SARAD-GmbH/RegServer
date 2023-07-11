@@ -354,6 +354,6 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                 ),
             )
         try:
-            super()._kill_myself(register)
+            super()._kill_myself(register=register, resurrect=resurrect)
         except TypeError:
             pass

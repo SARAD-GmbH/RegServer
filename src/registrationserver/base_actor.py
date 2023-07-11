@@ -113,7 +113,7 @@ class BaseActor(ActorTypeDispatcher):
 
     def _kill_myself(self, register=True, resurrect=False):
         if resurrect:
-            logger.warning("%s will be killed but resurrect")
+            logger.warning("%s will be killed but resurrect", self.my_id)
         if not self.on_kill:
             self.on_kill = True
             if self.get_updates:

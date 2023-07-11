@@ -128,7 +128,7 @@ class HostActor(BaseActor):
     def receiveMsg_SetupHostActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SetupHostActorMsg initialising the host status information."""
-        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.scan_interval = msg.scan_interval
         self.base_url = f"http://{msg.host}:{msg.port}"
         self.port = msg.port

@@ -288,7 +288,7 @@ class DeviceBaseActor(BaseActor):
 
     def _update_reservation_status(self, reservation):
         self.device_status["Reservation"] = reservation
-        logger.info("Reservation state updated: %s", self.device_status)
+        logger.debug("Reservation state updated: %s", self.device_status)
 
     def _send_reservation_status_msg(self):
         logger.debug("_send_reservation_status_msg")
@@ -373,6 +373,6 @@ class DeviceBaseActor(BaseActor):
         except AttributeError as exception:
             logger.error("%s on %s", exception, self.my_id)
         try:
-            super()._kill_myself(register)
+            super()._kill_myself(register=register, resurrect=resurrect)
         except TypeError:
             pass

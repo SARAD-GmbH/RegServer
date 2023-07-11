@@ -37,7 +37,6 @@ class RedirectorActor(BaseActor):
         self._host = config["MY_IP"]
         self._port = None
         self.read_list = None
-        logger.info("Redirector Actor initialized")
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
@@ -110,6 +109,7 @@ class RedirectorActor(BaseActor):
         self.send(sender, return_msg)
         logger.debug("Start socket loop")
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="loop")
+        logger.info("Redirector %s initialized", self.my_id)
 
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
@@ -117,7 +117,7 @@ class RedirectorActor(BaseActor):
             self.read_list[0].close()
         except (ValueError, IOError) as exception:
             logger.error("%s in KillMsg handler of redirector", exception)
-        super()._kill_myself(register)
+        super()._kill_myself(register=register, resurrect=resurrect)
 
     def _cmd_handler(self):
         """Handle a binary SARAD command received via the socket."""

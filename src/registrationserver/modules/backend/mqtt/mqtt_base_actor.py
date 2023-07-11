@@ -59,7 +59,7 @@ class MqttBaseActor(BaseActor):
         logger.debug("To stop the MQTT thread!")
         self.mqttc.loop_stop()
         logger.info("%s: Client loop stopped", self.my_id)
-        super()._kill_myself()
+        super()._kill_myself(register=register, resurrect=resurrect)
 
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -120,7 +120,7 @@ class MqttBaseActor(BaseActor):
             mqtt_broker = mqtt_config["MQTT_BROKER"]
             port = mqtt_config["PORT"]
             try:
-                logger.info(
+                logger.debug(
                     "%s attempting to connect to broker %s: %s",
                     self.my_id,
                     mqtt_broker,
@@ -130,7 +130,7 @@ class MqttBaseActor(BaseActor):
                     ca_certs = os.path.expanduser(mqtt_config["TLS_CA_FILE"])
                     certfile = os.path.expanduser(mqtt_config["TLS_CERT_FILE"])
                     keyfile = os.path.expanduser(mqtt_config["TLS_KEY_FILE"])
-                    logger.info(
+                    logger.debug(
                         "%s setting up TLS: %s | %s | %s",
                         self.my_id,
                         ca_certs,

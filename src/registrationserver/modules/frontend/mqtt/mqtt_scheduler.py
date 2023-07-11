@@ -235,7 +235,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 self.reservations[device_id] = reservation_object
                 reservation_json = get_instr_reservation(reservation_object)
                 topic = f"{self.group}/{self.is_id}/{instr_id}/reservation"
-                logger.info("Publish %s on %s", reservation_json, topic)
+                logger.debug("Publish %s on %s", reservation_json, topic)
                 self.mqttc.publish(topic=topic, payload=reservation_json, retain=True)
                 self._instruments_connected()
 
@@ -255,13 +255,13 @@ class MqttSchedulerActor(MqttBaseActor):
             topic=topic,
             payload=payload,
         )
-        logger.info("Publish %s on %s", payload, topic)
+        logger.debug("Publish %s on %s", payload, topic)
 
     def _remove_instrument(self, device_id):
         # pylint: disable=invalid-name
         """Removes an instrument from the list of available instruments."""
-        logger.info("Remove %s", device_id)
         if self.reservations.pop(device_id, None) is not None:
+            logger.info("Remove %s", device_id)
             instr_id = short_id(device_id)
             gone_subscriptions = [
                 f"{self.group}/{self.is_id}/{instr_id}/control",

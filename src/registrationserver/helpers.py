@@ -462,7 +462,7 @@ def send_free_message(device_id, registrar_actor) -> Status:
         device_actor := get_actor(registrar_actor, device_id)
     ) is None:
         return Status.NOT_FOUND
-    logger.info("Ask %s to FREE...", device_id)
+    logger.debug("Ask %s to FREE...", device_id)
     with ActorSystem().private() as free_dev:
         try:
             free_return = free_dev.ask(
