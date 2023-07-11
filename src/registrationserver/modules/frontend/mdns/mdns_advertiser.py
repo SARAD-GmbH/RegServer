@@ -80,7 +80,7 @@ class MdnsAdvertiserActor(BaseActor):
                 self._kill_myself()
 
     @overrides
-    def _kill_myself(self, register=True):
+    def _kill_myself(self, register=True, resurrect=False):
         if self.service is not None:
             try:
                 self.zeroconf.unregister_service(self.service)

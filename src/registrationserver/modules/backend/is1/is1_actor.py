@@ -276,10 +276,10 @@ class Is1Actor(DeviceBaseActor):
         self._handle_free_reply_from_is(Status.OK)
 
     @overrides
-    def _kill_myself(self, register=True):
+    def _kill_myself(self, register=True, resurrect=False):
         self._destroy_socket()
         self.send(self.parent.parent_address, Is1RemoveMsg(is1_address=self._is))
-        super()._kill_myself(register)
+        super()._kill_myself(register, resurrect)
 
     def scan_is(self, is1_address: Is1Address):
         """Look for SARAD instruments at the given Instrument Server"""

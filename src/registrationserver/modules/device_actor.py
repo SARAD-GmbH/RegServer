@@ -101,7 +101,7 @@ class DeviceBaseActor(BaseActor):
                     self.my_id,
                     RESERVE_TIMEOUT,
                 )
-                self._kill_myself()
+                self._kill_myself(resurrect=True)
                 return
             self.wakeupAfter(
                 timedelta(milliseconds=500),
@@ -189,10 +189,10 @@ class DeviceBaseActor(BaseActor):
                 self.my_id,
                 success,
             )
-            self._kill_myself()
+            self._kill_myself(resurrect=True)
         elif success == Status.ERROR:
             logger.error("%s during reservation of %s", success, self.my_id)
-            self._kill_myself()
+            self._kill_myself(resurrect=True)
         self._send_reservation_status_msg()
         logger.debug("_send_reservation_status_msg case D")
 
@@ -208,7 +208,7 @@ class DeviceBaseActor(BaseActor):
                     self.my_id,
                     RESERVE_TIMEOUT,
                 )
-                self._kill_myself()
+                self._kill_myself(resurrect=True)
                 return
             self.wakeupAfter(
                 timedelta(milliseconds=500),
@@ -366,7 +366,7 @@ class DeviceBaseActor(BaseActor):
         super().receiveMsg_ChildActorExited(msg, sender)
 
     @overrides
-    def _kill_myself(self, register=True):
+    def _kill_myself(self, register=True, resurrect=False):
         self.device_status["State"] = 1
         try:
             self._send_reservation_status_msg()

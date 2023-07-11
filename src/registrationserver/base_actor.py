@@ -111,7 +111,9 @@ class BaseActor(ActorTypeDispatcher):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._kill_myself(register=msg.register)
 
-    def _kill_myself(self, register=True):
+    def _kill_myself(self, register=True, resurrect=False):
+        if resurrect:
+            logger.warning("%s will be killed but resurrect")
         if not self.on_kill:
             self.on_kill = True
             if self.get_updates:

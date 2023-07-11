@@ -49,7 +49,7 @@ class MqttBaseActor(BaseActor):
         self.last_pingresp = datetime.now()
 
     @overrides
-    def _kill_myself(self, register=True):
+    def _kill_myself(self, register=True, resurrect=False):
         if self.ungr_disconn == 2:
             logger.debug("To disconnect from the MQTT-broker!")
             self.mqttc.disconnect()

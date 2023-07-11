@@ -112,7 +112,7 @@ class RedirectorActor(BaseActor):
         self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="loop")
 
     @overrides
-    def _kill_myself(self, register=True):
+    def _kill_myself(self, register=True, resurrect=False):
         try:
             self.read_list[0].close()
         except (ValueError, IOError) as exception:

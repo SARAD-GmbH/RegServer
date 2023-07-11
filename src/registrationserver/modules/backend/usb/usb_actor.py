@@ -392,7 +392,7 @@ class UsbActor(DeviceBaseActor):
         super().receiveMsg_ChildActorExited(msg, sender)
 
     @overrides
-    def _kill_myself(self, register=True):
+    def _kill_myself(self, register=True, resurrect=False):
         try:
             self.instrument.release_instrument()
         except AttributeError:

@@ -143,7 +143,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                 )
             else:
                 logger.error("Publishing RESERVE request failed on %s", self.my_id)
-                self._kill_myself()
+                self._kill_myself(resurrect=True)
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
@@ -186,7 +186,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             self._unsubscribe_topic([self.allowed_sys_topics["MSG"]])
         else:
             logger.error("Publishing FREE request failed on %s", self.my_id)
-            self._kill_myself()
+            self._kill_myself(resurrect=True)
 
     def on_reserve(self, _client, _userdata, message):
         """Handler for MQTT messages regarding reservation of instruments"""
@@ -322,7 +322,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             logger.debug("Publish: msg_id is matched")
 
     @overrides
-    def _kill_myself(self, register=True):
+    def _kill_myself(self, register=True, resurrect=False):
         try:
             _ip = self.device_status["Reservation"]["IP"]
             logger.debug(
@@ -344,7 +344,7 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             self._send_reservation_status_msg()
         except AttributeError as exception:
             logger.error(exception)
-        if not self.on_kill:
+        if not self.on_kill and resurrect:
             self.send(
                 self.parent.parent_address,
                 ResurrectMsg(
