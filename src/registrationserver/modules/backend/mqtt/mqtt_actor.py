@@ -143,14 +143,6 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
                 )
             else:
                 logger.error("Publishing RESERVE request failed on %s", self.my_id)
-                self.send(
-                    self.parent.parent_address,
-                    ResurrectMsg(
-                        is_id=self.is_id,
-                        instr_id=self.instr_id,
-                        device_status=self.device_status,
-                    ),
-                )
                 self._kill_myself()
 
     @overrides
@@ -194,14 +186,6 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             self._unsubscribe_topic([self.allowed_sys_topics["MSG"]])
         else:
             logger.error("Publishing FREE request failed on %s", self.my_id)
-            self.send(
-                self.parent.parent_address,
-                ResurrectMsg(
-                    is_id=self.is_id,
-                    instr_id=self.instr_id,
-                    device_status=self.device_status,
-                ),
-            )
             self._kill_myself()
 
     def on_reserve(self, _client, _userdata, message):
@@ -339,6 +323,15 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
 
     @overrides
     def _kill_myself(self, register=True):
+        if not self.on_kill:
+            self.send(
+                self.parent.parent_address,
+                ResurrectMsg(
+                    is_id=self.is_id,
+                    instr_id=self.instr_id,
+                    device_status=self.device_status,
+                ),
+            )
         try:
             _ip = self.device_status["Reservation"]["IP"]
             logger.debug(

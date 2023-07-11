@@ -430,7 +430,7 @@ def send_reserve_message(device_id, registrar_actor, request_host, user, app) ->
                 timeout=timedelta(seconds=10),
             )
         except ConnectionResetError as exception:
-            logger.debug(exception)
+            logger.error(exception)
             reserve_return = None
     if reserve_return is None:
         logger.error("No response from Device Actor %s", device_id)
