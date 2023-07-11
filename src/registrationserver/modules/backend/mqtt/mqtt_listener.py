@@ -11,7 +11,6 @@ in the MQTT network
 .. uml :: uml-mqtt_listener.puml
 """
 import json
-import time
 from datetime import datetime
 
 from overrides import overrides  # type: ignore
@@ -104,6 +103,7 @@ class MqttListener(MqttBaseActor):
         super().__init__()
         self._hosts = {}
         self.actor_type = ActorType.HOST
+        self.resurrect_msg = False
 
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
@@ -390,5 +390,15 @@ class MqttListener(MqttBaseActor):
         # pylint: disable=invalid-name
         """Handler for ResurrectMsg asking for resurrect a killed Device Actor (child)"""
         logger.info("%s for %s from %s", msg, self.my_id, sender)
-        time.sleep(0.5)  # Wait for device actor to exit.
-        self._add_instr(msg.is_id, msg.instr_id, msg.device_status)
+        self.resurrect_msg = msg
+
+    @overrides
+    def receiveMsg_ChildActorExited(self, msg, sender):
+        if self.resurrect_msg:
+            self._add_instr(
+                self.resurrect_msg.is_id,
+                self.resurrect_msg.instr_id,
+                self.resurrect_msg.device_status,
+            )
+            self.resurrect_msg = False
+        super().receiveMsg_ChildActorExited(msg, sender)
