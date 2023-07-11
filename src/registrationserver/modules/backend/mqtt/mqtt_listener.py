@@ -394,6 +394,7 @@ class MqttListener(MqttBaseActor):
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
+        super().receiveMsg_ChildActorExited(msg, sender)
         if self.resurrect_msg:
             self._add_instr(
                 self.resurrect_msg.is_id,
@@ -401,4 +402,3 @@ class MqttListener(MqttBaseActor):
                 self.resurrect_msg.device_status,
             )
             self.resurrect_msg = False
-        super().receiveMsg_ChildActorExited(msg, sender)
