@@ -106,6 +106,11 @@ class MqttListener(MqttBaseActor):
         self.resurrect_msg = False
 
     @overrides
+    def receiveMsg_SetupMsg(self, msg, sender):
+        super().receiveMsg_SetupMsg(msg, sender)
+        self._subscribe_to_actor_dict_msg()
+
+    @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
         self.mqttc.message_callback_add("+/+/meta", self.on_is_meta)
@@ -114,6 +119,14 @@ class MqttListener(MqttBaseActor):
     def _add_instr(self, is_id, instr_id, payload: dict) -> None:
         # pylint: disable=too-many-return-statements
         logger.debug("[add_instr] %s", payload)
+        for old_device_id in self.actor_dict:
+            if short_id(old_device_id) == instr_id:
+                logger.info(
+                    "%s is already represented by %s",
+                    instr_id,
+                    old_device_id,
+                )
+                return
         if (is_id is None) or (instr_id is None) or (payload is None):
             logger.debug(
                 "[add_instr] one or both of the IS ID and Instrument ID"
