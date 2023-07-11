@@ -113,6 +113,7 @@ class HostActor(BaseActor):
         self.http.mount("https://", adapter)
         self.http.mount("http://", adapter)
         self._asys = msg.asys_address
+        self._subscribe_to_actor_dict_msg()
         logger.info("Ping %s every %d minutes.", self.my_id, PING_INTERVAL)
         self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
@@ -149,6 +150,16 @@ class HostActor(BaseActor):
 
     def _set_device_status(self, device_status):
         device_id = list(device_status)[0]
+        for old_device_id in self.actor_dict:
+            if (short_id(old_device_id) == short_id(device_id)) and (
+                device_id != old_device_id
+            ):
+                logger.info(
+                    "%s is already represented by %s",
+                    short_id(device_id),
+                    old_device_id,
+                )
+                return
         data = device_status[device_id]
         is_host = data["Remote"]["Address"]
         api_port = data["Remote"]["API port"]
