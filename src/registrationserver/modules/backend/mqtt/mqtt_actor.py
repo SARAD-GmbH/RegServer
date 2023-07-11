@@ -323,15 +323,6 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
 
     @overrides
     def _kill_myself(self, register=True):
-        if not self.on_kill:
-            self.send(
-                self.parent.parent_address,
-                ResurrectMsg(
-                    is_id=self.is_id,
-                    instr_id=self.instr_id,
-                    device_status=self.device_status,
-                ),
-            )
         try:
             _ip = self.device_status["Reservation"]["IP"]
             logger.debug(
@@ -353,6 +344,15 @@ class MqttActor(DeviceBaseActor, MqttBaseActor):
             self._send_reservation_status_msg()
         except AttributeError as exception:
             logger.error(exception)
+        if not self.on_kill:
+            self.send(
+                self.parent.parent_address,
+                ResurrectMsg(
+                    is_id=self.is_id,
+                    instr_id=self.instr_id,
+                    device_status=self.device_status,
+                ),
+            )
         try:
             super()._kill_myself(register)
         except TypeError:
