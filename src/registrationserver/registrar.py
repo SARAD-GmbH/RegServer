@@ -26,7 +26,9 @@ from registrationserver.actor_messages import (ActorType, Backend, Frontend,
                                                RescanFinishedMsg, RescanMsg,
                                                ReturnDeviceActorMsg,
                                                ShutdownFinishedMsg,
-                                               ShutdownMsg, Status,
+                                               ShutdownMsg,
+                                               StartMeasuringFinishedMsg,
+                                               StartMeasuringMsg, Status,
                                                UpdateActorDictMsg,
                                                UpdateDeviceStatusesMsg)
 from registrationserver.base_actor import BaseActor
@@ -411,6 +413,21 @@ class Registrar(BaseActor):
         self.send(sender, ShutdownFinishedMsg(Status.OK))
         if (msg.host is None) or (msg.host == "127.0.0.1"):
             system_shutdown()
+
+    def receiveMsg_StartMeasuringMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forward the StartMeasuringMsg to Device Actors."""
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        for actor_id in self.actor_dict:
+            if self.actor_dict[actor_id]["actor_type"] == ActorType.DEVICE:
+                if (msg.instr_id is None) or (short_id(actor_id) == msg.instr_id):
+                    self.send(
+                        self.actor_dict[actor_id]["address"],
+                        StartMeasuringMsg(
+                            start_time=msg.start_time, instr_id=msg.instr_id
+                        ),
+                    )
+        self.send(sender, StartMeasuringFinishedMsg(Status.OK))
 
     def receiveMsg_HostInfoMsg(self, msg, sender):
         # pylint: disable=invalid-name

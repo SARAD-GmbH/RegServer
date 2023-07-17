@@ -43,6 +43,7 @@ class ThreadType(Enum):
     CHECK_CONNECTION = 1
     TX_BINARY = 2
     RECENT_VALUE = 3
+    START_MEASURING = 4
 
 
 class UsbActor(DeviceBaseActor):
@@ -79,6 +80,9 @@ class UsbActor(DeviceBaseActor):
             kwargs={"family_id": None, "poll": False, "route": None},
             daemon=True,
         )
+        self.start_measuring_thread = Thread(
+            target=self._start_measuring_function, daemon=True
+        )
 
     def _start_thread(self, thread, thread_type: ThreadType):
         if (
@@ -96,6 +100,9 @@ class UsbActor(DeviceBaseActor):
             elif thread_type == ThreadType.RECENT_VALUE:
                 self.get_recent_value_thread = thread
                 self.get_recent_value_thread.start()
+            elif thread_type == ThreadType.START_MEASURING:
+                self.start_measuring_thread = thread
+                self.start_measuring_thread.start()
         else:
             self.wakeupAfter(timedelta(seconds=0.5), payload=(thread, thread_type))
 
@@ -197,6 +204,8 @@ class UsbActor(DeviceBaseActor):
                 logger.critical(
                     "self.next_method should be a tuple and not %s.", self.next_method
                 )
+        elif msg.payload == "start_measuring":
+            self._start_measuring()
 
     def _finish_poll(self):
         """Finalize the handling of WakeupMessage for regular rescan"""
@@ -322,6 +331,56 @@ class UsbActor(DeviceBaseActor):
         somebody else to free the instrument.
         """
         self._handle_free_reply_from_is(Status.OK)
+
+    def receiveMsg_StartMeasuringMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Start measuring at a given time."""
+        if msg.instr_id != self.instr_id:
+            logger.error("%s for %s from %s", msg, self.my_id, sender)
+        else:
+            logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if msg.start_time is None:
+            self._start_measuring()
+        else:
+            offset = msg.start_time - datetime.now(timezone.utc)
+            self.wakeupAfter(offset, payload="start_measuring")
+
+    def _start_measuring(self):
+        self._start_thread(
+            Thread(
+                target=self._start_measuring_function,
+                daemon=True,
+            ),
+            ThreadType.START_MEASURING,
+        )
+
+    def _start_measuring_function(self):
+        cycle_index = 0
+        is_reserved = self.device_status.get("Reservation", False)
+        if is_reserved:
+            is_reserved = self.device_status["Reservation"].get("Active", False)
+        if is_reserved:
+            self.wakeupAfter(timedelta(seconds=1), payload="start_measuring")
+        else:
+            if usb_backend_config["USE_UTC"]:
+                now = datetime.now(timezone.utc)
+            else:
+                now = datetime.now()
+            logger.info("Set RTC of %s to %s", self.my_id, now)
+            self.instrument.set_real_time_clock(now)
+            try:
+                success = self.instrument.start_cycle(cycle_index)
+                logger.info(
+                    "Device %s started with cycle_index %d",
+                    self.instrument.device_id,
+                    cycle_index,
+                )
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.error(
+                    "Failed to start cycle on %s. Exception: %s", self.my_id, exception
+                )
+            if not success:
+                logger.error("Start/Stop not supported by %s", self.my_id)
 
     def receiveMsg_GetRecentValueMsg(self, msg, sender):
         # pylint: disable=invalid-name

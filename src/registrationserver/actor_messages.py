@@ -135,7 +135,7 @@ class Family(Enum):
 
 
 @dataclass
-class Instrument:
+class InstrObj:
     """Object containing the properties identifying and describing a SARAD
     instrument within the SARAD network.
 
@@ -969,3 +969,26 @@ class MqttUnsubscribeMsg:
     """
 
     topics: List[str]
+
+
+@dataclass
+class StartMeasuringMsg:
+    """Message instructing the Device Actor to (re-)start the measuring
+    at a given time or immediately, respectively.
+
+    Args:
+        instr_id (str): Id of the instrument
+        start_time (datetime): Date and time to start the measuring on.
+                               If None, the measuring shall start immediately.
+                               Always given as UTC.
+    """
+
+    instr_id: str
+    start_time: Union[datetime, None] = None
+
+
+@dataclass
+class StartMeasuringFinishedMsg:
+    """Confirmation that the StartMeasuringMsg was handled properly."""
+
+    status: Status

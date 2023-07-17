@@ -29,8 +29,8 @@ from registrationserver.actor_messages import (AddPortToLoopMsg,
                                                GetLocalPortsMsg,
                                                GetNativePortsMsg,
                                                GetRecentValueMsg,
-                                               GetUsbPortsMsg, HostObj,
-                                               Instrument, RecentValueMsg,
+                                               GetUsbPortsMsg, InstrObj,
+                                               RecentValueMsg,
                                                RemovePortFromLoopMsg,
                                                RescanFinishedMsg, RescanMsg,
                                                ReturnLocalPortsMsg,
@@ -38,8 +38,9 @@ from registrationserver.actor_messages import (AddPortToLoopMsg,
                                                ReturnNativePortsMsg,
                                                ReturnUsbPortsMsg,
                                                ShutdownFinishedMsg,
-                                               ShutdownMsg, Status,
-                                               TransportTechnology)
+                                               ShutdownMsg,
+                                               StartMeasuringFinishedMsg,
+                                               StartMeasuringMsg, Status)
 from registrationserver.config import actor_config, mqtt_config
 from registrationserver.helpers import (check_msg, get_actor,
                                         get_device_status_from_registrar,
@@ -130,6 +131,7 @@ instrument = api.model(
         "host": fields.String(
             description="The FQDN of the host the instrument is connected to"
         ),
+        "link": fields.Url("instruments_instrument", absolute=True),
     },
 )
 ports_ns = api.namespace(
@@ -168,6 +170,13 @@ log_arguments.add_argument(
     default=0,
     choices=[0, 1],
     trim=True,
+)
+start_arguments = reqparse.RequestParser()
+start_arguments.add_argument(
+    "start_time",
+    type=str,
+    required=False,
+    help="Datetime string in ISO format giving the UTC to start the measuring.",
 )
 ports_arguments = reqparse.RequestParser()
 ports_arguments.add_argument("port", type=str, required=False)
@@ -592,28 +601,15 @@ class Host(Resource):
     @api.marshal_with(host_model)
     def get(self, host):
         """Get information about one host"""
-        no_host = HostObj(
-            host="Not available",
-            is_id="",
-            transport_technology=TransportTechnology.NONE,
-            description="",
-            place="",
-            lat=0,
-            lon=0,
-            height=0,
-            state=0,
-            version="",
-            running_since=datetime(year=1970, month=1, day=1),
-        )
         registrar_actor = get_registrar_actor()
         if registrar_actor is None:
             logger.critical("No response from Actor System. -> Emergency shutdown")
             system_shutdown()
-            return no_host
+            return api.abort(404)
         for host_object in get_hosts(registrar_actor):
             if host_object.host == host:
                 return host_object
-        return no_host
+        return api.abort(404)
 
 
 @hosts_ns.route("/<string:host>/restart")
@@ -622,6 +618,7 @@ class Host(Resource):
     "This is not really a password since it is given here. "
     + "It is only there to prevent restart by mistake.",
 )
+@hosts_ns.response(404, "Host not found")
 class ShutdownHost(Resource):
     # pylint: disable=too-few-public-methods
     """Restart the SARAD Registration Server."""
@@ -652,26 +649,29 @@ class ShutdownHost(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        with ActorSystem().private() as restart_sys:
-            try:
-                reply = restart_sys.ask(
-                    registrar_actor,
-                    ShutdownMsg(password=args["password"], host=host),
-                    timeout=timedelta(seconds=60),
-                )
-            except ConnectionResetError as exception:
-                logger.debug(exception)
-                reply = None
-        reply_is_corrupted = check_msg(reply, ShutdownFinishedMsg)
-        if reply_is_corrupted:
-            return reply_is_corrupted
-        return {
-            "Error code": reply.status.value,
-            "Error": str(reply.status),
-            "Notification": "Registration Server going down for restart.",
-            "Requesting host": remote_addr,
-            "Requesting user": remote_user,
-        }
+        for host_object in get_hosts(registrar_actor):
+            if host_object.host == host:
+                with ActorSystem().private() as restart_sys:
+                    try:
+                        reply = restart_sys.ask(
+                            registrar_actor,
+                            ShutdownMsg(password=args["password"], host=host),
+                            timeout=timedelta(seconds=60),
+                        )
+                    except ConnectionResetError as exception:
+                        logger.debug(exception)
+                        reply = None
+                reply_is_corrupted = check_msg(reply, ShutdownFinishedMsg)
+                if reply_is_corrupted:
+                    return reply_is_corrupted
+                return {
+                    "Error code": reply.status.value,
+                    "Error": str(reply.status),
+                    "Notification": "Registration Server going down for restart.",
+                    "Requesting host": remote_addr,
+                    "Requesting user": remote_user,
+                }
+        return api.abort(404)
 
 
 @hosts_ns.route("/<string:host>/scan")
@@ -699,21 +699,26 @@ class ScanHost(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        with ActorSystem().private() as scan_sys:
-            try:
-                reply = scan_sys.ask(
-                    registrar_actor, RescanMsg(host), timeout=timedelta(seconds=60)
-                )
-            except ConnectionResetError as exception:
-                logger.debug(exception)
-                reply = None
-        reply_is_corrupted = check_msg(reply, RescanFinishedMsg)
-        if reply_is_corrupted:
-            return reply_is_corrupted
-        return {
-            "Error code": reply.status.value,
-            "Error": str(reply.status),
-        }
+        for host_object in get_hosts(registrar_actor):
+            if host_object.host == host:
+                with ActorSystem().private() as scan_sys:
+                    try:
+                        reply = scan_sys.ask(
+                            registrar_actor,
+                            RescanMsg(host),
+                            timeout=timedelta(seconds=60),
+                        )
+                    except ConnectionResetError as exception:
+                        logger.debug(exception)
+                        reply = None
+                reply_is_corrupted = check_msg(reply, RescanFinishedMsg)
+                if reply_is_corrupted:
+                    return reply_is_corrupted
+                return {
+                    "Error code": reply.status.value,
+                    "Error": str(reply.status),
+                }
+        return api.abort(404)
 
 
 @instruments_ns.route("/")
@@ -728,8 +733,8 @@ class Instruments(Resource):
             firmware_version = device_status["Identification"]["Firmware version"]
             instr_host = device_status["Identification"]["Host"]
         except AttributeError:
-            return None
-        return Instrument(
+            return api.abort(404)
+        return InstrObj(
             instr_id=instr_id,
             serial_number=serial_number,
             firmware_version=firmware_version,
@@ -754,6 +759,87 @@ class Instruments(Resource):
         for device_id, device_status in get_device_statuses(registrar_actor).items():
             response.append(self._instrument(device_id, device_status))
         return response
+
+
+@instruments_ns.route("/<string:instr_id>")
+@instruments_ns.param(
+    "instr_id",
+    "Id of the instrument",
+)
+@instruments_ns.response(404, "Instrument not found")
+class Instrument(Resource):
+    # pylint: disable=too-few-public-methods
+    """Endpoint for one active instrument"""
+
+    def _instrument(self, device_id, device_status):
+        try:
+            instr_id = short_id(device_id)
+            serial_number = device_status["Identification"]["Serial number"]
+            firmware_version = device_status["Identification"]["Firmware version"]
+            instr_host = device_status["Identification"]["Host"]
+        except AttributeError:
+            return api.abort(404)
+        return InstrObj(
+            instr_id=instr_id,
+            serial_number=serial_number,
+            firmware_version=firmware_version,
+            host=instr_host,
+        )
+
+    @api.marshal_with(instrument)
+    def get(self, instr_id):
+        """Get information about one instrument"""
+        registrar_actor = get_registrar_actor()
+        if registrar_actor is None:
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return api.abort(404)
+        for device_id, device_status in get_device_statuses(registrar_actor).items():
+            if short_id(device_id) == instr_id:
+                return self._instrument(device_id, device_status)
+        return api.abort(404)
+
+
+@instruments_ns.route("/<string:instr_id>/start-measuring")
+@instruments_ns.param(
+    "start_time",
+    "UTC to start the measurement.",
+)
+class StartMeasuring(Resource):
+    # pylint: disable=too-few-public-methods
+    """Start the measuring at the given instrument."""
+
+    @api.expect(start_arguments, validate=True)
+    def post(self, instr_id):
+        """Start the measuring at the given instrument."""
+        args = start_arguments.parse_args()
+        registrar_actor = get_registrar_actor()
+        if registrar_actor is None:
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return api.abort(404)
+        for device_id in get_device_statuses(registrar_actor):
+            if short_id(device_id) == instr_id:
+                with ActorSystem().private() as start_sys:
+                    try:
+                        reply = start_sys.ask(
+                            registrar_actor,
+                            StartMeasuringMsg(
+                                start_time=args["start_time"], instr_id=instr_id
+                            ),
+                            timeout=timedelta(seconds=60),
+                        )
+                    except ConnectionResetError as exception:
+                        logger.debug(exception)
+                        reply = None
+                reply_is_corrupted = check_msg(reply, StartMeasuringFinishedMsg)
+                if reply_is_corrupted:
+                    return reply_is_corrupted
+                return {
+                    "Error code": reply.status.value,
+                    "Error": str(reply.status),
+                }
+        return api.abort(404)
 
 
 @values_ns.route("/<string:device_id>")
