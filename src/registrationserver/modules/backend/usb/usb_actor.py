@@ -206,6 +206,10 @@ class UsbActor(DeviceBaseActor):
                 )
         elif msg.payload == "start_measuring":
             self._start_measuring()
+        elif msg.payload == "get_values":
+            self._get_recent_value(
+                sender=None, component=component, sensor=sensor, measurand=measurand
+            )
 
     def _finish_poll(self):
         """Finalize the handling of WakeupMessage for regular rescan"""
@@ -381,6 +385,15 @@ class UsbActor(DeviceBaseActor):
                 )
             if not success:
                 logger.error("Start/Stop not supported by %s", self.my_id)
+            for component in self.instrument:
+                for sensor in component:
+                    for measurand in sensor:
+                        self._get_recent_value(
+                            sender=None,
+                            component=list(self.instrument).index(component),
+                            sensor=list(component).index(sensor),
+                            measurand=list(sensor).index(measurand),
+                        )
 
     def receiveMsg_GetRecentValueMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -401,6 +414,8 @@ class UsbActor(DeviceBaseActor):
         )
 
     def _get_recent_value(self, sender, component, sensor, measurand):
+        if sender is None:
+            sender = self.registrar
         try:
             reply = self.instrument.get_recent_value(component, sensor, measurand)
         except IndexError:
@@ -443,6 +458,7 @@ class UsbActor(DeviceBaseActor):
             )
         else:
             answer = RecentValueMsg(status=Status.INDEX_ERROR)
+        logger.info(answer)
         self.send(sender, answer)
 
     @overrides

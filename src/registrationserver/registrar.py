@@ -476,3 +476,9 @@ class Registrar(BaseActor):
                 system_shutdown(with_error=True)
                 return False
         return True
+
+    def receiveMsg_RecentValueMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for RecentValueMsg providing measuring values from a Device Actor"""
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        # TODO Send values to a database
