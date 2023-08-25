@@ -84,17 +84,17 @@ registrationserver.modules.backend.mdns.device_actor
 Modules specific to the MQTT backend
 ====================================
 
-registrationserver.modules.backend.mqtt.mqtt_listener
------------------------------------------------------
+registrationserver.modules.backend.mqtt.mqtt_client_actor
+---------------------------------------------------------
 
-.. automodule :: registrationserver.modules.backend.mqtt.mqtt_listener
+.. automodule :: registrationserver.modules.backend.mqtt.mqtt_client_actor
    :members:
    :undoc-members:
 
-registrationserver.modules.backend.mqtt.mqtt_actor
---------------------------------------------------
+registrationserver.modules.backend.mqtt.mqtt_device_actor
+---------------------------------------------------------
 
-.. automodule:: registrationserver.modules.backend.mqtt.mqtt_actor
+.. automodule:: registrationserver.modules.backend.mqtt.mqtt_device_actor
    :members:
    :undoc-members:
 

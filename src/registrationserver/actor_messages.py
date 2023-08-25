@@ -972,6 +972,19 @@ class MqttUnsubscribeMsg:
 
 
 @dataclass
+class MqttReceiveMsg:
+    """Message forwarding a MQTT message from the singleton MQTT Client Actor to the MQTT Device Actor.
+
+    Args:
+        topic (str): The MQTT topic
+        payload (str): JSON payload
+    """
+
+    topic: str
+    payload: str
+
+
+@dataclass
 class StartMeasuringMsg:
     """Message instructing the Device Actor to (re-)start the measuring
     at a given time or immediately, respectively.

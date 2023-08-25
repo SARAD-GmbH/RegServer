@@ -37,7 +37,8 @@ from registrationserver.config import (actor_config, backend_config, config,
 from registrationserver.helpers import short_id, transport_technology
 from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_listener import Is1Listener
-from registrationserver.modules.backend.mqtt.mqtt_listener import MqttListener
+from registrationserver.modules.backend.mqtt.mqtt_client_actor import \
+    MqttClientActor
 from registrationserver.modules.backend.usb.cluster_actor import ClusterActor
 from registrationserver.modules.frontend.mdns.mdns_scheduler import \
     MdnsSchedulerActor
@@ -81,16 +82,18 @@ class Registrar(BaseActor):
         if Backend.USB in backend_config:
             self._create_actor(ClusterActor, "cluster", None)
         if Backend.MQTT in backend_config:
-            mqtt_listener = self._create_actor(MqttListener, "mqtt_listener", None)
+            mqtt_client_actor = self._create_actor(
+                MqttClientActor, "mqtt_client_actor", None
+            )
             self.send(
-                mqtt_listener,
+                mqtt_client_actor,
                 PrepareMqttActorMsg(
                     is_id=None,
                     client_id=mqtt_config["MQTT_CLIENT_ID"],
                     group=mqtt_config["GROUP"],
                 ),
             )
-            self.send(mqtt_listener, MqttConnectMsg())
+            self.send(mqtt_client_actor, MqttConnectMsg())
         if Backend.IS1 in backend_config:
             _is1_listener = self._create_actor(Is1Listener, "is1_listener", None)
         keepalive_interval = actor_config["KEEPALIVE_INTERVAL"]
