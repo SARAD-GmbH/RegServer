@@ -87,7 +87,8 @@ host_model = api.model(
             + " Given in the remote config."
         ),
         "state": fields.Integer(
-            description="0 = offline; 1 = online, no instrument; 2 = online, functional"
+            description="0 = offline; 1 = online, no instrument;"
+            + " 2 = online, functional; 10 = offline, ungracefully"
         ),
         "transport_technology": fields.Integer(
             description="How is the instrument connected to this RegServer"
