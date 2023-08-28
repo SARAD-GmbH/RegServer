@@ -249,14 +249,18 @@ class UsbActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Handler for binary message from App to Instrument."""
         super().receiveMsg_TxBinaryMsg(msg, sender)
-        self._start_thread(
-            Thread(
-                target=self._tx_binary,
-                kwargs={"data": msg.data},
-                daemon=True,
-            ),
-            ThreadType.TX_BINARY,
-        )
+        is_reserved = self.device_status.get("Reservation", False)
+        if is_reserved:
+            is_reserved = self.device_status["Reservation"].get("Active", False)
+        if is_reserved:
+            self._start_thread(
+                Thread(
+                    target=self._tx_binary,
+                    kwargs={"data": msg.data},
+                    daemon=True,
+                ),
+                ThreadType.TX_BINARY,
+            )
 
     def _tx_binary(self, data):
         dummy_reply = self.dummy_reply(data)
