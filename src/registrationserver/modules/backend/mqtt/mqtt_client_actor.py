@@ -14,7 +14,7 @@ from datetime import datetime
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
-                                               KillMsg, MqttConnectMsg,
+                                               KillMsg, MqttReceiveMsg,
                                                PrepareMqttActorMsg,
                                                SetDeviceStatusMsg,
                                                TransportTechnology)
@@ -113,8 +113,12 @@ class MqttClientActor(MqttBaseActor):
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
-        self.mqttc.message_callback_add("+/+/meta", self.on_is_meta)
-        self.mqttc.message_callback_add("+/+/+/meta", self.on_instr_meta)
+        self.mqttc.message_callback_add(f"{self.group}/+/meta", self.on_is_meta)
+        self.mqttc.message_callback_add(f"{self.group}/+/+/meta", self.on_instr_meta)
+        self.mqttc.message_callback_add(
+            f"{self.group}/+/+/reservation", self.on_instr_reserve
+        )
+        self.mqttc.message_callback_add(f"{self.group}/+/+/msg", self.on_instr_msg)
 
     def _add_instr(self, is_id, instr_id, payload: dict, resurrect=False) -> None:
         # pylint: disable=too-many-return-statements
@@ -173,10 +177,6 @@ class MqttClientActor(MqttBaseActor):
             self.send(
                 device_actor,
                 PrepareMqttActorMsg(is_id, client_id, self.group),
-            )
-            self.send(
-                device_actor,
-                MqttConnectMsg(),
             )
 
     def _rm_instr(self, is_id, instr_id) -> None:
@@ -358,6 +358,30 @@ class MqttClientActor(MqttBaseActor):
                 is_id,
             )
 
+    def on_instr_reserve(self, _client, _userdata, message):
+        """Handler for all messages of topic +/+/+/reservation"""
+        logger.debug("[on_instr_reserve] %s, %s", message.topic, message.payload)
+        instr_id = message.topic.split("/")[2]
+        child_actors = self.child_actors
+        for child_id, device_actor in child_actors.items():
+            if (child_id in self.child_actors) and (short_id(child_id) == instr_id):
+                self.send(
+                    device_actor["actor_address"],
+                    MqttReceiveMsg(topic=message.topic, payload=message.payload),
+                )
+
+    def on_instr_msg(self, _client, _userdata, message):
+        """Handler for all messages of topic +/+/+/msg"""
+        logger.debug("[on_instr_msg] %s, %s", message.topic, message.payload)
+        instr_id = message.topic.split("/")[2]
+        child_actors = self.child_actors
+        for child_id, device_actor in child_actors.items():
+            if (child_id in self.child_actors) and (short_id(child_id) == instr_id):
+                self.send(
+                    device_actor["actor_address"],
+                    MqttReceiveMsg(topic=message.topic, payload=message.payload),
+                )
+
     @overrides
     def on_connect(self, client, userdata, flags, reason_code):
         super().on_connect(client, userdata, flags, reason_code)
@@ -417,3 +441,28 @@ class MqttClientActor(MqttBaseActor):
                 resurrect=True,
             )
             self.resurrect_msg = False
+
+    def receiveMsg_MqttSubscribeMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for MqttSubscribeMsg from MQTT Device Actor (child)"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self._subscribe_topic(msg.sub_info)
+
+    def receiveMsg_MqttUnsubscribeMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for MqttUnsubscribeMsg from MQTT Device Actor (child)"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self._unsubscribe_topic(msg.topics)
+
+    def receiveMsg_MqttPublishMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for MqttPublishMsg from MQTT Device Actor (child)"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self._publish(
+            {
+                "topic": msg.topic,
+                "payload": msg.payload,
+                "qos": msg.qos,
+                "retain": msg.retain,
+            }
+        )

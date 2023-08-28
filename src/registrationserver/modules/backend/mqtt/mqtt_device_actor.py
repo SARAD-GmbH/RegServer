@@ -10,25 +10,27 @@
 .. uml :: uml-mqtt_device_actor.puml
 """
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
-import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
-from registrationserver.actor_messages import ResurrectMsg, RxBinaryMsg, Status
+from registrationserver.actor_messages import (MqttPublishMsg,
+                                               MqttSubscribeMsg,
+                                               MqttUnsubscribeMsg,
+                                               ResurrectMsg, RxBinaryMsg,
+                                               Status)
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
-from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
-    MqttBaseActor
 from registrationserver.modules.device_actor import DeviceBaseActor
-from registrationserver.shutdown import system_shutdown
 
 
-class MqttDeviceActor(DeviceBaseActor, MqttBaseActor):
+class MqttDeviceActor(DeviceBaseActor):
     """Actor interacting with a new device"""
 
     @overrides
     def __init__(self):
         super().__init__()
+        self.is_id = None
+        self.qos = 2
         self.allowed_sys_topics = {
             "CTRL": "",
             "RESERVE": "",
@@ -61,21 +63,7 @@ class MqttDeviceActor(DeviceBaseActor, MqttBaseActor):
             },
         }
         self.cmd_id = 0
-        self.msg_id["UNSUBSCRIBE"] = None
-        self.msg_id["PUBLISH"] = None
-        self.is_id = None
         self.last_message = ""
-
-    @overrides
-    def receiveMsg_WakeupMessage(self, msg, sender):
-        super().receiveMsg_WakeupMessage(msg, sender)
-        logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
-        if msg.payload == "connect":
-            if self.next_method is None:
-                self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
-            else:
-                self.next_method()
-                self.next_method = None
 
     @overrides
     def receiveMsg_TxBinaryMsg(self, msg, sender):
@@ -94,25 +82,19 @@ class MqttDeviceActor(DeviceBaseActor, MqttBaseActor):
         self.state["SEND"]["CMD_ID"] = bytes([self.cmd_id])
         logger.debug("CMD ID is: %s", self.state["SEND"]["CMD_ID"])
         self.state["SEND"]["Sender"] = sender
-        msg = {
-            "topic": self.allowed_sys_topics["CMD"],
-            "payload": bytes([self.cmd_id]) + data,
-            "qos": self.qos,
-        }
-        re = self._publish(msg)
+        self.send(
+            self.parent.parent_address,
+            MqttPublishMsg(
+                topic=self.allowed_sys_topics["CMD"],
+                payload=bytes([self.cmd_id]) + data,
+                qos=self.qos,
+                retain=True,
+            ),
+        )
         if self.cmd_id == 255:
             self.cmd_id = 0
         else:
             self.cmd_id = self.cmd_id + 1
-        if not re:
-            logger.error(
-                "Failed to publish message with ID %s in topic %s",
-                self.cmd_id,
-                self.allowed_sys_topics["CMD"],
-            )
-            self.state["SEND"]["Pending"] = False
-            self.state["SEND"]["CMD_ID"] = None
-            return
         logger.debug("[SEND] send status is %s", self.state["SEND"]["Pending"])
 
     @overrides
@@ -123,27 +105,23 @@ class MqttDeviceActor(DeviceBaseActor, MqttBaseActor):
             self.reserve_device_msg: Dataclass identifying the requesting app, host and user.
         """
         if not self.state["RESERVE"]["Pending"]:
-            msg = {
-                "topic": self.allowed_sys_topics["CTRL"],
-                "payload": json.dumps(
-                    {
-                        "Req": "reserve",
-                        "App": self.reserve_device_msg.app,
-                        "Host": self.reserve_device_msg.host,
-                        "User": self.reserve_device_msg.user,
-                    }
-                ),
-                "qos": self.qos,
-                "retain": False,
-            }
             self.state["RESERVE"]["Pending"] = True
-            if self._publish(msg):
-                logger.debug(
-                    "[Reserve at IS]: Waiting for reply to reservation request"
-                )
-            else:
-                logger.error("Publishing RESERVE request failed on %s", self.my_id)
-                self._kill_myself(resurrect=True)
+            self.send(
+                self.parent.parent_address,
+                MqttPublishMsg(
+                    topic=self.allowed_sys_topics["CTRL"],
+                    payload=json.dumps(
+                        {
+                            "Req": "reserve",
+                            "App": self.reserve_device_msg.app,
+                            "Host": self.reserve_device_msg.host,
+                            "User": self.reserve_device_msg.user,
+                        }
+                    ),
+                    qos=self.qos,
+                    retain=False,
+                ),
+            )
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
@@ -154,44 +132,52 @@ class MqttDeviceActor(DeviceBaseActor, MqttBaseActor):
             sender: usually the redirector actor
         """
         DeviceBaseActor.receiveMsg_ChildActorExited(self, msg, sender)
-        MqttBaseActor.receiveMsg_ChildActorExited(self, msg, sender)
 
-    @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
-        super().receiveMsg_PrepareMqttActorMsg(msg, sender)
-        self.is_id = msg.is_id
-        self.mqttc.on_publish = self.on_publish
+        # pylint: disable=invalid-name
+        """Handler for PrepareMqttActorMsg from MQTT Listener"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for k in self.allowed_sys_topics:
             self.allowed_sys_topics[k] = (
-                f"{self.group}/{self.is_id}/"
+                f"{msg.group}/{msg.is_id}/"
                 + f"{short_id(self.my_id)}/{self.allowed_sys_options[k]}"
             )
+            self.is_id = msg.is_id
             logger.debug("allowed topic: %s", self.allowed_sys_topics[k])
-        self.mqttc.message_callback_add(
-            self.allowed_sys_topics["RESERVE"], self.on_reserve
-        )
-        self.mqttc.message_callback_add(self.allowed_sys_topics["MSG"], self.on_msg)
+        logger.debug("Subscribe MQTT actor to the 'reservation' topic")
+        reserve_topic = self.allowed_sys_topics["RESERVE"]
+        self.send(self.parent.parent_address, MqttSubscribeMsg([(reserve_topic, 0)]))
 
     @overrides
     def _request_free_at_is(self):
         """Forward the free request to the broker."""
-        msg = {
-            "topic": self.allowed_sys_topics["CTRL"],
-            "payload": json.dumps({"Req": "free"}),
-            "qos": self.qos,
-            "retain": False,
-        }
-        if self._publish(msg):
-            logger.debug("Unsubscribe %s from 'msg' topic", self.my_id)
-            self._unsubscribe_topic([self.allowed_sys_topics["MSG"]])
-        else:
-            logger.error("Publishing FREE request failed on %s", self.my_id)
-            self._kill_myself(resurrect=True)
+        self.send(
+            self.parent.parent_address,
+            MqttPublishMsg(
+                topic=self.allowed_sys_topics["CTRL"],
+                payload=json.dumps({"Req": "free"}),
+                qos=self.qos,
+                retain=False,
+            ),
+        )
+        self.send(
+            self.parent.parent_address,
+            MqttUnsubscribeMsg([self.allowed_sys_topics["MSG"]]),
+        )
 
-    def on_reserve(self, _client, _userdata, message):
+    def receiveMsg_MqttReceiveMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handle a message received from the MQTT broker"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if msg.topic == self.allowed_sys_topics["RESERVE"]:
+            self.on_reserve(msg.payload)
+        if msg.topic == self.allowed_sys_topics["MSG"]:
+            self.on_msg(msg.payload)
+
+    def on_reserve(self, payload):
         """Handler for MQTT messages regarding reservation of instruments"""
         reservation_status = Status.ERROR
-        reservation = json.loads(message.payload)
+        reservation = json.loads(payload)
         if reservation == self.last_message:
             logger.debug("We have already got message %s", reservation)
             return
@@ -215,12 +201,10 @@ class MqttDeviceActor(DeviceBaseActor, MqttBaseActor):
                 )
                 if timestamp is None:
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
-                if not self._subscribe_topic([(self.allowed_sys_topics["MSG"], 0)]):
-                    logger.error(
-                        "Subscription to %s went wrong", self.allowed_sys_topics["MSG"]
-                    )
-                    self.state["RESERVE"]["Pending"] = False
-                    return
+                msg_topic = self.allowed_sys_topics["MSG"]
+                self.send(
+                    self.parent.parent_address, MqttSubscribeMsg([(msg_topic, 0)])
+                )
                 reservation_status = Status.OK
             else:
                 logger.debug(
@@ -257,9 +241,8 @@ class MqttDeviceActor(DeviceBaseActor, MqttBaseActor):
                 reservation["Port"] = self.device_status["Reservation"]["Port"]
         self.device_status["Reservation"] = reservation
 
-    def on_msg(self, _client, _userdata, message):
+    def on_msg(self, payload):
         """Handler for MQTT messages regarding binary messages from instrument"""
-        payload = message.payload
         logger.debug("Send status is: %s", self.state["SEND"]["Pending"])
         if not isinstance(payload, bytes):
             logger.error(
@@ -305,23 +288,6 @@ class MqttDeviceActor(DeviceBaseActor, MqttBaseActor):
         )
 
     @overrides
-    def on_connect(self, client, userdata, flags, reason_code):
-        super().on_connect(client, userdata, flags, reason_code)
-        logger.debug("Subscribe MQTT actor to the 'reservation' topic")
-        reserve_topic = self.allowed_sys_topics["RESERVE"]
-        return_code, self.msg_id["SUBSCRIBE"] = self.mqttc.subscribe(reserve_topic, 0)
-        if return_code != MQTT.MQTT_ERR_SUCCESS:
-            logger.critical("Subscription to %s went wrong", reserve_topic)
-            system_shutdown()
-
-    def on_publish(self, _client, _userdata, msg_id):
-        """Here should be a docstring."""
-        # self.rc_pub = 0
-        logger.debug("[on_publish] Message-ID %d was published to the broker", msg_id)
-        if msg_id == self.msg_id["PUBLISH"]:
-            logger.debug("Publish: msg_id is matched")
-
-    @overrides
     def _kill_myself(self, register=True, resurrect=False):
         try:
             _ip = self.device_status["Reservation"]["IP"]
@@ -331,20 +297,12 @@ class MqttDeviceActor(DeviceBaseActor, MqttBaseActor):
             self._request_free_at_is()
         except KeyError:
             pass
-        if self.ungr_disconn == 2:
-            logger.debug("To disconnect from the MQTT-broker!")
-            self.mqttc.disconnect()
-        elif self.ungr_disconn in (1, 0):
-            self.ungr_disconn = 2
-            logger.debug("Already disconnected")
-        logger.debug("To stop the MQTT thread!")
-        self.mqttc.loop_stop()
-        logger.debug("Disconnected gracefully")
         try:
             self._send_reservation_status_msg()
         except AttributeError as exception:
             logger.error(exception)
         if not self.on_kill and resurrect:
+            # TODO Think about resurrection!
             self.send(
                 self.parent.parent_address,
                 ResurrectMsg(
