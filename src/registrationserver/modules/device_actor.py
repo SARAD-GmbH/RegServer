@@ -94,23 +94,29 @@ class DeviceBaseActor(BaseActor):
         if self.free_lock or self.reserve_lock:
             if self.free_lock:
                 logger.info("%s FREE action pending", self.my_id)
+                if datetime.now() - self.free_lock > RESERVE_TIMEOUT:
+                    logger.warning(
+                        "Pending FREE on %s took longer than %s",
+                        self.my_id,
+                        RESERVE_TIMEOUT,
+                    )
+                    self._kill_myself(resurrect=True)
+                    return
             else:
                 logger.info("%s RESERVE action pending", self.my_id)
-            if self.reserve_lock and (
-                datetime.now() - self.reserve_lock > RESERVE_TIMEOUT
-            ):
-                logger.warning(
-                    "Pending RESERVE on %s took longer than %s",
-                    self.my_id,
-                    RESERVE_TIMEOUT,
+                if datetime.now() - self.reserve_lock > RESERVE_TIMEOUT:
+                    logger.warning(
+                        "Pending RESERVE on %s took longer than %s",
+                        self.my_id,
+                        RESERVE_TIMEOUT,
+                    )
+                    self._kill_myself(resurrect=True)
+                    return
+                self.wakeupAfter(
+                    timedelta(milliseconds=500),
+                    (self.receiveMsg_ReserveDeviceMsg, msg, sender),
                 )
-                self._kill_myself(resurrect=True)
                 return
-            self.wakeupAfter(
-                timedelta(milliseconds=500),
-                (self.receiveMsg_ReserveDeviceMsg, msg, sender),
-            )
-            return
         self.reserve_lock = datetime.now()
         logger.info("%s: reserve_lock set to %s", self.my_id, self.reserve_lock)
         if self.sender_api is None:
@@ -207,21 +213,28 @@ class DeviceBaseActor(BaseActor):
         if self.free_lock or self.reserve_lock:
             if self.free_lock:
                 logger.info("%s FREE action pending", self.my_id)
-            else:
-                logger.info("%s RESERVE action pending", self.my_id)
-            if self.free_lock and (datetime.now() - self.free_lock > RESERVE_TIMEOUT):
+                if datetime.now() - self.free_lock > RESERVE_TIMEOUT:
+                    logger.warning(
+                        "Pending FREE on %s took longer than %s",
+                        self.my_id,
+                        RESERVE_TIMEOUT,
+                    )
+                    self._kill_myself(resurrect=True)
+                    return
+                self.wakeupAfter(
+                    timedelta(milliseconds=500),
+                    (self.receiveMsg_FreeDeviceMsg, msg, sender),
+                )
+                return
+            logger.info("%s RESERVE action pending", self.my_id)
+            if datetime.now() - self.reserve_lock > RESERVE_TIMEOUT:
                 logger.warning(
-                    "Pending FREE on %s took longer than %s",
+                    "Pending RESERVE on %s took longer than %s",
                     self.my_id,
                     RESERVE_TIMEOUT,
                 )
                 self._kill_myself(resurrect=True)
                 return
-            self.wakeupAfter(
-                timedelta(milliseconds=500),
-                (self.receiveMsg_FreeDeviceMsg, msg, sender),
-            )
-            return
         self.free_lock = datetime.now()
         logger.info("%s: free_lock set to %s", self.my_id, self.free_lock)
         if self.sender_api is None:
