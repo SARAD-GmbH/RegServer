@@ -112,6 +112,7 @@ class DeviceBaseActor(BaseActor):
             )
             return
         self.reserve_lock = datetime.now()
+        logger.info("%s: reserve_lock set to %s", self.my_id, self.reserve_lock)
         if self.sender_api is None:
             self.sender_api = sender
         self.reserve_device_msg = msg
@@ -222,6 +223,7 @@ class DeviceBaseActor(BaseActor):
             )
             return
         self.free_lock = datetime.now()
+        logger.info("%s: free_lock set to %s", self.my_id, self.free_lock)
         if self.sender_api is None:
             self.sender_api = sender
         self._request_free_at_is()
