@@ -301,6 +301,7 @@ class DeviceBaseActor(BaseActor):
     def _send_reservation_status_msg(self):
         logger.debug("%s _send_reservation_status_msg", self.my_id)
         self._publish_status_change()
+        logger.info("%s: %s; %s; %s; %s", self.my_id, self.return_message, self.sender_api, self.reserve_lock, self.free_lock)
         if (
             (self.return_message is not None)
             and (self.sender_api is not None)
@@ -313,12 +314,6 @@ class DeviceBaseActor(BaseActor):
             self.reserve_lock = False
         if self.free_lock:
             self.free_lock = False
-        logger.info(
-            "%s: reserve_lock = %s, free_lock = %s",
-            self.my_id,
-            self.reserve_lock,
-            self.free_lock,
-        )
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -376,7 +371,7 @@ class DeviceBaseActor(BaseActor):
         if self.device_status["Reservation"].get("Port") is not None:
             self.device_status["Reservation"].pop("Port")
         if self.return_message is None:
-            self.free_lock = False
+            pass
         else:
             self._send_reservation_status_msg()
         super().receiveMsg_ChildActorExited(msg, sender)
