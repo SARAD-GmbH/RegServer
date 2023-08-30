@@ -92,7 +92,10 @@ class DeviceBaseActor(BaseActor):
         """Handler for ReserveDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if self.free_lock or self.reserve_lock:
-            logger.debug("RESERVE or FREE action pending")
+            if self.free_lock:
+                logger.info("%s FREE action pending", self.my_id)
+            else:
+                logger.info("%s RESERVE action pending", self.my_id)
             if self.reserve_lock and (
                 datetime.now() - self.reserve_lock > RESERVE_TIMEOUT
             ):
@@ -291,7 +294,7 @@ class DeviceBaseActor(BaseActor):
         logger.debug("Reservation state updated: %s", self.device_status)
 
     def _send_reservation_status_msg(self):
-        logger.debug("_send_reservation_status_msg")
+        logger.info("%s _send_reservation_status_msg", self.my_id)
         self._publish_status_change()
         if (
             (self.return_message is not None)
@@ -301,10 +304,10 @@ class DeviceBaseActor(BaseActor):
             self.send(self.sender_api, self.return_message)
             self.return_message = None
             self.sender_api = None
-            if self.reserve_lock:
-                self.reserve_lock = False
-            elif self.free_lock:
-                self.free_lock = False
+        if self.reserve_lock:
+            self.reserve_lock = False
+        elif self.free_lock:
+            self.free_lock = False
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
