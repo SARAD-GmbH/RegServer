@@ -202,9 +202,12 @@ class DeviceBaseActor(BaseActor):
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for FreeDeviceMsg from REST API."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
         if self.free_lock or self.reserve_lock:
-            logger.debug("RESERVE or FREE action pending")
+            if self.free_lock:
+                logger.info("%s FREE action pending", self.my_id)
+            else:
+                logger.info("%s RESERVE action pending", self.my_id)
             if self.free_lock and (datetime.now() - self.free_lock > RESERVE_TIMEOUT):
                 logger.warning(
                     "Pending FREE on %s took longer than %s",
