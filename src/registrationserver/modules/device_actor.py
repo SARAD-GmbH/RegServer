@@ -186,6 +186,7 @@ class DeviceBaseActor(BaseActor):
                 self._update_reservation_status(reservation)
                 self._send_reservation_status_msg()
                 logger.debug("_send_reservation_status_msg case C")
+            self.reserve_lock = False
             return
         if success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
             logger.error(
@@ -199,6 +200,7 @@ class DeviceBaseActor(BaseActor):
             self._kill_myself(resurrect=True)
         self._send_reservation_status_msg()
         logger.debug("_send_reservation_status_msg case D")
+        self.reserve_lock = False
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -259,6 +261,7 @@ class DeviceBaseActor(BaseActor):
             self._forward_to_children(KillMsg())
         else:
             self._send_reservation_status_msg()
+        self.free_lock = False
 
     def _create_redirector(self) -> bool:
         """Create redirector actor if it does not exist already"""
