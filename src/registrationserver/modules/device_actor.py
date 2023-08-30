@@ -294,7 +294,7 @@ class DeviceBaseActor(BaseActor):
         logger.debug("Reservation state updated: %s", self.device_status)
 
     def _send_reservation_status_msg(self):
-        logger.info("%s _send_reservation_status_msg", self.my_id)
+        logger.debug("%s _send_reservation_status_msg", self.my_id)
         self._publish_status_change()
         if (
             (self.return_message is not None)
@@ -306,8 +306,14 @@ class DeviceBaseActor(BaseActor):
             self.sender_api = None
         if self.reserve_lock:
             self.reserve_lock = False
-        elif self.free_lock:
+        if self.free_lock:
             self.free_lock = False
+        logger.info(
+            "%s: reserve_lock = %s, free_lock = %s",
+            self.my_id,
+            self.reserve_lock,
+            self.free_lock,
+        )
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
