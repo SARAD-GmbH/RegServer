@@ -210,6 +210,16 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for FreeDeviceMsg from REST API."""
         logger.info("%s for %s from %s", msg, self.my_id, sender)
+        is_reserved = self.device_status.get("Reservation", False)
+        if is_reserved:
+            is_reserved = self.device_status["Reservation"].get("Active", False)
+        if not is_reserved:
+            self.free_lock = datetime.now()
+            self.return_message = ReservationStatusMsg(self.instr_id, Status.OK_SKIPPED)
+            if self.sender_api is None:
+                self.sender_api = sender
+            self._send_reservation_status_msg()
+            return
         if self.free_lock or self.reserve_lock:
             if self.free_lock:
                 logger.info("%s FREE action pending", self.my_id)
