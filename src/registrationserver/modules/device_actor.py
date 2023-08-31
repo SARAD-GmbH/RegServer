@@ -118,7 +118,7 @@ class DeviceBaseActor(BaseActor):
                 )
                 return
         self.reserve_lock = datetime.now()
-        logger.info("%s: reserve_lock set to %s", self.my_id, self.reserve_lock)
+        logger.debug("%s: reserve_lock set to %s", self.my_id, self.reserve_lock)
         if self.sender_api is None:
             self.sender_api = sender
         self.reserve_device_msg = msg
@@ -209,7 +209,7 @@ class DeviceBaseActor(BaseActor):
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for FreeDeviceMsg from REST API."""
-        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         is_reserved = self.device_status.get("Reservation", False)
         if is_reserved:
             is_reserved = self.device_status["Reservation"].get("Active", False)
@@ -246,7 +246,7 @@ class DeviceBaseActor(BaseActor):
                 self._kill_myself(resurrect=True)
                 return
         self.free_lock = datetime.now()
-        logger.info("%s: free_lock set to %s", self.my_id, self.free_lock)
+        logger.debug("%s: free_lock set to %s", self.my_id, self.free_lock)
         if self.sender_api is None:
             self.sender_api = sender
         self._request_free_at_is()
@@ -324,7 +324,14 @@ class DeviceBaseActor(BaseActor):
     def _send_reservation_status_msg(self):
         logger.debug("%s _send_reservation_status_msg", self.my_id)
         self._publish_status_change()
-        logger.info("%s: %s; %s; %s; %s", self.my_id, self.return_message, self.sender_api, self.reserve_lock, self.free_lock)
+        logger.info(
+            "%s: %s; %s; %s; %s",
+            self.my_id,
+            self.return_message,
+            self.sender_api,
+            self.reserve_lock,
+            self.free_lock,
+        )
         if (
             (self.return_message is not None)
             and (self.sender_api is not None)

@@ -262,7 +262,11 @@ class MqttBaseActor(BaseActor):
         if message.payload is None:
             logger.warning("%s: The payload is none", self.my_id)
         else:
-            logger.warning("%s: Unknown MQTT message: %s", self.my_id, message)
+            logger.warning("%s: Unknown MQTT message", self.my_id)
+            logger.warning("topic: %s", message.topic)
+            logger.warning("payload: %s", message.payload)
+            logger.warning("qos: %s", message.qos)
+            logger.warning("retain: %s", message.retain)
 
     def on_log(self, _client, _userdata, level, buf):
         """Handler for MQTT logging information."""
