@@ -303,8 +303,7 @@ class DeviceActor(DeviceBaseActor):
 
     @overrides
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
-        """Handler for SetDeviceStatusMsg initialising the device status information."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        super().receiveMsg_SetDeviceStatusMsg(msg, sender)
         if not (self.reserve_lock or self.free_lock):
             self.occupied = False
             if self.device_status:

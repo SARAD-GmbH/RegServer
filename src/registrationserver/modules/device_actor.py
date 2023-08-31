@@ -79,6 +79,11 @@ class DeviceBaseActor(BaseActor):
         for section in sections:
             if msg.device_status.get(section, False):
                 self.device_status[section] = msg.device_status[section]
+        logger.info(
+            "Device actor %s created at %s.",
+            self.my_id,
+            self.device_status["Identification"]["Host"],
+        )
 
     def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name
@@ -324,7 +329,7 @@ class DeviceBaseActor(BaseActor):
     def _send_reservation_status_msg(self):
         logger.debug("%s _send_reservation_status_msg", self.my_id)
         self._publish_status_change()
-        logger.info(
+        logger.debug(
             "%s: %s; %s; %s; %s",
             self.my_id,
             self.return_message,
@@ -417,3 +422,12 @@ class DeviceBaseActor(BaseActor):
             super()._kill_myself(register=register, resurrect=resurrect)
         except TypeError:
             pass
+
+    @overrides
+    def receiveMsg_ActorExitRequest(self, msg, sender):
+        super().receiveMsg_ActorExitRequest(msg, sender)
+        logger.info(
+            "Device actor %s exited at %s.",
+            self.my_id,
+            self.device_status["Identification"]["Host"],
+        )

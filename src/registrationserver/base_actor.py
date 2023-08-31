@@ -83,8 +83,6 @@ class BaseActor(ActorTypeDispatcher):
         if self.registrar is None:
             self.registrar = self.myAddress
         self._subscribe(False)
-        if self.actor_type == ActorType.DEVICE:
-            logger.info("%s created at %s.", self.my_id, self.parent.parent_id)
 
     def _subscribe(self, keep_alive):
         """Subscribe at Registrar actor."""
@@ -192,12 +190,6 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name
         """Handler for ActorExitRequest"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.actor_type == ActorType.DEVICE:
-            logger.info(
-                "Device actor %s exited at %s.",
-                self.my_id,
-                self.parent.parent_id,
-            )
         # self.send(self.registrar, UnsubscribeMsg(actor_address=self.myAddress))
 
     def receiveMsg_DeadEnvelope(self, msg, sender):

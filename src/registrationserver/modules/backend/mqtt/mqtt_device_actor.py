@@ -123,16 +123,6 @@ class MqttDeviceActor(DeviceBaseActor):
                 ),
             )
 
-    @overrides
-    def receiveMsg_ChildActorExited(self, msg, sender):
-        """Handle the return message confirming that the redirector actor was killed.
-
-        Args:
-            msg: ChildActorExited message
-            sender: usually the redirector actor
-        """
-        DeviceBaseActor.receiveMsg_ChildActorExited(self, msg, sender)
-
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for PrepareMqttActorMsg from MQTT Listener"""
