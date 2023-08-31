@@ -274,8 +274,9 @@ class ClusterActor(BaseActor):
         """Rescan for serial devices and create or remove ComActors
         accordingly."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self._rescan()
-        self._update()
+        if (msg.host is None) or (msg.host == "127.0.0.1"):
+            self._rescan()
+            self._update()
 
     def receiveMsg_ShutdownMsg(self, msg, sender):
         # pylint: disable=invalid-name

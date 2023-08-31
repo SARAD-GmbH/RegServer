@@ -398,6 +398,9 @@ class Registrar(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for actor_id in self.actor_dict:
             if self.actor_dict[actor_id]["actor_type"] == ActorType.HOST:
+                logger.debug(
+                    "Forward RescanMsg(%s) to %s", msg.host, self.actor_dict[actor_id]
+                )
                 self.send(
                     self.actor_dict[actor_id]["address"], RescanMsg(host=msg.host)
                 )
