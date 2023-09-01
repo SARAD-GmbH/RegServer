@@ -102,11 +102,6 @@ class MqttSchedulerActor(MqttBaseActor):
         )
 
     @overrides
-    def _connected(self):
-        super()._connected()
-        self._subscribe_topic([(f"{self.group}/{self.is_id}/*/reservation", 0)])
-
-    @overrides
     def on_disconnect(self, client, userdata, reason_code):
         super().on_disconnect(client, userdata, reason_code)
         if self.led:
