@@ -75,14 +75,24 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SetDeviceStatusMsg"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        sections = ["Identification", "Reservation", "Remote", "State"]
+        sections = ["Identification", "Reservation", "Remote"]
         for section in sections:
             if msg.device_status.get(section, False):
-                self.device_status[section] = msg.device_status[section]
+                if self.device_status.get(section, False):
+                    for key in self.device_status[section]:
+                        if key in msg.device_status[section]:
+                            self.device_status[section][key] = msg.device_status[
+                                section
+                            ][key]
+                else:
+                    self.device_status[section] = msg.device_status[section]
+        if msg.device_status.get("State", False):
+            self.device_status["State"] = msg.device_status["State"]
         logger.info(
-            "Device actor %s created at %s.",
+            "Device actor %s created or updated at %s. is_id = %s",
             self.my_id,
             self.device_status["Identification"]["Host"],
+            self.device_status["Identification"].get("IS Id"),
         )
 
     def receiveMsg_WakeupMessage(self, msg, sender):
