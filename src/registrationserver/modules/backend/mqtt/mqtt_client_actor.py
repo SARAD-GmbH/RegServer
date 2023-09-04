@@ -98,6 +98,14 @@ class MqttClientActor(MqttBaseActor):
                 return device_id
         return None
 
+    def device_id_2(self, is_id, instr_id):
+        """Deliver device_id belonging to the instr_id on is_id in the argument."""
+        logger.debug("Search for %s on %s in %s", instr_id, is_id, self.child_actors)
+        for device_id, child_actor in self.child_actors.items():
+            if (instr_id in device_id) and (child_actor["host"] == is_id):
+                return device_id
+        return None
+
     @overrides
     def __init__(self):
         super().__init__()
@@ -184,7 +192,7 @@ class MqttClientActor(MqttBaseActor):
 
     def _rm_instr(self, is_id, instr_id) -> None:
         logger.debug("[rm_instr] %s, %s", is_id, instr_id)
-        device_id = self.device_id(instr_id)
+        device_id = self.device_id_2(is_id, instr_id)
         if device_id is None:
             logger.debug("Instrument unknown")
             return
