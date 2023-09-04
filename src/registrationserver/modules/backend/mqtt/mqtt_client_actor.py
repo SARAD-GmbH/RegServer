@@ -19,7 +19,7 @@ from registrationserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                                SetDeviceStatusMsg,
                                                TransportTechnology)
 from registrationserver.config import unique_id
-from registrationserver.helpers import short_id
+from registrationserver.helpers import short_id, transport_technology
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
     MqttBaseActor
@@ -90,11 +90,11 @@ class MqttClientActor(MqttBaseActor):
             ),
         )
 
-    def device_id(self, is_id, instr_id):
-        """Deliver device_id belonging to the instr_id on is_id in the argument."""
-        logger.debug("Search for %s on %s in %s", instr_id, is_id, self.child_actors)
-        for device_id, child_actor in self.child_actors.items():
-            if (instr_id in device_id) and (child_actor["host"] == is_id):
+    def device_id(self, instr_id):
+        """Deliver device_id belonging to the instr_id in the argument."""
+        logger.debug("Search for %s in %s", instr_id, self.child_actors)
+        for device_id in self.child_actors:
+            if instr_id in device_id:
                 return device_id
         return None
 
@@ -123,21 +123,24 @@ class MqttClientActor(MqttBaseActor):
     def _add_instr(self, is_id, instr_id, payload: dict, resurrect=False) -> None:
         # pylint: disable=too-many-return-statements
         logger.debug("[add_instr] %s", payload)
-        if not resurrect:
-            for old_device_id in self.actor_dict:
-                if short_id(old_device_id) == instr_id:
-                    logger.info(
-                        "%s is already represented by %s",
-                        instr_id,
-                        old_device_id,
-                    )
-                    return
         if (is_id is None) or (instr_id is None) or (payload is None):
             logger.debug(
                 "[add_instr] one or both of the IS ID and Instrument ID"
                 " are none or the meta message is none."
             )
             return
+        if not resurrect:
+            for old_device_id in self.actor_dict:
+                if short_id(old_device_id) == instr_id:
+                    if transport_technology(old_device_id) != "mqtt":
+                        logger.info(
+                            "%s is already represented by %s",
+                            instr_id,
+                            old_device_id,
+                        )
+                        return
+                    self._update_instr(is_id, instr_id, payload)
+                    return
         try:
             family = payload["Identification"]["Family"]
         except IndexError:
@@ -181,7 +184,7 @@ class MqttClientActor(MqttBaseActor):
 
     def _rm_instr(self, is_id, instr_id) -> None:
         logger.debug("[rm_instr] %s, %s", is_id, instr_id)
-        device_id = self.device_id(is_id, instr_id)
+        device_id = self.device_id(instr_id)
         if device_id is None:
             logger.debug("Instrument unknown")
             return
@@ -199,7 +202,7 @@ class MqttClientActor(MqttBaseActor):
                 "and Instrument ID are None or the meta message is None."
             )
             return
-        device_id = self.device_id(is_id, instr_id)
+        device_id = self.device_id(instr_id)
         if device_id is None:
             logger.warning("[update_instr] Instrument unknown")
             return
@@ -326,7 +329,7 @@ class MqttClientActor(MqttBaseActor):
                     "[+/meta] Store properties of instrument %s",
                     instr_id,
                 )
-                if self.device_id(is_id, instr_id) is not None:
+                if self.device_id(instr_id) is not None:
                     self._update_instr(is_id, instr_id, payload)
                 else:
                     self._add_instr(is_id, instr_id, payload)
