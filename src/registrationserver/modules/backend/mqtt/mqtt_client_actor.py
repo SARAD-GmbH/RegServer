@@ -216,6 +216,7 @@ class MqttClientActor(MqttBaseActor):
             return
         logger.debug("[update_instr] %s", device_id)
         device_actor = self.child_actors[device_id]["actor_address"]
+        self.child_actors[device_id]["host"] = is_id
         payload["State"] = 2
         self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
 
@@ -373,9 +374,10 @@ class MqttClientActor(MqttBaseActor):
         """Handler for all messages of topic +/+/+/reservation"""
         logger.debug("[on_instr_reserve] %s, %s", message.topic, message.payload)
         instr_id = message.topic.split("/")[2]
-        child_actors = self.child_actors
-        for child_id, device_actor in child_actors.items():
-            if (child_id in self.child_actors) and (short_id(child_id) == instr_id):
+        is_id = message.topic.split("/")[1]
+        device_id = self.device_id_2(is_id, instr_id)
+        for child_id, device_actor in self.child_actors.items():
+            if child_id == device_id:
                 self.send(
                     device_actor["actor_address"],
                     MqttReceiveMsg(topic=message.topic, payload=message.payload),
@@ -385,9 +387,10 @@ class MqttClientActor(MqttBaseActor):
         """Handler for all messages of topic +/+/+/msg"""
         logger.debug("[on_instr_msg] %s, %s", message.topic, message.payload)
         instr_id = message.topic.split("/")[2]
-        child_actors = self.child_actors
-        for child_id, device_actor in child_actors.items():
-            if (child_id in self.child_actors) and (short_id(child_id) == instr_id):
+        is_id = message.topic.split("/")[1]
+        device_id = self.device_id_2(is_id, instr_id)
+        for child_id, device_actor in self.child_actors.items():
+            if child_id == device_id:
                 self.send(
                     device_actor["actor_address"],
                     MqttReceiveMsg(topic=message.topic, payload=message.payload),
