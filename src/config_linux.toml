@@ -32,12 +32,13 @@ device_id = "28tkhn4V.sarad-dacm.local"
 [usb_backend]
 poll_serial_ports = []
 ignored_serial_ports = []
-ignored_hwids = ["BTHENUM"]
+ignored_hwids = ["BTHENUM", "2c7c"]
 # Serial Bluetooth device: "BTHENUM"
+# Quectel LTE modem: "2c7c"
 # FTDI USB-to-serial converters: "0403"
 # Prolific and no-name USB-to-serial converters: "067B"
 # QinHeng Electronics USB-to-serial converters: "1a86"
-local_retry_interval = 5  # in seconds
+local_retry_interval = 7  # in seconds, must be lager than 5
 set_realtime_clock = true  # set the RTC of instrument on every contact
 use_utc = true  # UTC if true, local time if false
 

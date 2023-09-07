@@ -65,6 +65,11 @@ class UsbActor(DeviceBaseActor):
             kwargs={"data": None},
             daemon=True,
         )
+        self.tx_binary_thread_proceed = Thread(
+            target=self._tx_binary_proceed,
+            kwargs={"data": None},
+            daemon=True,
+        )
         self.get_recent_value_thread = Thread(
             target=self._get_recent_value,
             kwargs={
@@ -173,12 +178,16 @@ class UsbActor(DeviceBaseActor):
                 is_reserved = False
             if (not self.on_kill) and (not is_reserved):
                 if not self.check_connection_thread.is_alive():
-                    self.check_connection_thread = Thread(
-                        target=self._check_connection,
-                        kwargs={
-                            "purpose": Purpose.WAKEUP,
-                        },
-                        daemon=True,
+                    logger.debug("Start check connection thread for %s", self.my_id)
+                    self._start_thread(
+                        Thread(
+                            target=self._check_connection,
+                            kwargs={
+                                "purpose": Purpose.WAKEUP,
+                            },
+                            daemon=True,
+                        ),
+                        thread_type=ThreadType.CHECK_CONNECTION,
                     )
                 self.wakeupAfter(timedelta(seconds=0.5), payload="poll")
         elif isinstance(msg.payload, tuple) and isinstance(msg.payload[0], Thread):
@@ -281,15 +290,36 @@ class UsbActor(DeviceBaseActor):
             emergency = True
         logger.debug("Instrument replied %s", reply)
         if reply["is_valid"]:
-            self.next_method = (self._finish_tx_binary, reply["standard_frame"])
-            while not reply["is_last_frame"]:
-                try:
-                    reply = self.instrument.get_next_payload(timeout=1)
-                    self.next_method = (self._finish_tx_binary, reply["standard_frame"])
-                except (SerialException, OSError):
-                    logger.error("Connection to %s lost", self.my_id)
-                    reply = {"is_valid": False, "is_last_frame": True}
-                    emergency = True
+            if reply["is_last_frame"]:
+                self.next_method = (self._finish_tx_binary, reply["standard_frame"])
+            else:
+                self.next_method = (
+                    self._finish_tx_binary_proceed,
+                    reply["standard_frame"],
+                )
+        if emergency:
+            logger.info("Killing myself")
+            self._kill_myself()
+        elif not reply["is_valid"]:
+            logger.warning("Invalid binary message from instrument.")
+            self.next_method = (self._finish_tx_binary, reply["raw"])
+
+    def _tx_binary_proceed(self):
+        emergency = False
+        try:
+            reply = self.instrument.get_next_payload(timeout=1)
+        except (SerialException, OSError):
+            logger.error("Connection to %s lost", self.my_id)
+            reply = {"is_valid": False, "is_last_frame": True}
+            emergency = True
+        if reply["is_valid"]:
+            if reply["is_last_frame"]:
+                self.next_method = (self._finish_tx_binary, reply["standard_frame"])
+            else:
+                self.next_method = (
+                    self._finish_tx_binary_proceed,
+                    reply["standard_frame"],
+                )
         if emergency:
             logger.info("Killing myself")
             self._kill_myself()
@@ -299,6 +329,16 @@ class UsbActor(DeviceBaseActor):
 
     def _finish_tx_binary(self, data):
         self.send(self.redirector_actor, RxBinaryMsg(data))
+
+    def _finish_tx_binary_proceed(self, data):
+        self.send(self.redirector_actor, RxBinaryMsg(data))
+        self._start_thread(
+            Thread(
+                target=self._tx_binary_proceed,
+                daemon=True,
+            ),
+            ThreadType.TX_BINARY,
+        )
 
     @overrides
     def _request_reserve_at_is(self):
