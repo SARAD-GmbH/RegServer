@@ -32,7 +32,6 @@ class MqttBaseActor(BaseActor):
     def __init__(self):
         super().__init__()
         self.mqttc = None
-        self.ungr_disconn = 2
         self.is_connected = False
         self.msg_id = {
             "SUBSCRIBE": None,
@@ -50,13 +49,12 @@ class MqttBaseActor(BaseActor):
 
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
-        if self.ungr_disconn == 2:
-            logger.debug("To disconnect from the MQTT-broker!")
+        if self.is_connected:
+            logger.debug("Disconnect from MQTT broker")
             self.mqttc.disconnect()
-        elif self.ungr_disconn in (1, 0):
-            self.ungr_disconn = 2
+        else:
             logger.debug("Already disconnected")
-        logger.debug("To stop the MQTT thread!")
+        logger.debug("Stop the MQTT thread")
         self.mqttc.loop_stop()
         logger.info("%s: Client loop stopped", self.my_id)
         super()._kill_myself(register=register, resurrect=resurrect)
@@ -116,7 +114,7 @@ class MqttBaseActor(BaseActor):
         Give up, if TLS files are not available.
         """
         retry_interval = mqtt_config["RETRY_INTERVAL"]
-        while self.ungr_disconn > 0 and is_flag_set()[0]:
+        while is_flag_set()[0]:
             mqtt_broker = mqtt_config["MQTT_BROKER"]
             port = mqtt_config["PORT"]
             try:
@@ -218,7 +216,6 @@ class MqttBaseActor(BaseActor):
         """Will be carried out when the client disconnected from the MQTT broker."""
         logger.info("%s disconnected from MQTT broker", self.my_id)
         if reason_code >= 1:
-            self.ungr_disconn = 1
             logger.warning(
                 "%s ungracefully disconnected from MQTT broker (%s). Trying to reconnect.",
                 self.my_id,
@@ -227,7 +224,6 @@ class MqttBaseActor(BaseActor):
             # There is no need to do anything.
             # With loop_start() in place, re-connections will be handled automatically.
         else:
-            self.ungr_disconn = 0
             logger.debug("Gracefully disconnected from MQTT broker.")
         self.is_connected = False
 
