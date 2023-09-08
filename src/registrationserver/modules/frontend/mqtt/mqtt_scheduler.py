@@ -174,11 +174,8 @@ class MqttSchedulerActor(MqttBaseActor):
             if device_id not in self.reservations:
                 logger.debug("Publish %s as new instrument.", instr_id)
                 new_instrument_connected = True
-                new_subscriptions = [
-                    (f"{self.group}/{self.is_id}/{instr_id}/control", 0),
-                    (f"{self.group}/{self.is_id}/{instr_id}/cmd", 0),
-                ]
-                self._subscribe_topic(new_subscriptions)
+                self.mqttc.subscribe(f"{self.group}/{self.is_id}/{instr_id}/control", 2)
+                self.mqttc.subscribe(f"{self.group}/{self.is_id}/{instr_id}/cmd", 2)
                 identification = device_status["Identification"]
                 identification["Host"] = self.is_meta.host
                 message = {"State": 2, "Identification": identification}
@@ -264,11 +261,8 @@ class MqttSchedulerActor(MqttBaseActor):
         if self.reservations.pop(device_id, None) is not None:
             logger.info("Remove %s", device_id)
             instr_id = short_id(device_id)
-            gone_subscriptions = [
-                f"{self.group}/{self.is_id}/{instr_id}/control",
-                f"{self.group}/{self.is_id}/{instr_id}/cmd",
-            ]
-            self._unsubscribe_topic(gone_subscriptions)
+            self.mqttc.unsubscribe(f"{self.group}/{self.is_id}/{instr_id}/control")
+            self.mqttc.unsubscribe(f"{self.group}/{self.is_id}/{instr_id}/cmd")
             self.mqttc.publish(
                 topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
                 payload=json.dumps({"State": 0}),
@@ -299,8 +293,8 @@ class MqttSchedulerActor(MqttBaseActor):
         if self.led:
             self.led.on()
         self._instruments_connected()
-        self._subscribe_topic([(f"{self.group}/{self.is_id}/+/meta", 0)])
-        self._subscribe_topic([(f"{self.group}/{self.is_id}/cmd", 0)])
+        self.mqttc.subscribe(f"{self.group}/{self.is_id}/+/meta", 2)
+        self.mqttc.subscribe(f"{self.group}/{self.is_id}/cmd", 2)
         self._subscribe_to_actor_dict_msg()
         for actor_id, description in self.actor_dict.items():
             if description["actor_type"] == ActorType.DEVICE:

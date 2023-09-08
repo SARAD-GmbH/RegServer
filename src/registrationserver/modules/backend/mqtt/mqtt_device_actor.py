@@ -136,7 +136,7 @@ class MqttDeviceActor(DeviceBaseActor):
             logger.debug("allowed topic: %s", self.allowed_sys_topics[k])
         logger.debug("Subscribe MQTT actor to the 'reservation' topic")
         reserve_topic = self.allowed_sys_topics["RESERVE"]
-        self.send(self.parent.parent_address, MqttSubscribeMsg([(reserve_topic, 0)]))
+        self.send(self.parent.parent_address, MqttSubscribeMsg([(reserve_topic, 2)]))
 
     @overrides
     def _request_free_at_is(self):
@@ -193,7 +193,7 @@ class MqttDeviceActor(DeviceBaseActor):
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
                 msg_topic = self.allowed_sys_topics["MSG"]
                 self.send(
-                    self.parent.parent_address, MqttSubscribeMsg([(msg_topic, 0)])
+                    self.parent.parent_address, MqttSubscribeMsg([(msg_topic, 2)])
                 )
                 reservation_status = Status.OK
             else:

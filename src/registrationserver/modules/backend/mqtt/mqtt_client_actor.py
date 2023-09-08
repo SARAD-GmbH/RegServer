@@ -229,7 +229,7 @@ class MqttClientActor(MqttBaseActor):
             is_id,
         )
         self._hosts[is_id] = data
-        self._subscribe_topic([(f"{self.group}/{is_id}/+/meta", 0)])
+        self.mqttc.subscribe(f"{self.group}/{is_id}/+/meta", 2)
         self.send(self.registrar, HostInfoMsg([self._host_dict_to_object(is_id, data)]))
         logger.debug("[Add Host] IS %s added", is_id)
 
@@ -250,7 +250,7 @@ class MqttClientActor(MqttBaseActor):
 
     def _rm_host(self, is_id, state) -> None:
         logger.debug("[_rm_host] %s", is_id)
-        self._unsubscribe_topic([f"{self.group}/{is_id}/+/meta"])
+        self.mqttc.unsubscribe(f"{self.group}/{is_id}/+/meta")
         instr_to_remove = []
         for device_id, description in self.child_actors.items():
             if description["host"] == is_id:
@@ -399,7 +399,7 @@ class MqttClientActor(MqttBaseActor):
     @overrides
     def on_connect(self, client, userdata, flags, reason_code):
         super().on_connect(client, userdata, flags, reason_code)
-        self._subscribe_topic([("+/+/meta", 0)])
+        self.mqttc.subscribe("+/+/meta", 2)
 
     def receiveMsg_RescanMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -458,13 +458,15 @@ class MqttClientActor(MqttBaseActor):
         # pylint: disable=invalid-name
         """Handler for MqttSubscribeMsg from MQTT Device Actor (child)"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self._subscribe_topic(msg.sub_info)
+        for subscription in msg.sub_info:
+            self.mqttc.subscribe(subscription[0], subscription[1])
 
     def receiveMsg_MqttUnsubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for MqttUnsubscribeMsg from MQTT Device Actor (child)"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self._unsubscribe_topic(msg.topics)
+        for topic in msg.topics:
+            self.mqttc.unsubscribe(topic)
 
     def receiveMsg_MqttPublishMsg(self, msg, sender):
         # pylint: disable=invalid-name
