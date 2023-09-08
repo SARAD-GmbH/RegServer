@@ -96,9 +96,10 @@ class MqttSchedulerActor(MqttBaseActor):
             f"{self.group}/{self.is_id}/+/meta", self.on_instr_meta
         )
         self.mqttc.will_set(
-            retain=True,
             topic=f"{self.group}/{self.is_id}/meta",
             payload=get_is_meta(self.is_meta._replace(state=10)),
+            qos=2,
+            retain=True,
         )
 
     @overrides
