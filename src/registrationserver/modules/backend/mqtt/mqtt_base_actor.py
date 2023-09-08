@@ -279,30 +279,6 @@ class MqttBaseActor(BaseActor):
         if "Received PINGRES" in buf:
             self.last_pingresp = datetime.now()
 
-    def _publish(self, msg) -> bool:
-        if not self.is_connected:
-            logger.warning(
-                "%s failed to publish the message because of disconnection", self.my_id
-            )
-            return False
-        mqtt_topic = msg["topic"]
-        mqtt_payload = msg["payload"]
-        mqtt_qos = msg["qos"]
-        retain = msg.get("retain", False)
-        logger.debug("Publish %s to %s", mqtt_payload, mqtt_topic)
-        return_code, self.msg_id["PUBLISH"] = self.mqttc.publish(
-            mqtt_topic,
-            payload=mqtt_payload,
-            qos=mqtt_qos,
-            retain=retain,
-        )
-        if return_code != MQTT.MQTT_ERR_SUCCESS:
-            logger.warning(
-                "%s: Publish failed; result code is: %s", self.my_id, return_code
-            )
-            return False
-        return True
-
     def _subscribe_topic(self, sub_info: list) -> bool:
         """Subscribe to all topics listed in sub_info
 

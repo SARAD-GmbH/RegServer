@@ -407,12 +407,11 @@ class MqttClientActor(MqttBaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for is_id, host_descr in self._hosts.items():
             if (msg.host is None) or (msg.host == host_descr.get("Host")):
-                self._publish(
-                    {
-                        "topic": f"{self.group}/{is_id}/cmd",
-                        "payload": "scan",
-                        "qos": self.qos,
-                    }
+                self.mqttc.publish(
+                    topic=f"{self.group}/{is_id}/cmd",
+                    payload="scan",
+                    qos=self.qos,
+                    retain=False,
                 )
 
     def receiveMsg_ShutdownMsg(self, msg, sender):
@@ -421,12 +420,11 @@ class MqttClientActor(MqttBaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for is_id, host_descr in self._hosts.items():
             if (msg.host is None) or (msg.host == host_descr.get("Host")):
-                self._publish(
-                    {
-                        "topic": f"{self.group}/{is_id}/cmd",
-                        "payload": "shutdown",
-                        "qos": self.qos,
-                    }
+                self.mqttc.publish(
+                    topic=f"{self.group}/{is_id}/cmd",
+                    payload="shutdown",
+                    qos=self.qos,
+                    retain=False,
                 )
 
     def receiveMsg_GetHostInfoMsg(self, msg, sender):
@@ -472,11 +470,6 @@ class MqttClientActor(MqttBaseActor):
         # pylint: disable=invalid-name
         """Handler for MqttPublishMsg from MQTT Device Actor (child)"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self._publish(
-            {
-                "topic": msg.topic,
-                "payload": msg.payload,
-                "qos": msg.qos,
-                "retain": msg.retain,
-            }
+        self.mqttc.publish(
+            topic=msg.topic, payload=msg.payload, qos=msg.qos, retain=msg.retain
         )
