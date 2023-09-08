@@ -305,6 +305,10 @@ class MqttClientActor(MqttBaseActor):
                     "[+/meta] IS %s is known but offline",
                     is_id,
                 )
+            logger.info("Cleaning up retained messag at %s", message.topic)
+            self.mqttc.publish(
+                topic=message.topic, payload="", qos=self.qos, retain=True
+            )
         else:
             logger.warning(
                 "[+/meta] Subscriber received a meta message of an unknown host %s",
