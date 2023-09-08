@@ -151,7 +151,9 @@ class MqttSchedulerActor(MqttBaseActor):
             reservation_json = get_instr_reservation(reservation_object)
             topic = f"{self.group}/{self.is_id}/{msg.instr_id}/reservation"
             logger.debug("Publish %s on %s", reservation_json, topic)
-            self.mqttc.publish(topic=topic, payload=reservation_json, retain=True)
+            self.mqttc.publish(
+                topic=topic, payload=reservation_json, qos=self.qos, retain=True
+            )
             self.pending_control_action = ControlType.UNKNOWN
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
@@ -183,6 +185,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 self.mqttc.publish(
                     topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
                     payload=json.dumps(message),
+                    qos=self.qos,
                     retain=True,
                 )
                 if reservation is None:
@@ -231,7 +234,9 @@ class MqttSchedulerActor(MqttBaseActor):
                 reservation_json = get_instr_reservation(reservation_object)
                 topic = f"{self.group}/{self.is_id}/{instr_id}/reservation"
                 logger.debug("Publish %s on %s", reservation_json, topic)
-                self.mqttc.publish(topic=topic, payload=reservation_json, retain=True)
+                self.mqttc.publish(
+                    topic=topic, payload=reservation_json, qos=self.qos, retain=True
+                )
                 self._instruments_connected()
 
     def _instruments_connected(self):
@@ -246,9 +251,10 @@ class MqttSchedulerActor(MqttBaseActor):
             if self.led:
                 self.led.pulse()
         self.mqttc.publish(
-            retain=True,
             topic=topic,
             payload=payload,
+            qos=self.qos,
+            retain=True,
         )
         logger.debug("Publish %s on %s", payload, topic)
 
@@ -264,9 +270,10 @@ class MqttSchedulerActor(MqttBaseActor):
             ]
             self._unsubscribe_topic(gone_subscriptions)
             self.mqttc.publish(
-                retain=True,
                 topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
                 payload=json.dumps({"State": 0}),
+                qos=self.qos,
+                retain=True,
             )
         self._instruments_connected()
 
@@ -276,9 +283,10 @@ class MqttSchedulerActor(MqttBaseActor):
             if description["actor_type"] == ActorType.DEVICE:
                 self._remove_instrument(actor_id)
         self.mqttc.publish(
-            retain=True,
             topic=f"{self.group}/{self.is_id}/meta",
             payload=json.dumps({"State": 0}),
+            qos=self.qos,
+            retain=True,
         )
         if self.led and not self.led.closed:
             self.led.close()
@@ -350,7 +358,12 @@ class MqttSchedulerActor(MqttBaseActor):
             if description["address"] == sender:
                 instr_id = short_id(actor_id)
                 reply = bytes([self.cmd_ids[instr_id]]) + msg.data
-                self.mqttc.publish(f"{self.group}/{self.is_id}/{instr_id}/msg", reply)
+                self.mqttc.publish(
+                    topic=f"{self.group}/{self.is_id}/{instr_id}/msg",
+                    payload=reply,
+                    qos=self.qos,
+                    retain=False,
+                )
 
     def process_reserve(self, instr_id, control):
         """Sub event handler that will be called from the on_message event handler,
@@ -391,9 +404,10 @@ class MqttSchedulerActor(MqttBaseActor):
         device_actor, _device_id = self._device_actor(instr_id)
         if (device_actor is None) and (payload.get("State", 2) in (2, 1)):
             self.mqttc.publish(
-                retain=True,
                 topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
                 payload=json.dumps({"State": 0}),
+                qos=self.qos,
+                retain=True,
             )
 
     def _device_actor(self, instr_id):

@@ -88,7 +88,7 @@ class MqttDeviceActor(DeviceBaseActor):
                 topic=self.allowed_sys_topics["CMD"],
                 payload=bytes([self.cmd_id]) + data,
                 qos=self.qos,
-                retain=True,
+                retain=False,
             ),
         )
         if self.cmd_id == 255:
