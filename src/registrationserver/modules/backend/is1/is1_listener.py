@@ -462,3 +462,9 @@ class Is1Listener(BaseActor):
                 )
             )
         self.send(self.registrar, HostInfoMsg(hosts=hosts))
+
+    def receiveMsg_RescanMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for rescan command from Registrar"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self._scan_is()
