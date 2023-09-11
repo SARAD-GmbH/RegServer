@@ -421,14 +421,12 @@ class MqttSchedulerActor(MqttBaseActor):
 
     def receiveMsg_RescanFinishedMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Handler for RescanFinishedMsg from Registrar.
-
-        Does nothing else then putting a debug log entry."""
+        """Handler for RescanFinishedMsg from Registrar."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self._instruments_connected()
 
     def receiveMsg_ShutdownFinishedMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Handler for ShutdownFinishedMsg from Registrar.
-
-        Does nothing else then putting a debug log entry."""
+        """Handler for ShutdownFinishedMsg from Registrar."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self._instruments_connected()
