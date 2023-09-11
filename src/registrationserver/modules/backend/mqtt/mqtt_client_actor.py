@@ -269,6 +269,8 @@ class MqttClientActor(MqttBaseActor):
     def on_is_meta(self, _client, _userdata, message):
         """Handler for all messages of topic +/meta."""
         logger.debug("[on_is_meta] %s, %s", message.topic, message.payload)
+        if not message.payload:
+            return
         topic_parts = message.topic.split("/")
         is_id = topic_parts[1]
         payload = json.loads(message.payload)
@@ -318,6 +320,8 @@ class MqttClientActor(MqttBaseActor):
     def on_instr_meta(self, _client, _userdata, message):
         """Handler for all messages of topic +/+/meta."""
         logger.debug("[on_instr_meta] %s, %s", message.topic, message.payload)
+        if not message.payload:
+            return
         topic_parts = message.topic.split("/")
         is_id = topic_parts[1]
         instr_id = topic_parts[2]
@@ -377,6 +381,8 @@ class MqttClientActor(MqttBaseActor):
     def on_instr_reserve(self, _client, _userdata, message):
         """Handler for all messages of topic +/+/+/reservation"""
         logger.debug("[on_instr_reserve] %s, %s", message.topic, message.payload)
+        if not message.payload:
+            return
         instr_id = message.topic.split("/")[2]
         is_id = message.topic.split("/")[1]
         device_id = self.device_id_2(is_id, instr_id)

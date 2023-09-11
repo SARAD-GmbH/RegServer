@@ -36,14 +36,14 @@ class MqttDeviceActor(DeviceBaseActor):
             "RESERVE": "",
             "CMD": "",
             "MSG": "",
-            # "META": "",
+            "META": "",
         }
         self.allowed_sys_options = {
             "CTRL": "control",
             "RESERVE": "reservation",
             "CMD": "cmd",
             "MSG": "msg",
-            # "META": "meta",
+            "META": "meta",
         }
         self.state = {
             "RESERVE": {
@@ -104,6 +104,7 @@ class MqttDeviceActor(DeviceBaseActor):
         Args:
             self.reserve_device_msg: Dataclass identifying the requesting app, host and user.
         """
+        super()._request_reserve_at_is()
         if not self.state["RESERVE"]["Pending"]:
             self.state["RESERVE"]["Pending"] = True
             self.send(
@@ -120,6 +121,33 @@ class MqttDeviceActor(DeviceBaseActor):
                     ),
                     qos=self.qos,
                     retain=False,
+                ),
+            )
+
+    @overrides
+    def _handle_reserve_reply_from_is(self, success):
+        super()._handle_reserve_reply_from_is(success)
+        if success is Status.NOT_FOUND:
+            logger.warning(
+                "Reserve request to %s timed out, reset retained MQTT messages",
+                self.my_id,
+            )
+            self.send(
+                self.parent.parent_address,
+                MqttPublishMsg(
+                    topic=self.allowed_sys_topics["META"],
+                    payload="",
+                    qos=self.qos,
+                    retain=True,
+                ),
+            )
+            self.send(
+                self.parent.parent_address,
+                MqttPublishMsg(
+                    topic=self.allowed_sys_topics["RESERVE"],
+                    payload="",
+                    qos=self.qos,
+                    retain=True,
                 ),
             )
 
@@ -154,6 +182,33 @@ class MqttDeviceActor(DeviceBaseActor):
             self.parent.parent_address,
             MqttUnsubscribeMsg([self.allowed_sys_topics["MSG"]]),
         )
+        super()._request_free_at_is()
+
+    @overrides
+    def _handle_free_reply_from_is(self, success):
+        if success is Status.NOT_FOUND:
+            logger.warning(
+                "Free request to %s timed out, reset retained MQTT messages", self.my_id
+            )
+            self.send(
+                self.parent.parent_address,
+                MqttPublishMsg(
+                    topic=self.allowed_sys_topics["META"],
+                    payload="",
+                    qos=self.qos,
+                    retain=True,
+                ),
+            )
+            self.send(
+                self.parent.parent_address,
+                MqttPublishMsg(
+                    topic=self.allowed_sys_topics["RESERVE"],
+                    payload="",
+                    qos=self.qos,
+                    retain=True,
+                ),
+            )
+        super()._handle_free_reply_from_is(success)
 
     def receiveMsg_MqttReceiveMsg(self, msg, sender):
         # pylint: disable=invalid-name

@@ -21,7 +21,7 @@ from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.redirect_actor import RedirectorActor
 
-RESERVE_TIMEOUT = timedelta(seconds=10)  # Timeout for RESERVE or FREE operations
+RESERVE_TIMEOUT = timedelta(seconds=7)  # Timeout for RESERVE or FREE operations
 
 
 class DeviceBaseActor(BaseActor):
@@ -101,6 +101,10 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if isinstance(msg.payload, tuple):
             msg.payload[0](msg.payload[1], msg.payload[2])
+        elif (msg.payload == "timeout_on_reserve") and self.reserve_lock:
+            self._handle_reserve_reply_from_is(success=Status.NOT_FOUND)
+        elif (msg.payload == "timeout_on_free") and self.free_lock:
+            self._handle_free_reply_from_is(success=Status.NOT_FOUND)
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -147,6 +151,7 @@ class DeviceBaseActor(BaseActor):
         Args:
             self.reserve_device_msg: Dataclass identifying the requesting app, host and user.
         """
+        self.wakeupAfter(RESERVE_TIMEOUT, "timeout_on_reserve")
 
     def _handle_reserve_reply_from_is(self, success: Status):
         # pylint: disable=unused-argument
@@ -271,6 +276,7 @@ class DeviceBaseActor(BaseActor):
         """Request freeing an instrument at the Instrument Server. This function has
         to be implemented (overridden) in the protocol specific modules.
         """
+        self.wakeupAfter(RESERVE_TIMEOUT, "timeout_on_free")
 
     def _handle_free_reply_from_is(self, success: Status):
         # pylint: disable=unused-argument
