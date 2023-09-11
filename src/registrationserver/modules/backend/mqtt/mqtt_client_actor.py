@@ -269,11 +269,15 @@ class MqttClientActor(MqttBaseActor):
     def on_is_meta(self, _client, _userdata, message):
         """Handler for all messages of topic +/meta."""
         logger.debug("[on_is_meta] %s, %s", message.topic, message.payload)
-        if not message.payload:
-            return
         topic_parts = message.topic.split("/")
         is_id = topic_parts[1]
-        payload = json.loads(message.payload)
+        try:
+            payload = json.loads(message.payload)
+        except (TypeError, json.decoder.JSONDecodeError):
+            logger.warning(
+                "Cannot decode %s at topic %s", message.payload, message.topic
+            )
+            return
         if "State" not in payload:
             logger.warning(
                 "[+/meta] Received meta message not including state of IS %s",
@@ -320,12 +324,16 @@ class MqttClientActor(MqttBaseActor):
     def on_instr_meta(self, _client, _userdata, message):
         """Handler for all messages of topic +/+/meta."""
         logger.debug("[on_instr_meta] %s, %s", message.topic, message.payload)
-        if not message.payload:
-            return
         topic_parts = message.topic.split("/")
         is_id = topic_parts[1]
         instr_id = topic_parts[2]
-        payload = json.loads(message.payload)
+        try:
+            payload = json.loads(message.payload)
+        except (TypeError, json.decoder.JSONDecodeError):
+            logger.warning(
+                "Cannot decode %s at topic %s", message.payload, message.topic
+            )
+            return
         if "State" not in payload:
             logger.warning(
                 "[+/meta] State of instrument %s missing in meta message from IS %s",
@@ -381,7 +389,12 @@ class MqttClientActor(MqttBaseActor):
     def on_instr_reserve(self, _client, _userdata, message):
         """Handler for all messages of topic +/+/+/reservation"""
         logger.debug("[on_instr_reserve] %s, %s", message.topic, message.payload)
-        if not message.payload:
+        try:
+            _payload = json.loads(message.payload)
+        except (TypeError, json.decoder.JSONDecodeError):
+            logger.warning(
+                "Cannot decode %s at topic %s", message.payload, message.topic
+            )
             return
         instr_id = message.topic.split("/")[2]
         is_id = message.topic.split("/")[1]

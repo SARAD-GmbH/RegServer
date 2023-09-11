@@ -222,7 +222,11 @@ class MqttDeviceActor(DeviceBaseActor):
     def on_reserve(self, payload):
         """Handler for MQTT messages regarding reservation of instruments"""
         reservation_status = Status.ERROR
-        reservation = json.loads(payload)
+        try:
+            reservation = json.loads(payload)
+        except (TypeError, json.decoder.JSONDecodeError):
+            logger.warning("Cannot decode %s", payload)
+            return
         if reservation == self.last_message:
             logger.debug("We have already got message %s", reservation)
             return

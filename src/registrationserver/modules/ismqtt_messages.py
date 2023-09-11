@@ -111,7 +111,11 @@ def get_instr_reservation(data: Reservation) -> str:
 def get_instr_control(json_data, old_reservation) -> Control:
     """Converting received MQTT payload into Control object"""
     nodata = Reservation(0, False, "", "", "")
-    data = json.loads(json_data.payload)
+    try:
+        data = json.loads(json_data.payload)
+    except (TypeError, json.decoder.JSONDecodeError):
+        logger.warning("Cannot decode %s", json_data.payload)
+        return Control(ControlType.UNKNOWN, nodata)
     if not "Req" in data:
         logger.error("No 'Req' in payload.")
         return Control(ctype=ControlType.UNKNOWN, data=nodata)

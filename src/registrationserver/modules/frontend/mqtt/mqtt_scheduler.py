@@ -395,7 +395,13 @@ class MqttSchedulerActor(MqttBaseActor):
         logger.debug("[on_instr_meta] %s, %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
         instr_id = topic_parts[2]
-        payload = json.loads(message.payload)
+        try:
+            payload = json.loads(message.payload)
+        except (TypeError, json.decoder.JSONDecodeError):
+            logger.warning(
+                "Cannot decode %s at topic %s", message.payload, message.topic
+            )
+            return
         device_actor, _device_id = self._device_actor(instr_id)
         if (device_actor is None) and (payload.get("State", 2) in (2, 1)):
             self.mqttc.publish(
