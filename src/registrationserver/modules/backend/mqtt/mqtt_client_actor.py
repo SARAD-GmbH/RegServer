@@ -10,7 +10,7 @@
 .. uml :: uml-mqtt_client_actor.puml
 """
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
@@ -25,6 +25,8 @@ from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
     MqttBaseActor
 from registrationserver.modules.backend.mqtt.mqtt_device_actor import \
     MqttDeviceActor
+
+RESCAN_TIMEOUT = timedelta(seconds=7)  # Timeout for RESCAN or SHUTDOWN operations
 
 
 class MqttClientActor(MqttBaseActor):
@@ -271,6 +273,9 @@ class MqttClientActor(MqttBaseActor):
         logger.debug("[on_is_meta] %s, %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
         is_id = topic_parts[1]
+        if self._hosts.get(is_id, False):
+            self._hosts[is_id]["rescan_lock"] = False
+            self._hosts[is_id]["shutdown_lock"] = False
         try:
             payload = json.loads(message.payload)
         except (TypeError, json.decoder.JSONDecodeError):
@@ -430,6 +435,8 @@ class MqttClientActor(MqttBaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for is_id, host_descr in self._hosts.items():
             if (msg.host is None) or (msg.host == host_descr.get("Host")):
+                host_descr["rescan_lock"] = datetime.now()
+                self.wakeupAfter(RESCAN_TIMEOUT, ("rescan_timeout", is_id))
                 self.mqttc.publish(
                     topic=f"{self.group}/{is_id}/cmd",
                     payload="scan",
@@ -443,6 +450,8 @@ class MqttClientActor(MqttBaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for is_id, host_descr in self._hosts.items():
             if (msg.host is None) or (msg.host == host_descr.get("Host")):
+                host_descr["shutdown_lock"] = datetime.now()
+                self.wakeupAfter(RESCAN_TIMEOUT, ("shutdown_timeout", is_id))
                 self.mqttc.publish(
                     topic=f"{self.group}/{is_id}/cmd",
                     payload="shutdown",
@@ -498,3 +507,27 @@ class MqttClientActor(MqttBaseActor):
         self.mqttc.publish(
             topic=msg.topic, payload=msg.payload, qos=msg.qos, retain=msg.retain
         )
+
+    @overrides
+    def receiveMsg_WakeupMessage(self, msg, sender):
+        super().receiveMsg_WakeupMessage(msg, sender)
+        key = msg.payload[0]
+        is_id = msg.payload[1]
+        if self._hosts.get(is_id):
+            rescan_lock = self._hosts[is_id].get("rescan_lock")
+            shutdown_lock = self._hosts[is_id].get("rescan_lock")
+        if ((key == "rescan_timeout") and rescan_lock) or (
+            (key == "shutdown_timeout") and shutdown_lock
+        ):
+            if key == "rescan_timeout":
+                self._hosts[is_id]["rescan_lock"] = False
+            elif key == "shutdown_timeout":
+                self._hosts[is_id]["shutdown_lock"] = False
+            logger.info("Cannot reach host %s. Removing retained messages.", is_id)
+            self.mqttc.publish(
+                topic=f"{self.group}/{is_id}/meta",
+                payload="",
+                qos=2,
+                retain=True,
+            )
+            self._rm_host(is_id, 10)

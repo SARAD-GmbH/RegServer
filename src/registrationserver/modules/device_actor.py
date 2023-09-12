@@ -102,8 +102,10 @@ class DeviceBaseActor(BaseActor):
         if isinstance(msg.payload, tuple):
             msg.payload[0](msg.payload[1], msg.payload[2])
         elif (msg.payload == "timeout_on_reserve") and self.reserve_lock:
+            self.reserve_lock = False
             self._handle_reserve_reply_from_is(success=Status.NOT_FOUND)
         elif (msg.payload == "timeout_on_free") and self.free_lock:
+            self.free_lock = False
             self._handle_free_reply_from_is(success=Status.NOT_FOUND)
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
