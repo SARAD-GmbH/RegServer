@@ -259,6 +259,8 @@ class MqttBaseActor(BaseActor):
             logger.warning("payload: %s", message.payload)
             logger.warning("qos: %s", message.qos)
             logger.warning("retain: %s", message.retain)
+            logger.info("Unsubscribe %s for %s", message.topic, self.my_id)
+            self.mqttc.unsubscribe(message.topic)
 
     def on_log(self, _client, _userdata, level, buf):
         """Handler for MQTT logging information."""
