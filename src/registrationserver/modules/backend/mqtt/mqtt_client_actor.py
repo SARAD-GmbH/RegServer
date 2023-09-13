@@ -306,8 +306,8 @@ class MqttClientActor(MqttBaseActor):
                 self._add_host(is_id, payload)
         elif payload["State"] in (0, 10):
             if is_id in self._hosts:
-                logger.debug(
-                    "[+/meta] Remove host for %s",
+                logger.info(
+                    "Host with is_id '%s' just died.",
                     is_id,
                 )
                 self._rm_host(is_id, payload["State"])
