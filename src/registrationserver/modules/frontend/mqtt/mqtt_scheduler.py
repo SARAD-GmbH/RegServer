@@ -297,9 +297,6 @@ class MqttSchedulerActor(MqttBaseActor):
         self.mqttc.subscribe(f"{self.group}/{self.is_id}/+/meta", 2)
         self.mqttc.subscribe(f"{self.group}/{self.is_id}/cmd", 2)
         self._subscribe_to_actor_dict_msg()
-        for actor_id, description in self.actor_dict.items():
-            if description["actor_type"] == ActorType.DEVICE:
-                self.process_free(short_id(actor_id))
 
     def on_control(self, _client, _userdata, message):
         """Event handler for all MQTT messages with control topic."""
