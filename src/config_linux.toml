@@ -20,7 +20,7 @@ is1 = false
 
 [rest_frontend]
 api_port = 8008
-port_range = [50001, 50500]
+port_range = [50003, 50500]
 
 [modbus_rtu_frontend]
 slave_address = 1
