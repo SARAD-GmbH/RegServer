@@ -158,7 +158,7 @@ else:
 
 # Configuration of REST frontend
 DEFAULT_API_PORT = 8008
-DEFAULT_PORT_RANGE = range(50000, 50500)
+DEFAULT_PORT_RANGE = range(50003, 50500)
 
 if customization.get("rest_frontend") is None:
     rest_frontend_config = {
