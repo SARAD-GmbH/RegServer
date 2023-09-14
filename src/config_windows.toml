@@ -1,10 +1,10 @@
 debug_level = "info"
-# is_id = "Instrument Server A"
-# description = "A longer text describing this Instrument Server"
-# place = "A text describing where the Instrument Controller running this Instrument Server is placed"
-# latitude = 51.0764194  # positive values for North, negative for South
-# longitude = 13.7383917  # positive values for East, negative for West
-# height = 102  # in meters
+is_id = ""
+description = "A longer text describing this Instrument Server"
+place = "Test office"
+latitude = 51.0764194  # positive values for North, negative for South
+longitude = 13.7383917  # positive values for East, negative for West
+height = 102  # in meters
 
 [frontends]
 rest = true
@@ -20,10 +20,10 @@ is1 = false
 
 [rest_frontend]
 api_port = 8008
-port_range = [50001, 50500]
+port_range = [50003, 50500]
 
 [usb_backend]
-poll_serial_ports = ["COM1"]
+poll_serial_ports = []
 ignored_serial_ports = []
 ignored_hwids = ["BTHENUM"]
 # Serial Bluetooth device: "BTHENUM"
@@ -31,7 +31,7 @@ ignored_hwids = ["BTHENUM"]
 # Prolific and no-name USB-to-serial converters: "067B"
 # QinHeng Electronics USB-to-serial converters: "1a86"
 local_retry_interval = 10  # in seconds
-set_realtime_clock = true  # set the RTC of instrument on every contact
+set_realtime_clock = false  # set the RTC of instrument on every contact
 use_utc = false  # UTC if true, local time if false
 
 [is1_backend]
@@ -66,11 +66,11 @@ outer_watchdog_interval = 60  # in seconds
 outer_watchdog_trials = 1  # number of attempts to check Registrar
 
 [mqtt]
-group = "Registration Server"
+group = "sarad-0001"  # replace by your company's MQTT group
 mqtt_broker = "sarad.de"
 port = 8883
 keepalive = 60
-qos = 0
+qos = 2
 retry_interval = 5
 tls_use_tls = true
 
