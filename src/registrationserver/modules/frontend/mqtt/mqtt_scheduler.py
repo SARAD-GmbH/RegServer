@@ -47,7 +47,9 @@ class MqttSchedulerActor(MqttBaseActor):
         """Extract only active device actors from actor_dict"""
         active_device_actor_dict = {}
         for actor_id, description in actor_dict.items():
-            if description["actor_type"] == ActorType.DEVICE:
+            if (description["actor_type"] == ActorType.DEVICE) and (
+                transport_technology(actor_id) not in ("mqtt", "mdns")
+            ):
                 active_device_actor_dict[actor_id] = description
         return active_device_actor_dict
 
@@ -120,7 +122,8 @@ class MqttSchedulerActor(MqttBaseActor):
         gone_device_actors = diff_of_dicts(old_actor_dict, new_actor_dict)
         logger.debug("Gone device actors %s", gone_device_actors)
         for actor_id, description in new_device_actors.items():
-            self._subscribe_to_device_status_msg(description["address"])
+            if transport_technology(actor_id) not in ("mqtt", "mdns"):
+                self._subscribe_to_device_status_msg(description["address"])
         for actor_id in gone_device_actors:
             self._remove_instrument(actor_id)
 
@@ -411,7 +414,9 @@ class MqttSchedulerActor(MqttBaseActor):
     def _device_actor(self, instr_id):
         """Get device actor address and device_id from instr_id"""
         for actor_id, description in self.actor_dict.items():
-            if description["actor_type"] == ActorType.DEVICE:
+            if (description["actor_type"] == ActorType.DEVICE) and (
+                transport_technology(actor_id) not in ("mqtt", "mdns")
+            ):
                 if instr_id == short_id(actor_id):
                     return (description["address"], actor_id)
         return (None, "")
