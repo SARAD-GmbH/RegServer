@@ -193,27 +193,12 @@ class Is1Address:
     """Object containing the address information of an Instrument Server 1
 
     Args:
-        ip_address (str): IP address of IS1
-        port (int): IP port number
         hostname (str): hostname of instrument server
+        port (int): IP port number
     """
 
-    ip_address: str = field(init=True, repr=True, compare=False)
-    port: int
     hostname: str = field(init=True, repr=True, hash=True, compare=True)
-
-    def __post_init__(self):
-        """Check whether the IS can be reached under the hostname.
-        If it cannot, use the ip_address instead.
-        """
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-            try:
-                client_socket.connect((self.hostname, self.port))
-            except ConnectionError:
-                return
-            except Exception:  # pylint: disable=broad-except
-                object.__setattr__(self, "hostname", self.ip_address)
-        return
+    port: int
 
     def __eq__(self, other):
         return compare_hostnames(self.hostname, other.hostname)

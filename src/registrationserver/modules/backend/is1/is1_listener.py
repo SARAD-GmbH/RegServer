@@ -141,7 +141,6 @@ class Is1Listener(BaseActor):
             logger.info("Socket listening on %s:%d", my_ip, my_port)
         self.is1_addresses = []  # List of Is1Address
         self.active_is1_addresses = []  # List of Is1Address with device Actors
-        self.pickle_file_name = f"{app_folder}wlan_instruments.pickle"
         self.scan_is_thread = Thread(target=self._scan_is_function, daemon=True)
         self.cmd_thread = Thread(target=self._cmd_handler_function, daemon=True)
         self.actor_type = ActorType.HOST
@@ -149,16 +148,12 @@ class Is1Listener(BaseActor):
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
-        try:
-            with open(self.pickle_file_name, "rb") as pickle_file:
-                self.is1_addresses = self._deduplicate(pickle.load(pickle_file))
-        except FileNotFoundError:
-            logger.warning("Cannot find %s", self.pickle_file_name)
-        except AttributeError:
-            logger.error("Error reading persistent instrument server list")
+        is1_addresses = []
+        for host in is1_backend_config["IS1_HOSTS"]:
+            is1_addresses.append(Is1Address(hostname=host[0], port=host[1]))
+        self.is1_addresses = self._deduplicate(is1_addresses)
         logger.info(
-            "List of formerly used IS1 addresses restored from %s: %s",
-            self.pickle_file_name,
+            "List of formerly used IS1 addresses: %s",
             self.is1_addresses,
         )
         self._scan_is()
@@ -209,7 +204,6 @@ class Is1Listener(BaseActor):
 
     def _cmd_handler_function(self):
         """Handle a binary SARAD command received via the socket."""
-        is_host = self._socket_info[0]
         for _i in range(0, 5):
             try:
                 data = self.conn.recv(1024)
@@ -228,9 +222,8 @@ class Is1Listener(BaseActor):
             logger.debug("IS1 hostname: %s", is_port_id["id"])
             self._scan_one_is(
                 Is1Address(
-                    ip_address=is_host,
-                    port=is_port_id["port"],
                     hostname=is_port_id["id"],
+                    port=is_port_id["port"],
                 )
             )
 
@@ -266,7 +259,7 @@ class Is1Listener(BaseActor):
             time.sleep(1)
             while retry and counter:
                 try:
-                    logger.debug("Trying to connect %s:%d", address.ip_address, is_port)
+                    logger.debug("Trying to connect %s:%d", address.hostname, is_port)
                     client_socket.connect((is_host, is_port))
                     retry = False
                 except ConnectionRefusedError:
@@ -336,12 +329,12 @@ class Is1Listener(BaseActor):
     def receiveMsg_ActorExitRequest(self, msg, sender):
         super().receiveMsg_ActorExitRequest(msg, sender)
         self.is1_addresses.extend(self.active_is1_addresses)
-        with open(self.pickle_file_name, "wb") as pickle_file:
-            pickle.dump(
-                self._deduplicate(self.is1_addresses),
-                pickle_file,
-                pickle.HIGHEST_PROTOCOL,
-            )
+        # with open(self.pickle_file_name, "wb") as pickle_file:
+        #     pickle.dump(
+        #         self._deduplicate(self.is1_addresses),
+        #         pickle_file,
+        #         pickle.HIGHEST_PROTOCOL,
+        #     )
 
     def _create_and_setup_actor(
         self, instr_id, port, is1_address: Is1Address, firmware_version: int

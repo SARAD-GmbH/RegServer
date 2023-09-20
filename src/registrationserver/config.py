@@ -338,7 +338,7 @@ else:
         "SCAN_INTERVAL": customization["is1_backend"].get(
             "scan_interval", DEFAULT_SCAN_INTERVAL
         ),
-        "IS1_HOSTS": hosts,
+        "IS1_HOSTS": is1_hosts,
     }
 
 # Configuration of Actor system
