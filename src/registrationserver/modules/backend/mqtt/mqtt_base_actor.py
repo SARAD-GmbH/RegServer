@@ -141,7 +141,7 @@ class MqttBaseActor(BaseActor):
                         cert_reqs=ssl.CERT_REQUIRED,
                     )
                 self.mqttc.connect(
-                    mqtt_broker, port=port, keepalive=mqtt_config["KEEPALIVE"]
+                    mqtt_broker, port=int(port), keepalive=mqtt_config["KEEPALIVE"]
                 )
                 self.next_method = self._connected
                 return

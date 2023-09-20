@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from threading import Thread
 from typing import List
 
-import toml
+import tomlkit
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
@@ -339,7 +339,7 @@ class Is1Listener(BaseActor):
         logger.info("is1_hosts = %s", is1_hosts)
         customization["is1_backend"]["hosts"] = is1_hosts
         with open(config_file, "w", encoding="utf8") as custom_file:
-            toml.dump(customization, custom_file)
+            tomlkit.dump(customization, custom_file)
 
     def _create_and_setup_actor(
         self, instr_id, port, is1_address: Is1Address, firmware_version: int

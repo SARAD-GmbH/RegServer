@@ -14,7 +14,7 @@ import sys
 from typing import List, Union
 from uuid import getnode as get_mac
 
-import toml
+import tomlkit
 from zeroconf import IPVersion
 
 from registrationserver.actor_messages import Backend, Frontend
@@ -80,7 +80,8 @@ try:
         config_file = windows_config_file
     else:
         config_file = linux_config_file
-    customization = toml.load(config_file)
+    with open(config_file, "rt", encoding="utf8") as custom_file:
+        customization = tomlkit.load(custom_file).value
 except OSError:
     customization = {}
 
