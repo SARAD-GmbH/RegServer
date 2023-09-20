@@ -313,13 +313,24 @@ rs485_backend_config = customization.get("rs485_backend", {})
 # IS1 backend configuration
 DEFAULT_REG_PORT = 50002
 DEFAULT_SCAN_INTERVAL = 60
+DEFAULT_IS1_HOSTS: List[List[Union[None, str, int]]] = [[], []]
+DEFAULT_IS1_PORT = 50000
 
 if customization.get("is1_backend") is None:
     is1_backend_config = {
         "REG_PORT": DEFAULT_REG_PORT,
         "SCAN_INTERVAL": DEFAULT_SCAN_INTERVAL,
+        "IS1_HOSTS": DEFAULT_IS1_HOSTS,
     }
 else:
+    is1_hosts_toml = customization["is1_backend"].get("hosts", DEFAULT_IS1_HOSTS)
+    is1_hosts = []
+    for hostname in is1_hosts_toml[0]:
+        try:
+            port = is1_hosts_toml[1][is1_hosts_toml[0].index(hostname)]
+        except IndexError:
+            port = DEFAULT_IS1_PORT  # pylint: disable=invalid-name
+        is1_hosts.append([hostname, port])
     is1_backend_config = {
         "REG_PORT": customization["is1_backend"].get(
             "registration_port", DEFAULT_REG_PORT
@@ -327,6 +338,7 @@ else:
         "SCAN_INTERVAL": customization["is1_backend"].get(
             "scan_interval", DEFAULT_SCAN_INTERVAL
         ),
+        "IS1_HOSTS": hosts,
     }
 
 # Configuration of Actor system
