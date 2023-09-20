@@ -262,7 +262,7 @@ class SetupHostActorMsg:
         host: Hostname of the host running the instrument server
         port: Port address of the REST API
         scan_interval (int): Polling interval for instrument detection via REST API
-                             in seconds.
+                             in seconds. 0 = don't scan!
     """
 
     host: str
