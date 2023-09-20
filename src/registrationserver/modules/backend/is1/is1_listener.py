@@ -330,8 +330,14 @@ class Is1Listener(BaseActor):
     def receiveMsg_ActorExitRequest(self, msg, sender):
         super().receiveMsg_ActorExitRequest(msg, sender)
         self.is1_addresses.extend(self.active_is1_addresses)
-        is1_addresses = (self._deduplicate(self.is1_addresses),)
-        # TODO Change customization
+        is1_addresses = self._deduplicate(self.is1_addresses)
+        logger.info("is1_addresses = %s", is1_addresses)
+        is1_hosts = [[], []]
+        for is1_address in is1_addresses:
+            is1_hosts[0].append(is1_address.hostname)
+            is1_hosts[1].append(is1_address.port)
+        logger.info("is1_hosts = %s", is1_hosts)
+        customization["is1_backend"]["hosts"] = is1_hosts
         with open(config_file, "w", encoding="utf8") as custom_file:
             toml.dump(customization, custom_file)
 
