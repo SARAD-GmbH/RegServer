@@ -6,7 +6,6 @@
 :Authors:
     | Michael Strey <strey@sarad.de>
 """
-import pickle
 import select
 import socket
 import time
@@ -14,6 +13,7 @@ from datetime import datetime, timedelta
 from threading import Thread
 from typing import List
 
+import toml
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
@@ -21,7 +21,8 @@ from registrationserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                                SetupIs1ActorMsg,
                                                TransportTechnology)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import app_folder, config, is1_backend_config
+from registrationserver.config import (config, config_file, customization,
+                                       is1_backend_config)
 from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_actor import Is1Actor
@@ -329,12 +330,10 @@ class Is1Listener(BaseActor):
     def receiveMsg_ActorExitRequest(self, msg, sender):
         super().receiveMsg_ActorExitRequest(msg, sender)
         self.is1_addresses.extend(self.active_is1_addresses)
-        # with open(self.pickle_file_name, "wb") as pickle_file:
-        #     pickle.dump(
-        #         self._deduplicate(self.is1_addresses),
-        #         pickle_file,
-        #         pickle.HIGHEST_PROTOCOL,
-        #     )
+        is1_addresses = (self._deduplicate(self.is1_addresses),)
+        # TODO Change customization
+        with open(config_file, "w", encoding="utf8") as custom_file:
+            toml.dump(customization, custom_file)
 
     def _create_and_setup_actor(
         self, instr_id, port, is1_address: Is1Address, firmware_version: int
