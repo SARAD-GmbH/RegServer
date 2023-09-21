@@ -69,7 +69,6 @@ class Registrar(BaseActor):
             self.send(
                 mqtt_scheduler,
                 PrepareMqttActorMsg(
-                    is_id=None,
                     client_id=unique_id(config["IS_ID"]),
                     group=mqtt_config["GROUP"],
                 ),
@@ -88,7 +87,6 @@ class Registrar(BaseActor):
             self.send(
                 mqtt_client_actor,
                 PrepareMqttActorMsg(
-                    is_id=None,
                     client_id=mqtt_config["MQTT_CLIENT_ID"],
                     group=mqtt_config["GROUP"],
                 ),

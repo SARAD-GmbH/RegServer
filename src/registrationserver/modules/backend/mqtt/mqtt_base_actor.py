@@ -45,6 +45,7 @@ class MqttBaseActor(BaseActor):
         self.next_method = None
         self.qos = mqtt_config["QOS"]
         self.last_pingresp = datetime.now()
+        self.is_id = None
 
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
@@ -62,6 +63,7 @@ class MqttBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for PrepareMqttActorMsg from MQTT Listener"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.is_id = msg.client_id
         self.mqttc = MQTT.Client(client_id=msg.client_id, clean_session=False)
         self.group = msg.group
         self.mqttc.on_connect = self.on_connect

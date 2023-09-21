@@ -186,10 +186,9 @@ class MqttClientActor(MqttBaseActor):
             self.child_actors[device_id]["host"] = is_id
             payload["State"] = 2
             self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
-            client_id = unique_id(f"{device_id}.client")
             self.send(
                 device_actor,
-                PrepareMqttActorMsg(is_id, client_id, self.group),
+                PrepareMqttActorMsg(is_id, self.group),
             )
 
     def _rm_instr(self, is_id, instr_id) -> None:
@@ -479,7 +478,7 @@ class MqttClientActor(MqttBaseActor):
         super().receiveMsg_ChildActorExited(msg, sender)
         if self.resurrect_msg:
             self._add_instr(
-                self.resurrect_msg.is_id,
+                self.is_id,
                 self.resurrect_msg.instr_id,
                 self.resurrect_msg.device_status,
                 resurrect=True,

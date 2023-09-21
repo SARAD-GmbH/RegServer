@@ -18,6 +18,7 @@ from registrationserver.actor_messages import (MqttPublishMsg,
                                                MqttUnsubscribeMsg,
                                                ResurrectMsg, RxBinaryMsg,
                                                Status)
+from registrationserver.config import mqtt_config
 from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
@@ -29,7 +30,6 @@ class MqttDeviceActor(DeviceBaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self.is_id = None
         self.qos = 2
         self.allowed_sys_topics = {
             "CTRL": "",
@@ -157,10 +157,9 @@ class MqttDeviceActor(DeviceBaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for k in self.allowed_sys_topics:
             self.allowed_sys_topics[k] = (
-                f"{msg.group}/{msg.is_id}/"
+                f"{msg.group}/{msg.client_id}/"
                 + f"{short_id(self.my_id)}/{self.allowed_sys_options[k]}"
             )
-            self.is_id = msg.is_id
             logger.debug("allowed topic: %s", self.allowed_sys_topics[k])
         logger.debug("Subscribe MQTT actor to the 'reservation' topic")
         reserve_topic = self.allowed_sys_topics["RESERVE"]
@@ -355,7 +354,6 @@ class MqttDeviceActor(DeviceBaseActor):
             self.send(
                 self.parent.parent_address,
                 ResurrectMsg(
-                    is_id=self.is_id,
                     instr_id=self.instr_id,
                     device_status=self.device_status,
                 ),

@@ -60,11 +60,10 @@ class MqttSchedulerActor(MqttBaseActor):
         # cmd_id to check the correct order of messages
         self.cmd_ids = {}  # {instr_id: <command id>}
         self.msg_id["PUBLISH"] = None
-        self.is_id = config["IS_ID"]
         self.is_meta = InstrumentServerMeta(
             state=0,
             host=config["MY_HOSTNAME"],
-            is_id=self.is_id,
+            is_id=config["IS_ID"],
             description=config["DESCRIPTION"],
             place=config["PLACE"],
             latitude=config["LATITUDE"],
@@ -91,14 +90,16 @@ class MqttSchedulerActor(MqttBaseActor):
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
         self.mqttc.message_callback_add(f"{self.group}/+/+/control", self.on_control)
         self.mqttc.message_callback_add(
-            f"{self.group}/{self.is_id}/cmd", self.on_host_cmd
+            f"{self.group}/{msg.client_id}/cmd", self.on_host_cmd
         )
-        self.mqttc.message_callback_add(f"{self.group}/{self.is_id}/+/cmd", self.on_cmd)
         self.mqttc.message_callback_add(
-            f"{self.group}/{self.is_id}/+/meta", self.on_instr_meta
+            f"{self.group}/{msg.client_id}/+/cmd", self.on_cmd
+        )
+        self.mqttc.message_callback_add(
+            f"{self.group}/{msg.client_id}/+/meta", self.on_instr_meta
         )
         self.mqttc.will_set(
-            topic=f"{self.group}/{self.is_id}/meta",
+            topic=f"{self.group}/{msg.client_id}/meta",
             payload=get_is_meta(self.is_meta._replace(state=10)),
             qos=2,
             retain=True,
