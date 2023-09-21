@@ -81,9 +81,9 @@ try:
     else:
         config_file = linux_config_file
     with open(config_file, "rt", encoding="utf8") as custom_file:
-        customization = tomlkit.load(custom_file).value
+        customization = tomlkit.load(custom_file)
 except OSError:
-    customization = {}
+    customization = tomlkit.document()
 
 # General configuration
 DEFAULT_DESCRIPTION = "SARAD Instrument Server"
