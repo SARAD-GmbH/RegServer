@@ -85,5 +85,4 @@ tls_use_tls = true
 
 [mqtt_frontend]
 reboot_after = 60  # Time in minutes after disconnect causing a reboot. 0 = never.
-restart_instead_of_reboot = 0  # If set, the RegServer will be restarted instead
-                               # of performing a reboot.
+restart_instead_of_reboot = 0  # If set, the RegServer will be restarted instead of performing a reboot.
