@@ -9,14 +9,14 @@ height = 102  # in meters
 [frontends]
 rest = true
 mqtt = true
-mdns = false
+mdns = true
 modbus_rtu = false
 
 [backends]
 usb = true
-mqtt = false
-mdns = false
-is1 = false
+mqtt = true
+mdns = true
+is1 = true
 
 [rest_frontend]
 api_port = 8008
