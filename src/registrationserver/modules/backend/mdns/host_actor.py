@@ -140,7 +140,9 @@ class HostActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SetDeviceStatusMsg initialising the device status information."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self._set_device_status(msg.device_status)
+        device_id = list(msg.device_status)[0]
+        if transport_technology(device_id) in ("mdns"):
+            self._set_device_status(msg.device_status)
 
     def receiveMsg_GetHostInfoMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -163,7 +165,6 @@ class HostActor(BaseActor):
         data = device_status[device_id]
         is_host = data["Remote"]["Address"]
         api_port = data["Remote"]["API port"]
-        self.base_url = f"http://{is_host}:{api_port}"
         remote_device_id = data["Remote"]["Device Id"]
         if device_id not in self.child_actors:
             device_actor = self._create_actor(DeviceActor, device_id, None)
@@ -249,12 +250,13 @@ class HostActor(BaseActor):
         try:
             resp = self.http.post(f"{self.base_url}/ping")
             ping_dict = resp.json()
-        except Exception:  # pylint: disable=broad-except
+        except Exception as exception1:  # pylint: disable=broad-except
+            logger.warning("%s/ping is not responding. %s", self.base_url, exception1)
             try:
                 resp = self.http.get(f"{self.base_url}/ping")
                 ping_dict = resp.json()
-            except Exception as exception:  # pylint: disable=broad-except
-                logger.debug("REST API of IS is not responding. %s", exception)
+            except Exception as exception2:  # pylint: disable=broad-except
+                logger.debug("REST API of IS is not responding. %s", exception2)
                 success = Status.IS_NOT_FOUND
                 logger.error("%s in _ping_function of %s", success, self.my_id)
                 if self.scan_interval:
@@ -360,6 +362,7 @@ class HostActor(BaseActor):
             state=state,
             description="No host information retrievable from REST API of this host.",
         )
+        ping_dict = {}
         try:
             resp = self.http.post(f"{self.base_url}/ping")
             ping_dict = resp.json()

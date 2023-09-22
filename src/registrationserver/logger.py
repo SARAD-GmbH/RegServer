@@ -6,13 +6,15 @@
 :Author:
     | Michael Strey <strey@sarad.de>
 """
+# mypy: disable-error-code="used-before-def"
+
 import logging
 import logging.config
 
 from registrationserver.logdef import logcfg
 
 try:
-    logger
+    logger  # pylint:disable=used-before-assignment
 except NameError:
     logging.config.dictConfig(logcfg)
     logger: logging.Logger = logging.getLogger("Reg. Server")

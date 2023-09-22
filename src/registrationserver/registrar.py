@@ -69,7 +69,6 @@ class Registrar(BaseActor):
             self.send(
                 mqtt_scheduler,
                 PrepareMqttActorMsg(
-                    is_id=None,
                     client_id=unique_id(config["IS_ID"]),
                     group=mqtt_config["GROUP"],
                 ),
@@ -88,7 +87,6 @@ class Registrar(BaseActor):
             self.send(
                 mqtt_client_actor,
                 PrepareMqttActorMsg(
-                    is_id=None,
                     client_id=mqtt_config["MQTT_CLIENT_ID"],
                     group=mqtt_config["GROUP"],
                 ),
@@ -227,6 +225,12 @@ class Registrar(BaseActor):
                     keep_new_actor = False
                     self.send(sender, KillMsg())
                     return
+                elif (new_tt == "is1") and (old_tt == "mqtt"):
+                    logger.info(
+                        "Ignore retained MQTT message in favour of new IS1 Device Actor."
+                    )
+                    keep_new_actor = True
+                    self.send(self.actor_dict[old_device_id]["address"], KillMsg())
                 else:
                     logger.debug("Keep device actor %s in place.", old_device_id)
                     keep_new_actor = False

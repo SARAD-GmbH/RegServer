@@ -221,6 +221,24 @@ class MdnsListener(ServiceListener):
                     host_actor = reply.actor_address
             data = self.convert_properties(zc, type_, name)
             if (data is not None) and (host_actor is not None):
+                if hostname in self.hosts:
+                    scan_interval = mdns_backend_config["SCAN_INTERVAL"]
+                else:
+                    scan_interval = 0
+                first_key = next(iter(data))
+                if data[first_key].get("Remote", False):
+                    if data[first_key]["Remote"].get("API port"):
+                        api_port = data[first_key]["Remote"]["API port"]
+                    else:
+                        api_port = 0
+                else:
+                    api_port = 0
+                ActorSystem().tell(
+                    host_actor,
+                    SetupHostActorMsg(
+                        host=hostname, port=api_port, scan_interval=scan_interval
+                    ),
+                )
                 logger.debug("Tell Host Actor to setup device actor with %s", data)
                 ActorSystem().tell(host_actor, SetDeviceStatusMsg(data))
             elif data is None:

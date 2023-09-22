@@ -124,7 +124,7 @@ class Is1Actor(DeviceBaseActor):
                     try:
                         logger.debug(
                             "Trying to connect %s:%d",
-                            self._is.ip_address,
+                            self._is.hostname,
                             self._is.port,
                         )
                         self._socket.connect((self._is.hostname, self._is.port))

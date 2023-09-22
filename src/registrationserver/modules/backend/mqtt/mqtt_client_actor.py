@@ -18,7 +18,6 @@ from registrationserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                                PrepareMqttActorMsg,
                                                SetDeviceStatusMsg,
                                                TransportTechnology)
-from registrationserver.config import unique_id
 from registrationserver.helpers import short_id, transport_technology
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
@@ -186,10 +185,9 @@ class MqttClientActor(MqttBaseActor):
             self.child_actors[device_id]["host"] = is_id
             payload["State"] = 2
             self.send(device_actor, SetDeviceStatusMsg(device_status=payload))
-            client_id = unique_id(f"{device_id}.client")
             self.send(
                 device_actor,
-                PrepareMqttActorMsg(is_id, client_id, self.group),
+                PrepareMqttActorMsg(is_id, self.group),
             )
 
     def _rm_instr(self, is_id, instr_id) -> None:
@@ -316,7 +314,7 @@ class MqttClientActor(MqttBaseActor):
                     "[+/meta] IS %s is known but offline",
                     is_id,
                 )
-            logger.info("Cleaning up retained messag at %s", message.topic)
+            logger.info("Cleaning up retained message at %s", message.topic)
             self.mqttc.publish(
                 topic=message.topic, payload="", qos=self.qos, retain=True
             )
@@ -368,6 +366,10 @@ class MqttClientActor(MqttBaseActor):
                     "[+/meta] Received a meta message of instr. %s from IS %s not added before",
                     instr_id,
                     is_id,
+                )
+                logger.info("Cleaning up retained message at %s", message.topic)
+                self.mqttc.publish(
+                    topic=message.topic, payload="", qos=self.qos, retain=True
                 )
         elif payload["State"] in (0, 10):
             logger.debug("disconnection message")
@@ -479,7 +481,7 @@ class MqttClientActor(MqttBaseActor):
         super().receiveMsg_ChildActorExited(msg, sender)
         if self.resurrect_msg:
             self._add_instr(
-                self.resurrect_msg.is_id,
+                self.is_id,
                 self.resurrect_msg.instr_id,
                 self.resurrect_msg.device_status,
                 resurrect=True,

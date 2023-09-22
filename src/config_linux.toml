@@ -1,22 +1,22 @@
 debug_level = "info"
-is_id = "Binker"
-# description = "A longer text describing this Instrument Server"
-# place = "A text describing where the Instrument Controller running this Instrument Server is placed"
-# latitude = 51.0764194  # positive values for North, negative for South
-# longitude = 13.7383917  # positive values for East, negative for West
-# height = 102  # in meters
+is_id = "Ap-Strey"
+description = "A longer text describing this Instrument Server"
+place = "A text describing where the Instrument Controller running this Instrument Server is placed"
+latitude = 51.0764194  # positive values for North, negative for South
+longitude = 13.7383917  # positive values for East, negative for West
+height = 102  # in meters
 
 [frontends]
 rest = true
 mqtt = true
-mdns = false
+mdns = true
 modbus_rtu = false
 
 [backends]
 usb = true
-mqtt = false
-mdns = false
-is1 = false
+mqtt = true
+mdns = true
+is1 = true
 
 [rest_frontend]
 api_port = 8008
@@ -85,5 +85,4 @@ tls_use_tls = true
 
 [mqtt_frontend]
 reboot_after = 60  # Time in minutes after disconnect causing a reboot. 0 = never.
-restart_instead_of_reboot = 0  # If set, the RegServer will be restarted instead
-                               # of performing a reboot.
+restart_instead_of_reboot = 0  # If set, the RegServer will be restarted instead of performing a reboot.
