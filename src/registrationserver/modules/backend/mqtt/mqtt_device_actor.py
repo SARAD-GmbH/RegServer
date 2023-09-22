@@ -288,6 +288,7 @@ class MqttDeviceActor(DeviceBaseActor):
             if self.device_status["Reservation"].get("Port", False):
                 reservation["Port"] = self.device_status["Reservation"]["Port"]
         self.device_status["Reservation"] = reservation
+        self._handle_reserve_reply_from_is(reservation_status)
 
     def on_msg(self, payload):
         """Handler for MQTT messages regarding binary messages from instrument"""
