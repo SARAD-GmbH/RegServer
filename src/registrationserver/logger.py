@@ -12,7 +12,7 @@ import logging.config
 from registrationserver.logdef import logcfg
 
 try:
-    logger
+    logger  # pylint: disable=used-before-assignment
 except NameError:
     logging.config.dictConfig(logcfg)
     logger: logging.Logger = logging.getLogger("Reg. Server")

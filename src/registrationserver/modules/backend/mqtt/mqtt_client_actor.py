@@ -18,7 +18,6 @@ from registrationserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                                PrepareMqttActorMsg,
                                                SetDeviceStatusMsg,
                                                TransportTechnology)
-from registrationserver.config import unique_id
 from registrationserver.helpers import short_id, transport_technology
 from registrationserver.logger import logger
 from registrationserver.modules.backend.mqtt.mqtt_base_actor import \
