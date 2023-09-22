@@ -314,7 +314,7 @@ class MqttClientActor(MqttBaseActor):
                     "[+/meta] IS %s is known but offline",
                     is_id,
                 )
-            logger.info("Cleaning up retained messag at %s", message.topic)
+            logger.info("Cleaning up retained message at %s", message.topic)
             self.mqttc.publish(
                 topic=message.topic, payload="", qos=self.qos, retain=True
             )
