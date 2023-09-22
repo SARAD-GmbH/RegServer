@@ -100,8 +100,8 @@ level_dict = {
     "fatal": logging.FATAL,
 }
 DEFAULT_LEVEL = logging.INFO
-if customization.get("debug_level") in level_dict:
-    DEBUG_LEVEL = level_dict[customization["debug_level"]]
+if customization.value.get("debug_level") in level_dict:
+    DEBUG_LEVEL = level_dict[customization.value["debug_level"]]
 else:
     DEBUG_LEVEL = DEFAULT_LEVEL
 try:
@@ -113,67 +113,69 @@ DEFAULT_MY_HOSTNAME = get_hostname(DEFAULT_MY_IP)
 
 config = {
     "LEVEL": DEBUG_LEVEL,
-    "IS_ID": customization.get("is_id", DEFAULT_IS_ID),
-    "DESCRIPTION": customization.get("description", DEFAULT_DESCRIPTION),
-    "PLACE": customization.get("place", DEFAULT_PLACE),
-    "LATITUDE": customization.get("latitude", DEFAULT_LATITUDE),
-    "LONGITUDE": customization.get("longitude", DEFAULT_LONGITUDE),
-    "HEIGHT": customization.get("height", DEFAULT_HEIGHT),
-    "MY_IP": customization.get("my_ip", DEFAULT_MY_IP),
-    "MY_HOSTNAME": customization.get("my_hostname", DEFAULT_MY_HOSTNAME),
+    "IS_ID": customization.value.get("is_id", DEFAULT_IS_ID),
+    "DESCRIPTION": customization.value.get("description", DEFAULT_DESCRIPTION),
+    "PLACE": customization.value.get("place", DEFAULT_PLACE),
+    "LATITUDE": customization.value.get("latitude", DEFAULT_LATITUDE),
+    "LONGITUDE": customization.value.get("longitude", DEFAULT_LONGITUDE),
+    "HEIGHT": customization.value.get("height", DEFAULT_HEIGHT),
+    "MY_IP": customization.value.get("my_ip", DEFAULT_MY_IP),
+    "MY_HOSTNAME": customization.value.get("my_hostname", DEFAULT_MY_HOSTNAME),
 }
 
 # Frontend configuration
 frontend_config = set()
 DEFAULT_FRONTENDS = {Frontend.REST}
 
-if customization.get("frontends") is None:
+if customization.value.get("frontends") is None:
     frontend_config = DEFAULT_FRONTENDS
 else:
-    if customization["frontends"].get("rest", False):
+    if customization.value["frontends"].get("rest", False):
         frontend_config.add(Frontend.REST)
-    if customization["frontends"].get("mqtt", False):
+    if customization.value["frontends"].get("mqtt", False):
         frontend_config.add(Frontend.MQTT)
-    if customization["frontends"].get("mdns", False):
+    if customization.value["frontends"].get("mdns", False):
         frontend_config.add(Frontend.MDNS)
         # REST frontend is part of the mDNS frontend
         frontend_config.add(Frontend.REST)
-    if customization["frontends"].get("modbus_rtu", False):
+    if customization.value["frontends"].get("modbus_rtu", False):
         frontend_config.add(Frontend.MODBUS_RTU)
 
 # Backend configuration
 backend_config = set()
 DEFAULT_BACKENDS = {Backend.USB, Backend.MDNS}
 
-if customization.get("backends") is None:
+if customization.value.get("backends") is None:
     backend_config = DEFAULT_BACKENDS
 else:
-    if customization["backends"].get("usb", False):
+    if customization.value["backends"].get("usb", False):
         backend_config.add(Backend.USB)
-    if customization["backends"].get("mqtt", False):
+    if customization.value["backends"].get("mqtt", False):
         backend_config.add(Backend.MQTT)
-    if customization["backends"].get("mdns", False):
+    if customization.value["backends"].get("mdns", False):
         backend_config.add(Backend.MDNS)
-    if customization["backends"].get("is1", False):
+    if customization.value["backends"].get("is1", False):
         backend_config.add(Backend.IS1)
 
 # Configuration of REST frontend
 DEFAULT_API_PORT = 8008
 DEFAULT_PORT_RANGE = range(50003, 50500)
 
-if customization.get("rest_frontend") is None:
+if customization.value.get("rest_frontend") is None:
     rest_frontend_config = {
         "API_PORT": DEFAULT_API_PORT,
         "PORT_RANGE": DEFAULT_PORT_RANGE,
     }
 else:
     try:
-        port_range_list = customization["rest_frontend"]["port_range"]
+        port_range_list = customization.value["rest_frontend"]["port_range"]
         PORT_RANGE = range(port_range_list[0], port_range_list[-1])
     except Exception:  # pylint: disable=broad-except
         PORT_RANGE = DEFAULT_PORT_RANGE
     rest_frontend_config = {
-        "API_PORT": customization["rest_frontend"].get("api_port", DEFAULT_API_PORT),
+        "API_PORT": customization.value["rest_frontend"].get(
+            "api_port", DEFAULT_API_PORT
+        ),
         "PORT_RANGE": PORT_RANGE,
     }
 
@@ -183,7 +185,7 @@ DEFAULT_PORT = "/dev/serial/by-id/usb-FTDI_Atil_UD-101i_USB__-__RS422_485-if00-p
 DEFAULT_BAUDRATE = 9600
 DEFAULT_PARITY = "N"
 DEFAULT_DEVICE_ID = None
-if customization.get("modbus_rtu_frontend") is None:
+if customization.value.get("modbus_rtu_frontend") is None:
     modbus_rtu_frontend_config = {
         "SLAVE_ADDRESS": DEFAULT_SLAVE_ADDRESS,
         "PORT": DEFAULT_PORT,
@@ -193,15 +195,17 @@ if customization.get("modbus_rtu_frontend") is None:
     }
 else:
     modbus_rtu_frontend_config = {
-        "SLAVE_ADDRESS": customization["modbus_rtu_frontend"].get(
+        "SLAVE_ADDRESS": customization.value["modbus_rtu_frontend"].get(
             "slave_address", DEFAULT_SLAVE_ADDRESS
         ),
-        "PORT": customization["modbus_rtu_frontend"].get("port", DEFAULT_PORT),
-        "BAUDRATE": customization["modbus_rtu_frontend"].get(
+        "PORT": customization.value["modbus_rtu_frontend"].get("port", DEFAULT_PORT),
+        "BAUDRATE": customization.value["modbus_rtu_frontend"].get(
             "baudrate", DEFAULT_BAUDRATE
         ),
-        "PARITY": customization["modbus_rtu_frontend"].get("parity", DEFAULT_PARITY),
-        "DEVICE_ID": customization["modbus_rtu_frontend"].get(
+        "PARITY": customization.value["modbus_rtu_frontend"].get(
+            "parity", DEFAULT_PARITY
+        ),
+        "DEVICE_ID": customization.value["modbus_rtu_frontend"].get(
             "device_id", DEFAULT_DEVICE_ID
         ),
     }
@@ -220,7 +224,7 @@ DEFAULT_MDNS_TIMEOUT = 3000
 DEFAULT_HOSTS: List[List[Union[None, str, int]]] = [[], []]
 DEFAULT_HOSTS_SCAN_INTERVAL = 60  # in seconds
 
-if customization.get("mdns_backend") is None:
+if customization.value.get("mdns_backend") is None:
     mdns_backend_config = {
         "MDNS_TIMEOUT": DEFAULT_MDNS_TIMEOUT,
         "TYPE": DEFAULT_TYPE,
@@ -229,11 +233,11 @@ if customization.get("mdns_backend") is None:
         "SCAN_INTERVAL": DEFAULT_HOSTS_SCAN_INTERVAL,
     }
 else:
-    if customization["mdns_backend"].get("ip_version") in ip_version_dict:
-        IP_VERSION = ip_version_dict[customization["mdns_backend"]["ip_version"]]
+    if customization.value["mdns_backend"].get("ip_version") in ip_version_dict:
+        IP_VERSION = ip_version_dict[customization.value["mdns_backend"]["ip_version"]]
     else:
         IP_VERSION = DEFAULT_IP_VERSION
-    hosts_toml = customization["mdns_backend"].get("hosts", DEFAULT_HOSTS)
+    hosts_toml = customization.value["mdns_backend"].get("hosts", DEFAULT_HOSTS)
     hosts = []
     for hostname in hosts_toml[0]:
         try:
@@ -243,29 +247,31 @@ else:
         hosts.append([hostname, port])
     mdns_backend_config = {
         "MDNS_TIMEOUT": int(
-            customization["mdns_backend"].get("mdns_timeout", DEFAULT_MDNS_TIMEOUT)
+            customization.value["mdns_backend"].get(
+                "mdns_timeout", DEFAULT_MDNS_TIMEOUT
+            )
         ),
-        "TYPE": customization["mdns_backend"].get("type", DEFAULT_TYPE),
+        "TYPE": customization.value["mdns_backend"].get("type", DEFAULT_TYPE),
         "IP_VERSION": IP_VERSION,
         "HOSTS": hosts,
-        "SCAN_INTERVAL": customization["mdns_backend"].get(
+        "SCAN_INTERVAL": customization.value["mdns_backend"].get(
             "scan_interval", DEFAULT_HOSTS_SCAN_INTERVAL
         ),
     }
 
 # mDNS frontend configuration
-if customization.get("mdns_frontend") is None:
+if customization.value.get("mdns_frontend") is None:
     mdns_frontend_config = {
         "TYPE": DEFAULT_TYPE,
         "IP_VERSION": DEFAULT_IP_VERSION,
     }
 else:
-    if customization["mdns_frontend"].get("ip_version") in ip_version_dict:
-        IP_VERSION = ip_version_dict[customization["ip_version"]]
+    if customization.value["mdns_frontend"].get("ip_version") in ip_version_dict:
+        IP_VERSION = ip_version_dict[customization.value["ip_version"]]
     else:
         IP_VERSION = DEFAULT_IP_VERSION
     mdns_frontend_config = {
-        "TYPE": customization["mdns_frontend"].get("type", DEFAULT_TYPE),
+        "TYPE": customization.value["mdns_frontend"].get("type", DEFAULT_TYPE),
         "IP_VERSION": IP_VERSION,
     }
 
@@ -280,7 +286,7 @@ DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
 DEFAULT_SET_RTC = True
 DEFAULT_USE_UTC = True
 
-if customization.get("usb_backend") is None:
+if customization.value.get("usb_backend") is None:
     usb_backend_config = {
         "POLL_SERIAL_PORTS": DEFAULT_POLL_SERIAL_PORTS,
         "IGNORED_SERIAL_PORTS": DEFAULT_IGNORED_SERIAL_PORTS,
@@ -291,25 +297,25 @@ if customization.get("usb_backend") is None:
     }
 else:
     usb_backend_config = {
-        "POLL_SERIAL_PORTS": customization["usb_backend"].get(
+        "POLL_SERIAL_PORTS": customization.value["usb_backend"].get(
             "poll_serial_ports", DEFAULT_POLL_SERIAL_PORTS
         ),
-        "IGNORED_SERIAL_PORTS": customization["usb_backend"].get(
+        "IGNORED_SERIAL_PORTS": customization.value["usb_backend"].get(
             "ignored_serial_ports", DEFAULT_IGNORED_SERIAL_PORTS
         ),
-        "IGNORED_HWIDS": customization["usb_backend"].get(
+        "IGNORED_HWIDS": customization.value["usb_backend"].get(
             "ignored_hwids", DEFAULT_IGNORED_HWIDS
         ),
-        "LOCAL_RETRY_INTERVAL": customization["usb_backend"].get(
+        "LOCAL_RETRY_INTERVAL": customization.value["usb_backend"].get(
             "local_retry_interval", DEFAULT_LOCAL_RETRY_INTERVAL
         ),
-        "SET_RTC": customization["usb_backend"].get(
+        "SET_RTC": customization.value["usb_backend"].get(
             "set_realtime_clock", DEFAULT_SET_RTC
         ),
-        "USE_UTC": customization["usb_backend"].get("use_utc", DEFAULT_USE_UTC),
+        "USE_UTC": customization.value["usb_backend"].get("use_utc", DEFAULT_USE_UTC),
     }
 
-rs485_backend_config = customization.get("rs485_backend", {})
+rs485_backend_config = customization.value.get("rs485_backend", {})
 
 # IS1 backend configuration
 DEFAULT_REG_PORT = 50002
@@ -317,14 +323,14 @@ DEFAULT_SCAN_INTERVAL = 60
 DEFAULT_IS1_HOSTS: List[List[Union[None, str, int]]] = [[], []]
 DEFAULT_IS1_PORT = 50000
 
-if customization.get("is1_backend") is None:
+if customization.value.get("is1_backend") is None:
     is1_backend_config = {
         "REG_PORT": DEFAULT_REG_PORT,
         "SCAN_INTERVAL": DEFAULT_SCAN_INTERVAL,
         "IS1_HOSTS": DEFAULT_IS1_HOSTS,
     }
 else:
-    is1_hosts_toml = customization["is1_backend"].get("hosts", DEFAULT_IS1_HOSTS)
+    is1_hosts_toml = customization.value["is1_backend"].get("hosts", DEFAULT_IS1_HOSTS)
     is1_hosts = []
     for hostname in is1_hosts_toml[0]:
         try:
@@ -333,10 +339,10 @@ else:
             port = DEFAULT_IS1_PORT  # pylint: disable=invalid-name
         is1_hosts.append([hostname, port])
     is1_backend_config = {
-        "REG_PORT": customization["is1_backend"].get(
+        "REG_PORT": customization.value["is1_backend"].get(
             "registration_port", DEFAULT_REG_PORT
         ),
-        "SCAN_INTERVAL": customization["is1_backend"].get(
+        "SCAN_INTERVAL": customization.value["is1_backend"].get(
             "scan_interval", DEFAULT_SCAN_INTERVAL
         ),
         "IS1_HOSTS": is1_hosts,
@@ -354,7 +360,7 @@ DEFAULT_CHECK = False
 DEFAULT_OUTER_WATCHDOG_INTERVAL = 30  # in seconds
 DEFAULT_OUTER_WATCHDOG_TRIALS = 3  # number of attempts to check Registrar
 
-if customization.get("actor") is None:
+if customization.value.get("actor") is None:
     if os.name == "nt":
         actor_config = {
             "systemBase": DEFAULT_SYSTEM_BASE,
@@ -386,49 +392,51 @@ if customization.get("actor") is None:
 else:
     if os.name == "nt":
         actor_config = {
-            "systemBase": customization["actor"].get(
+            "systemBase": customization.value["actor"].get(
                 "system_base", DEFAULT_SYSTEM_BASE
             ),
             "capabilities": {
-                "Admin Port": customization["actor"].get(
+                "Admin Port": customization.value["actor"].get(
                     "admin_port", DEFAULT_ADMIN_PORT
                 ),
-                "Process Startup Method": customization["actor"].get(
+                "Process Startup Method": customization.value["actor"].get(
                     "process_startup_method", DEFAULT_WINDOWS_METHOD
                 ),
-                "Convention Address.IPv4": customization["actor"].get(
+                "Convention Address.IPv4": customization.value["actor"].get(
                     "convention_address", DEFAULT_CONVENTION_ADDRESS
                 ),
             },
         }
     else:
         actor_config = {
-            "systemBase": customization["actor"].get(
+            "systemBase": customization.value["actor"].get(
                 "system_base", DEFAULT_SYSTEM_BASE
             ),
             "capabilities": {
-                "Admin Port": customization["actor"].get(
+                "Admin Port": customization.value["actor"].get(
                     "admin_port", DEFAULT_ADMIN_PORT
                 ),
-                "Process Startup Method": customization["actor"].get(
+                "Process Startup Method": customization.value["actor"].get(
                     "process_startup_method", DEFAULT_LINUX_METHOD
                 ),
-                "Convention Address.IPv4": customization["actor"].get(
+                "Convention Address.IPv4": customization.value["actor"].get(
                     "convention_address", DEFAULT_CONVENTION_ADDRESS
                 ),
             },
         }
-    actor_config["KEEPALIVE_INTERVAL"] = customization["actor"].get(
+    actor_config["KEEPALIVE_INTERVAL"] = customization.value["actor"].get(
         "watchdog_interval", DEFAULT_KEEPALIVE_INTERVAL
     )
-    actor_config["WAIT_BEFORE_CHECK"] = customization["actor"].get(
+    actor_config["WAIT_BEFORE_CHECK"] = customization.value["actor"].get(
         "watchdog_wait", DEFAULT_WAIT_BEFORE_CHECK
     )
-    actor_config["CHECK"] = customization["actor"].get("watchdog_check", DEFAULT_CHECK)
-    actor_config["OUTER_WATCHDOG_INTERVAl"] = customization["actor"].get(
+    actor_config["CHECK"] = customization.value["actor"].get(
+        "watchdog_check", DEFAULT_CHECK
+    )
+    actor_config["OUTER_WATCHDOG_INTERVAl"] = customization.value["actor"].get(
         "outer_watchdog_interval", DEFAULT_OUTER_WATCHDOG_INTERVAL
     )
-    actor_config["OUTER_WATCHDOG_TRIALS"] = customization["actor"].get(
+    actor_config["OUTER_WATCHDOG_TRIALS"] = customization.value["actor"].get(
         "outer_watchdog_trials", DEFAULT_OUTER_WATCHDOG_TRIALS
     )
 
@@ -445,7 +453,7 @@ DEFAULT_TLS_CA_FILE = f"{app_folder}tls_cert_sarad.pem"
 DEFAULT_TLS_KEY_FILE = f"{app_folder}tls_key_personal.pem"
 DEFAULT_TLS_CERT_FILE = f"{app_folder}tls_cert_personal.crt"
 
-if customization.get("mqtt") is None:
+if customization.value.get("mqtt") is None:
     mqtt_config = {
         "MQTT_CLIENT_ID": unique_id(DEFAULT_MQTT_CLIENT_ID),
         "MQTT_BROKER": DEFAULT_MQTT_BROKER,
@@ -460,29 +468,31 @@ if customization.get("mqtt") is None:
         "TLS_USE_TLS": DEFAULT_TLS_USE_TLS,
     }
 else:
-    use_tls = customization["mqtt"].get("tls_use_tls", DEFAULT_TLS_USE_TLS)
+    use_tls = customization.value["mqtt"].get("tls_use_tls", DEFAULT_TLS_USE_TLS)
     mqtt_config = {
         "MQTT_CLIENT_ID": unique_id(
-            customization["mqtt"].get("mqtt_client_id", DEFAULT_MQTT_CLIENT_ID)
+            customization.value["mqtt"].get("mqtt_client_id", DEFAULT_MQTT_CLIENT_ID)
         ),
-        "MQTT_BROKER": customization["mqtt"].get("mqtt_broker", DEFAULT_MQTT_BROKER),
-        "GROUP": customization["mqtt"].get("group", DEFAULT_GROUP),
-        "PORT": customization["mqtt"].get("port", DEFAULT_MQTT_PORT),
-        "KEEPALIVE": customization["mqtt"].get("keepalive", DEFAULT_KEEPALIVE),
-        "QOS": customization["mqtt"].get("qos", DEFAULT_QOS),
-        "RETRY_INTERVAL": customization["mqtt"].get(
+        "MQTT_BROKER": customization.value["mqtt"].get(
+            "mqtt_broker", DEFAULT_MQTT_BROKER
+        ),
+        "GROUP": customization.value["mqtt"].get("group", DEFAULT_GROUP),
+        "PORT": customization.value["mqtt"].get("port", DEFAULT_MQTT_PORT),
+        "KEEPALIVE": customization.value["mqtt"].get("keepalive", DEFAULT_KEEPALIVE),
+        "QOS": customization.value["mqtt"].get("qos", DEFAULT_QOS),
+        "RETRY_INTERVAL": customization.value["mqtt"].get(
             "retry_interval", DEFAULT_RETRY_INTERVAL
         ),
         "TLS_USE_TLS": use_tls,
-        "TLS_CA_FILE": customization["mqtt"].get(
+        "TLS_CA_FILE": customization.value["mqtt"].get(
             "tls_ca_file",
             DEFAULT_TLS_CA_FILE,
         ),
-        "TLS_CERT_FILE": customization["mqtt"].get(
+        "TLS_CERT_FILE": customization.value["mqtt"].get(
             "tls_cert_file",
             DEFAULT_TLS_CERT_FILE,
         ),
-        "TLS_KEY_FILE": customization["mqtt"].get(
+        "TLS_KEY_FILE": customization.value["mqtt"].get(
             "tls_key_file",
             DEFAULT_TLS_KEY_FILE,
         ),
@@ -493,17 +503,17 @@ else:
 DEFAULT_REBOOT_AFTER = 0
 DEFAULT_RESTART_INSTEAD_OF_REBOOT = 0
 
-if customization.get("mqtt_frontend") is None:
+if customization.value.get("mqtt_frontend") is None:
     mqtt_frontend_config = {
         "REBOOT_AFTER": DEFAULT_REBOOT_AFTER,
         "RESTART_INSTEAD_OF_REBOOT": DEFAULT_RESTART_INSTEAD_OF_REBOOT,
     }
 else:
     mqtt_frontend_config = {
-        "REBOOT_AFTER": customization["mqtt_frontend"].get(
+        "REBOOT_AFTER": customization.value["mqtt_frontend"].get(
             "reboot_after", DEFAULT_REBOOT_AFTER
         ),
-        "RESTART_INSTEAD_OF_REBOOT": customization["mqtt_frontend"].get(
+        "RESTART_INSTEAD_OF_REBOOT": customization.value["mqtt_frontend"].get(
             "restart_instead_of_reboot", DEFAULT_RESTART_INSTEAD_OF_REBOOT
         ),
     }
