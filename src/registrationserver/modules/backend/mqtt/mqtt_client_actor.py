@@ -367,6 +367,10 @@ class MqttClientActor(MqttBaseActor):
                     instr_id,
                     is_id,
                 )
+                logger.info("Cleaning up retained message at %s", message.topic)
+                self.mqttc.publish(
+                    topic=message.topic, payload="", qos=self.qos, retain=True
+                )
         elif payload["State"] in (0, 10):
             logger.debug("disconnection message")
             try:

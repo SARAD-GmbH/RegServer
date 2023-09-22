@@ -405,9 +405,11 @@ class MqttSchedulerActor(MqttBaseActor):
             return
         device_actor, _device_id = self._device_actor(instr_id)
         if (device_actor is None) and (payload.get("State", 2) in (2, 1)):
+            topic = f"{self.group}/{self.is_id}/{instr_id}/meta"
+            logger.info("Remove retained message at %s", topic)
             self.mqttc.publish(
-                topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
-                payload=json.dumps({"State": 0}),
+                topic=topic,
+                payload="",
                 qos=self.qos,
                 retain=True,
             )
