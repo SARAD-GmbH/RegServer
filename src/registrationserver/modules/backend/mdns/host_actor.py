@@ -362,6 +362,7 @@ class HostActor(BaseActor):
             state=state,
             description="No host information retrievable from REST API of this host.",
         )
+        ping_dict = {}
         try:
             resp = self.http.post(f"{self.base_url}/ping")
             ping_dict = resp.json()
