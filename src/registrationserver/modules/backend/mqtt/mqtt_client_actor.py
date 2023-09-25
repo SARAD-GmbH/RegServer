@@ -302,6 +302,12 @@ class MqttClientActor(MqttBaseActor):
                 self._update_host(is_id, payload)
             else:
                 self._add_host(is_id, payload)
+            self.mqttc.publish(
+                topic=f"{self.group}/{is_id}/cmd",
+                payload="update",
+                qos=self.qos,
+                retain=False,
+            )
         elif payload["State"] in (0, 10):
             if is_id in self._hosts:
                 logger.info(
@@ -314,10 +320,6 @@ class MqttClientActor(MqttBaseActor):
                     "[+/meta] IS %s is known but offline",
                     is_id,
                 )
-            logger.info("Cleaning up retained message at %s", message.topic)
-            self.mqttc.publish(
-                topic=message.topic, payload="", qos=self.qos, retain=True
-            )
         else:
             logger.warning(
                 "[+/meta] Subscriber received a meta message of an unknown host %s",
@@ -366,10 +368,6 @@ class MqttClientActor(MqttBaseActor):
                     "[+/meta] Received a meta message of instr. %s from IS %s not added before",
                     instr_id,
                     is_id,
-                )
-                logger.info("Cleaning up retained message at %s", message.topic)
-                self.mqttc.publish(
-                    topic=message.topic, payload="", qos=self.qos, retain=True
                 )
         elif payload["State"] in (0, 10):
             logger.debug("disconnection message")
