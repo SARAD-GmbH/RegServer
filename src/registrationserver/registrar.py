@@ -66,14 +66,6 @@ class Registrar(BaseActor):
             mqtt_scheduler = self._create_actor(
                 MqttSchedulerActor, "mqtt_scheduler", None
             )
-            self.send(
-                mqtt_scheduler,
-                PrepareMqttActorMsg(
-                    client_id=unique_id(config["IS_ID"]),
-                    group=mqtt_config["GROUP"],
-                ),
-            )
-            self.send(mqtt_scheduler, MqttConnectMsg())
         if Frontend.MDNS in frontend_config:
             _mdns_scheduler = self._create_actor(
                 MdnsSchedulerActor, "mdns_scheduler", None
@@ -84,14 +76,6 @@ class Registrar(BaseActor):
             mqtt_client_actor = self._create_actor(
                 MqttClientActor, "mqtt_client_actor", None
             )
-            self.send(
-                mqtt_client_actor,
-                PrepareMqttActorMsg(
-                    client_id=mqtt_config["MQTT_CLIENT_ID"],
-                    group=mqtt_config["GROUP"],
-                ),
-            )
-            self.send(mqtt_client_actor, MqttConnectMsg())
         if Backend.IS1 in backend_config:
             _is1_listener = self._create_actor(Is1Listener, "is1_listener", None)
         keepalive_interval = actor_config["KEEPALIVE_INTERVAL"]
@@ -269,6 +253,24 @@ class Registrar(BaseActor):
             "get_updates": msg.get_updates,
             "is_alive": True,
         }
+        if msg.actor_id == "mqtt_scheduler":
+            self.send(
+                sender,
+                PrepareMqttActorMsg(
+                    client_id=unique_id(config["IS_ID"]),
+                    group=mqtt_config["GROUP"],
+                ),
+            )
+            self.send(sender, MqttConnectMsg())
+        elif msg.actor_id == "mqtt_client_actor":
+            self.send(
+                sender,
+                PrepareMqttActorMsg(
+                    client_id=mqtt_config["MQTT_CLIENT_ID"],
+                    group=mqtt_config["GROUP"],
+                ),
+            )
+            self.send(sender, MqttConnectMsg())
         if msg.actor_type == ActorType.DEVICE:
             self._handle_device_actor(sender, msg.actor_id)
         elif msg.actor_type == ActorType.HOST:
