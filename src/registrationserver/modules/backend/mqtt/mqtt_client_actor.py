@@ -122,7 +122,6 @@ class MqttClientActor(MqttBaseActor):
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
-        self.mqttc.message_callback_add(f"{self.group}/+/meta", self.on_is_meta)
         self.mqttc.message_callback_add(f"{self.group}/+/+/meta", self.on_instr_meta)
         self.mqttc.message_callback_add(
             f"{self.group}/+/+/reservation", self.on_instr_reserve
@@ -427,6 +426,7 @@ class MqttClientActor(MqttBaseActor):
     @overrides
     def on_connect(self, client, userdata, flags, reason_code):
         super().on_connect(client, userdata, flags, reason_code)
+        self.mqttc.message_callback_add(f"{self.group}/+/meta", self.on_is_meta)
         self.mqttc.subscribe("+/+/meta", 2)
 
     def receiveMsg_RescanMsg(self, msg, sender):
