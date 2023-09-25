@@ -15,9 +15,9 @@ from datetime import datetime, timezone
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
-                                               RescanMsg, ReserveDeviceMsg,
-                                               ShutdownMsg, Status,
-                                               TxBinaryMsg)
+                                               GetDeviceStatusesMsg, RescanMsg,
+                                               ReserveDeviceMsg, ShutdownMsg,
+                                               Status, TxBinaryMsg)
 from registrationserver.config import config
 from registrationserver.helpers import (diff_of_dicts, short_id,
                                         transport_technology)
@@ -157,9 +157,22 @@ class MqttSchedulerActor(MqttBaseActor):
             topic = f"{self.group}/{self.is_id}/{msg.instr_id}/reservation"
             logger.debug("Publish %s on %s", reservation_json, topic)
             self.mqttc.publish(
-                topic=topic, payload=reservation_json, qos=self.qos, retain=True
+                topic=topic, payload=reservation_json, qos=self.qos, retain=False
             )
             self.pending_control_action = ControlType.UNKNOWN
+
+    def receiveMsg_UpdateDeviceStatusesMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for UpdateDeviceStatusesMsg from Device Actor.
+
+        Receives a dict of all device_statuses and publishes meta information
+        for every instrument in a meta topic."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        for device_id, status_dict in msg.device_statuses.items():
+            topic = f"{self.group}/{self.is_id}/{short_id(device_id)}/meta"
+            self.mqttc.publish(
+                topic=topic, payload=json.dumps(status_dict), qos=self.qos, retain=False
+            )
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name, too-many-locals
@@ -188,7 +201,7 @@ class MqttSchedulerActor(MqttBaseActor):
                     topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
                     payload=json.dumps(message),
                     qos=self.qos,
-                    retain=True,
+                    retain=False,
                 )
                 if reservation is None:
                     logger.debug("%s has never been reserved.", instr_id)
@@ -237,7 +250,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 topic = f"{self.group}/{self.is_id}/{instr_id}/reservation"
                 logger.debug("Publish %s on %s", reservation_json, topic)
                 self.mqttc.publish(
-                    topic=topic, payload=reservation_json, qos=self.qos, retain=True
+                    topic=topic, payload=reservation_json, qos=self.qos, retain=False
                 )
                 self._instruments_connected()
 
@@ -272,7 +285,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
                 payload=json.dumps({"State": 0}),
                 qos=self.qos,
-                retain=True,
+                retain=False,
             )
         self._instruments_connected()
 
@@ -343,6 +356,9 @@ class MqttSchedulerActor(MqttBaseActor):
             self.send(self.registrar, RescanMsg(host="127.0.0.1"))
         elif message.payload.decode("utf-8") == "shutdown":
             self.send(self.registrar, ShutdownMsg(password="", host="127.0.0.1"))
+        elif message.payload.decode("utf-8") == "update":
+            logger.debug("Send updated meta information of instruments")
+            self.send(self.registrar, GetDeviceStatusesMsg())
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name

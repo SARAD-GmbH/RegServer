@@ -302,6 +302,12 @@ class MqttClientActor(MqttBaseActor):
                 self._update_host(is_id, payload)
             else:
                 self._add_host(is_id, payload)
+            self.mqttc.publish(
+                topic=f"{self.group}/{is_id}/cmd",
+                payload="update",
+                qos=self.qos,
+                retain=False,
+            )
         elif payload["State"] in (0, 10):
             if is_id in self._hosts:
                 logger.info(
