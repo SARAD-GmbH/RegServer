@@ -170,6 +170,7 @@ class MqttSchedulerActor(MqttBaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for device_id, status_dict in msg.device_statuses.items():
             topic = f"{self.group}/{self.is_id}/{short_id(device_id)}/meta"
+            status_dict["Identification"]["Host"] = self.is_meta.host
             self.mqttc.publish(
                 topic=topic, payload=json.dumps(status_dict), qos=self.qos, retain=False
             )
