@@ -169,20 +169,19 @@ class MqttSchedulerActor(MqttBaseActor):
         for every instrument in a meta topic."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for device_id, status_dict in msg.device_statuses.items():
-            if transport_technology(device_id) != "mqtt":
-                topic = f"{self.group}/{self.is_id}/{short_id(device_id)}/meta"
-                try:
-                    status_dict["Identification"]["Host"] = self.is_meta.host
-                    self.mqttc.publish(
-                        topic=topic,
-                        payload=json.dumps(status_dict),
-                        qos=self.qos,
-                        retain=False,
-                    )
-                except KeyError as exception:
-                    logger.warning(
-                        "No host information for %s: %s", device_id, exception
-                    )
+            if transport_technology(device_id) in ("mqtt", "mdns"):
+                continue
+            topic = f"{self.group}/{self.is_id}/{short_id(device_id)}/meta"
+            try:
+                status_dict["Identification"]["Host"] = self.is_meta.host
+                self.mqttc.publish(
+                    topic=topic,
+                    payload=json.dumps(status_dict),
+                    qos=self.qos,
+                    retain=False,
+                )
+            except KeyError as exception:
+                logger.warning("No host information for %s: %s", device_id, exception)
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name, too-many-locals
