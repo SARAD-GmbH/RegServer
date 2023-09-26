@@ -31,12 +31,13 @@ ignored_hwids = ["BTHENUM"]
 # Prolific and no-name USB-to-serial converters: "067B"
 # QinHeng Electronics USB-to-serial converters: "1a86"
 local_retry_interval = 10  # in seconds
-set_realtime_clock = true  # set the RTC of instrument on every contact
+set_realtime_clock = false  # set the RTC of instrument on every contact
 use_utc = false  # UTC if true, local time if false
 
 [is1_backend]
 registration_port = 50002
 scan_interval = 60  # in seconds
+hosts = [[], []]  # [[host1, host2], [port1, port2]]
 
 [mdns_backend]
 mdns_timeout = 3000
@@ -76,5 +77,4 @@ tls_use_tls = true
 
 [mqtt_frontend]
 reboot_after = 10  # Time in minutes after disconnect causing a reboot. 0 = never.
-restart_instead_of_reboot = 1  # If set, the RegServer will be restarted instead
-                               # of performing a reboot.
+restart_instead_of_reboot = 1  # If set, the RegServer will be restarted instead of performing a reboot.

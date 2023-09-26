@@ -267,7 +267,7 @@ class MqttClientActor(MqttBaseActor):
         del self._hosts[is_id]
 
     def on_is_meta(self, _client, _userdata, message):
-        """Handler for all messages of topic +/meta."""
+        """Handler for all messages of topic group/+/meta."""
         logger.debug("[on_is_meta] %s, %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
         is_id = topic_parts[1]
