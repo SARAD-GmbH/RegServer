@@ -224,7 +224,10 @@ class MqttDeviceActor(DeviceBaseActor):
         try:
             reservation = json.loads(payload)
         except (TypeError, json.decoder.JSONDecodeError):
-            logger.warning("Cannot decode %s", payload)
+            if payload == b"":
+                logger.debug("Retained reserve topic removed")
+            else:
+                logger.warning("Cannot decode %s", payload)
             return
         if reservation == self.last_message:
             logger.debug("We have already got message %s", reservation)

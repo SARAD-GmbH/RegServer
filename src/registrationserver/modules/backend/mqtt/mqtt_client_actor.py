@@ -277,9 +277,12 @@ class MqttClientActor(MqttBaseActor):
         try:
             payload = json.loads(message.payload)
         except (TypeError, json.decoder.JSONDecodeError):
-            logger.warning(
-                "Cannot decode %s at topic %s", message.payload, message.topic
-            )
+            if message.payload == b"":
+                logger.debug("Retained %s removed", message.topic)
+            else:
+                logger.warning(
+                    "Cannot decode %s at topic %s", message.payload, message.topic
+                )
             return
         if "State" not in payload:
             logger.warning(
@@ -335,9 +338,12 @@ class MqttClientActor(MqttBaseActor):
         try:
             payload = json.loads(message.payload)
         except (TypeError, json.decoder.JSONDecodeError):
-            logger.warning(
-                "Cannot decode %s at topic %s", message.payload, message.topic
-            )
+            if message.payload == b"":
+                logger.debug("Retained %s removed", message.topic)
+            else:
+                logger.warning(
+                    "Cannot decode %s at topic %s", message.payload, message.topic
+                )
             return
         if "State" not in payload:
             logger.warning(
@@ -397,9 +403,12 @@ class MqttClientActor(MqttBaseActor):
         try:
             _payload = json.loads(message.payload)
         except (TypeError, json.decoder.JSONDecodeError):
-            logger.warning(
-                "Cannot decode %s at topic %s", message.payload, message.topic
-            )
+            if message.payload == b"":
+                logger.debug("Retained %s removed", message.topic)
+            else:
+                logger.warning(
+                    "Cannot decode %s at topic %s", message.payload, message.topic
+                )
             return
         instr_id = message.topic.split("/")[2]
         is_id = message.topic.split("/")[1]
