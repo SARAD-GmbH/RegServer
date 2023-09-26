@@ -173,8 +173,8 @@ else:
     except Exception:  # pylint: disable=broad-except
         PORT_RANGE = DEFAULT_PORT_RANGE
     rest_frontend_config = {
-        "API_PORT": customization.value["rest_frontend"].get(
-            "api_port", DEFAULT_API_PORT
+        "API_PORT": int(
+            customization.value["rest_frontend"].get("api_port", DEFAULT_API_PORT)
         ),
         "PORT_RANGE": PORT_RANGE,
     }
@@ -199,8 +199,8 @@ else:
             "slave_address", DEFAULT_SLAVE_ADDRESS
         ),
         "PORT": customization.value["modbus_rtu_frontend"].get("port", DEFAULT_PORT),
-        "BAUDRATE": customization.value["modbus_rtu_frontend"].get(
-            "baudrate", DEFAULT_BAUDRATE
+        "BAUDRATE": int(
+            customization.value["modbus_rtu_frontend"].get("baudrate", DEFAULT_BAUDRATE)
         ),
         "PARITY": customization.value["modbus_rtu_frontend"].get(
             "parity", DEFAULT_PARITY
@@ -241,7 +241,7 @@ else:
     hosts = []
     for hostname in hosts_toml[0]:
         try:
-            port = hosts_toml[1][hosts_toml[0].index(hostname)]
+            port = int(hosts_toml[1][hosts_toml[0].index(hostname)])
         except IndexError:
             port = DEFAULT_API_PORT  # pylint: disable=invalid-name
         hosts.append([hostname, port])
@@ -254,8 +254,10 @@ else:
         "TYPE": customization.value["mdns_backend"].get("type", DEFAULT_TYPE),
         "IP_VERSION": IP_VERSION,
         "HOSTS": hosts,
-        "SCAN_INTERVAL": customization.value["mdns_backend"].get(
-            "scan_interval", DEFAULT_HOSTS_SCAN_INTERVAL
+        "SCAN_INTERVAL": int(
+            customization.value["mdns_backend"].get(
+                "scan_interval", DEFAULT_HOSTS_SCAN_INTERVAL
+            )
         ),
     }
 
@@ -306,8 +308,10 @@ else:
         "IGNORED_HWIDS": customization.value["usb_backend"].get(
             "ignored_hwids", DEFAULT_IGNORED_HWIDS
         ),
-        "LOCAL_RETRY_INTERVAL": customization.value["usb_backend"].get(
-            "local_retry_interval", DEFAULT_LOCAL_RETRY_INTERVAL
+        "LOCAL_RETRY_INTERVAL": int(
+            customization.value["usb_backend"].get(
+                "local_retry_interval", DEFAULT_LOCAL_RETRY_INTERVAL
+            )
         ),
         "SET_RTC": customization.value["usb_backend"].get(
             "set_realtime_clock", DEFAULT_SET_RTC
@@ -334,16 +338,20 @@ else:
     is1_hosts = []
     for hostname in is1_hosts_toml[0]:
         try:
-            port = is1_hosts_toml[1][is1_hosts_toml[0].index(hostname)]
+            port = int(is1_hosts_toml[1][is1_hosts_toml[0].index(hostname)])
         except IndexError:
             port = DEFAULT_IS1_PORT  # pylint: disable=invalid-name
         is1_hosts.append([hostname, port])
     is1_backend_config = {
-        "REG_PORT": customization.value["is1_backend"].get(
-            "registration_port", DEFAULT_REG_PORT
+        "REG_PORT": int(
+            customization.value["is1_backend"].get(
+                "registration_port", DEFAULT_REG_PORT
+            )
         ),
-        "SCAN_INTERVAL": customization.value["is1_backend"].get(
-            "scan_interval", DEFAULT_SCAN_INTERVAL
+        "SCAN_INTERVAL": int(
+            customization.value["is1_backend"].get(
+                "scan_interval", DEFAULT_SCAN_INTERVAL
+            )
         ),
         "IS1_HOSTS": is1_hosts,
     }
@@ -396,8 +404,8 @@ else:
                 "system_base", DEFAULT_SYSTEM_BASE
             ),
             "capabilities": {
-                "Admin Port": customization.value["actor"].get(
-                    "admin_port", DEFAULT_ADMIN_PORT
+                "Admin Port": int(
+                    customization.value["actor"].get("admin_port", DEFAULT_ADMIN_PORT)
                 ),
                 "Process Startup Method": customization.value["actor"].get(
                     "process_startup_method", DEFAULT_WINDOWS_METHOD
@@ -413,8 +421,8 @@ else:
                 "system_base", DEFAULT_SYSTEM_BASE
             ),
             "capabilities": {
-                "Admin Port": customization.value["actor"].get(
-                    "admin_port", DEFAULT_ADMIN_PORT
+                "Admin Port": int(
+                    customization.value["actor"].get("admin_port", DEFAULT_ADMIN_PORT)
                 ),
                 "Process Startup Method": customization.value["actor"].get(
                     "process_startup_method", DEFAULT_LINUX_METHOD
@@ -424,20 +432,26 @@ else:
                 ),
             },
         }
-    actor_config["KEEPALIVE_INTERVAL"] = customization.value["actor"].get(
-        "watchdog_interval", DEFAULT_KEEPALIVE_INTERVAL
+    actor_config["KEEPALIVE_INTERVAL"] = int(
+        customization.value["actor"].get(
+            "watchdog_interval", DEFAULT_KEEPALIVE_INTERVAL
+        )
     )
-    actor_config["WAIT_BEFORE_CHECK"] = customization.value["actor"].get(
-        "watchdog_wait", DEFAULT_WAIT_BEFORE_CHECK
+    actor_config["WAIT_BEFORE_CHECK"] = int(
+        customization.value["actor"].get("watchdog_wait", DEFAULT_WAIT_BEFORE_CHECK)
     )
     actor_config["CHECK"] = customization.value["actor"].get(
         "watchdog_check", DEFAULT_CHECK
     )
-    actor_config["OUTER_WATCHDOG_INTERVAl"] = customization.value["actor"].get(
-        "outer_watchdog_interval", DEFAULT_OUTER_WATCHDOG_INTERVAL
+    actor_config["OUTER_WATCHDOG_INTERVAl"] = int(
+        customization.value["actor"].get(
+            "outer_watchdog_interval", DEFAULT_OUTER_WATCHDOG_INTERVAL
+        )
     )
-    actor_config["OUTER_WATCHDOG_TRIALS"] = customization.value["actor"].get(
-        "outer_watchdog_trials", DEFAULT_OUTER_WATCHDOG_TRIALS
+    actor_config["OUTER_WATCHDOG_TRIALS"] = int(
+        customization.value["actor"].get(
+            "outer_watchdog_trials", DEFAULT_OUTER_WATCHDOG_TRIALS
+        )
     )
 
 # Configuration of MQTT clients used in MQTT frontend and MQTT backend
@@ -477,11 +491,13 @@ else:
             "mqtt_broker", DEFAULT_MQTT_BROKER
         ),
         "GROUP": customization.value["mqtt"].get("group", DEFAULT_GROUP),
-        "PORT": customization.value["mqtt"].get("port", DEFAULT_MQTT_PORT),
-        "KEEPALIVE": customization.value["mqtt"].get("keepalive", DEFAULT_KEEPALIVE),
-        "QOS": customization.value["mqtt"].get("qos", DEFAULT_QOS),
-        "RETRY_INTERVAL": customization.value["mqtt"].get(
-            "retry_interval", DEFAULT_RETRY_INTERVAL
+        "PORT": int(customization.value["mqtt"].get("port", DEFAULT_MQTT_PORT)),
+        "KEEPALIVE": int(
+            customization.value["mqtt"].get("keepalive", DEFAULT_KEEPALIVE)
+        ),
+        "QOS": int(customization.value["mqtt"].get("qos", DEFAULT_QOS)),
+        "RETRY_INTERVAL": int(
+            customization.value["mqtt"].get("retry_interval", DEFAULT_RETRY_INTERVAL)
         ),
         "TLS_USE_TLS": use_tls,
         "TLS_CA_FILE": customization.value["mqtt"].get(
@@ -510,10 +526,14 @@ if customization.value.get("mqtt_frontend") is None:
     }
 else:
     mqtt_frontend_config = {
-        "REBOOT_AFTER": customization.value["mqtt_frontend"].get(
-            "reboot_after", DEFAULT_REBOOT_AFTER
+        "REBOOT_AFTER": int(
+            customization.value["mqtt_frontend"].get(
+                "reboot_after", DEFAULT_REBOOT_AFTER
+            )
         ),
-        "RESTART_INSTEAD_OF_REBOOT": customization.value["mqtt_frontend"].get(
-            "restart_instead_of_reboot", DEFAULT_RESTART_INSTEAD_OF_REBOOT
+        "RESTART_INSTEAD_OF_REBOOT": int(
+            customization.value["mqtt_frontend"].get(
+                "restart_instead_of_reboot", DEFAULT_RESTART_INSTEAD_OF_REBOOT
+            )
         ),
     }
