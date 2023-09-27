@@ -11,7 +11,7 @@ Author
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
@@ -84,6 +84,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 self.led = False
         else:
             self.led = False
+        self.last_update = datetime(year=1970, month=1, day=1)
 
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
@@ -369,8 +370,10 @@ class MqttSchedulerActor(MqttBaseActor):
         elif message.payload.decode("utf-8") == "shutdown":
             self.send(self.registrar, ShutdownMsg(password="", host="127.0.0.1"))
         elif message.payload.decode("utf-8") == "update":
-            logger.debug("Send updated meta information of instruments")
-            self.send(self.registrar, GetDeviceStatusesMsg())
+            if (datetime.now() - self.last_update) > timedelta(seconds=1):
+                logger.debug("Send updated meta information of instruments")
+                self.send(self.registrar, GetDeviceStatusesMsg())
+                self.last_update = datetime.now()
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
