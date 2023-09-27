@@ -262,7 +262,8 @@ class MqttSchedulerActor(MqttBaseActor):
                 self.mqttc.publish(
                     topic=topic, payload=reservation_json, qos=self.qos, retain=False
                 )
-                self._instruments_connected()
+                if new_instrument_connected and (self.is_meta.state < 2):
+                    self._instruments_connected()
 
     def _instruments_connected(self):
         """Check whether there are connected instruments"""

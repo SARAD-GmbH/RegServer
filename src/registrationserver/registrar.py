@@ -63,19 +63,13 @@ class Registrar(BaseActor):
         super().receiveMsg_SetupMsg(msg, sender)
         self.handleDeadLetters(startHandling=True)
         if Frontend.MQTT in frontend_config:
-            mqtt_scheduler = self._create_actor(
-                MqttSchedulerActor, "mqtt_scheduler", None
-            )
+            self._create_actor(MqttSchedulerActor, "mqtt_scheduler", None)
         if Frontend.MDNS in frontend_config:
-            _mdns_scheduler = self._create_actor(
-                MdnsSchedulerActor, "mdns_scheduler", None
-            )
+            self._create_actor(MdnsSchedulerActor, "mdns_scheduler", None)
         if Backend.USB in backend_config:
             self._create_actor(ClusterActor, "cluster", None)
         if Backend.MQTT in backend_config:
-            mqtt_client_actor = self._create_actor(
-                MqttClientActor, "mqtt_client_actor", None
-            )
+            self._create_actor(MqttClientActor, "mqtt_client_actor", None)
         if Backend.IS1 in backend_config:
             _is1_listener = self._create_actor(Is1Listener, "is1_listener", None)
         keepalive_interval = actor_config["KEEPALIVE_INTERVAL"]
@@ -394,7 +388,12 @@ class Registrar(BaseActor):
     def receiveMsg_GetDeviceStatusesMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handle request to deliver the device statuses of all instruments."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        sending_actor = "REST API"
+        for sender_id, actor_dict in self.actor_dict.items():
+            if actor_dict["address"] == sender:
+                sending_actor = sender_id
+        if sending_actor != "REST API":
+            logger.debug("%s for %s from %s", msg, self.my_id, sending_actor)
         self.check_integrity()
         self.send(sender, UpdateDeviceStatusesMsg(self.device_statuses))
 

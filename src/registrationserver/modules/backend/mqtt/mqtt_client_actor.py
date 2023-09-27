@@ -140,7 +140,9 @@ class MqttClientActor(MqttBaseActor):
             return
         if not resurrect:
             for old_device_id in self.actor_dict:
-                if short_id(old_device_id) == instr_id:
+                if (
+                    self.actor_dict[old_device_id]["actor_type"] == ActorType.DEVICE
+                ) and (short_id(old_device_id) == instr_id):
                     if transport_technology(old_device_id) != "mqtt":
                         logger.info(
                             "%s is already represented by %s",
@@ -330,7 +332,7 @@ class MqttClientActor(MqttBaseActor):
             )
 
     def on_instr_meta(self, _client, _userdata, message):
-        """Handler for all messages of topic +/+/meta."""
+        """Handler for all messages of topic group/is_id/+/meta"""
         logger.debug("[on_instr_meta] %s, %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
         is_id = topic_parts[1]
@@ -398,7 +400,7 @@ class MqttClientActor(MqttBaseActor):
             )
 
     def on_instr_reserve(self, _client, _userdata, message):
-        """Handler for all messages of topic +/+/+/reservation"""
+        """Handler for all messages of topic group/is_id/+/reservation"""
         logger.debug("[on_instr_reserve] %s, %s", message.topic, message.payload)
         try:
             _payload = json.loads(message.payload)
