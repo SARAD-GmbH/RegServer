@@ -306,12 +306,16 @@ class MqttSchedulerActor(MqttBaseActor):
         for actor_id, description in self.actor_dict.items():
             if description["actor_type"] == ActorType.DEVICE:
                 self._remove_instrument(actor_id)
-        self.mqttc.publish(
-            topic=f"{self.group}/{self.is_id}/meta",
-            payload=json.dumps({"State": 0}),
+        topic = f"{self.group}/{self.is_id}/meta"
+        payload = json.dumps({"State": 0})
+        publish_result = self.mqttc.publish(
+            topic=topic,
+            payload=payload,
             qos=self.qos,
             retain=True,
         )
+        publish_result.wait_for_publish()
+        logger.debug("Publish %s on %s", payload, topic)
         if self.led and not self.led.closed:
             self.led.close()
         super().receiveMsg_KillMsg(msg, sender)
