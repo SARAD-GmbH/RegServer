@@ -37,7 +37,7 @@ use_utc = false  # UTC if true, local time if false
 [is1_backend]
 registration_port = 50002
 scan_interval = 60  # in seconds
-hosts = [[], []]  # [[host1, host2], [port1, port2]]
+hosts = []  # [host1, host2]
 
 [mdns_backend]
 mdns_timeout = 3000

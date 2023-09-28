@@ -48,6 +48,7 @@ use_utc = true  # UTC if true, local time if false
 [is1_backend]
 registration_port = 50002
 scan_interval = 1  # in seconds
+hosts = ["ESP-0ADBF5"]  # list of hostnames of IS1 WLAN modules
 
 [mdns_backend]
 mdns_timeout = 3000
