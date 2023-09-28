@@ -21,8 +21,7 @@ from registrationserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                                SetupIs1ActorMsg,
                                                TransportTechnology)
 from registrationserver.base_actor import BaseActor
-from registrationserver.config import (config, config_file, customization,
-                                       is1_backend_config)
+from registrationserver.config import config, config_file, is1_backend_config
 from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.backend.is1.is1_actor import Is1Actor
@@ -337,6 +336,8 @@ class Is1Listener(BaseActor):
             is1_hosts[0].append(is1_address.hostname)
             is1_hosts[1].append(is1_address.port)
         logger.info("is1_hosts = %s", is1_hosts)
+        with open(config_file, "rt", encoding="utf8") as custom_file:
+            customization = tomlkit.load(custom_file)
         customization["is1_backend"]["hosts"] = is1_hosts
         with open(config_file, "w", encoding="utf8") as custom_file:
             tomlkit.dump(customization, custom_file)

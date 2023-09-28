@@ -11,7 +11,7 @@ Author
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (ActorType, FreeDeviceMsg,
@@ -84,6 +84,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 self.led = False
         else:
             self.led = False
+        self.last_update = datetime(year=1970, month=1, day=1)
 
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
@@ -95,6 +96,7 @@ class MqttSchedulerActor(MqttBaseActor):
         self.mqttc.message_callback_add(
             f"{self.group}/{msg.client_id}/+/cmd", self.on_cmd
         )
+        self.mqttc.message_callback_add(f"{self.group}/+/meta", self.on_is_meta)
         self.mqttc.message_callback_add(
             f"{self.group}/{msg.client_id}/+/meta", self.on_instr_meta
         )
@@ -169,20 +171,19 @@ class MqttSchedulerActor(MqttBaseActor):
         for every instrument in a meta topic."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for device_id, status_dict in msg.device_statuses.items():
-            if transport_technology(device_id) != "mqtt":
-                topic = f"{self.group}/{self.is_id}/{short_id(device_id)}/meta"
-                try:
-                    status_dict["Identification"]["Host"] = self.is_meta.host
-                    self.mqttc.publish(
-                        topic=topic,
-                        payload=json.dumps(status_dict),
-                        qos=self.qos,
-                        retain=False,
-                    )
-                except KeyError as exception:
-                    logger.warning(
-                        "No host information for %s: %s", device_id, exception
-                    )
+            if transport_technology(device_id) in ("mqtt", "mdns"):
+                continue
+            topic = f"{self.group}/{self.is_id}/{short_id(device_id)}/meta"
+            try:
+                status_dict["Identification"]["Host"] = self.is_meta.host
+                self.mqttc.publish(
+                    topic=topic,
+                    payload=json.dumps(status_dict),
+                    qos=self.qos,
+                    retain=False,
+                )
+            except KeyError as exception:
+                logger.warning("No host information for %s: %s", device_id, exception)
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name, too-many-locals
@@ -262,7 +263,8 @@ class MqttSchedulerActor(MqttBaseActor):
                 self.mqttc.publish(
                     topic=topic, payload=reservation_json, qos=self.qos, retain=False
                 )
-                self._instruments_connected()
+                if new_instrument_connected and (self.is_meta.state < 2):
+                    self._instruments_connected()
 
     def _instruments_connected(self):
         """Check whether there are connected instruments"""
@@ -321,6 +323,7 @@ class MqttSchedulerActor(MqttBaseActor):
         if self.led:
             self.led.on()
         self._instruments_connected()
+        self.mqttc.subscribe(f"{self.group}/+/meta", 2)
         self.mqttc.subscribe(f"{self.group}/{self.is_id}/+/meta", 2)
         self.mqttc.subscribe(f"{self.group}/{self.is_id}/cmd", 2)
         self._subscribe_to_actor_dict_msg()
@@ -367,8 +370,10 @@ class MqttSchedulerActor(MqttBaseActor):
         elif message.payload.decode("utf-8") == "shutdown":
             self.send(self.registrar, ShutdownMsg(password="", host="127.0.0.1"))
         elif message.payload.decode("utf-8") == "update":
-            logger.debug("Send updated meta information of instruments")
-            self.send(self.registrar, GetDeviceStatusesMsg())
+            if (datetime.now() - self.last_update) > timedelta(seconds=1):
+                logger.debug("Send updated meta information of instruments")
+                self.send(self.registrar, GetDeviceStatusesMsg())
+                self.last_update = datetime.now()
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -414,8 +419,39 @@ class MqttSchedulerActor(MqttBaseActor):
         if device_actor is not None:
             self.send(device_actor, FreeDeviceMsg())
 
+    def on_is_meta(self, _client, _userdata, message):
+        """Handler for all messages of topic group/+/meta.
+        This function and subscription was introduced to handle the very special case
+        when an Instr. Server leaves an active meta topic on the MQTT broker with
+        its retain flag and the is_id was changed."""
+        logger.debug("[on_is_meta] %s, %s", message.topic, message.payload)
+        topic_parts = message.topic.split("/")
+        is_id = topic_parts[1]
+        try:
+            payload = json.loads(message.payload)
+        except (TypeError, json.decoder.JSONDecodeError):
+            if message.payload == b"":
+                logger.debug("Retained %s removed", message.topic)
+            else:
+                logger.warning(
+                    "Cannot decode %s at topic %s", message.payload, message.topic
+                )
+            return
+        try:
+            hostname = payload["Identification"]["Host"]
+        except KeyError:
+            return
+        if (is_id != self.is_id) and (hostname == self.is_meta.host):
+            logger.info("Remove retained message at %s", message.topic)
+            self.mqttc.publish(
+                topic=message.topic,
+                payload="",
+                qos=self.qos,
+                retain=True,
+            )
+
     def on_instr_meta(self, _client, _userdata, message):
-        """Handler for all messages of topic self.is_id/+/meta.
+        """Handler for all messages of topic group/is_id/+/meta.
         This function and subscription was introduced to handle the very special case
         when a crashed Instr. Server leaves an active meta topic on the MQTT broker with
         its retain flag."""
@@ -425,9 +461,12 @@ class MqttSchedulerActor(MqttBaseActor):
         try:
             payload = json.loads(message.payload)
         except (TypeError, json.decoder.JSONDecodeError):
-            logger.warning(
-                "Cannot decode %s at topic %s", message.payload, message.topic
-            )
+            if message.payload == b"":
+                logger.debug("Retained %s removed", message.topic)
+            else:
+                logger.warning(
+                    "Cannot decode %s at topic %s", message.payload, message.topic
+                )
             return
         device_actor, _device_id = self._device_actor(instr_id)
         if (device_actor is None) and (payload.get("State", 2) in (2, 1)):
