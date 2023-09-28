@@ -32,7 +32,7 @@ modbus-tk = "*"
 flask-restx = "*"
 rpi-gpio = {version = "*", sys_platform = "== 'linux'"}
 pywin32 = {version = "*", sys_platform = "== 'win32'"}
-data-collector = {editable = true, git = "https://github.com/SARAD-GmbH/data_collector.git"}
+datacollector = {editable = true, git = "https://github.com/SARAD-GmbH/data_collector.git"}
 gpiozero = {version = "*", sys_platform = "== 'linux'"}
 systemd-python = {version = "*", sys_platform = "== 'linux'"}
 tomlkit = "*"
