@@ -1,10 +1,10 @@
 debug_level = "info"
-is_id = ""
-description = "A longer text describing this Instrument Server"
-place = "Test office"
-latitude = 51.0764194  # positive values for North, negative for South
-longitude = 13.7383917  # positive values for East, negative for West
-height = 102  # in meters
+# is_id = "unique_id"
+# description = "A longer text describing this Instrument Server"
+# place = "Test office"
+# latitude = 51.0764194  # positive values for North, negative for South
+# longitude = 13.7383917  # positive values for East, negative for West
+# height = 102  # in meters
 
 [frontends]
 rest = true
@@ -37,6 +37,7 @@ use_utc = false  # UTC if true, local time if false
 [is1_backend]
 registration_port = 50002
 scan_interval = 60  # in seconds
+hosts = [[], []]  # [[host1, host2], [port1, port2]]
 
 [mdns_backend]
 mdns_timeout = 3000
