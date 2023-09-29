@@ -150,7 +150,9 @@ class Is1Listener(BaseActor):
         super().receiveMsg_SetupMsg(msg, sender)
         is1_addresses = []
         for host in is1_backend_config["IS1_HOSTS"]:
-            is1_addresses.append(Is1Address(hostname=host[0], port=host[1]))
+            is1_addresses.append(
+                Is1Address(hostname=host, port=is1_backend_config["IS1_PORT"])
+            )
         self.is1_addresses = self._deduplicate(is1_addresses)
         logger.info(
             "List of formerly used IS1 addresses: %s",
@@ -331,14 +333,12 @@ class Is1Listener(BaseActor):
         self.is1_addresses.extend(self.active_is1_addresses)
         is1_addresses = self._deduplicate(self.is1_addresses)
         logger.info("is1_addresses = %s", is1_addresses)
-        is1_hosts = [[], []]
-        for is1_address in is1_addresses:
-            is1_hosts[0].append(is1_address.hostname)
-            is1_hosts[1].append(is1_address.port)
-        logger.info("is1_hosts = %s", is1_hosts)
         with open(config_file, "rt", encoding="utf8") as custom_file:
             customization = tomlkit.load(custom_file)
-        customization["is1_backend"]["hosts"] = is1_hosts
+        is1_hosts = customization["is1_backend"]["hosts"]
+        for is1_address in is1_addresses:
+            is1_hosts.append(is1_address.hostname)
+        customization["is1_backend"]["hosts"] = list(set(is1_hosts))
         with open(config_file, "w", encoding="utf8") as custom_file:
             tomlkit.dump(customization, custom_file)
 

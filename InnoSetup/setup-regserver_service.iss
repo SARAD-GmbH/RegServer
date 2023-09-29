@@ -73,7 +73,7 @@ Source: "{#Source}\*"; DestDir: "{#Destination}"; Flags: createallsubdirs recurs
 
 [Run]
 Filename: "{#Destination}\setup-rss.bat"; Flags: nowait hidewizard runhidden runascurrentuser; Components: RS
-Filename: "{tmp}\{#DriverExeName}"; Flags: nowait hidewizard skipifdoesntexist; Description: "{cm:LaunchProgram,{#StringChange(DriverExeName, '&', '&&')}}"; Components: Drivers
+Filename: "{tmp}\{#DriverExeName}"; Flags: nowait hidewizard skipifdoesntexist skipifsilent; Description: "{cm:LaunchProgram,{#StringChange(DriverExeName, '&', '&&')}}"; Components: Drivers
 
 [Components]
 Name: "Drivers"; Description: "FTDI Drivers"; Types: custom full
