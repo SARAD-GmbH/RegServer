@@ -111,7 +111,16 @@ class Is1Listener(BaseActor):
 
     @staticmethod
     def _deduplicate(list_of_objects: List[Is1Address]):
-        return list(set(list_of_objects))
+        hosts = []
+        for is1_address in list_of_objects:
+            hosts.append(is1_address.hostname)
+        deduplicated_hosts = list(set(hosts))
+        is1_addresses = []
+        for host in deduplicated_hosts:
+            is1_addresses.append(
+                Is1Address(hostname=host, port=list_of_objects[0].port)
+            )
+        return is1_addresses
 
     @overrides
     def __init__(self):
@@ -149,11 +158,11 @@ class Is1Listener(BaseActor):
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         is1_addresses = []
-        for host in is1_backend_config["IS1_HOSTS"]:
+        deduplicated_hosts = list(set(is1_backend_config["IS1_HOSTS"]))
+        for host in deduplicated_hosts:
             is1_addresses.append(
                 Is1Address(hostname=host, port=is1_backend_config["IS1_PORT"])
             )
-        self.is1_addresses = self._deduplicate(is1_addresses)
         logger.info(
             "List of formerly used IS1 addresses: %s",
             self.is1_addresses,
@@ -331,12 +340,11 @@ class Is1Listener(BaseActor):
     def receiveMsg_ActorExitRequest(self, msg, sender):
         super().receiveMsg_ActorExitRequest(msg, sender)
         self.is1_addresses.extend(self.active_is1_addresses)
-        is1_addresses = self._deduplicate(self.is1_addresses)
-        logger.info("is1_addresses = %s", is1_addresses)
+        logger.info("is1_addresses = %s", self.is1_addresses)
         with open(config_file, "rt", encoding="utf8") as custom_file:
             customization = tomlkit.load(custom_file)
         is1_hosts = customization["is1_backend"]["hosts"]
-        for is1_address in is1_addresses:
+        for is1_address in self.is1_addresses:
             is1_hosts.append(is1_address.hostname)
         customization["is1_backend"]["hosts"] = list(set(is1_hosts))
         with open(config_file, "w", encoding="utf8") as custom_file:
