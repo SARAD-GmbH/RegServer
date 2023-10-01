@@ -157,10 +157,11 @@ class Is1Listener(BaseActor):
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
-        is1_addresses = []
-        deduplicated_hosts = list(set(is1_backend_config["IS1_HOSTS"]))
+        hosts = is1_backend_config["IS1_HOSTS"]
+        logger.info(hosts)
+        deduplicated_hosts = list(set(hosts))
         for host in deduplicated_hosts:
-            is1_addresses.append(
+            self.is1_addresses.append(
                 Is1Address(hostname=host, port=is1_backend_config["IS1_PORT"])
             )
         logger.info(
