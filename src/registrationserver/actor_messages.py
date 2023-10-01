@@ -282,10 +282,12 @@ class SetupIs1ActorMsg:
     Args:
         is1_address (object): Dataclass object containing the address of Instrument Server 1.
         com_port (int): Serial COM port of the instrument.
+        family_id (int): Id describing the instrument family.
     """
 
     is1_address: Is1Address
     com_port: int
+    family_id: int
 
 
 @dataclass

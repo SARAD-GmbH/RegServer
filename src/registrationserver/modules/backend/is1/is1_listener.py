@@ -369,6 +369,7 @@ class Is1Listener(BaseActor):
                 SetupIs1ActorMsg(
                     is1_address=is1_address,
                     com_port=port,
+                    family_id=family_id,
                 ),
             )
         else:

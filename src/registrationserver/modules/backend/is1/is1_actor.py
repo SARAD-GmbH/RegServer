@@ -8,17 +8,23 @@ as used in Instrument Server 1
     | Michael Strey <strey@sarad.de>
 """
 import socket
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from threading import Thread
 from time import sleep
+from typing import Union
 
 from overrides import overrides  # type: ignore
 from registrationserver.actor_messages import (Is1Address, Is1RemoveMsg,
                                                RxBinaryMsg, Status)
+from registrationserver.config import usb_backend_config
 from registrationserver.helpers import check_message, make_command_msg
 from registrationserver.logger import logger
 from registrationserver.modules.device_actor import DeviceBaseActor
+from sarad.dacm import DacmInst  # type: ignore
+from sarad.doseman import DosemanInst  # type: ignore
+from sarad.radonscout import RscInst  # type: ignore
+from sarad.sari import SaradInst  # type: ignore
 
 
 class ThreadType(Enum):
@@ -61,6 +67,7 @@ class Is1Actor(DeviceBaseActor):
             target=self._reserve_function,
             daemon=True,
         )
+        self.instrument: Union[SaradInst, None] = None
 
     def _start_thread(self, thread, thread_type: ThreadType):
         if (
@@ -87,6 +94,24 @@ class Is1Actor(DeviceBaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._is = msg.is1_address
         self._com_port = msg.com_port
+        family_id = msg.family_id
+        if family_id == 1:
+            family_class = DosemanInst
+        elif family_id == 2:
+            family_class = RscInst
+        elif family_id == 5:
+            family_class = DacmInst
+        else:
+            logger.critical("Family %s not supported", family_id)
+            return
+        self.instrument = family_class()
+        if usb_backend_config["SET_RTC"]:
+            if usb_backend_config["USE_UTC"]:
+                now = datetime.now(timezone.utc)
+            else:
+                now = datetime.now()
+            logger.info("Set RTC of %s to %s", self.my_id, now)
+            # TODO self.instrument.set_real_time_clock(now)
         self.wakeupAfter(timedelta(seconds=10), payload="Rescan")
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
