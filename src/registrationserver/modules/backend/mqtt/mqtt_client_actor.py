@@ -130,7 +130,7 @@ class MqttClientActor(MqttBaseActor):
         self.mqttc.message_callback_add(f"{self.group}/+/+/msg", self.on_instr_msg)
 
     def _add_instr(self, is_id, instr_id, payload: dict, resurrect=False) -> None:
-        # pylint: disable=too-many-return-statements
+        # pylint: disable=too-many-return-statements, too-many-branches
         logger.debug("[add_instr] %s", payload)
         if (is_id is None) or (instr_id is None) or (payload is None):
             logger.debug(
@@ -286,21 +286,10 @@ class MqttClientActor(MqttBaseActor):
                     "Cannot decode %s at topic %s", message.payload, message.topic
                 )
             return
-        if "State" not in payload:
-            logger.warning(
-                "[+/meta] Received meta message not including state of IS %s",
-                is_id,
-            )
-            return
-        if payload.get("State") is None:
-            logger.warning(
-                "[+/meta] Received meta message from IS %s, including a None state",
-                is_id,
-            )
-            return
-        if payload["State"] in (2, 1):
+        state = payload.get("State")
+        if state in (2, 1):
             logger.debug(
-                "[+/meta] Store the properties of %s",
+                "[on_is_meta] Store the properties of %s",
                 is_id,
             )
             if is_id in self._hosts:
@@ -313,7 +302,7 @@ class MqttClientActor(MqttBaseActor):
                 qos=self.qos,
                 retain=False,
             )
-        elif payload["State"] in (0, 10):
+        elif state in (0, 10):
             if is_id in self._hosts:
                 logger.info(
                     "Host with is_id '%s' just died.",
@@ -322,13 +311,13 @@ class MqttClientActor(MqttBaseActor):
                 self._rm_host(is_id, payload["State"])
             else:
                 logger.debug(
-                    "[+/meta] IS %s is known but offline",
+                    "[on_is_meta] IS %s is known but offline",
                     is_id,
                 )
         else:
             logger.warning(
-                "[+/meta] Subscriber received a meta message of an unknown host %s",
-                is_id,
+                "[on_is_meta] Cannot detect state in %s",
+                message,
             )
 
     def on_instr_meta(self, _client, _userdata, message):
@@ -347,24 +336,11 @@ class MqttClientActor(MqttBaseActor):
                     "Cannot decode %s at topic %s", message.payload, message.topic
                 )
             return
-        if "State" not in payload:
-            logger.warning(
-                "[+/meta] State of instrument %s missing in meta message from IS %s",
-                instr_id,
-                is_id,
-            )
-            return
-        if payload.get("State") is None:
-            logger.error(
-                "[+/meta] None state of instrument %s in meta message from IS %s",
-                instr_id,
-                is_id,
-            )
-            return
-        if payload["State"] in (2, 1):
+        state = payload.get("State")
+        if state in (2, 1):
             if is_id in self._hosts:
                 logger.debug(
-                    "[+/meta] Store properties of instrument %s",
+                    "[on_instr_meta] Store properties of instrument %s",
                     instr_id,
                 )
                 if self.device_id(instr_id) is not None:
@@ -373,30 +349,29 @@ class MqttClientActor(MqttBaseActor):
                     self._add_instr(is_id, instr_id, payload)
             else:
                 logger.warning(
-                    "[+/meta] Received a meta message of instr. %s from IS %s not added before",
+                    "[on_instr_meta] Meta message of instr. %s from IS %s not added before",
                     instr_id,
                     is_id,
                 )
-        elif payload["State"] in (0, 10):
+        elif state in (0, 10):
             logger.debug("disconnection message")
             try:
                 self._rm_instr(is_id, instr_id)
                 logger.debug(
-                    "[+/meta] Remove instrument %s from IS %s",
+                    "[on_instr_meta] Remove instrument %s from IS %s",
                     instr_id,
                     is_id,
                 )
             except KeyError:
                 logger.warning(
-                    "[+/meta] Subscriber received disconnect of unknown instrument %s from IS %s",
+                    "[on_instr_meta] Disconnect of unknown instr. %s from IS %s",
                     instr_id,
                     is_id,
                 )
         else:
             logger.warning(
-                "[+/meta] Subscriber received unknown state of unknown instrument %s from IS %s",
-                instr_id,
-                is_id,
+                "[on_instr_meta] Cannot detect state in %s",
+                message,
             )
 
     def on_instr_reserve(self, _client, _userdata, message):
