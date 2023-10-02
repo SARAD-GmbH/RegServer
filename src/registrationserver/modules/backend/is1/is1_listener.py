@@ -111,16 +111,7 @@ class Is1Listener(BaseActor):
 
     @staticmethod
     def _deduplicate(list_of_objects: List[Is1Address]):
-        hosts = []
-        for is1_address in list_of_objects:
-            hosts.append(is1_address.hostname)
-        deduplicated_hosts = list(set(hosts))
-        is1_addresses = []
-        for host in deduplicated_hosts:
-            is1_addresses.append(
-                Is1Address(hostname=host, port=list_of_objects[0].port)
-            )
-        return is1_addresses
+        return list(set(list_of_objects))
 
     @overrides
     def __init__(self):
