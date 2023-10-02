@@ -19,7 +19,9 @@ from datetime import timedelta
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 
-from registrationserver.actor_messages import (ActorType, Backend, Frontend,
+from registrationserver.actor_messages import (ActorType, Backend,
+                                               BaudRateFinishedMsg,
+                                               BaudRateMsg, Frontend,
                                                GetHostInfoMsg, HostInfoMsg,
                                                KillMsg, MqttConnectMsg,
                                                PrepareMqttActorMsg,
@@ -439,6 +441,19 @@ class Registrar(BaseActor):
                         ),
                     )
         self.send(sender, StartMeasuringFinishedMsg(Status.OK))
+
+    def receiveMsg_BaudRateMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forward the BaudRateMsg to Device Actors."""
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        for actor_id in self.actor_dict:
+            if self.actor_dict[actor_id]["actor_type"] == ActorType.DEVICE:
+                if (msg.instr_id is None) or (short_id(actor_id) == msg.instr_id):
+                    self.send(
+                        self.actor_dict[actor_id]["address"],
+                        BaudRateMsg(baud_rate=msg.baud_rate, instr_id=msg.instr_id),
+                    )
+        self.send(sender, BaudRateFinishedMsg(Status.OK))
 
     def receiveMsg_HostInfoMsg(self, msg, sender):
         # pylint: disable=invalid-name

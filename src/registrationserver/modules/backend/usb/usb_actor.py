@@ -439,6 +439,13 @@ class UsbActor(DeviceBaseActor):
                             measurand=list(sensor).index(measurand),
                         )
 
+    @overrides
+    def receiveMsg_BaudRateMsg(self, msg, sender):
+        super().receiveMsg_BaudRateMsg(msg, sender)
+        self.instrument._family[  # pylint: disable=protected-access
+            "baudrate"
+        ] = msg.baud_rate
+
     def receiveMsg_GetRecentValueMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Get a value from a DACM instrument."""

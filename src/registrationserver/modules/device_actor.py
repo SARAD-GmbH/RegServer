@@ -417,6 +417,13 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.redirector_actor = sender
 
+    def receiveMsg_BaudRateMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler to change the baud rate of the serial connection.
+
+        This is only a stub. The method is implemented in the USB device actor only."""
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
+
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
         if self.device_status["Reservation"].get("IP") is not None:

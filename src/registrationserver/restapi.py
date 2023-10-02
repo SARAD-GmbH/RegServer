@@ -26,7 +26,8 @@ from version import VERSION
 from waitress import serve
 
 from registrationserver.actor_messages import (AddPortToLoopMsg,
-                                               GetLocalPortsMsg,
+                                               BaudRateFinishedMsg,
+                                               BaudRateMsg, GetLocalPortsMsg,
                                                GetNativePortsMsg,
                                                GetRecentValueMsg,
                                                GetUsbPortsMsg, InstrObj,
@@ -178,6 +179,15 @@ start_arguments.add_argument(
     type=str,
     required=False,
     help="Datetime string in ISO format giving the UTC to start the measuring.",
+)
+baudrate_arguments = reqparse.RequestParser()
+baudrate_arguments.add_argument(
+    "rate",
+    type=int,
+    required=True,
+    help="Set the baud rate for the serial interface to the instrument.",
+    choices=[9600, 115200],
+    trim=True,
 )
 ports_arguments = reqparse.RequestParser()
 ports_arguments.add_argument("port", type=str, required=False)
@@ -834,6 +844,46 @@ class StartMeasuring(Resource):
                         logger.debug(exception)
                         reply = None
                 reply_is_corrupted = check_msg(reply, StartMeasuringFinishedMsg)
+                if reply_is_corrupted:
+                    return reply_is_corrupted
+                return {
+                    "Error code": reply.status.value,
+                    "Error": str(reply.status),
+                }
+        return api.abort(404)
+
+
+@instruments_ns.route("/<string:instr_id>/baudrate")
+@instruments_ns.param(
+    "rate",
+    "Baud rate of the serial connection to the instrument.",
+)
+class BaudRate(Resource):
+    # pylint: disable=too-few-public-methods
+    """Set the baud rate of serial connection."""
+
+    @api.expect(baudrate_arguments, validate=True)
+    def put(self, instr_id):
+        """Change the baud rate at the given instrument."""
+        args = baudrate_arguments.parse_args()
+        registrar_actor = get_registrar_actor()
+        if registrar_actor is None:
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return api.abort(404)
+        for device_id in get_device_statuses(registrar_actor):
+            if short_id(device_id) == instr_id:
+                with ActorSystem().private() as start_sys:
+                    try:
+                        reply = start_sys.ask(
+                            registrar_actor,
+                            BaudRateMsg(baud_rate=args["rate"], instr_id=instr_id),
+                            timeout=timedelta(seconds=60),
+                        )
+                    except ConnectionResetError as exception:
+                        logger.debug(exception)
+                        reply = None
+                reply_is_corrupted = check_msg(reply, BaudRateFinishedMsg)
                 if reply_is_corrupted:
                     return reply_is_corrupted
                 return {
