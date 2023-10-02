@@ -67,16 +67,16 @@ Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 Name: "ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
 
 [Files]
-Source: "{#Distribution}\{#DriverExeName}"; DestDir: "{tmp}"; Flags: deleteafterinstall; Components: Drivers
+; Source: "{#Distribution}\{#DriverExeName}"; DestDir: "{tmp}"; Flags: deleteafterinstall; Components: Drivers
 Source: "{#Source}\*"; DestDir: "{#Destination}"; Flags: createallsubdirs recursesubdirs promptifolder restartreplace uninsrestartdelete; Components: RS
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Run]
 Filename: "{#Destination}\setup-rss.bat"; Flags: nowait hidewizard runhidden runascurrentuser; Components: RS
-Filename: "{tmp}\{#DriverExeName}"; Flags: nowait hidewizard skipifdoesntexist skipifsilent; Description: "{cm:LaunchProgram,{#StringChange(DriverExeName, '&', '&&')}}"; Components: Drivers
+; Filename: "{tmp}\{#DriverExeName}"; Flags: nowait hidewizard skipifdoesntexist skipifsilent; Description: "{cm:LaunchProgram,{#StringChange(DriverExeName, '&', '&&')}}"; Components: Drivers
 
 [Components]
-Name: "Drivers"; Description: "FTDI Drivers"; Types: custom full
+; Name: "Drivers"; Description: "FTDI Drivers"; Types: custom full
 Name: "RS"; Description: "SARAD Registration Server"; Types: custom full compact; Flags: fixed
 
 [UninstallRun]
@@ -92,5 +92,5 @@ Name: "post-compile.bat"; Flags: abortonerror cmdprompt redirectoutput
 [PreCompile]
 Name: "pre-compile.bat"; Flags: abortonerror cmdprompt redirectoutput
 
-[InstallDelete]
-Type: files; Name: "{app}\{#DriverExeName}"; Components: Drivers
+; [InstallDelete]
+; Type: files; Name: "{app}\{#DriverExeName}"; Components: Drivers
