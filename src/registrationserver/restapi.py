@@ -186,7 +186,7 @@ baudrate_arguments.add_argument(
     type=int,
     required=True,
     help="Set the baud rate for the serial interface to the instrument.",
-    choices=[9600, 115200],
+    choices=[9600, 115200, 256000],
     trim=True,
 )
 ports_arguments = reqparse.RequestParser()
