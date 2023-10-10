@@ -442,9 +442,9 @@ class UsbActor(DeviceBaseActor):
     @overrides
     def receiveMsg_BaudRateMsg(self, msg, sender):
         super().receiveMsg_BaudRateMsg(msg, sender)
-        self.instrument._family[  # pylint: disable=protected-access
-            "baudrate"
-        ] = msg.baud_rate
+        self.instrument._family["baudrate"] = list(  # pylint: disable=protected-access
+            msg.baud_rate
+        )
 
     def receiveMsg_GetRecentValueMsg(self, msg, sender):
         # pylint: disable=invalid-name
