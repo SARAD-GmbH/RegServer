@@ -454,7 +454,7 @@ else:
 # Configuration of MQTT clients used in MQTT frontend and MQTT backend
 DEFAULT_MQTT_CLIENT_ID = "Id"
 DEFAULT_MQTT_BROKER = "sarad.de"  # Mosquitto running on sarad.de
-DEFAULT_MQTT_PORT = 1883
+DEFAULT_MQTT_PORT = 8883
 DEFAULT_KEEPALIVE = 60
 DEFAULT_QOS = 2
 DEFAULT_RETRY_INTERVAL = 5
