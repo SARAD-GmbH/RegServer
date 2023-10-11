@@ -9,14 +9,14 @@ height = 102  # in meters
 [frontends]
 rest = true
 mqtt = true
-mdns = true
+mdns = false
 modbus_rtu = false
 
 [backends]
 usb = true
 mqtt = true
-mdns = true
-is1 = true
+mdns = false
+is1 = false
 
 [rest_frontend]
 api_port = 8008
@@ -31,7 +31,7 @@ device_id = "28tkhn4V.sarad-dacm.local"
 
 [usb_backend]
 poll_serial_ports = []
-ignored_serial_ports = []
+ignored_serial_ports = ["/dev/ttyS0"]
 ignored_hwids = ["BTHENUM", "2c7c"]
 # Serial Bluetooth device: "BTHENUM"
 # Quectel LTE modem: "2c7c"
@@ -74,15 +74,6 @@ watchdog_wait = 2  # in seconds
 watchdog_check = true  # if true, each Actor has to re-register at the Registrar
 outer_watchdog_interval = 60  # in seconds
 outer_watchdog_trials = 1  # number of attempts to check Registrar
-
-[mqtt]
-group = "sawleipzig-0001"
-mqtt_broker = "sarad.de"
-port = 8883
-keepalive = 60
-qos = 2
-retry_interval = 5
-tls_use_tls = true
 
 [mqtt_frontend]
 reboot_after = 60  # Time in minutes after disconnect causing a reboot. 0 = never.

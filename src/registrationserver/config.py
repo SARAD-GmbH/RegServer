@@ -9,6 +9,7 @@
 """
 import logging
 import os
+import re
 import socket
 import sys
 from typing import List, Union
@@ -451,17 +452,25 @@ else:
     )
 
 # Configuration of MQTT clients used in MQTT frontend and MQTT backend
-DEFAULT_MQTT_CLIENT_ID = "RegistrationServer"
-DEFAULT_MQTT_BROKER = "85.214.243.156"  # Mosquitto running on sarad.de
+DEFAULT_MQTT_CLIENT_ID = "Id"
+DEFAULT_MQTT_BROKER = "sarad.de"  # Mosquitto running on sarad.de
 DEFAULT_MQTT_PORT = 1883
 DEFAULT_KEEPALIVE = 60
-DEFAULT_QOS = 0
+DEFAULT_QOS = 2
 DEFAULT_RETRY_INTERVAL = 5
-DEFAULT_TLS_USE_TLS = False
-DEFAULT_GROUP = "lan"
+DEFAULT_TLS_USE_TLS = True
 DEFAULT_TLS_CA_FILE = f"{app_folder}tls_cert_sarad.pem"
 DEFAULT_TLS_KEY_FILE = f"{app_folder}tls_key_personal.pem"
 DEFAULT_TLS_CERT_FILE = f"{app_folder}tls_cert_personal.crt"
+if os.path.isfile(DEFAULT_TLS_CERT_FILE):
+    with open(DEFAULT_TLS_CERT_FILE, "r", encoding="utf8") as cert_file:
+        matches = re.match(r".+CN=(.+)[_][0-9]{4}.+", cert_file.read(), flags=re.S)
+        if matches is not None:
+            DEFAULT_GROUP = matches.group(1)
+        else:
+            DEFAULT_GROUP = "lan"
+else:
+    DEFAULT_GROUP = "lan"
 
 if customization.value.get("mqtt") is None:
     mqtt_config = {
@@ -509,7 +518,6 @@ else:
             DEFAULT_TLS_KEY_FILE,
         ),
     }
-# TODO Read GROUP from TLS_CERT_FILE
 
 # Configuration of MQTT frontend
 DEFAULT_REBOOT_AFTER = 0

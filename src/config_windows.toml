@@ -46,18 +46,13 @@ hosts = [[], []]  # [[host1, host2], [port1, port2]]
 scan_interval = 60  # in seconds, 0 = scan only once during startup
 
 [actor]
-## Uncomment one of the following three base technologies for the Actor system
+## Uncomment one of the following base technologies for the Actor system
 ## A) Experimental multithreading base
 system_base = "multiprocQueueBase"
 ## B) UDP based messages
 # system_base = "multiprocUDPBase"
 # admin_port = 1029
-## C) TCP based messages
-# system_base = "multiprocTCPBase"
-# admin_port = 1900
-# convention_address = "127.0.0.1"
 
-process_startup_method = "spawn"
 watchdog_interval = 2  # in seconds. 0 = inner watchdog switched off
 watchdog_wait = 3  # in seconds. If IS1 backend is active and watchdog_check is
                    # True, this must be at least 35. In every other case it
@@ -65,15 +60,6 @@ watchdog_wait = 3  # in seconds. If IS1 backend is active and watchdog_check is
 watchdog_check = true  # if true, each Actor has to re-register at the Registrar
 outer_watchdog_interval = 60  # in seconds
 outer_watchdog_trials = 1  # number of attempts to check Registrar
-
-[mqtt]
-group = "sarad-0001"  # replace by your company's MQTT group
-mqtt_broker = "sarad.de"
-port = 8883
-keepalive = 60
-qos = 2
-retry_interval = 5
-tls_use_tls = true
 
 [mqtt_frontend]
 reboot_after = 10  # Time in minutes after disconnect causing a reboot. 0 = never.

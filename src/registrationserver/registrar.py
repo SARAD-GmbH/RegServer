@@ -267,6 +267,7 @@ class Registrar(BaseActor):
                 ),
             )
             self.send(sender, MqttConnectMsg())
+        logger.debug("MQTT group of %s = %s", msg.actor_id, mqtt_config["GROUP"])
         if msg.actor_type == ActorType.DEVICE:
             self._handle_device_actor(sender, msg.actor_id)
         elif msg.actor_type == ActorType.HOST:
