@@ -472,6 +472,7 @@ class Registrar(BaseActor):
                     break
             if not known:
                 self.hosts.append(new_host)
+        logger.debug("Known hosts: %s", self.hosts)
 
     def receiveMsg_GetHostInfoMsg(self, msg, sender):
         # pylint: disable=invalid-name
