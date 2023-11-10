@@ -59,7 +59,6 @@ class MqttSchedulerActor(MqttBaseActor):
         self.reservations = {}  # {device_id: <reservation object>}
         # cmd_id to check the correct order of messages
         self.cmd_ids = {}  # {instr_id: <command id>}
-        self.msg_id["PUBLISH"] = None
         self.is_meta = InstrumentServerMeta(
             state=0,
             host=config["MY_HOSTNAME"],

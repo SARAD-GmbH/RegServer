@@ -33,10 +33,6 @@ class MqttBaseActor(BaseActor):
         super().__init__()
         self.mqttc = None
         self.is_connected = False
-        self.msg_id = {
-            "SUBSCRIBE": None,
-            "UNSUBSCRIBE": None,
-        }  # store the current message ID to check
         self.group = None
         self.connect_thread = Thread(
             target=self._connect,
@@ -224,28 +220,6 @@ class MqttBaseActor(BaseActor):
         else:
             logger.debug("Gracefully disconnected from MQTT broker.")
         self.is_connected = False
-
-    def on_subscribe(self, client, userdata, msg_id, grant_qos):
-        # pylint: disable=unused-argument
-        """MQTT handler for confirmation of subscription."""
-        logger.debug(
-            "[on_subscribe] msg_id: %d, stored msg_id: %d",
-            msg_id,
-            self.msg_id["SUBSCRIBE"],
-        )
-        if msg_id == self.msg_id["SUBSCRIBE"]:
-            logger.debug("Subscribed to the topic successfully")
-
-    def on_unsubscribe(self, client, userdata, msg_id):
-        # pylint: disable=unused-argument
-        """MQTT handler for confirmation of unsubscribe."""
-        logger.debug(
-            "[on_unsubscribe] msg_id: %d, stored msg_id: %d",
-            msg_id,
-            self.msg_id["UNSUBSCRIBE"],
-        )
-        if msg_id == self.msg_id["UNSUBSCRIBE"]:
-            logger.debug("Unsubscribed from topic")
 
     def on_message(self, _client, _userdata, message):
         """Handler for all MQTT messages that cannot be handled by special handlers."""
