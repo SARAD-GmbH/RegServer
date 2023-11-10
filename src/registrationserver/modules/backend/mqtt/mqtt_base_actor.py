@@ -65,8 +65,6 @@ class MqttBaseActor(BaseActor):
         self.mqttc.on_connect = self.on_connect
         self.mqttc.on_disconnect = self.on_disconnect
         self.mqttc.on_message = self.on_message
-        self.mqttc.on_subscribe = self.on_subscribe
-        self.mqttc.on_unsubscribe = self.on_unsubscribe
         self.mqttc.on_log = self.on_log
 
     def receiveMsg_MqttConnectMsg(self, msg, sender):
