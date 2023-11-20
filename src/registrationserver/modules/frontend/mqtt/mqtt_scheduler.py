@@ -88,17 +88,20 @@ class MqttSchedulerActor(MqttBaseActor):
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
-        self.mqttc.message_callback_add(f"{self.group}/+/+/control", self.on_control)
+        # callbacks for host
+        self.mqttc.message_callback_add(f"{self.group}/+/meta", self.on_is_meta)
         self.mqttc.message_callback_add(
             f"{self.group}/{msg.client_id}/cmd", self.on_host_cmd
         )
-        self.mqttc.message_callback_add(
-            f"{self.group}/{msg.client_id}/+/cmd", self.on_cmd
-        )
-        self.mqttc.message_callback_add(f"{self.group}/+/meta", self.on_is_meta)
+        # callbacks for instrument
         self.mqttc.message_callback_add(
             f"{self.group}/{msg.client_id}/+/meta", self.on_instr_meta
         )
+        self.mqttc.message_callback_add(f"{self.group}/+/+/control", self.on_control)
+        self.mqttc.message_callback_add(
+            f"{self.group}/{msg.client_id}/+/cmd", self.on_cmd
+        )
+        # last will and testament
         self.mqttc.will_set(
             topic=f"{self.group}/{msg.client_id}/meta",
             payload=get_is_meta(self.is_meta._replace(state=10)),
