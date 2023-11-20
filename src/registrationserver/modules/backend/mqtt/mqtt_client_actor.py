@@ -72,6 +72,17 @@ class MqttClientActor(MqttBaseActor):
             host = is_id
         else:
             host = fqdn
+        try:
+            running_since = datetime.fromisoformat(
+                host_info.get(
+                    "Since",
+                    (datetime(year=1970, month=1, day=1)).isoformat(timespec="seconds"),
+                )
+            )
+        except ValueError:
+            running_since = datetime.fromisoformat(
+                (datetime(year=1970, month=1, day=1)).isoformat(timespec="seconds"),
+            )
         return HostObj(
             host=host,
             is_id=is_id,
@@ -83,12 +94,7 @@ class MqttClientActor(MqttBaseActor):
             height=host_info.get("Height", 0),
             state=host_info.get("State", 0),
             version=host_info.get("Ver", ""),
-            running_since=datetime.fromisoformat(
-                host_info.get(
-                    "Since",
-                    (datetime(year=1970, month=1, day=1)).isoformat(timespec="seconds"),
-                )
-            ),
+            running_since=running_since,
         )
 
     def device_id(self, instr_id):
