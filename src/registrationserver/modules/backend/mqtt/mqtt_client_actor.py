@@ -73,13 +73,15 @@ class MqttClientActor(MqttBaseActor):
         else:
             host = fqdn
         try:
-            running_since = datetime.fromisoformat(
-                host_info.get(
-                    "Since",
-                    (datetime(year=1970, month=1, day=1)).isoformat(timespec="seconds"),
-                )
+            host_timestamp = host_info.get(
+                "Since",
+                (datetime(year=1970, month=1, day=1)).isoformat(timespec="seconds"),
             )
-        except ValueError:
+            if host_timestamp[-1] == "Z":
+                host_timestamp = host_timestamp[:-1]
+            running_since = datetime.fromisoformat(host_timestamp)
+        except ValueError as exc:
+            logger.warning(exc)
             running_since = datetime.fromisoformat(
                 (datetime(year=1970, month=1, day=1)).isoformat(timespec="seconds"),
             )
