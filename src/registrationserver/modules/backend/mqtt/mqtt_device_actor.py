@@ -126,30 +126,9 @@ class MqttDeviceActor(DeviceBaseActor):
 
     @overrides
     def _handle_reserve_reply_from_is(self, success):
-        super()._handle_reserve_reply_from_is(success)
         if success is Status.NOT_FOUND:
-            logger.warning(
-                "Reserve request to %s timed out, reset retained MQTT messages",
-                self.my_id,
-            )
-            self.send(
-                self.parent.parent_address,
-                MqttPublishMsg(
-                    topic=self.allowed_sys_topics["META"],
-                    payload="",
-                    qos=self.qos,
-                    retain=True,
-                ),
-            )
-            self.send(
-                self.parent.parent_address,
-                MqttPublishMsg(
-                    topic=self.allowed_sys_topics["RESERVE"],
-                    payload="",
-                    qos=self.qos,
-                    retain=True,
-                ),
-            )
+            logger.warning("Reserve request to %s timed out", self.my_id)
+        super()._handle_reserve_reply_from_is(success)
 
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -186,27 +165,7 @@ class MqttDeviceActor(DeviceBaseActor):
     @overrides
     def _handle_free_reply_from_is(self, success):
         if success is Status.NOT_FOUND:
-            logger.warning(
-                "Free request to %s timed out, reset retained MQTT messages", self.my_id
-            )
-            self.send(
-                self.parent.parent_address,
-                MqttPublishMsg(
-                    topic=self.allowed_sys_topics["META"],
-                    payload="",
-                    qos=self.qos,
-                    retain=True,
-                ),
-            )
-            self.send(
-                self.parent.parent_address,
-                MqttPublishMsg(
-                    topic=self.allowed_sys_topics["RESERVE"],
-                    payload="",
-                    qos=self.qos,
-                    retain=True,
-                ),
-            )
+            logger.warning("Free request to %s timed out", self.my_id)
         super()._handle_free_reply_from_is(success)
 
     def receiveMsg_MqttReceiveMsg(self, msg, sender):
