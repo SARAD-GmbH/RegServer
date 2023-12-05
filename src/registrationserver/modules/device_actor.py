@@ -21,7 +21,7 @@ from registrationserver.helpers import short_id
 from registrationserver.logger import logger
 from registrationserver.redirect_actor import RedirectorActor
 
-RESERVE_TIMEOUT = timedelta(seconds=7)  # Timeout for RESERVE or FREE operations
+RESERVE_TIMEOUT = timedelta(seconds=10)  # Timeout for RESERVE or FREE operations
 
 
 class DeviceBaseActor(BaseActor):

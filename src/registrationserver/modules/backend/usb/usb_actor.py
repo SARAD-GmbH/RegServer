@@ -283,7 +283,7 @@ class UsbActor(DeviceBaseActor):
             return
         emergency = False
         try:
-            reply = self.instrument.get_message_payload(data, timeout=1)
+            reply = self.instrument.get_message_payload(data, timeout=3)
         except (SerialException, OSError):
             logger.error("Connection to %s lost", self.instrument)
             reply = {"is_valid": False, "is_last_frame": True}
@@ -307,7 +307,7 @@ class UsbActor(DeviceBaseActor):
     def _tx_binary_proceed(self):
         emergency = False
         try:
-            reply = self.instrument.get_next_payload(timeout=1)
+            reply = self.instrument.get_next_payload(timeout=3)
         except (SerialException, OSError):
             logger.error("Connection to %s lost", self.my_id)
             reply = {"is_valid": False, "is_last_frame": True}
