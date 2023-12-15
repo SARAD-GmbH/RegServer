@@ -14,7 +14,7 @@ modbus_rtu = false
 
 [backends]
 usb = true
-mqtt = false
+mqtt = 2  # 0 or false: off; 1 or true: on; 2: auto
 mdns = true
 is1 = false
 

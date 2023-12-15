@@ -142,6 +142,75 @@ else:
     if customization.value["frontends"].get("modbus_rtu", False):
         frontend_config.add(Frontend.MODBUS_RTU)
 
+# Configuration of MQTT clients used in MQTT frontend and MQTT backend
+DEFAULT_MQTT_CLIENT_ID = "Id"
+DEFAULT_MQTT_BROKER = "sarad.de"  # Mosquitto running on sarad.de
+DEFAULT_MQTT_PORT = 8883
+DEFAULT_KEEPALIVE = 60
+DEFAULT_QOS = 2
+DEFAULT_RETRY_INTERVAL = 5
+DEFAULT_TLS_USE_TLS = True
+DEFAULT_TLS_CA_FILE = f"{app_folder}tls_cert_sarad.pem"
+DEFAULT_TLS_KEY_FILE = f"{app_folder}tls_key_personal.pem"
+DEFAULT_TLS_CERT_FILE = f"{app_folder}tls_cert_personal.crt"
+tls_present = os.path.isfile(DEFAULT_TLS_CERT_FILE)
+if tls_present:
+    with open(DEFAULT_TLS_CERT_FILE, "r", encoding="utf8") as cert_file:
+        matches = re.match(r".+CN=(.+)[_][0-9]{4}.+", cert_file.read(), flags=re.S)
+        if matches is not None:
+            DEFAULT_GROUP = matches.group(1)
+        else:
+            DEFAULT_GROUP = "lan"
+else:
+    DEFAULT_GROUP = "lan"
+
+if customization.value.get("mqtt") is None:
+    mqtt_config = {
+        "MQTT_CLIENT_ID": unique_id(DEFAULT_MQTT_CLIENT_ID),
+        "MQTT_BROKER": DEFAULT_MQTT_BROKER,
+        "GROUP": DEFAULT_GROUP,
+        "PORT": DEFAULT_MQTT_PORT,
+        "KEEPALIVE": DEFAULT_KEEPALIVE,
+        "QOS": DEFAULT_QOS,
+        "RETRY_INTERVAL": DEFAULT_RETRY_INTERVAL,
+        "TLS_CA_FILE": DEFAULT_TLS_CA_FILE,
+        "TLS_CERT_FILE": DEFAULT_TLS_CERT_FILE,
+        "TLS_KEY_FILE": DEFAULT_TLS_KEY_FILE,
+        "TLS_USE_TLS": DEFAULT_TLS_USE_TLS,
+    }
+else:
+    use_tls = customization.value["mqtt"].get("tls_use_tls", DEFAULT_TLS_USE_TLS)
+    mqtt_config = {
+        "MQTT_CLIENT_ID": unique_id(
+            customization.value["mqtt"].get("mqtt_client_id", DEFAULT_MQTT_CLIENT_ID)
+        ),
+        "MQTT_BROKER": customization.value["mqtt"].get(
+            "mqtt_broker", DEFAULT_MQTT_BROKER
+        ),
+        "GROUP": customization.value["mqtt"].get("group", DEFAULT_GROUP),
+        "PORT": int(customization.value["mqtt"].get("port", DEFAULT_MQTT_PORT)),
+        "KEEPALIVE": int(
+            customization.value["mqtt"].get("keepalive", DEFAULT_KEEPALIVE)
+        ),
+        "QOS": int(customization.value["mqtt"].get("qos", DEFAULT_QOS)),
+        "RETRY_INTERVAL": int(
+            customization.value["mqtt"].get("retry_interval", DEFAULT_RETRY_INTERVAL)
+        ),
+        "TLS_USE_TLS": use_tls,
+        "TLS_CA_FILE": customization.value["mqtt"].get(
+            "tls_ca_file",
+            DEFAULT_TLS_CA_FILE,
+        ),
+        "TLS_CERT_FILE": customization.value["mqtt"].get(
+            "tls_cert_file",
+            DEFAULT_TLS_CERT_FILE,
+        ),
+        "TLS_KEY_FILE": customization.value["mqtt"].get(
+            "tls_key_file",
+            DEFAULT_TLS_KEY_FILE,
+        ),
+    }
+
 # Backend configuration
 backend_config = set()
 DEFAULT_BACKENDS = {Backend.USB, Backend.MDNS}
@@ -151,7 +220,8 @@ if customization.value.get("backends") is None:
 else:
     if customization.value["backends"].get("usb", False):
         backend_config.add(Backend.USB)
-    if customization.value["backends"].get("mqtt", False):
+    mqtt_backend = customization.value["backends"].get("mqtt", 2)
+    if (mqtt_backend == 1) or ((mqtt_backend == 2) and tls_present):
         backend_config.add(Backend.MQTT)
     if customization.value["backends"].get("mdns", False):
         backend_config.add(Backend.MDNS)
@@ -450,74 +520,6 @@ else:
             "outer_watchdog_trials", DEFAULT_OUTER_WATCHDOG_TRIALS
         )
     )
-
-# Configuration of MQTT clients used in MQTT frontend and MQTT backend
-DEFAULT_MQTT_CLIENT_ID = "Id"
-DEFAULT_MQTT_BROKER = "sarad.de"  # Mosquitto running on sarad.de
-DEFAULT_MQTT_PORT = 8883
-DEFAULT_KEEPALIVE = 60
-DEFAULT_QOS = 2
-DEFAULT_RETRY_INTERVAL = 5
-DEFAULT_TLS_USE_TLS = True
-DEFAULT_TLS_CA_FILE = f"{app_folder}tls_cert_sarad.pem"
-DEFAULT_TLS_KEY_FILE = f"{app_folder}tls_key_personal.pem"
-DEFAULT_TLS_CERT_FILE = f"{app_folder}tls_cert_personal.crt"
-if os.path.isfile(DEFAULT_TLS_CERT_FILE):
-    with open(DEFAULT_TLS_CERT_FILE, "r", encoding="utf8") as cert_file:
-        matches = re.match(r".+CN=(.+)[_][0-9]{4}.+", cert_file.read(), flags=re.S)
-        if matches is not None:
-            DEFAULT_GROUP = matches.group(1)
-        else:
-            DEFAULT_GROUP = "lan"
-else:
-    DEFAULT_GROUP = "lan"
-
-if customization.value.get("mqtt") is None:
-    mqtt_config = {
-        "MQTT_CLIENT_ID": unique_id(DEFAULT_MQTT_CLIENT_ID),
-        "MQTT_BROKER": DEFAULT_MQTT_BROKER,
-        "GROUP": DEFAULT_GROUP,
-        "PORT": DEFAULT_MQTT_PORT,
-        "KEEPALIVE": DEFAULT_KEEPALIVE,
-        "QOS": DEFAULT_QOS,
-        "RETRY_INTERVAL": DEFAULT_RETRY_INTERVAL,
-        "TLS_CA_FILE": DEFAULT_TLS_CA_FILE,
-        "TLS_CERT_FILE": DEFAULT_TLS_CERT_FILE,
-        "TLS_KEY_FILE": DEFAULT_TLS_KEY_FILE,
-        "TLS_USE_TLS": DEFAULT_TLS_USE_TLS,
-    }
-else:
-    use_tls = customization.value["mqtt"].get("tls_use_tls", DEFAULT_TLS_USE_TLS)
-    mqtt_config = {
-        "MQTT_CLIENT_ID": unique_id(
-            customization.value["mqtt"].get("mqtt_client_id", DEFAULT_MQTT_CLIENT_ID)
-        ),
-        "MQTT_BROKER": customization.value["mqtt"].get(
-            "mqtt_broker", DEFAULT_MQTT_BROKER
-        ),
-        "GROUP": customization.value["mqtt"].get("group", DEFAULT_GROUP),
-        "PORT": int(customization.value["mqtt"].get("port", DEFAULT_MQTT_PORT)),
-        "KEEPALIVE": int(
-            customization.value["mqtt"].get("keepalive", DEFAULT_KEEPALIVE)
-        ),
-        "QOS": int(customization.value["mqtt"].get("qos", DEFAULT_QOS)),
-        "RETRY_INTERVAL": int(
-            customization.value["mqtt"].get("retry_interval", DEFAULT_RETRY_INTERVAL)
-        ),
-        "TLS_USE_TLS": use_tls,
-        "TLS_CA_FILE": customization.value["mqtt"].get(
-            "tls_ca_file",
-            DEFAULT_TLS_CA_FILE,
-        ),
-        "TLS_CERT_FILE": customization.value["mqtt"].get(
-            "tls_cert_file",
-            DEFAULT_TLS_CERT_FILE,
-        ),
-        "TLS_KEY_FILE": customization.value["mqtt"].get(
-            "tls_key_file",
-            DEFAULT_TLS_KEY_FILE,
-        ),
-    }
 
 # Configuration of MQTT frontend
 DEFAULT_REBOOT_AFTER = 0
