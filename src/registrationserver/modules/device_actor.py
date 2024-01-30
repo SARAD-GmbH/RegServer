@@ -91,7 +91,7 @@ class DeviceBaseActor(BaseActor):
         logger.info(
             "Device actor %s created or updated at %s. is_id = %s",
             self.my_id,
-            self.device_status["Identification"]["Host"],
+            self.device_status["Identification"].get("Host"),
             self.device_status["Identification"].get("IS Id"),
         )
 
