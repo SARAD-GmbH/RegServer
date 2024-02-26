@@ -8,8 +8,6 @@ socket as actor messages to the device actor.
     | Riccardo Förster <foerster@sarad.de>,
     | Michael Strey <strey@sarad.de>
 
-.. uml :: uml-redirect_actor.puml
-
 """
 import datetime
 import select

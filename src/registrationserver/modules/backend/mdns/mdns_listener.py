@@ -8,8 +8,6 @@ services (SARAD devices) in the local network.
     | Riccardo Förster <foerster@sarad.de>,
     | Michael Strey <strey@sarad.de>
 
-.. uml:: uml-mdns_listener.puml
-
 """
 import ipaddress
 import socket

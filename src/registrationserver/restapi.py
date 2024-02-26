@@ -7,8 +7,6 @@
     | Riccardo Förster <foerster@sarad.de>,
     | Michael Strey <strey@sarad.de>
 
-.. uml:: uml-restapi.puml
-
 """
 
 import os
@@ -1262,7 +1260,7 @@ def run(port=None):
             std = sys.stdout
             sys.stdout = Dummy
             # self.api.run(host=host, port=port)
-            serve(app, listen=f"*:{port}", threads=12)
+            serve(app, listen=f"*:{port}", threads=24, connection_limit=200)
             sys.stdout = std
             success = True
         except OSError as exception:

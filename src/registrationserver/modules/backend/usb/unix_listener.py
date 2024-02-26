@@ -7,7 +7,6 @@
 :Author:
     | Michael Strey <strey@sarad.de>
 
-.. uml :: uml-unix_listener.puml
 """
 import hashlib
 

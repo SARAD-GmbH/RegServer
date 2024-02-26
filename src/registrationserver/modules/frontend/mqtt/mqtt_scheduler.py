@@ -6,7 +6,6 @@ Created
 Author
     Michael Strey <strey@sarad.de>
 
-.. uml :: uml-mqtt_scheduler.puml
 """
 import json
 import os

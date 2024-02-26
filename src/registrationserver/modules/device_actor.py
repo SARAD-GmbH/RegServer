@@ -7,7 +7,6 @@
     | Riccardo Förster <foerster@sarad.de>,
     | Michael Strey <strey@sarad.de>
 
-.. uml :: uml-device_actor.puml
 """
 from datetime import datetime, timedelta, timezone
 
