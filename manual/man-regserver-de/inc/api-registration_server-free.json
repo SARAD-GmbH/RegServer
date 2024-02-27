@@ -1,0 +1,18 @@
+{
+    "0ghMF8Y.sarad-1688._rfc2217._tcp.local.": {
+        "Identification": {
+            "Family": 2,
+            "Host": "sarad_is2_2",
+            "Name": "Radon Scout Home",
+            "Serial number": 791,
+            "Type": 8
+        },
+        "Reservation": {
+            "Active": false,
+            "App": "RadonVision",
+            "Host": "WS02",
+            "Timestamp": "2020-10-09T09:30:52Z",
+            "User":"mstrey"
+        }
+    }
+}

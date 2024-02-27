@@ -1,0 +1,125 @@
+* DeviceBaseActor
+** Needs implemention (in module)
+*** SEND
+Request to send a message to the Instrument Server 2 / Mqtt ... and return the Response (or None for when there is no response)
+**** Input
+#+NAME: SEND_INPUT
+#+BEGIN_SRC python
+{
+	'CMD'	:	'SEND',
+	'DATA'	:	b'<bytes>',
+}
+#+END_SRC
+**** Response
+#+NAME: SEND_OUTPUT
+#+BEGIN_SRC python
+{
+	'RETURN'	:	True or False,
+	'DATA'	:	b'<bytes>' or None,
+	'ERROR'	:	'ErrorMessage' or None,
+	'ERROR_CODE': <int> or None,
+}
+#+END_SRC
+*** SEND_RESERVE
+Received Rquest to Reserve this Device exclusivly for a specific App ( Not Restful / Stateless Device Protocoll requires this), make sure it isn't already reseved and/or the reservation isn't timed out
+**** Input
+#+NAME: SEND_RESERVE_INPUT
+#+BEGIN_SRC python
+{
+	'CMD'	:	'SEND_RESERVE',
+	'App'	:	'<APPDNAME>',
+	'Host'	:	'<IP OR HOSTNAME OF REQUESTING APP>',
+	'User'	:	'<User that started the app>',
+}
+#+END_SRC
+**** Response
+#+NAME: SEND_RESERVE_OUTPUT
+#+BEGIN_SRC python
+{
+	'RETURN'	:	True or False,
+	'DATA'	:	b'<bytes' or None,
+	'ERROR'	:	'ErrorMessage' or None,
+	'ERROR_CODE': <int> or None,
+    'Active': True or False,
+    'Host': '<hostname of app>',
+    'App': '<name of the app>',
+    'User': '<User that started the app>',
+}
+#+END_SRC
+*** SEND_FREE
+Request to remove a exclusive Reservation, the API tries to make sure that the FREE comes from the current Reservation Holder (as much as resonable possible)
+**** Input
+#+NAME: SEND_FREE_INPUT
+#+BEGIN_SRC python
+{
+	'CMD'	:	'SEND_RESERVE',
+	'App'	:	'<APPDNAME>',
+	'Host'	:	'<IP OR HOSTNAME OF REQUESTING APP>',
+	'User'	:	'<User that started the app>',
+}
+#+END_SRC
+**** Output
+#+NAME: SEND_FREE_OUTPUT
+#+BEGIN_SRC python
+{
+	'RETURN'	:	True or False,
+	'SKIPPED'	:	True or False,
+	'ERROR'	:	'ErrorMessage' or None,
+	'ERROR_CODE': <int> or None,
+}
+#+END_SRC
+**  Implemented
+*** ECHO
+**** Input
+#+NAME: SEND_ECHO_INPUT
+#+BEGIN_SRC python
+{
+	'CMD'	:	'ECHO',
+	'<any>'	:	<any>
+}
+#+END_SRC
+**** Output
+#+NAME: SEND_ECHO_OUTPUT
+#+BEGIN_SRC python
+{
+	'RETURN'	:	True,
+	'<any>'	:	<any>
+}
+#+END_SRC
+*** SETUP
+**** Input
+#+NAME: SEND_SETUP_INPUT
+#+BEGIN_SRC python
+{
+	'CMD'	:	'SETUP',
+}
+****
+#+NAME: SEND_SETUP_OUTPUT
+#+BEGIN_SRC python
+{
+	'RETURN'	:	True or False,
+	'SKIPPED'	:	True or False,
+	'ERROR'	:	'ErrorMessage' or None,
+	'ERROR_CODE': <int> or None,
+}
+#+END_SRC
+#+END_SRC
+*** RESERVE
+Called by the API to do initial Reservations Steps, Calls SEND_RESERVE afterwards
+*** FREE
+Called by the API to do initial Freeing Steps, Calls SEND_RESERVE afterwards
+*** KILL
+Received Kill Request, Free Resources (Actor itself is freed by DEVICE_ACTOR_MANAGER)
+
+* DeviceActorManager
+**  Implemented
+*** ECHO
+-> DeviceBaseActor ECHO
+*** SETUP
+*** CREATE
+Creates an Actor of a Specific Type, Use this to create your own Device Actorselsewhere
+*** KILL
+Kills an Actor with a specific Device Name, Use this to terminate not needed Actors
+* RedirectorActor
+**  Implemented
+*** SETUP

@@ -52,7 +52,7 @@ during the development or to make the documentation using SPHINX, use
 ### Configuration ###
 In the configuration file `src\config.toml`, you can switch on or off the
 various frontends and backends and set other parameters that will change the
-functionality of the software. `doc\config.example.toml` is a commented version
+functionality of the software. `src\config.example.toml` is a commented version
 of this configuration file containing all configurable parameters.
 
 ### Usage ###
