@@ -19,7 +19,6 @@ propriatary protocol. The *SARAD Registration Server Service* has three function
 
 ## Installation and usage ##
 
-For test and development, the program is prepared to run in a virtual environment.
 
 ### Installation ###
 
@@ -32,19 +31,18 @@ The *SARAD Registration Server Service* comes:
   Just follow the hints in the Windows setup EXE of the respective application.
 
 #### For developers ####
+For test and development, the program is prepared to run in a virtual environment.
 
     git clone <bare_repository>
 
 to clone the working directory from the git repository.
 
-    cd src-registrationserver2
+    cd RegServer
+    pipenv install
     pipenv shell
 
-to create the virtual environment.
-
-    pipenv install
-
-to install all required dependencies.
+to create the virtual environment, install all required dependencies and start
+the shell within this virtual environment.
 
 If you want to do further development and use modules that are only required
 during the development or to make the documentation using SPHINX, use
@@ -80,8 +78,9 @@ Type, Serial number.
 #### General ####
 Subdirectory `manual` contains the user manual.
 
-The documentation of the implementation details is in subdirectory
-`doc`. It is made with SPHINX. Run `make html` in this directory to compile a document.
+The documentation of the implementation details is in subdirectory `doc`. It is
+made with SPHINX (refer to https://www.sphinx-doc.org/en/master/). Run `make
+html` in this directory to make the documentation from the source files.
 
 #### In the SARAD intranet ####
 Refer to http://http://intranet.hq.sarad.de/spc-sarad_network.pdf for the specification.
