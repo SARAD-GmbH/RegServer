@@ -153,7 +153,7 @@ class MdnsListener(ServiceListener):
                 interfaces=[config["MY_IP"], "127.0.0.1"],
             )
             _ = ServiceBrowser(self.zeroconf, service_type, self)
-        self.hosts = mdns_backend_config["HOSTS"]
+        self.hosts = mdns_backend_config.get("HOSTS", [])
         if self.hosts:
             for host in self.hosts:
                 hostname = host[0]
