@@ -11,7 +11,7 @@ propriatary protocol. The *SARAD Registration Server Service* has three function
 2. On the side of the SARAD application software (frontend), it provides sockets
    and a REST-API to communicate with the application and on the other side
    (backend) a network interface for the communication with remote *SARAD
-   Registration Server Services** or an USB interface for communication with
+   Registration Server Services* or an USB interface for communication with
    locally connected instruments.
 3. It provides frontends (Modbus, MQTT) to send measuring data from SARAD
    instruments to third party applications like monitoring systems from other
