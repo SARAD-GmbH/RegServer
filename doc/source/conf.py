@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath("../../src/"))
 # -- Project information -----------------------------------------------------
 
 project = "SARAD Registration Server"
-copyright = "2021, SARAD GmbH"
+copyright = "2023, SARAD GmbH"
 author = "Riccardo Förster <riccardo.foerster@sarad.de>, Michael Strey <strey@sarad.de>"
 
 # The full version, including alpha/beta/rc tags
