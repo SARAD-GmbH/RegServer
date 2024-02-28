@@ -109,8 +109,8 @@ class MqttSchedulerActor(MqttBaseActor):
         )
 
     @overrides
-    def on_disconnect(self, client, userdata, reason_code):
-        super().on_disconnect(client, userdata, reason_code)
+    def on_disconnect(self, client, userdata, flags, reason_code, properties):
+        super().on_disconnect(client, userdata, flags, reason_code, properties)
         if self.led:
             self.led.pulse()
 
@@ -326,9 +326,9 @@ class MqttSchedulerActor(MqttBaseActor):
         super().receiveMsg_KillMsg(msg, sender)
 
     @overrides
-    def on_connect(self, client, userdata, flags, reason_code):
+    def on_connect(self, client, userdata, flags, reason_code, properties):
         """Will be carried out when the client connected to the MQTT broker."""
-        super().on_connect(client, userdata, flags, reason_code)
+        super().on_connect(client, userdata, flags, reason_code, properties)
         if self.led:
             self.led.on()
         self._instruments_connected()

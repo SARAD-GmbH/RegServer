@@ -420,8 +420,8 @@ class MqttClientActor(MqttBaseActor):
                 )
 
     @overrides
-    def on_connect(self, client, userdata, flags, reason_code):
-        super().on_connect(client, userdata, flags, reason_code)
+    def on_connect(self, client, userdata, flags, reason_code, properties):
+        super().on_connect(client, userdata, flags, reason_code, properties)
         self.mqttc.subscribe(f"{self.group}/+/meta", 2)
 
     def receiveMsg_RescanMsg(self, msg, sender):
