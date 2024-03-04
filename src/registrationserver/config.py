@@ -83,7 +83,7 @@ except OSError:
 
 # General configuration
 DEFAULT_DESCRIPTION = "SARAD Instrument Server"
-DEFAULT_PLACE = "Dresden"
+DEFAULT_PLACE = ""
 DEFAULT_LATITUDE = 0
 DEFAULT_LONGITUDE = 0
 DEFAULT_HEIGHT = 0
@@ -121,7 +121,7 @@ config = {
 
 # Frontend configuration
 frontend_config = set()
-DEFAULT_FRONTENDS = {Frontend.REST}
+DEFAULT_FRONTENDS = {Frontend.REST, Frontend.MDNS}
 
 if customization.value.get("frontends") is None:
     frontend_config = DEFAULT_FRONTENDS
@@ -130,7 +130,7 @@ else:
         frontend_config.add(Frontend.REST)
     if customization.value["frontends"].get("mqtt", False):
         frontend_config.add(Frontend.MQTT)
-    if customization.value["frontends"].get("mdns", False):
+    if customization.value["frontends"].get("mdns", True):
         frontend_config.add(Frontend.MDNS)
         # REST frontend is part of the mDNS frontend
         frontend_config.add(Frontend.REST)
@@ -220,7 +220,7 @@ else:
     mqtt_backend = customization.value["backends"].get("mqtt", 2)
     if (mqtt_backend == 1) or ((mqtt_backend == 2) and tls_present):
         backend_config.add(Backend.MQTT)
-    if customization.value["backends"].get("mdns", False):
+    if customization.value["backends"].get("mdns", True):
         backend_config.add(Backend.MDNS)
     if customization.value["backends"].get("is1", False):
         backend_config.add(Backend.IS1)
