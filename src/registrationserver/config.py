@@ -74,13 +74,8 @@ if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
     config_path = f"{os.path.dirname(sys.executable)}{os.path.sep}"
 else:
     config_path = f"{os.path.abspath(os.getcwd())}{os.path.sep}"
-windows_config_file = f"{config_path}config_windows.toml"
-linux_config_file = f"{config_path}config_linux.toml"
+config_file = f"{config_path}config.toml"
 try:
-    if os.name == "nt":
-        config_file = windows_config_file
-    else:
-        config_file = linux_config_file
     with open(config_file, "rt", encoding="utf8") as custom_file:
         customization = tomlkit.load(custom_file)
 except OSError:
@@ -88,7 +83,7 @@ except OSError:
 
 # General configuration
 DEFAULT_DESCRIPTION = "SARAD Instrument Server"
-DEFAULT_PLACE = "Dresden"
+DEFAULT_PLACE = ""
 DEFAULT_LATITUDE = 0
 DEFAULT_LONGITUDE = 0
 DEFAULT_HEIGHT = 0
@@ -126,7 +121,7 @@ config = {
 
 # Frontend configuration
 frontend_config = set()
-DEFAULT_FRONTENDS = {Frontend.REST}
+DEFAULT_FRONTENDS = {Frontend.REST, Frontend.MDNS}
 
 if customization.value.get("frontends") is None:
     frontend_config = DEFAULT_FRONTENDS
@@ -135,7 +130,7 @@ else:
         frontend_config.add(Frontend.REST)
     if customization.value["frontends"].get("mqtt", False):
         frontend_config.add(Frontend.MQTT)
-    if customization.value["frontends"].get("mdns", False):
+    if customization.value["frontends"].get("mdns", True):
         frontend_config.add(Frontend.MDNS)
         # REST frontend is part of the mDNS frontend
         frontend_config.add(Frontend.REST)
@@ -217,13 +212,15 @@ DEFAULT_BACKENDS = {Backend.USB, Backend.MDNS}
 
 if customization.value.get("backends") is None:
     backend_config = DEFAULT_BACKENDS
+    if tls_present:
+        backend_config.add(Backend.MQTT)
 else:
-    if customization.value["backends"].get("usb", False):
+    if customization.value["backends"].get("usb", True):
         backend_config.add(Backend.USB)
     mqtt_backend = customization.value["backends"].get("mqtt", 2)
     if (mqtt_backend == 1) or ((mqtt_backend == 2) and tls_present):
         backend_config.add(Backend.MQTT)
-    if customization.value["backends"].get("mdns", False):
+    if customization.value["backends"].get("mdns", True):
         backend_config.add(Backend.MDNS)
     if customization.value["backends"].get("is1", False):
         backend_config.add(Backend.IS1)
@@ -300,7 +297,6 @@ if customization.value.get("mdns_backend") is None:
         "MDNS_TIMEOUT": DEFAULT_MDNS_TIMEOUT,
         "TYPE": DEFAULT_TYPE,
         "IP_VERSION": DEFAULT_IP_VERSION,
-        "HOSTS": DEFAULT_HOSTS,
         "SCAN_INTERVAL": DEFAULT_HOSTS_SCAN_INTERVAL,
     }
 else:
@@ -354,10 +350,10 @@ if os.name == "nt":
 else:
     DEFAULT_POLL_SERIAL_PORTS = ["/dev/ttyS0"]
 DEFAULT_IGNORED_SERIAL_PORTS: List[str] = []
-DEFAULT_IGNORED_HWIDS: List[str] = []
+DEFAULT_IGNORED_HWIDS: List[str] = ["BTHENUM", "2c7c"]
 DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
-DEFAULT_SET_RTC = True
-DEFAULT_USE_UTC = True
+DEFAULT_SET_RTC = False
+DEFAULT_USE_UTC = False
 
 if customization.value.get("usb_backend") is None:
     usb_backend_config = {
@@ -424,16 +420,16 @@ else:
     }
 
 # Configuration of Actor system
-DEFAULT_SYSTEM_BASE = "multiprocTCPBase"
+DEFAULT_SYSTEM_BASE = "multiprocQueueBase"
 DEFAULT_ADMIN_PORT = 1901
 DEFAULT_WINDOWS_METHOD = "spawn"
 DEFAULT_LINUX_METHOD = "fork"
 DEFAULT_CONVENTION_ADDRESS = None
-DEFAULT_KEEPALIVE_INTERVAL = 30  # in seconds
-DEFAULT_WAIT_BEFORE_CHECK = 5  # in seconds
-DEFAULT_CHECK = False
-DEFAULT_OUTER_WATCHDOG_INTERVAL = 30  # in seconds
-DEFAULT_OUTER_WATCHDOG_TRIALS = 3  # number of attempts to check Registrar
+DEFAULT_KEEPALIVE_INTERVAL = 2  # in seconds
+DEFAULT_WAIT_BEFORE_CHECK = 2  # in seconds
+DEFAULT_CHECK = True
+DEFAULT_OUTER_WATCHDOG_INTERVAL = 60  # in seconds
+DEFAULT_OUTER_WATCHDOG_TRIALS = 1  # number of attempts to check Registrar
 
 if customization.value.get("actor") is None:
     if os.name == "nt":
@@ -522,7 +518,7 @@ else:
     )
 
 # Configuration of MQTT frontend
-DEFAULT_REBOOT_AFTER = 0
+DEFAULT_REBOOT_AFTER = 60
 DEFAULT_RESTART_INSTEAD_OF_REBOOT = 0
 
 if customization.value.get("mqtt_frontend") is None:

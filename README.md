@@ -1,85 +1,59 @@
-# Registration Server 2
+# SARAD Registration Server Service
 
 ## Introduction ##
 
-It's task is to connect the SARAD® App with the Instrument Server 2 ( and over
-it indirectly to the device). It unifies how devices are accessed, and makes it
-independent of the protocol used by the Instrument Server 2.
+SARAD measuring instruments communicate via an UART over RS-232 or USB with a
+propriatary protocol. The *SARAD Registration Server Service* has three functions:
 
-```plantuml
-@startuml
-actor "Trucy" as user
-control "Sarad App" as app
-box "Registration Server 2" #pink
-	entity "rest api" as api
-	entity "device Actor" as deviceactor
-end box
-entity "device with Instrument Server" as device
-user->app:Changes Config /\n Requests Data
-group reservation
-	app->api:Attempts to Reserve Device
-	api->deviceactor:relays request
-	deviceactor->device:relays request
-	device->deviceactor:accepts request /\n relays port information
-	deviceactor->device:connects
-	deviceactor->deviceactor:opens port
-	deviceactor->api:accepts request /\n relays port information
-	api->app:relays port
-end
-note over deviceactor: start timeout
-group Data - repeats on unexpected disconnect
-	app->deviceactor:connects
-	note over deviceactor: refresh timeout
-	group Commands without response
-		app->deviceactor:sends data
-		note over deviceactor: refresh timeout
-		deviceactor->device:relays data
-		app->user:"OK"
-	end
-	group Commands with response
-		app->deviceactor:sends data
-		note over deviceactor: refresh timeout
-		deviceactor->device:relays data
-		device->deviceactor:relays answer
-		deviceactor->app:relays answer
-	end
-	app->user:displays answer
-	app->deviceactor:disconnects
-end
-group free
-	app->api:frees device
-	api->deviceactor:relays free
-	deviceactor->device:relays free
-end
-group timeout reached
-	deviceactor->device:sends free
-end
-@enduml
-```
+1. On the side of the instrument (backend), it provides a network interface
+   (frontend) for the communication with other *SARAD Registration Server
+   Services* on remote locations.
+2. On the side of the SARAD application software (frontend), it provides sockets
+   and a REST-API to communicate with the application and on the other side
+   (backend) a network interface for the communication with remote *SARAD
+   Registration Server Services* or an USB interface for communication with
+   locally connected instruments.
+3. It provides frontends (Modbus, MQTT) to send measuring data from SARAD
+   instruments to third party applications like monitoring systems from other
+   vendors.
 
 ## Installation and usage ##
 
-For test and development, the program is prepared to run in a virtual environment.
 
 ### Installation ###
+
+#### For users ####
+The *SARAD Registration Server Service* comes:
+
+- Pre-installed on the appliances of the SARAD *Aranea* family of products.
+  There is nothing to do for the user.
+- As part of the installation of SARAD application software (*Radon Vision 8*, *dVision 4*).
+  Just follow the hints in the Windows setup EXE of the respective application.
+
+#### For developers ####
+For test and development, the program is prepared to run in a virtual environment.
 
     git clone <bare_repository>
 
 to clone the working directory from the git repository.
 
-    cd src-registrationserver2
+    cd RegServer
+    pipenv install
     pipenv shell
 
-to create the virtual environment.
-
-    pipenv install --ignore-pipfile
-
-to install all required dependencies.
+to create the virtual environment, install all required dependencies and start
+the shell within this virtual environment.
 
 If you want to do further development and use modules that are only required
-during the development (for instance test), use
+during the development or to make the documentation using SPHINX, use
 
-    pipenv install --dev --ignore-pipfile
+    pipenv install --dev
+
+### Configuration ###
+In the configuration file `src\config.toml`, you can switch on or off the
+various frontends and backends and set other parameters that will change the
+functionality of the software. `src\config.example.toml` is a commented version
+of this configuration file containing all configurable parameters.
 
 ### Usage ###
 
@@ -90,22 +64,26 @@ Make sure that port 8008 is not used by any other application.
 
 to start the program.
 
-With Instrument Server 2 running anywhere in the same LAN, you should see log
-entries on the command line indicating newly attached or disconnected SARAD
-instrument.
+With a locally connected SARAD instrument or a *SARAD Registration Server
+Service* running anywhere else in the same LAN, you should see log entries on
+the command line indicating newly attached or disconnected SARAD instrument.
 
-With your webbrower pointing to http://localhost:8008/list/, you should see a
-JSON list of attached SARAD instruments with identification information like
-Family, Type, Serial number.
+With your webbrower pointing to http://localhost:8008, you should see the
+documentation of the REST-API. http://localhost:8008/list will provide a JSON
+list of attached SARAD instruments with identification information like Family,
+Type, Serial number.
 
 ### Documentation ###
-Refer to http://http://intranet.hq.sarad.de/spc-sarad_network.pdf (SARAD
-internal) for the specification.
 
-The SPHINX documentation of the implementation details is in the subdirectory
-`doc`. Run `make` this directory to compile a document.
-http://intranet.hq.sarad.de/regserver/html/index.html (SARAD internal) contains
+#### General ####
+Subdirectory `manual` contains the user manual.
+
+The documentation of the implementation details is in subdirectory `doc`. It is
+made with SPHINX (refer to https://www.sphinx-doc.org/en/master/). Run `make
+html` in this directory to make the documentation from the source files.
+
+#### In the SARAD intranet ####
+Refer to http://http://intranet.hq.sarad.de/spc-sarad_network.pdf for the specification.
+
+http://intranet.hq.sarad.de/regserver/html/index.html contains
 a compiled HTML version of the documentation.
-
-## TODO:
-- [ ] automatic unit test cases

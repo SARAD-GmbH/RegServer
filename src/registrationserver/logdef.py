@@ -20,6 +20,7 @@ config.setdefault("LEVEL", logging.CRITICAL)
 config.setdefault("LOG_FOLDER", f"{app_folder}log{os.path.sep}")
 config.setdefault("LOG_FILE", "registrationserver.log")
 
+LOGFILENAME = "registrationserver.log"
 if config["LOG_FILE"] is not None:
     log_folder = config["LOG_FOLDER"]
     log_file = config["LOG_FILE"]
@@ -27,8 +28,6 @@ if config["LOG_FILE"] is not None:
     os.makedirs(os.path.dirname(LOGFILENAME), exist_ok=True)
     with open(LOGFILENAME, "a", encoding="utf-8") as f:
         pass
-else:
-    LOGFILENAME = "registrationserver.log"
 
 logcfg = {
     "version": 1,

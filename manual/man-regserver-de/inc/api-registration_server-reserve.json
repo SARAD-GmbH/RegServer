@@ -1,0 +1,22 @@
+{
+    "Error": "OK",
+    "Error code": 0,
+    "0ghMF8Y.sarad-1688._rfc2217._tcp.local.": {
+        "Identification": {
+            "Family": 2,
+            "Host": "sarad_is2_2",
+            "Name": "Radon Scout Home",
+            "Serial number": 791,
+            "Type": 8
+        },
+        "Reservation": {
+            "Active": true,
+            "App": "RadonVision",
+            "Host": "WS02",
+            "IP": "123.123.123.123",
+            "Port": 2345,
+            "Timestamp": "2020-10-09T08:22:43Z",
+            "User": "mstrey"
+        }
+    }
+}

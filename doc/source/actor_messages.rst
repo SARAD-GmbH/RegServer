@@ -67,12 +67,8 @@ Examples::
       "ERROR_CODE": 10,
   }
 
-BaseActor
-=========
-
------------------
-Accepted Commands
------------------
+CMDs handled by the BaseActor
+=============================
 
 SETUP
 -----
@@ -120,9 +116,8 @@ KILL
 
 Request to kill all children of the actor and finally the actor itself.
 
---------------------
-Send to other actors
---------------------
+Send to other actors by the BaseActor
+=====================================
 
 SUBSCRIBE
 ---------

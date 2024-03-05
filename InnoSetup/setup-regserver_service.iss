@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "RegServer-Service"
-#define MyAppVersion "2.2.0 RC10"
+#define MyAppVersion "2.3.0 RC01"
 #define MyAppPublisher "SARAD"
 #define MyAppURL "https://www.sarad.de"
 #define MyOutputDir "D:\bin\RegServer-Service"
@@ -81,10 +81,6 @@ Name: "RS"; Description: "SARAD Registration Server"; Types: custom full compact
 
 [UninstallRun]
 Filename: "{app}\remove-rss.bat"; Flags: skipifdoesntexist runascurrentuser; Components: RS
-
-[UninstallDelete]
-Type: filesandordirs; Name: "%systemroot%\ServiceProfiles\LocalService\AppData\Local\SARAD"; Components: RS
-Type: filesandordirs; Name: "{#Destination}"; Components: RS
 
 [PostCompile]
 Name: "post-compile.bat"; Flags: abortonerror cmdprompt redirectoutput

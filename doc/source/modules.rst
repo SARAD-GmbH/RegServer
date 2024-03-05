@@ -107,10 +107,3 @@ registrationserver.config
 .. automodule:: registrationserver.config
    :members:
    :undoc-members:
-
-registrationserver.test
------------------------
-
-.. automodule:: registrationserver.test
-   :members:
-   :undoc-members:

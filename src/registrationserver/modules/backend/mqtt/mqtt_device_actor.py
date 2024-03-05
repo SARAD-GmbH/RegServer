@@ -7,7 +7,6 @@
     | Yang, Yixiang
     | Michael Strey <strey@sarad.de>
 
-.. uml :: uml-mqtt_device_actor.puml
 """
 import json
 from datetime import datetime, timezone

@@ -335,6 +335,10 @@ class Is1Listener(BaseActor):
         logger.info("is1_addresses = %s", self.is1_addresses)
         with open(config_file, "rt", encoding="utf8") as custom_file:
             customization = tomlkit.load(custom_file)
+        if not customization.get("is1_backend", False):
+            customization["is1_backend"] = {"hosts": []}
+        if not customization["is1_backend"].get("hosts", False):
+            customization["is1_backend"]["hosts"] = []
         is1_hosts = customization["is1_backend"]["hosts"]
         for is1_address in self.is1_addresses:
             is1_hosts.append(is1_address.hostname)

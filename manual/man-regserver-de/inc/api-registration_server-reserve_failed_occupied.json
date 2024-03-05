@@ -1,0 +1,20 @@
+{
+    "Error code": 12,
+    "Error": "Already reserved by other party",
+    "hkg4Tu.sarad-1688._rfc2217._tcp.local.": {
+        "Identification": {
+            "Name": "RTM 1688-2",
+            "Family": 2,
+            "Type": 4,
+            "Serial number": 25,
+            "Host": "sarad_is2_2"
+        },
+        "Reservation": {
+            "Active": true,
+            "Host": "PC12",
+            "App": "RadonVision",
+            "User": "rfoerster",
+            "Timestamp": "2020-10-09T08:22:43Z"
+        }
+    }
+}

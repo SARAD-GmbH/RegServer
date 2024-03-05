@@ -60,7 +60,11 @@ class MqttBaseActor(BaseActor):
         """Handler for PrepareMqttActorMsg from MQTT Listener"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.is_id = msg.client_id
-        self.mqttc = MQTT.Client(client_id=msg.client_id, clean_session=False)
+        self.mqttc = MQTT.Client(
+            MQTT.CallbackAPIVersion.VERSION2,
+            client_id=msg.client_id,
+            clean_session=False,
+        )
         self.group = msg.group
         self.mqttc.on_connect = self.on_connect
         self.mqttc.on_disconnect = self.on_disconnect
@@ -189,25 +193,27 @@ class MqttBaseActor(BaseActor):
         """Do everything that can only be done if the MQTT client is connected."""
         self.mqttc.loop_start()
 
-    def on_connect(self, client, userdata, flags, reason_code):
+    def on_connect(self, client, userdata, flags, reason_code, properties):
         # pylint: disable=unused-argument
         """Will be carried out when the client connected to the MQTT broker."""
-        if reason_code:
+        if reason_code == "Success":
+            self.is_connected = True
+            logger.info("%s connected to MQTT broker", self.my_id)
+        else:
             self.is_connected = False
             logger.critical(
                 "Connection of %s to MQTT broker failed with %s",
                 self.my_id,
                 reason_code,
             )
-            return
-        self.is_connected = True
-        logger.info("%s connected to MQTT broker", self.my_id)
 
-    def on_disconnect(self, client, userdata, reason_code):
+    def on_disconnect(self, client, userdata, flags, reason_code, properties):
         # pylint: disable=unused-argument
         """Will be carried out when the client disconnected from the MQTT broker."""
         logger.info("%s disconnected from MQTT broker", self.my_id)
-        if reason_code >= 1:
+        if reason_code == 0:
+            logger.debug("Gracefully disconnected from MQTT broker.")
+        else:
             logger.warning(
                 "%s ungracefully disconnected from MQTT broker (%s). Trying to reconnect.",
                 self.my_id,
@@ -215,8 +221,6 @@ class MqttBaseActor(BaseActor):
             )
             # There is no need to do anything.
             # With loop_start() in place, re-connections will be handled automatically.
-        else:
-            logger.debug("Gracefully disconnected from MQTT broker.")
         self.is_connected = False
 
     def on_message(self, _client, _userdata, message):

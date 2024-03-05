@@ -8,16 +8,13 @@ services (SARAD devices) in the local network.
     | Riccardo Förster <foerster@sarad.de>,
     | Michael Strey <strey@sarad.de>
 
-.. uml:: uml-mdns_listener.puml
-
 """
 import threading
-
-from zeroconf import IPVersion, ServiceBrowser, ServiceListener, Zeroconf
 
 from registrationserver import mdns_backend_config
 from registrationserver.helpers import get_ip
 from registrationserver.logger import logger
+from zeroconf import IPVersion, ServiceBrowser, ServiceListener, Zeroconf
 
 logger.debug("%s -> %s", __package__, __file__)
 
@@ -60,5 +57,4 @@ class MdnsListener(ServiceListener):
 
 
 if __name__ == "__main__":
-
     listener = MdnsListener(_type=mdns_backend_config["TYPE"])

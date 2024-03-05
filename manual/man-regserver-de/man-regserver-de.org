@@ -1,0 +1,2468 @@
+* List of Tables                                                    :noexport:
+list-of-tables:nil
+* List of Figures                                                     :ignore:
+list-of-figures:nil
+* Aufgabe und Status quo
+** Begriffe -- Systemkomponenten label:begriffe
+*** {{{sn}}}
+Ein {{{sn}}} erlaubt die Telemetrie mit {{{instr_n}}} über LAN und Internet.
+Es werden ausschließlich {{{instr_m}}} und {{{app_m}}} verwendet.
+Messgeräte und Anwendungssoftware von Drittanbietern werden nicht berücksichtigt.
+
+Die Begriffe {{{sn1}}}, {{{sn2}}} und {{{snmqtt}}}
+stehen für verschiedene Implementierungen des {{{sn}}}.
+*** {{{instr}}}
+Als {{{instr}}} bezeichnen wir das Messgerät im engeren Sinn,
+das für sich genommen nur über eine serielle leitungsgebundene Schnittstelle
+(RS-232, RS-485, USB, UART) kommunizieren kann.
+
+{{{instr_m}}} verstehen je nach Gerätetyp nur eines
+der proprietären seriellen Protokolle von SARAD.
+*** {{{app}}}
+Die {{{app}}} ist eines der drei Anwendungsprogramme {{{rv}}}, {{{dv}}} oder
+{{{rooms}}}
+oder ein zukünftiges Anwendungsprogramm.
+
+*** {{{ac}}}
+Der {{{ac}}} ist der Computer, auf dem die {{{app}}} läuft.
+Am {{{ac}}} können {{{instr_m}}} direkt angeschlossenen sein,
+müssen aber nicht.
+
+Der {{{ac}}} kann ein Arbeitsplatz-PC,
+aber, im Fall von Monitoringsystemen,
+auch ein Server sein.
+Zukünftig sollen auch Smartphones und Tablets
+als {{{ac}}} berücksichtigt werden.
+*** {{{ic}}}
+Der {{{ic}}} ist ein kleiner Computer ({{{zB}}} Intel NUC oder RaspberryPi)
+oder Mikrocontroller,
+auf dem eine Implementierung des {{{is}}} läuft.
+Der {{{ic}}} ist direkt,
+{{{dh}}} über RS-232, RS-485 oder ZigBee,
+mit einem oder mehreren {{{instr_n}}} verbunden.
+
+*** {{{rs}}}
+In jedem Fall soll die {{{app}}} beim Programmstart
+oder beim Klick auf die {{{btnSearch}}}-Schaltfläche
+von einem externen Programm
+sofort eine Liste mit allen im {{{sn}}} verfügbaren {{{instr_n}}} erhalten.
+
+Das externe Programm,
+das diese Liste führt und bereitstellt,
+ist der {{{rs}}}.
+
+Die Begriffe {{{rs1}}}, {{{rs2}}} und {{{rsmqtt}}}
+stehen für verschiedene Implementierungen des {{{rs}}}.
+*** {{{is}}}
+:PROPERTIES:
+:ID:       1d3fdb23-f77c-4533-8617-de6dab3291bb
+:END:
+Der {{{is}}} läuft auf dem {{{ic}}} und hat die folgenden Funktionen:
+- Suche nach am {{{ic}}} angeschlossenen {{{instr_n}}},
+- Umsetzung der seriellen Schnittstelle des {{{instr}}} in eine
+  TCP/IP-Schnittstelle,
+- Melden der lokalen Geräteliste an den {{{rs}}},
+
+sowie im {{{sn2}}} und {{{snmqtt}}} zusätzlich:
+- fortwährende Aktualisierung der Liste der angeschlossenen {{{instr_m}}},
+- Melden jeder Veränderung der lokalen Geräteliste an den {{{rs}}},
+- Empfang von Reservierungsanfragen vom {{{rs}}} und Protokollierung des
+  Gerätezustands in der Geräteliste,
+- Beantwortung von Anfragen des {{{rs}}} zum Reservierungszustand.
+
+Die Begriffe {{{is1}}}, {{{is2}}} und {{{ismqtt}}} stehen für verschiedene
+Implementierunge des {{{is}}}.
+*** {{{swm}}}
+Das {{{swm}}} besteht aus einem WLAN-Modul und einem Mikrocontroller,
+auf dem eine Minimalvariante des {{{is}}} läuft,
+die sich dadurch auszeichnet,
+dass nur genau ein angeschlossenes {{{instr}}}
+unterstützt wird.
+
+*** {{{scs}}}
+Diese Komponente wird nur im {{{snmqtt}}} benötigt.
+
+Der {{{scs}}} ist im Kern ein MQTT-Broker,
+der mit mit einer festen und bekannten IP-Adresse
+im LAN oder Internet steht.
+
+Der {{{scs}}} kann vom Kunden in seinem LAN oder im Internet betrieben
+oder von SARAD als Internetdienst zur Verfügung gestellt
+werden.
+
+Da der sichere Betrieb eines MQTT-Brokers voraussetzt,
+dass sich Publisher- und Subscriber-Instanzen
+beim Broker authentifizieren
+und der Broker die Authentifizierung natürlich auch prüfen muss,
+muss auf dem {{{scs}}} außerdem
+die Infrastruktur für die Verwaltung der Authentifizierungsdaten
+implementiert sein.
+
+** Aufgabe
+{{{instr_m}}} können auf folgende Weisen mit dem {{{ac}}} verbunden sein:
+- lokale Verbindung :: Das {{{instr}}} steckt direkt an einem mit dem {{{ac}}}
+  verbundenen USB-, RS-232 oder RS-485-Kabel.
+- ZigBee-Netz :: Ein oder mehrere {{{instr_m}}} werden über SARADs
+  ZigBee-Produkte der /Net Monitors/-Familie mit dem {{{ac}}} verbunden.
+- RS-485 Daisy Chain :: Mehrere {{{instr_m}}} sind über einen RS-485-Bus mit dem
+  {{{ac}}} verbunden.
+- TCP/IP-Netz :: Die Verbindung erfolgt über das Internetprotokoll TCP/IP über
+  einen {{{ic}}}.  Dabei soll es keine Rolle spielen, ob die TCP/IP-Verbindung
+  über Ethernet, WLAN oder einen VPN-Mobilfunk-Router hergestellt wird.
+
+Diese Kommunikationswege können auch miteinander kombiniert werden.
+Zum Beispiel kann ein ZigBee-Netz mit mehreren Messinstrumenten
+über einen {{{ic}}} mit dem {{{ac}}} verbunden sein.
+
+In jedem Fall soll eine transparente Verbindung hergestellt werden,
+auf der die proprietären seriellen Protokolle von SARAD abgewickelt werden
+können.
+
+Folgende Nebenbedingungen *müssen* erfüllt sein:
+- Die Kommunikation darf keine zusätzlichen Ressourcen auf dem {{{instr}}} erfordern.
+- Die Schnittstelle zur {{{app}}} muss klar definiert sein und darf sich bei der
+  Weiterentwicklung nicht ändern.
+- Lokal am {{{ac}}} angeschlossene {{{instr_m}}} müssen von der Schnittstelle zur
+  {{{app}}} genau so behandelt werden wie entfernte {{{instr_m}}}.
+- Der {{{rs}}} und der {{{is}}} müssen unter Windows lauffähig sein.
+- Der Ausfall von Netzwerkknoten oder einzelner {{{instr_m}}} und instabile
+  Verbindungen müssen so behandelt werden, dass der Rest des Netzes weiter
+  funktioniert und der Nutzer über die {{{app}}} erkennen kann, was los ist.
+- Die Lösung muss unabhängig von Hard- und Softwareprodukten mit kurzen Lebenszyklen sein.
+- Es muss wenigstens eine Lösung geschaffen werden, bei der sowohl Verbindungen
+  über das Internet als auch Verbindungen im LAN als unsicher betrachtet werden.
+  Bei dieser Lösung muss der Datentransport verschlüsselt erfolgen
+  und die Softwarekomponenten müssen sich untereinander authentifizieren.
+- Die Installation eines minimalen Netzes ({{{ac}}} = {{{ic}}}, eine Instanz der
+  {{{app}}}, ein lokal am {{{ac}}} angeschlossenes {{{instr}}}) muss so einfach
+  sein wie bisher bei {{{rv}}}.
+- Es muss einen anwenderfreundlichen Weg zur Installation von
+  Sicherheitsupdates geben, sofern die Natur der Komponenten solche erfordert.
+
+Folgende Nebenbedingungen *sollen* zusätzlich erfüllt sein:
+- Der {{{is}}} soll unter Linux und auf Mikrocontrollern lauffähig sein.
+- Der {{{rs}}} soll unter Linux, Android und iOS lauffähig sein.
+- Die Schnittstelle zur {{{app}}} soll eine Ad-hoc-Sortierung der {{{instr_m}}}
+  entsprechend der Netzwerktopologie ermöglichen (Baumstruktur).
+- Außer {{{ac}}} und {{{ic}}} sollen bei kleinen Installationen keine
+  zusätzlichen Computer (Server) erforderlich sein.
+- Die Liste der im Netz verfügbaren {{{instr_m}}} soll sofort beim Start der
+  {{{app}}} erscheinen.
+- Die Herstellung und Einrichtung eines {{{ic}}} soll bei SARAD keine
+  Ingenieursarbeit erfordern.
+- Die Einrichtung eines {{{sn}}} in einem LAN soll keinerlei Konfiguration der
+  Komponenten erfordern; Komponenten nach Anleitung anschließen, {{{app}}}
+  installieren -- geht!
+- Die Lösung soll natürliche Ressourcen schonen,
+  {{{dh}}} der Energieverbrauch im Betrieb soll gering sein
+  und die Hardware soll nicht unnötig komplex sein.
+
+Die Lösung der Aufgabe *kann* schrittweise
+über Schritt für Schritt wegfallende Erleichterungen
+von den oben formulierten Nebenbedingungen erfolgen.
+
+** Diskussion
+*** Einfachste funktionierende Lösung label:simple
+**** Beschreibung
+Die Vernetzung von Maschinen mit RS-232 ist ein gängiges Problem
+mit ebenso gängigen Lösungen,
+die von verschiedenen Herstellern
+seit Jahren angeboten werden.
+Mit der RFC2217 existiert ein Internetstandard
+für die Lösung dieses Problems,
+aber auch die Übertragung der binären Rohdaten,
+wie sie beim {{{is1}}} angewendet wird,
+oder von Telnet als Codierung sind üblich.
+Es gibt sowohl Soft- als auch Hardwarelösungen
+sowohl für die Seite des {{{ac}}} als auch die des {{{ic}}}.
+Mit vertretbarem Konfigurationsaufwand können
+an einem RaspberryPi oder einem IntelNUC
+mehrere {{{instr_m}}} angeschlossen
+und auf dem {{{ac}}}
+als virtuelle COM-Ports
+zur Verfügung gestellt werden.
+
+Alle {{{app_m}}},
+die die lokalen Ports scannen,
+können damit ohne Modifikation und ohne Einschränkung
+weiter betrieben werden.
+Die entfernten {{{instr_m}}} erscheinen dabei so,
+als wären sie lokal am {{{ac}}} angeschlossen.
+
+Auch ZigBee und RS-485-Bus können uneingeschränkt verwendet werden.
+
+**** Vorteile
+- große Vielfalt möglicher {{{ic}}} mit fertigem RS-232/TCP/IP-Konverter:
+  - PCs unter Windows und Linux
+  - RaspberryPi
+  - VPN-Mobilfunk-Router GWG-40+
+  - XPort
+  - diverse RS-232/TCP/IP-Konverter
+  - ESP8266 mit /easy-link/-Firmware (ohne STM32)
+- {{{rv}}} und {{{dv}}} können ohne Änderung verwendet werden, {{{rooms}}}
+  ebenso, wenn ein {{{is1}}} auf dem {{{ac}}} läuft.
+
+**** Nachteile
+- keine TLS
+- keine Authentifizierung der {{{app}}} am {{{instr}}}
+- keine Authentifizierung des {{{instr}}} an der {{{app}}}
+- Manuelle Konfiguration sowohl am {{{ic}}} als auch am PC, auf dem die
+  {{{app}}} läuft.
+- Software von Drittanbieter auf dem PC erforderlich (drei Anbieter mit nachgewiesenermaßen
+  funktionierender Anwendung)
+- Erkennung der {{{instr_m}}} in der Netzwerkumgebung dauert ebenso lange, wie
+  wenn diese Geräte lokal angeschlossen wären.
+
+**** Einschränkungen gegenüber der Aufgabenstellung
+1. Die Konfguration kann nicht automatisch erfolgen.
+2. Wegen Unsicherheit der Verbindung nur für kleine LANs oder VPNs mit
+   vertrauenswürdigem Nutzerkreis geeignet.
+3. Das Netzwerk ist weitgehend statisch.  Wenn es einmal läuft, dann darf im
+   laufenden Betrieb nur wenig verändert werden.
+4. Das Problem, dass nur eine {{{app}}} verbunden sein darf, muss
+   organisatorisch gelöst werden.
+
+*** {{{is1}}} und {{{rs1}}} label:is1rs1
+**** Beschreibung
+Der {{{is1}}} scannt beim Start alle COM-Ports und erstellt eine Liste aller an
+diesem {{{ic}}} angeschlossenen {{{instr_m}}}.  Die {{{app}}} kommuniziert mit
+dem {{{is1}}} über einen Socket mit manuell festglegter Portnummer
+(Data Port in Abbildung ref:bd-instrument_and_registration_server).
+
+#+CAPTION: Zusammenspiel von {{{is1}}} und {{{rs1}}} label:bd-instrument_and_registration_server
+file:fig/bd-instrument_and_registration_server.jpg
+
+Der {{{rs1}}} sollte ursprünglich
+die Funktion eines DynDNS-Servers für {{{instr_m}}}
+erfüllen,
+führt aber zugleich auch eine Liste
+aller {{{is1}}} im {{{sn}}}.
+So kann die {{{app}}} ein Liste aller {{{instr_m}}} erstellen,
+indem sie nacheinander den {{{rs1}}} und die {{{is1}}} abfragt.
+Der {{{rs1}}} ist ein Singleton,
+es läuft nur eine Instanz im {{{sn}}}.
+
+Abbildung ref:uml-appis zeigt den Informationsfluss
+zwischen {{{app}}} (app), {{{is1}}} (is) und {{{instr}}} (instr).
+
+#+NAME: uml-appis
+#+begin_src plantuml :file uml-appis.png
+app -> is: Get first local COM port
+is --> app: Local COM port info
+
+app -> is: Get next local COM port
+is --> app: Local COM port info
+
+app -> is: Get next local COM port
+is --> app: Local COM port info
+
+app -> is: Get next local COM port
+is --> app: End of local port list
+
+app -> is: Select local COM port 2
+app <-- is: Local COM port selected
+
+app -> instr: Command for instr
+app <-- instr: Reply from instr
+#+end_src
+
+#+CAPTION: Kommunikation zwischen {{{app}}} und {{{is1}}}.  Im Beispiel verwaltet der {{{is}}} drei {{{instr_m}}}. COM-Port 2 wird ausgewählt. Danach geht die Kommunikation transparent durch den {{{is}}} zum {{{instr}}}. label:uml-appis
+#+ATTR_LATEX: :width 0.5\textwidth
+#+RESULTS: uml-appis
+[[file:uml-appis.png]]
+
+Die Steuerkommandos zur Abfrage der Geräteliste am {{{is1}}}
+sind genau so proprietäre binäre Botschaften,
+wie sie auch in den Protokollen zur Kommunikation
+zwischen {{{app}}} und {{{instr}}}
+verwendet werden.
+Sie werden auch über den selben Socket abgewickelt
+wie die Kommunikation zwischen {{{app}}} und {{{instr}}}.
+Hier wäre es besser gewesen,
+einen zweiten Socket
+für die Steuerung des {{{is1}}} vorzusehen,
+und die Steuerung über ein standardisiertes Internetprotokoll
+abzuwickeln.
+
+Eine weitere konzeptionelle Schwäche ist,
+dass für alle {{{instr_m}}} am {{{is1}}}
+nur ein Socket verwendet wird.
+Damit wird der Zugriff über mehrere {{{app_m}}}
+oder mehrere Threads einer App
+unnötig beschränkt.
+
+Schließlich ist auch die Grundidee mit dem {{{rs1}}} als DynDNS nicht ausgereift.
+Diese Funktion ist nur nötig,
+wenn man {{{instr_m}}} aus einem entfernten LAN ohne feste IP-Adresse
+über das Internet
+in das {{{sn}}}
+einbinden will.
+
+Damit das funktioniert,
+muss am Router des entfernten LANs
+ein Port pro {{{ic}}}
+weitergeleitet werden.
+In aller Regel wird das eine große organisatorische Hürde sein.
+
+Über diese Ports wird
+dann ein ungesichertes binäres Protokoll
+über das Internet abgewickelt.
+Hacker hätten die Möglichkeit,
+Messdaten abzugreifen,
+zu manipulieren
+oder die Kommunikation lahm zu legen.
+
+Schließlich muss der {{{rs1}}},
+damit er seine Funktion als DynDNS-Server erfüllen kann,
+auf einem PC mit fester IP im Internet laufen.
+Dafür böte sich ein Webserver an,
+der wiederum meist unter Linux läuft.
+Der {{{rs1}}} funktioniert aber nur unter Windows.
+
+**** Vorzüge
+- leicht zu installieren
+- erprobt
+- GUI
+- Die Netzwerktopologie wird der {{{app}}} gegenüber transparent gemacht.  Das
+  ermöglicht eine Ad-hoc-Sortierung der {{{instr_m}}}.
+
+**** Nachteile
+- läuft nur unter Windows
+- läuft nur bei angemeldetem Benutzer
+- {{{rs1}}} muss jedem {{{is1}}} von Hand mitgeteilt werden.
+- nur GUI, damit nicht automatisierbar
+- Die Anbindung von {{{instr_m}}} außerhalb des LAN erfordert entweder die
+  Einrichtung eines VPN oder die Portweiterleitung.
+- keine TLS
+- keine Authentifizierung der {{{app}}} am {{{instr}}}
+- keine Authentifizierung des {{{instr}}} an der {{{app}}}
+- Der {{{app}}}-Benutzer wird mit netzwerktechnischen Details konfrontiert, die
+  ihn nicht interessieren und die er evtl. nicht versteht.  Die Bedienung aus
+  der {{{app}}} heraus ist haklig.  Das ist aber kein konzeptionelles Problem
+  sondern nur eine Frage der Implementierung in den {{{app_m}}}.
+- Der {{{is1}}} hat keinen Mechanismus zum effektiven fortlaufenden Scan der
+  verbundenen Geräte (Hot Plug and Play).
+- Es gibt keinen Mechanismus, um den sicheren gleichzeitigen Betrieb mehrerer
+  {{{app_m}}} im gleichen Netz zu ermöglichen oder diesen wenigstens wirksam zu verhindern.
+- Es ist nicht möglich, parallel auf mehrere {{{instr_m}}} am selben {{{is1}}} zuzugreifen.
+- Bei der manuellen Konfiguration der TCP/IP-Ports wird weder im {{{is1}}} noch
+  im {{{rs1}}} überprüft, ob diese Ports bereits durch andere Applikationen
+  belegt sind.
+- Wenn der {{{rs1}}} wie vorgesehen als DynDNS-Server verwendet wird, dann gibt
+  es eine, je nach Konfiguration mehr oder weniger lange, zeitliche Lücke
+  zwischen Zwangstrennung und Aktualisierung der IP-Adresse durch den {{{is1}}},
+  die bei permanent laufenden Monitoringsystemen dazu führt, dass die
+  Kommunikation der {{{app}}} mit dem {{{is1}}} ins Leere läuft.
+
+**** Einschränkungen gegenüber der Aufgabenstellung
+1. Der {{{ic}}} muss stets ein Windows-PC sein.
+2. Die Konfguration des {{{is1}}} kann nicht automatisch erfolgen.
+3. Wegen Unsicherheit der Verbindung nur für kleine LANs oder VPNs mit
+   vertrauenswürdigem Nutzerkreis geeignet.
+4. Das Netzwerk ist statisch.  Wenn es einmal läuft, dann darf im laufenden Betrieb nichts mehr
+   verändert werden.
+5. Das Problem, dass nur eine {{{app}}} gleichzeitig verbunden sein darf, muss
+   organisatorisch gelöst werden.
+
+*** Sicherheit
+**** Prämissen
+{{{instr}}} und {{{ic}}} werden als eine physische Einheit betrachtet,
+die als solche physisch abgesichert ist.
+Wir gehen also davon aus,
+dass ein Angreifer keinen physischen Zugriff
+auf das {{{instr}}} und den {{{ic}}}
+und auf die Schnittstelle zwischen {{{instr}}} und {{{ic}}}
+hat.
+
+Das Konzept des {{{sn1}}} erlaubt nur einen {{{rs1}}}
+und nur eine {{{app}}}.
+Die Konzept von {{{sn2}}} und {{{snmqtt}}}
+gestattet mehrere {{{rs}}} und mehrere {{{app_m}}} im {{{sn}}}.
+{{{app}}} und {{{rs}}}
+können deshalb stets gemeinsam auf dem {{{ac}}} installiert sein.
+Es wird ferner angenommen,
+dass der Angreifer keinen physischen Zugang zum {{{ac}}} hat.
+Damit kann auch die Verbindung zwischen {{{app}}} und {{{rs}}}
+als sicher angesehen werden.
+
+Wir rechnen mit Innentätern,
+die zusätzliche {{{is}}}, {{{rs}}} oder {{{app_m}}}
+im LAN oder VPN installieren können.
+Wir rechnen ferner mit allen möglichen Angriffen aus dem Internet.
+
+**** Was muss abgesichert werden?
+1. Alle Verbindungen zwischen {{{is}}} und {{{rs}}}
+2. Alle Verbindungen vom und zum {{{scs}}}
+
+*** Legitime Erleichterungen
+**** Worum geht es?
+Wir versuchen hier, uns die Arbeit zu erleichtern,
+indem wir Abstriche von Maximalforderungen der Aufgabenstellung machen
+und bestimmte Randbedingungen fordern.
+
+Diese Abstriche dürfen später beim Betrieb des {{{sn}}} nicht vergessen werden.
+
+**** Ausschließliche Verwendung der USB-Schnittstelle
+Da alle aktuellen {{{instr_m}}}
+und die allermeisten infrage kommenden {{{ic}}}
+eine USB-Schnittstelle haben,
+erscheint diese Erleichterung hinnehmbar.
+Sie gestattet,
+den {{{is}}} mit einer Standardkonfiguration ausliefern zu können,
+die fast nie geändert werden muss.
+
+**** Verzicht auf Sicherheit bei Einsatz im LAN
+Bei vielen Einsatzszenarien
+erscheint die Forderung nach TLS und Authentifizierung überzogen.
+Wenn beispielsweise ein Baubiologe oder Ingenieurbüro
+{{{instr_m}}}
+in den Wohnungen seiner Klienten verteilt
+und über VPN mit seinem Büro-LAN verbunden hat,
+dann muss man nicht unbedingt damit rechnen,
+dass ein Hacker aus dem eigenen Büro versucht,
+ihm falsche Radon-Messdaten unterzuschieben.
+
+Wir verzichten deshalb in kleinen Installationen ohne MQTT-Broker
+auf TLS und Authentifizierung.
+In allen Anwendungen mit erhöhten Sicherheitsanforderungen
+verwenden wir MQTT mit TLS und Authentifizierung.
+
+**** {{{ic}}} mit Phython-Unterstützung
+Damit nur eine Implementierung des {{{is}}}
+für alle {{{ic}}}
+verwendet werden kann,
+sollen die {{{ic}}} stets die Python-Programme unterstützen.
+Damit kommen folgende {{{ic}}} in Frage:
+- RaspberryPi
+- Geneko GWG-40+
+- PCs mit Windows oder Linux
+- ESP8266 oder ESP32 mit MicroPython
+- STM32 mit MicroPython
+- Pyboard D mit Ethernetadapter W5200
+
+**** Instanzen des {{{rs}}}
+Eigentlich wird nur eine Instanz des {{{rs}}}
+pro {{{sn}}} benötigt
+und im Falle des {{{sn1}}} wird auch nur eine Instanz benutzt.
+Aus organisatorischen Gründen ist es aber einfacher,
+den {{{rs}}} gleich mit der {{{app}}} zu installieren.
+
+Wir gehen deshalb im Weiteren davon aus,
+dass,
+im {{{sn2}}} und {{{snmqtt}}},
+der {{{rs}}}
+in der Regel auf dem PC
+als Windows-Service bzw. Linux-Daemon im Hintergrund läuft,
+auf dem auch die {{{app}}} läuft.
+
+* Zwei Szenarien, zwei Konzepte, eine App-Schnittstelle
+** {{{sn2}}} -- Lösung für sichere LAN/VPN
+*** Setup/Kontext
+Abbildung ref:bd-lanvpn gibt einen groben Überblick
+über den Netzaufbau.
+Abbildung ref:c4-context_sn2 stellt das System in einem C4-Context-Diagramm dar.
+
+#+CAPTION: {{{sn2}}} -- Überblick. label:bd-lanvpn
+#+ATTR_LATEX: :width \textwidth
+[[file:fig/bd-lanvpn.pdf]]
+
+#+NAME: c4-context_sn2
+#+begin_src plantuml :file c4-context_sn2.png
+!include <c4/C4_Container.puml>
+!include <office/Users/user.puml>
+
+!$sn = "SARAD-Netzwerk (LAN)"
+!$app = "SARAD-App"
+!$ac = "App-Computer"
+!$ic = "Instrument Controller"
+!$rs2 = "Registration Server 2"
+!$is2 = "Instrument Server 2"
+!$instr = "SARAD-Instrument"
+!$instr_m = "SARAD-Instrumente"
+
+LAYOUT_WITH_LEGEND()
+
+Person(user, Baubiologe, "will mit Radon Vision sowohl lokal angeschlossene als auch entfernte Geräte auslesen.")
+
+System_Boundary(local, $sn) {
+        System(ac, $ac, "PC mit $app, $rs2, $is2")
+        System(ic1, $ic, "$is2")
+        System_Ext(instr1, $instr)
+        System_Ext(instr2, $instr)
+        System_Ext(instr3, $instr)
+}
+
+System_Boundary(remote, VPN-Erweiterung des LAN) {
+        System(ic2, $ic, "$is2 für remote angeschlossene $instr_m")
+        System_Ext(instr4, $instr)
+        System_Ext(instr5, $instr)
+}
+
+Rel(user, ac, "Gerät konfigurieren, Daten auslesen")
+Rel(ac, instr1, "verwaltet")
+Rel_U(ic1, instr2, "verwaltet")
+Rel_U(ic1, instr3, "verwaltet")
+Rel(ic1, ac, "meldet Geräteliste")
+
+Rel_U(ic2, instr4, "verwaltet")
+Rel(ic2, instr5, "verwaltet")
+
+Rel(ic2, ac, "meldet Geräteliste")
+#+end_src
+
+#+CAPTION: Context-Diagramm des {{{sn2}}}. label:c4-context_sn2
+#+ATTR_LATEX: :width \textwidth
+#+RESULTS: c4-context_sn2
+[[file:c4-context_sn2.png]]
+
+Alle {{{instr_m}}} befinden sich in einem gemeinsamen LAN.
+Entfernte {{{instr_m}}} werden ausschließlich über VPN-Mobilfunk-Router
+über OpenVPN mit diesem LAN verbunden.
+Das LAN wird als sicherer Ort angenommen,
+innerhalb dessen die Kommunikation nicht verschlüsselt werden muss.
+Auch auf eine Authentifizierung der Programmkomponenten untereinander
+und der Nutzer
+wird verzichtet.
+
+*** Konzept
+Der {{{is}}} wird zu {{{is2}}} und der {{{rs}}} zu {{{rs2}}} weiterentwickelt.
+Auf jedem {{{ic}}} läuft ein {{{is2}}},
+sodass jedem {{{instr}}} genau ein {{{is2}}} zugeordnet ist.
+Der {{{is2}}} scannt beim Start die angeschlossenen {{{instr_m}}}
+und registriert danach jede Änderung.
+Dies erfolgt unter Linux mit udev-Events,
+unter Windows durch regelmäßiges Abfragen des WMI-Repository
+nach neuen USB-Geräten.
+{{{instr_m}}} werden als Services über mDNS-Broadcast-Messages
+im LAN bekannt gemacht.
+
+Der {{{rs2}}} sammelt die mDNS-Information
+und stellt der {{{app}}}
+die Liste der im {{{sn}}} verfügbaren {{{instr_m}}}
+über eine einfache REST-API zur Verfügung.
+
+Ferner fungiert der {{{rs2}}} als Socket-Relay
+zwischen {{{app}}} und {{{is2}}},
+sodass die {{{app}}} im Ergebnis
+ausschließlich mit dem {{{rs2}}} kommuniziert.
+
+Aus technischer Sicht würde ein {{{rs2}}} im LAN genügen.
+Organisatorisch ist es aber einfacher,
+bei der Installation der {{{app}}} den {{{rs2}}} und {{{is2}}}
+einfach mit zu installieren und
+je eine Instanz des {{{rs2}}} und des {{{is2}}}
+als Services auf dem {{{ac}}} laufen zu lassen.
+Damit ist sichergestellt,
+dass lokal am {{{ac}}} angeschlossene {{{instr_m}}}
+genauso behandelt werden können,
+wie die entfernten {{{instr_m}}}.
+
+Sowohl {{{rs2}}} als auch {{{is2}}}
+sind deshalb plattformunabhängig in Python implementiert.
+
+*** Features
+- keinerlei Konfiguration erforderlich,
+- dynamische Erkennung der {{{instr_m}}} und ihrer Verfügbarkeit,
+- einheitliche und einfache Schnittstelle zur {{{app}}},
+- konkurrierender Zugriff möglich, wenn die {{{app}}} das {{{instr}}} nicht blockiert,
+- große Auswahl an Geräten, die als {{{ic}}} verwendet werden können,
+- Einbindung entfernter {{{instr_m}}} über OpenVPN.
+** {{{snmqtt}}}
+*** Setup
+Abbildung ref:bd-mqtt gibt einen groben Überblick
+über den Netzaufbau.
+# Abbildung ref:c4-context_mqtt stellt das System in einem C4-Context-Diagramm dar.
+
+#+CAPTION: {{{snmqtt}}} -- Überblick. label:bd-mqtt
+#+ATTR_LATEX: :width \textwidth
+[[file:fig/bd-mqtt.pdf]]
+
+Die {{{instr_m}}} sind im Internet verteilt
+und kommunizieren über das MQTT-Protokoll
+über einen MQTT-Broker mit der {{{app}}}.
+Die gesamte Netzwerkumgebung wird als unsicher angenommen.
+
+*** Konzept
+Die Informationen über remote verfügbare Messinstrumente
+werden vom MQTT-Broker auf dem {{{scs}}}
+gesammelt und bereitgestellt.
+Ein auf dem {{{ac}}} laufender {{{rsmqtt}}}
+sammelt als Subscriber des MQTT-Brokers diese Informationen
+und stellt die Liste der {{{app}}} über eine REST-API zur Verfügung.
+Die {{{app}}} fragt beim Programmstart den {{{rsmqtt}}} ab,
+um die Liste verfügbarer Messinstrumente zu erfahren.
+
+Ebenso wie der {{{is2}}} führt der {{{ismqtt}}}
+die Liste der {{{instr_m}}}
+seines {{{ic_s}}}.
+Anders als beim {{{is2}}}
+erfolgt hier aber die Verbreitung über MQTT-Publish.
+
+*** Features
+- feste IP nur am {{{scs}}} erforderlich,
+- {{{scs}}} wird von SARAD als Infrastruktur zur Verfügung gestellt,
+- sichere Datenübertragung,
+- Authentifizierung der Komponenten und Nutzer,
+- dynamische Erkennung der {{{instr_m}}} und ihrer Verfügbarkeit,
+- einheitliche und einfache Schnittstelle zur {{{app}}},
+- konkurrierender Zugriff möglich, wenn die {{{app}}} das {{{instr}}} nicht blockiert.
+
+* Erweiterungsmöglichkeiten
+
+** Lokale Geräte am {{{rs}}}
+Der {{{rs}}} muss auch den Trivialfall abdecken,
+dass {{{instr_m}}} lokal am {{{ac}}},
+auf dem der {{{rs}}} läuft,
+angeschlossen sind.
+
+** Minimaler {{{is}}} -- {{{am}}}
+Wenn {{{ic}}} mit geringer Rechenkapazität
+und nur einem angeschlossenen {{{instr}}}
+verwendet werden,
+dann reduzieren sich die Funktionen aus Abschnitt [[id:1d3fdb23-f77c-4533-8617-de6dab3291bb][{{{is}}}]] auf:
+1. Umsetzung der seriellen Schnittstelle des {{{instr}}} in eine TCP/IP-Schnittstelle,
+2. Melden des {{{instr}}} an den {{{rs2}}},
+3. Empfang von Reservierungsinformationen vom {{{rs2}}} und Protokollierung,
+4. Beantwortung von Anfragen des {{{rs2}}} zum Reservierungszustand,
+
+Die letzten drei Funktionen können räumlich von der ersten getrennt werden.
+Der auf dem {{{ic}}} laufende {{{is}}} reduziert sich damit
+auf die Umsetzung der seriellen Schnittstelle in eine TCP/IP-Schnittstelle,
+eine Funktion,
+die viele preiswerte Geräte bereits von Hause aus mitbringen.
+Die verbleibenden Funktionen 2, 3 und 4
+müssen dann von einer anderen Instanz im LAN erfüllt werden,
+die wir {{{am}}} nennen.
+
+Damit können auch {{{ic}}} ohne Python-Unterstützung
+mit nur je einem angeschlossenen {{{instr}}}
+Mitglieder eines (unsicheren) LAN/VPN-Netzwerkes sein.
+
+Es ist ein {{{am}}} für jedes so angeschlossene {{{instr}}} nötig.
+Der {{{am}}} erfordert die manuelle Eingabe der Daten des {{{instr}}}
+bei der Erstkonfiguration.
+Der {{{am}}} prüft,
+ebenso wie der {{{is2}}},
+in regelmäßigen Abständen,
+ob das {{{instr}}} noch über seinen Socket erreichbar ist.
+
+* Migrationsplan label:migrationsplan
+Die in Abschnitt ref:simple und ref:is1rs1 beschriebenen Lösungen
+existieren, und funktionieren mit den beschriebenen Einschränkungen.
+Die in Abschnitt ref:simple beschriebene einfachste Lösung
+arbeitet mit {{{rv}}}, {{{dv}}} und {{{rooms}}}.
+Die Lösung aus Abschnitt ref:is1rs1
+arbeitet mit {{{dv}}} und {{{rooms}}}, nicht aber mit {{{rv}}}.
+
+Wir haben damit auf jeden Fall eine Lösung,
+die wir unseren Kunden anbieten können,
+und die wir zusammenfassend als {{{sn1}}} bezeichnen wollen.
+
+Mit {{{sn1}}} wäre noch ein evolutionäre Verbesserung denkbar,
+indem für alle {{{app_m}}} das bereits mit {{{rooms}}} demonstrierte
+Konzept angewendet wird,
+bei dem ausschließlich über Server Sockets der {{{is}}}
+auf die {{{instr_m}}} zugegriffen wird.
+In {{{dv}}} und {{{rv}}} müsste der Scan der lokalen COM-Ports
+dafür deaktiviert werden.
+Außerdem wären für einen zuverlässigen Betrieb
+{{{rs1}}} und {{{is1}}} so zu modifizieren,
+dass sie als Windows-Services im Hintergrund laufen
+und im Fehlerfall
+automatisch neu gestartet werden.
+
+{{{sn2}}} und {{{snmqtt}}} sind zukünftige Lösungen,
+die {{{sn1}}} ablösen sollen.
+Beide Lösungen haben, abhängig vom Einsatzszenario,
+ihre Existenzberechtigung
+und sollen deshalb parallel existieren.
+Beide Lösungen haben die gleiche einheitliche Schnittstelle zur {{{app}}}
+und erfordern entsprechende Änderungen an allen {{{app_m}}}.
+
+{{{sn2}}} ist die Lösung für kleine Installationen
+mit überschaubarem und vertrauenswürdigem Nutzerkreis.
+
+{{{snmqtt}}} ist die Lösung der Wahl
+für große, weitverzweigte Netze
+mit vielen Nutzern und vielen {{{instr_m}}}
+bzw. für Einsatzfälle mit hohen Sicherheitsanforderungen.
+
+Zunächst soll {{{sn2}}}
+mit allen erforderlichen Änderungen an den {{{app_m}}} umgesetzt werden,
+danach folgt {{{snmqtt}}}.
+
+* {{{sn1}}} -- Evolution                                            :noexport:
+Wie im Kapitel ref:migrationsplan festgestellt,
+existiert mit dem {{{sn1}}} eine,
+wenn auch nicht gute, so doch funktionierende
+Lösung für alle aktuellen SARAD-Produkte.
+
+Diese Lösung könnte entsprechend dem folgenden Plan
+noch erheblich verbessert werden.
+Es ist zu diskutieren,
+ob sich dieser Aufwand lohnt
+oder ob wir davon zu Gunsten der schnelleren Entwicklung des {{{sn2}}}
+absehen wollen.
+
+** Grundidee
+Die Grundidee ist,
+so wie bereits mit {{{rooms}}} demonstriert,
+alle {{{app_m}}} grundsätzlich nur über {{{rs1}}} und {{{is1}}}
+mit den {{{instr_m}}} kommunizieren zu lassen.
+{{{rs1}}} und {{{is1}}} wären grundsätzlich zusammen mit der {{{app}}}
+zu installieren und als Windows-Services
+auf dem {{{ac}}}
+zu starten.
+Damit wäre die Benutzung lokal angeschlossener {{{instr_m}}}
+ebenso möglich,
+wie die Verwendung
+entfernter, über virtuelle COM-Ports angeschlossener {{{instr_m}}}
+und entfernter, über mehrere Instanzen des {{{is1}}} verwalteter {{{instr_m}}}.
+
+Die lokal angeschlossenen {{{instr_m}}}
+und die entfernten,
+über virtuelle COM-Ports eingebundenen {{{instr_m}}}
+werden dabei von der auf dem {{{ac}}} laufenden Instanz des {{{is1}}} verwaltet.
+
+In jedem Fall könnte die {{{app}}} die Liste der verfügbaren {{{instr_m}}}
+schnell über {{{rs1}}} und die Instanzen des {{{is1}}} beziehen.
+
+Vorteile aus Anwendersicht sind:
+- Konsistentes Verhalten der App.  Der Anwender wird nicht mit
+  Verbindungstechnologien konfrontiert, sondern nur mit der Geräteliste.
+- Kein Warten auf Geräteliste beim Start der {{{app}}}.
+- Preisgünstige RS-232/TCP/IP-Konverter und andere preiswerte Hardware als
+  alternative zur /IP Box/ verwendbar.
+
+Ein wesentlicher Nachteil
+dieser Kombination aus virtuellen COM-Ports
+und {{{is1}}}
+gegenüber einem rein von Instanzen von {{{is1}}}
+gebildeten Netzwerk ist,
+dass die Netzwerktopologie aus Sicht der {{{app}}} nicht mehr transparent ist.
+Die über virtuelle COM-Ports vernetzten {{{instr_m}}}
+erscheinen wie lokale,
+direkt am {{{ac}}} angeschlossene {{{instr_m}}}.
+
+** Notwendige Arbeiten
+- Implementierung von {{{is1}}} und {{{rs1}}} als Windows-Services
+- Implementierung der regelmäßigen Aktualisierung der Geräteliste am {{{is1}}}
+- Anpassung von {{{dv}}}
+- Anpassung von {{{rv}}}
+- Anpassung der Softwareinstallation für alle {{{app_m}}}
+
+* Implementierung von {{{sn2}}} und {{{snmqtt}}} -- Überblick und gemeinsame Komponenten
+** Container
+*** {{{sn2}}}
+#+NAME: c4-containers_sn2
+#+begin_src plantuml :file c4-containers_sn2.png
+!include <c4/C4_Container.puml>
+!include <office/Users/user.puml>
+
+!$sn = "SARAD-Netzwerk"
+!$app = "SARAD-App"
+!$ac = "App-Computer"
+!$ic = "Instrument Controller"
+!$rs2 = "Registration Server 2"
+!$is2 = "Instrument Server 2"
+!$instr = "SARAD-Instrument"
+!$instr_m = "SARAD-Instrumente"
+
+LAYOUT_WITH_LEGEND()
+
+' title Systemkontextdiagramm für das $sn
+
+Person(user, Nutzer, "will mit $app sowohl lokal angeschlossene als auch entfernte Geräte auslesen.")
+
+System_Boundary(local, $ac) {
+        Container(app, $app, "Radon Vision 8")
+        Container(rs2, $rs2, "Geräteliste, Reservierungszustand, Server Socket zur App")
+        Container(is2, $is2, "für lokal angeschlossene $instr_m")
+}
+
+System_Ext(instr_local, $instr)
+
+System_Boundary(remote, $ic irgendwo im LAN) {
+        Container(is2_xy, $is2, "für remote angeschlossene $instr_m")
+}
+
+System_Ext(instr_remote_1, $instr)
+System_Ext(instr_remote_2, $instr)
+
+Rel(user, app, "Gerät konfigurieren, Daten auslesen")
+Rel_Back(instr_local, is2, "verwaltet")
+Rel_Back(instr_remote_1, is2_xy, "verwaltet")
+Rel_Back(instr_remote_2, is2_xy, "verwaltet")
+Rel(is2, rs2, "Geräteliste via mDNS")
+Rel(is2_xy, rs2, "Geräteliste via mDNS")
+Rel(rs2, app, "Geräteliste via REST, Server Socket")
+
+#+end_src
+
+#+CAPTION: Container im {{{sn2}}}. label:c4-containers_sn2
+#+ATTR_LATEX: :width \textwidth
+#+RESULTS: c4-containers_sn2
+[[file:c4-containers_sn2.png]]
+
+*** {{{snmqtt}}}
+#+NAME: c4-containers_snmqtt
+#+begin_src plantuml :file c4-containers_snmqtt.png
+!include <c4/C4_Container.puml>
+!include <office/Users/user.puml>
+
+!$sn = "SARAD-Netzwerk"
+!$app = "SARAD-App"
+!$ac = "App-Computer"
+!$ic = "Instrument Controller"
+!$rsmqtt = "Registration Server MQTT"
+!$ismqtt = "Instrument Server MQTT"
+!$iswlan = "Instrument Server WLAN"
+!$instr = "SARAD-Instrument"
+!$instr_m = "SARAD-Instrumente"
+
+LAYOUT_WITH_LEGEND()
+
+Person(user, Nutzer, "will mit $app sowohl lokal angeschlossene als auch entfernte Geräte auslesen.")
+
+System_Boundary(local, $ac) {
+        Container(app, $app, "z. B. Radon Vision 8")
+        Container(rsmqtt, $rsmqtt, "Geräteliste, Reservierungszustand, Server Socket zur App")
+        Container(islocal, $ismqtt, "für lokal angeschlossene $instr_m")
+}
+
+System_Ext(instr_local, $instr)
+
+System_Boundary(remote, $ic) {
+        Container(ismqtt_xy, $ismqtt, "irgendwo im Internet")
+}
+
+System_Ext(instr_remote_1, $instr)
+System_Ext(instr_remote_2, $instr)
+
+System_Boundary(wlan, STM322 mit WLAN-Modul) {
+        Container(iswlan, $iswlan, "für ein festes $instr")
+        System_Ext(instr_remote_3, $instr)
+}
+
+
+System_Boundary(scs, "SARAD Cloud Server") {
+        Container(broker, "MQTT-Broker", "z. B. Mosquitto")
+}
+
+Rel(user, app, "Gerät konfigurieren, Daten auslesen")
+Rel_Back(instr_local, islocal, "verwaltet")
+Rel_Back(instr_remote_1, ismqtt_xy, "verwaltet")
+Rel_Back(instr_remote_2, ismqtt_xy, "verwaltet")
+Rel_Back(instr_remote_3, iswlan, "verwaltet")
+Rel(rsmqtt, app, "Geräteliste via REST, Server Socket")
+Rel(islocal, broker, "publish reply msg")
+Rel(ismqtt_xy, broker, "publish reply msg")
+Rel(iswlan, broker, "publish reply msg")
+Rel_Back(islocal, broker, "subscribe cmd msg")
+Rel_Back(ismqtt_xy, broker, "subscribe cmd msg")
+Rel_Back(iswlan, broker, "subscribe cmd msg")
+Rel(rsmqtt, broker, "publish cmd msg")
+Rel_Back(rsmqtt, broker, "subscribe reply msg")
+
+#+end_src
+
+#+CAPTION: Container im {{{snmqtt}}}. label:c4-containers_snmqtt
+#+ATTR_LATEX: :width \textwidth
+#+RESULTS: c4-containers_snmqtt
+[[file:c4-containers_snmqtt.png]]
+
+** Komponenten
+*** {{{app}}} und {{{app_adapter}}}
+Die {{{app}}} hat ausschließlich Kontakt zum {{{rs}}}.
+Von dort bezieht sie die Liste der im Netz verfügbaren {{{instr_m}}}
+und Informationen über deren aktuellen Status.
+Dort meldet sie an, dass sie ein bestimmtes {{{instr}}} für die Kommunikation
+reservieren will
+und bekommt einen Socket (IP-Adresse und Port) für dieses {{{instr}}}
+zugewiesen.
+Dabei ist es aus Sicht der {{{app}}} unwichtig, ob es sich bei dem {{{rs}}}
+um einen {{{rs2}}} oder einen {{{rsmqtt}}} handelt.
+
+Der {{{rs}}} -- egal ob {{{rs2}}} oder {{{rsmqtt}}} -- stellt sich der {{{app}}}
+gegenüber als JSON-Web-API dar (vgl. Abschnitt ref:rest-api-rs).
+Weil der Zugriff auf solche APIs von älteren Delphi-Versionen aus recht
+umständlich ist, wird mit dem {{{app_adapter}}} ein Python-Modul als Bindeglied
+verwendet.
+Es besteht aus der Klasse /AppAdapter/, aus der im Modul selbst das Objekt
+/app_adapter/ als Singleton erzeugt wird.
+
+Der {{{app_adapter}}} wird von der {{{app}}} mit Python4Delphi eingebunden.
+Das passiert in Form eines als Vorlage wiederverwendbaren Delphi-Frames,
+/TfrmInstrumentList/.
+Dieser kann sowohl in {{{rv}}} als auch in {{{dv}}} und {{{rooms}}} verwendet
+werden.
+In {{{dv}}} muss dafür das Seitenverhältnis des Start-Fensters so angepasst
+werden, dass die breitere ComboBox mit den Gerätebezeichnungen Platz findet.
+In {{{rooms}}} wird der Frame mit seiner ComboBox-Auswahlliste versteckt.
+Hier werden einfach alle geeigneten {{{instr_m}}} verbunden,
+die im Netz gefunden werden.
+
+Abbildung ref:c4-components_app zeigt das Zusammenspiel der Komponenten.
+
+#+NAME: c4-components_app
+#+begin_src plantuml :file c4-components_app.png
+!include <c4/C4_Component.puml>
+!include <office/Users/user.puml>
+
+!$app = "SARAD-App"
+!$rs2 = "Registration Server"
+!$instr = "SARAD-Instrument"
+
+LAYOUT_WITH_LEGEND()
+
+Person(user, Nutzer, "startet die $app und wählt ein $instr aus.")
+
+Container_Boundary(app, $app) {
+        Component(delphi, "Anwendungsprogramm", "Delphi", "z. B. Radon Vision 8")
+        Component(frame, "TfrmInstrumentList", "Delphi-Frame", "kapselt die Funktionalität der Geräteauswahl und der Socket-Bereitstellung.")
+        Component(adapter, "app_adapter", "Python Module", "für den API-Zugriff")
+}
+
+Container(rs2, $rs2, "stellt eine Web-API bereit.")
+
+Rel(user, frame, "Gerät aus Liste auswählen")
+Rel_Back(user, delphi, "Meldung im Fehlerfall")
+Rel(delphi, frame, "Nutzt")
+Rel_Back(delphi, frame, "Meldung im Fehlerfall")
+Rel(frame, adapter, "Nutzt", "Python4Delphi")
+Rel(adapter, rs2, "Nutzt", "JSON/HTTP")
+#+end_src
+
+#+CAPTION: Zusammenspiel der Komponenten von {{{app}}} und {{{app_adapter}}}. label:c4-components_app
+#+ATTR_LATEX: :width 0.3\textwidth
+#+RESULTS: c4-components_app
+[[file:c4-components_app.png]]
+
+
+*** Gemeinsame Codebasis von {{{rs}}} und {{{is}}} label:rs_is
+Damit die {{{app}}} auch im Trivialfall mit nur lokal angeschlossenen
+{{{instr_m}}} funktioniert, muss der {{{rs}}} auf jedem {{{ac}}} laufen und die
+Funktionen zur Erkennung lokal angeschlossener {{{instr_m}}} und zum Führen der
+Geräteliste mitbringen. Er enthält damit bereits wesentliche Funktionen die auch
+im {{{is}}} benötigt werden. Es ist deshalb sinnvoll, {{{rs}}} und {{{is}}} in
+einer gemeinsamen Codebasis zu pflegen. Erst durch eine Einstellung in der
+Konfigurationsdatei wird entschieden, als was die Software arbeitet:
+- {{{rs}}}, der parallel sowohl lokal angeschlossene als auch über MQTT und
+  RFC2217 vernetzte {{{instr_m}}} erkennt,
+- {{{ismqtt}}},
+- {{{is2}}}.
+
+*** {{{rs}}} label:rs_components
+:PROPERTIES:
+:ID:       0b69cce4-c215-41fc-8b69-04e2d09e09ce
+:END:
+Im Folgenden wird von {{{rs2}}} und {{{rsmqtt}}} die Rede sein.
+Tatsächlich gibt es nur eine Implementierung des {{{rs}}},
+der sowohl lokal angeschlossene {{{instr_m}}} als auch über MQTT und RFC2217
+verbundene {{{instr_m}}} bereit stellt. Dabei werden je nach Quelle die
+entsprechenden Module aktiv.
+
+Der {{{rs}}} macht umfassenden Gebrauch vom Actor-Modell. Folgende Komponenten
+sind beteiligt:
+- {{{rest_api}}} :: gibt es einmal. Schnittstelle für die {{{app}}} zur Bereitstellung der
+  Geräteliste und zur Reservierung.
+- Listener/Subscriber :: gibt es einmal, je nach verwendetem Internet Protokoll
+  als {{{mdns_listener}}} bzw. {{{mqtt_subscriber}}} oder, für die direkt am
+  {{{ac}}} angeschlossenen {{{instr_m}}} als {{{win_listener}}} für Windows
+  bzw. {{{unix_listener}}} für Linux, erkennt
+  neue {{{instr_m}}}.
+- {{{device_actor}}} :: je einer pro verfügbarem {{{instr}}}. Die Basisklasse
+  dieses Actors richtet sich nach dem zur Kommunikation verwendeten
+  Internet-Protokoll (RFC2217 bzw. MQTT).
+- {{{redirector}}} :: je einer pro reserviertem {{{instr}}}, stellt Socket zur
+  {{{app}}} zur Verfügung
+- Gerätedateien :: je eine pro verfügbarem {{{instr}}}. Enthalten
+  Statusinformationen in Form eines JSON-Ausdruckes.
+
+Abbildung ref:c4-components_rs2 zeigt den logischen Ablauf beim Zusammenspiel
+der Komponenten im {{{rs2}}}, Abbildung ref:c4-components_rsmqtt den analogen
+Aufbau des {{{rsmqtt}}}.
+Beide Implementierungen unterscheiden sich nur in in den Komponenten /mDNS
+Listener/ bzw. /Subscriber/ und /Device Actor/.
+
+Bevor ein {{{instr}}} verwendet werden kann, muss es zunächst erkannt und in eine
+Liste verfügbarer {{{instr_m}}} aufgenommen worden sein.
+Diese Funktion erfüllt der {{{mdns_listener}}} bzw. der {{{mqtt_subscriber}}}.
+Für jedes erkannte {{{instr}}} wird eine Gerätedatei mit einem,
+das {{{instr}}} identifizierenden,
+JSON-Ausdruck als Inhalt in ein bestimmtes Verzeichnis geschrieben.
+Danach wird ein {{{device_actor}}} für das {{{instr}}} angelegt.
+
+Die {{{rest_api}}} stellt diese Liste verfügbarer {{{instr_m}}} der {{{app}}}
+über eine Web-API zur Verfügung.
+Wählt die {{{app}}} ein {{{instr}}} zum Verbindungsaufbau aus (Reserve-Request),
+so wird dem {{{device_actor}}} eine SEND_RESERVE-Message mit Host-, App- und User-Name der
+anfragenden {{{app}}} geschickt.
+Daraufhin erzeugt der {{{device_actor}}} einen {{{redirector}}},
+der einen Socket zur {{{app}}} bereit stellt.
+IP-Adresse und Port dieses Sockets meldet der {{{device_actor}}} zurück an die {{{rest_api}}}.
+
+Die eigentliche Kommunikation zwischen {{{app}}} und {{{instr}}} wird danach
+über {{{device_actor}}} und {{{redirector}}} abgewickelt.
+Der {{{redirector}}} empfängt ein binäres Datenpaket von der {{{app}}} und
+sendet es an den {{{device_actor}}}.
+Dieser sendet es über seinen spezifischen Kommunikationskanal (RFC2217 bzw.
+MQTT) an den {{{is}}} weiter.
+Wenn der {{{device_actor}}} vom {{{is}}} die Antwort empfängt,
+so sendet er sie an den {{{redirector}}},
+der sie wiederum über seinen Socket an die {{{app}}} schickt.
+
+#+NAME: c4-components_rs2
+#+begin_src plantuml :file c4-components_rs2.png
+!include <c4/C4_Component.puml>
+!include <office/Users/user.puml>
+
+hide stereotype
+
+'AddTagSupport("mod", $borderColor="#d73027")
+
+!$app = "SARAD-App"
+!$rs = "Registration Server 2 (ZeroConf)"
+!$is = "Instrument Server"
+!$instr = "SARAD-Instrument"
+!$instr_m = "SARAD-Instrumente"
+
+Container(app, $app, "wählt ein $instr zur Kommunikation aus.")
+
+Container_Boundary(mod, "RFC2217-Modul", $rs, $tags="mod") {
+        Component(listener, "mDNS Listener", "Python Class", "Erkennt neue $instr_m.")
+        Component(device_actor1, "Device Actor A", "Actor", "RFC2217")
+}
+Container_Boundary(rs, "Basis", $rs) {
+        Component(api, "REST API", "JSON/HTTP", "Geräteliste mit Status")
+        Component(redirector1, "Redirector Actor A", "Actor", "TCP Socket")
+}
+ComponentDb(device_files, "Gerätedateien", "Dateisystem")
+
+Container(is1, $is, "verwaltet Gerätebelegung, stellt eine Internetschnittstelle zum $instr bereit")
+
+Rel(is1, listener, "1. meldet Gerät A", "mDNS Broadcast")
+Rel(listener, device_actor1, "2. erzeugt", "createActor")
+Rel(listener, device_actor1, "3. SETUP", "message")
+Rel(device_actor1, device_files, "4. Datei/Link",  "JSON Identification")
+Rel(api, app, "5. GET list", "JSON/HTTP")
+Rel(api, device_files, "6. liest", "JSON/HTTP")
+Rel(app, api, "7. GET reserve", "JSON/HTTP")
+Rel(api, device_actor1, "8. RESERVE", "Message")
+Rel(device_actor1, is1, "9. Reservierung", "JSON/HTTP")
+Rel(device_actor1, redirector1, "10. erzeugt", "createActor")
+Rel(device_actor1, device_files, "11. schreibt in Datei", "JSON")
+BiRel(app, redirector1, "12. Binärpaket", "TCP-Socket")
+BiRel(redirector1, device_actor1, "12. Binärpaket", "Messages")
+BiRel(is1, device_actor1, "12. Binärpaket", "RFC2217")
+#+end_src
+
+#+CAPTION: Zusammenspiel der Komponenten des {{{rs2}}} label:c4-components_rs2
+#+ATTR_LATEX: :width \textwidth
+#+RESULTS: c4-components_rs2
+[[file:c4-components_rs2.png]]
+
+#+NAME: c4-components_rsmqtt
+#+begin_src plantuml :file c4-components_rsmqtt.png
+!include <c4/C4_Component.puml>
+!include <office/Users/user.puml>
+
+hide stereotype
+
+'AddTagSupport("mod", $borderColor="#d73027")
+
+!$app = "SARAD-App"
+!$rs = "Registration Server"
+!$is = "Instrument Server"
+!$instr = "SARAD-Instrument"
+!$instr_m = "SARAD-Instrumente"
+
+Container(app, $app, "wählt ein $instr zur Kommunikation aus.")
+
+Container_Boundary(mod, "MQTT-Modul", $rs, $tags="mod") {
+        Component(listener, "Subscriber", "Python Class", "mit MQTT-Client; erkennt neue $instr_m.")
+        Component(device_actor1, "Device Actor A", "Actor", "mit MQTT-Client")
+}
+Container_Boundary(rs, "Basis", $rs) {
+        Component(api, "REST API", "JSON/HTTP", "Geräteliste mit Status")
+        Component(redirector1, "Redirector Actor A", "Actor", "TCP Socket")
+}
+ComponentDb(device_files, "Gerätedateien", "Dateisystem")
+
+Container(is1, $is, "verwaltet Gerätebelegung, stellt eine Internetschnittstelle zum $instr bereit")
+
+Rel(is1, listener, "1. meldet Gerät A", "MQTT")
+Rel(listener, device_actor1, "2. erzeugt", "createActor")
+Rel(listener, device_actor1, "3. SETUP", "message")
+Rel(device_actor1, device_files, "4. Datei/Link",  "JSON Identification")
+Rel(api, device_files, "5. liest", "JSON/HTTP")
+Rel(api, app, "6. GET list", "JSON/HTTP")
+Rel(app, api, "7. GET reserve", "JSON/HTTP")
+Rel(api, device_actor1, "8. RESERVE", "Message")
+Rel(device_actor1, is1, "9. Reservierung", "MQTT")
+Rel(device_actor1, redirector1, "10. erzeugt", "createActor")
+Rel(device_actor1, device_files, "11. schreibt", "JSON Reservation")
+BiRel(app, redirector1, "12. Binärpaket", "TCP-Socket")
+BiRel(redirector1, device_actor1, "12. Binärpaket", "Messages")
+BiRel(is1, device_actor1, "12. Binärpaket", "MQTT")
+
+#+end_src
+
+#+CAPTION: Zusammenspiel der Komponenten des {{{rsmqtt}}} label:c4-components_rsmqtt
+#+ATTR_LATEX: :width \textwidth
+#+RESULTS: c4-components_rsmqtt
+[[file:c4-components_rsmqtt.png]]
+#+LATEX: \clearpage
+
+Abbildung ref:c4-components_rslocal zeigt die Module für die Erkennung lokal
+angeschlossener {{{instr_m}}} unter Windows bzw. Linux.
+
+Diese Module werden auch in der Implementierung des {{{is}}} verwendet.
+
+#+NAME: c4-components_rslocal
+#+begin_src plantuml :file c4-components_rslocal.png
+!include <c4/C4_Component.puml>
+!include <office/Users/user.puml>
+
+hide stereotype
+
+'AddTagSupport("mod", $borderColor="#d73027")
+
+!$app = "SARAD-App"
+!$instr = "SARAD-Instrument"
+!$instr_m = "SARAD-Instrumente"
+
+Container(app, $app, "wählt ein $instr zur Kommunikation aus.")
+
+Container_Boundary(mod, "Lokal-Modul") {
+        Component(listener, "Win/Unix Listener", "Python Class", "Erkennt neue USB-Geräte.")
+        Component(cluster_actor, "Cluster Actor", "Actor", "erkennt $instr_m, stellt Kommunikationsfunktionen bereit")
+        Component(device_actor1, "Device Actor A", "Actor")
+}
+Container_Boundary(rs, "Basis") {
+        Component(api, "REST API", "JSON/HTTP", "Geräteliste mit Status")
+        Component(redirector1, "Redirector Actor A", "Actor", "TCP Socket")
+}
+ComponentDb(device_files, "Gerätedateien", "Dateisystem")
+
+Container(inst, $instr, "(virtueller) COM-Port mit SARAD-Protokoll")
+
+Rel(inst, listener, "1. erkennt Gerät", "USB")
+Rel(listener, cluster_actor, "2. ADD/REMOVE", "message")
+Rel(inst, cluster_actor, "3. erkennt $instr", "USB/RS-232 Polling")
+Rel(cluster_actor, device_actor1, "4. erzeugt", "createActor")
+Rel(cluster_actor, device_actor1, "5. SETUP", "message")
+Rel(device_actor1, device_files, "6. Datei/Link",  "JSON Identification")
+Rel(api, device_files, "7. liest", "JSON/HTTP")
+Rel(api, app, "8. GET list", "JSON/HTTP")
+Rel(app, api, "9. GET reserve", "JSON/HTTP")
+Rel(api, device_actor1, "10. RESERVE", "Message")
+Rel(device_actor1, redirector1, "11. erzeugt", "createActor")
+Rel(device_actor1, device_files, "12. schreibt", "JSON Reservation")
+BiRel(app, redirector1, "13. Binärpaket", "TCP-Socket")
+BiRel(redirector1, device_actor1, "13. Binärpaket", "Messages")
+BiRel(device_actor1, cluster_actor, "13. SEND", "Messages")
+BiRel(inst, cluster_actor, "13. Binärpaket", "COM-Port")
+
+#+end_src
+
+#+CAPTION: Zusammenspiel der Komponenten des {{{rs}}} für lokal angeschlossene {{{instr_m}}} unter Windows bzw. Linux label:c4-components_rslocal
+#+ATTR_LATEX: :width \textwidth
+#+RESULTS: c4-components_rslocal
+[[file:c4-components_rslocal_win.png]]
+#+LATEX: \clearpage
+
+*** {{{ismqtt}}}
+:PROPERTIES:
+:ID:       7407c2ce-51fa-4a76-9057-6f41b67c8573
+:END:
+Abbildung ref:c4-components_ismqtt zeigt, wie die schon im {{{rs}}} benutzten
+Module zur Erkennung lokal angeschlossener {{{instr_m}}} durch das MQTT-Modul
+zum {{{ismqtt}}} ergänzt werden.
+
+Durch die Konfiguration wird die {{{rs}}}-Komponenten /REST API/ abgeschaltet und dafür
+der /MQTT-Scheduler/ aktiviert.
+Im /Device Actor/ wird die Erzeugung des /Redirektor Actors/ deaktiviert und die
+/ADD-Message/ an den /MQTT-Scheduler/ aktiviert.
+Die Binärpakete werden statt an den /Redirector Actor/ an den /MQTT-Scheduler/ geroutet.
+
+#+NAME: c4-components_ismqtt
+#+begin_src plantuml :file c4-components_ismqtt.png
+!include <c4/C4_Component.puml>
+!include <office/Users/user.puml>
+
+hide stereotype
+
+'AddTagSupport("mod", $borderColor="#d73027")
+
+!$rs = "Registration Server MQTT"
+!$instr = "SARAD-Instrument"
+!$instr_m = "SARAD-Instrumente"
+
+Container(rs, $rs, "wählt ein $instr zur Kommunikation aus.")
+
+Container_Boundary(mod, "Lokal-Modul") {
+        Component(listener, "Unix Listener", "Python Class", "Erkennt neue USB-Geräte.")
+        Component(cluster_actor, "Cluster Actor", "Singleton Actor", "erkennt $instr_m, stellt Kommunikationsfunktionen bereit")
+        Component(device_actor1, "Device Actor A", "Actor")
+}
+Container_Boundary(is, "MQTT-Modul") {
+        Component(scheduler, "MQTT Scheduler", "Singleton Actor", "MQTT-Client")
+}
+ComponentDb(device_files, "Gerätedateien", "Dateisystem")
+
+Container(inst, $instr, "(virtueller) COM-Port mit SARAD-Protokoll")
+
+Rel(inst, listener, "1. erkennt Gerät", "USB")
+Rel(listener, cluster_actor, "2. ADD/REMOVE", "message")
+Rel(inst, cluster_actor, "3. erkennt $instr", "USB/RS-232 Polling")
+Rel(cluster_actor, device_actor1, "4. erzeugt", "createActor")
+Rel(cluster_actor, device_actor1, "5. SETUP", "message")
+Rel(device_actor1, device_files, "6. Datei/Link",  "JSON Identification")
+Rel(device_actor1, scheduler, "7. ADD", "Message")
+Rel(scheduler, device_files, "8. liest", "JSON")
+Rel(scheduler, rs, "9. meldet Gerät A", "MQTT")
+Rel(rs, scheduler, "10. Reservierung", "MQTT")
+Rel(scheduler, device_actor1, "11. RESERVE", "Message")
+Rel(device_actor1, device_files, "12. schreibt", "JSON Reservation")
+BiRel(rs, scheduler, "13. Binärpaket", "MQTT")
+BiRel(scheduler, device_actor1, "13. Binärpaket", "Messages")
+BiRel(device_actor1, cluster_actor, "13. SEND", "Messages")
+BiRel(inst, cluster_actor, "13. Binärpaket", "COM-Port")
+
+#+end_src
+
+#+CAPTION: Zusammenspiel der Komponenten des {{{ismqtt}}} label:c4-components_ismqtt
+#+ATTR_LATEX: :width \textwidth
+#+RESULTS: c4-components_ismqtt
+[[file:c4-components_ismqtt.png]]
+
+*** TODO {{{is2}}}
+*** TODO {{{iswlan}}}
+
+** Code
+*** TfrmInstrumentList label:frminstrumentlist
+
+/TfrmInstrumentList/ ist eine in Delphi-Apps wiederverwendbare
+VCL-TFrame-Komponente.
+Sie soll in den {{{app_m}}} /Radon Vision/, /dVision/ und /ROOMS/
+verwendet werden, um folgende Funktionen zu kapseln:
+- die Anzeige der Geräteliste,
+- die Auswahl eines {{{instr}}},
+- die Aktivierung und Deaktivierung der Verbindung zu dem ausgewählten {{{instr}}},
+- die Bereitstellung des Socket zur Kommunikation mit dem {{{instr}}}.
+
+In der {{{app}}} wird jeweils genau ein Objekt der Klasse /TfrmInstrumentList/ verwendet.
+Die einzige visuelle Komponente des Frames ist eine ComboBox,
+in der die Liste der im Netz erreichbaren {{{instr_m}}} angezeigt wird.
+Beim Start der {{{app}}} wird durch Aufruf der /GetDeviceList/-Methode diese Liste aus der API des {{{rs}}} mit der
+Geräteliste gefüllt.
+Zugleich wird eine öffentliche Liste, /AvailableInstruments/, mit den Device-Ids
+aller im Netzwerk gefundenen {{{instr_m}}} angelegt.
+Die Liste wird stets aktualisiert, wenn die ComboBox ausgeklappt wird (/OnDropDown/-Event).
+Sie ist identisch mit der in der ComboBox angezeigten Auswahl.
+Zugleich wird eine, ebenfalls öffentliche, Kopie dieser Liste, /MarkedInstruments/, angelegt.
+Bei Auswahl eines {{{instr}}} in der ComboBox (/OnSelect/-Event) wird diese Liste auf die
+Device-Id des einen vorgemerkten {{{instr}}} reduziert.
+
+In der ROOMS-App gehen wir davon aus, dass alle {{{instr_m}}} im Netz angezeigt
+werden sollen.
+Der Frame wird deshalb in ROOMS nicht angezeigt,
+sodass auch das /OnSelect/-Event nie ausgelöst wird.
+Die /MarkedInstruments/-Liste bleibt deshalb identisch mit
+/AvailableInstruments/.
+In späteren Versionen von ROOMS könnte in der App selbst eine Funktion zur
+Auswahl der anzuzeigenden {{{instr_m}}} eingebaut werden,
+deshalb ist /MarkedInstruments/ von der {{{app}}} aus auch schreibbar.
+
+Für das Auslösen des Verbindungsauf- und abbaus ist die {{{app}}}
+verantwortlich.
+Damit kann das {{{instr}}} immer wieder freigegeben werden,
+wenn es nicht benutzt wird.
+Dazu dienen die Funktionen /GetConnection(DeviceId)/ und /ReleaseInstrument(Instrument)/.
+Die aktuell benutzten {{{instr_m}}} stehen in der öffentlichen Liste
+/ConnectedInstruments/.
+Dort sind für jedes verbundene {{{instr}}} neben den Geräteinformationen auch
+der Verbindungsstatus und IP-Adresse und Port des Sockets hinterlegt.
+
+#+NAME: uml-frame
+#+begin_src plantuml :file uml-frame.png
+class TFrame {}
+class TfrmInstrumentList {
+        +cbbInstruments : TComboBox
+        ..
+        +App : String
+        +SrsIp : String
+        +SrsPort : Integer
+        +DevFilter : String
+        ..
+        +AvailableInstruments : TDeviceList
+        +MarkedInstruments : TDeviceList
+        +ConnectedInstruments : array of TInstrument
+        --
+        +GetDeviceList()
+        +GetConnection(DeviceID : String)
+        +ReleaseInstrument(Instrument : TInstrument) : TInstrument
+        +StartSignOfLife()
+        +StopSignOfLife()
+}
+TFrame <|-- TfrmInstrumentList
+#+end_src
+
+#+CAPTION: Klassendiagramm von TfrmInstrumentList label:uml-frame
+#+ATTR_LATEX: :width 0.6\textwidth
+#+RESULTS: uml-frame
+[[file:uml-frame.png]]
+
+Abbildung ref:uml-frame zeigt das Klassendiagramm mit allen wesentlichen
+Attributen und Methoden.
+- App :: Zeichenkette, mit der anderen {{{app_m}}} über den {{{rs}}} mitgeteilt
+  wird, wer das {{{instr}}} gerade benutzt.
+- SrsIp, SrsPort :: IP-Adresse und Port des {{{rs}}}, vorbelegt mit localhost
+  und 8000.
+- DevFilter :: ein Python-Ausdruck zur Auswahl der für die entsprechende
+  {{{app}}} benutzbaren {{{instr_m}}}.
+- StartSignOfLife()/StopSignOfLife() :: Startet bzw. stopt das regelmäßige
+  Lebenszeichen der {{{app}}} an den {{{rs}}} (vgl. Abschnitt ref:absturz_app).
+  Das Lebenszeichen wird vom app_adapter automatisch für alle reservierten
+  {{{instr_m}}} erzeugt.
+
+*** app_adapter
+
+Abbildung ref:uml-app_adapter zeigt das Interface der AppAdapter-Klasse.
+Im Modul /app_adapter/ wird das Objekt app_adapter als Singleton der
+AppAdapter-Klasse erzeugt und initialisiert.
+Mit diesem Objekt wird dann in TfrmInstrumentList (Abschnitt ref:frminstrumentlist) weiter gearbeitet.
+
+#+NAME: uml-app_adapter
+#+begin_src dot :file uml-app_adapter.png
+digraph "classes" {
+charset="utf-8"
+rankdir=BT
+"1" [label="{sarad.app_adapter.AppAdapter|device_ids : List[str]\l
+  device_list : List[str]\l
+  device_states : List[Status]\l
+  sol_timer : timedelta\l
+  srs_ip : str\l
+  srs_port : int\l
+  version : str\l|
+  get_device_list(device_filter)\l
+  get_device_state(device_id)\l
+  get_socket_address(app, device_id) : Dict[family, type, serial_number, name, host, ip, port, active, error_code, error]\l
+  release_device(device_id)\l
+  start_sign_of_life(app)\l
+  stop_sign_of_life()\l}", shape="record"];
+}
+#+end_src
+
+#+CAPTION: UML-Klassendiagramm des {{{app_adapter}}}. label:uml-app_adapter
+#+ATTR_LATEX: :width \textwidth
+#+RESULTS: uml-app_adapter
+[[file:uml-app_adapter.png]]
+
+Mit ~srs_ip~ und ~srs_port~
+können IP-Adresse und Port des {{{rs}}} gesetzt werden.
+- Default :: localhost:8000
+
+Nach Aufruf von ~get_device_list(filter)~,
+bei dem mit ~filter~ mit einem Python-Dictionary
+mit Gerätefamilie und -Typ festgelegt werden kann,
+welche {{{instr_m}}} für die {{{app}}} interessant sind,
+können die Properties ~device_list~, ~device_ids~ und ~device_states~ gelesen
+werden:
+- device_list :: Liste von Strings mit Bezeichnungen der verfügbaren
+  {{{instr_m}}}.
+- device_ids :: Liste von Strings mit den von der API (Abschnitt
+  ref:rest-api-rs) gelieferten IDs.
+- device_states :: Liste von Status-Flags für das jeweilige {{{instr}}} (1 =
+  free, 2 = occupied, 3 = occupied by me)
+
+Um ein einzelnes {{{instr}}} zu verbinden,
+wird ~get_socket_address(app, device_id)~ aufgerufen.
+- app :: String mit einer Information, wer das {{{instr}}} reserviert, {{{zB}}}
+  "Radon Vision -- mstrey"
+- device_id :: ID des zu reservierenden {{{instr}}} aus der ~device_id~-Liste.
+
+Die Funktion gibt ein Dictionary mit Details über das ausgewählte {{{instr}}}
+und den Socket,
+der für die Kommunikation mit dem Gerät vom {{{rs}}} bereitgestellt wurde,
+zurück.
+- family :: Gerätefamilie des {{{instr}}}
+- type :: Gerätetyp
+- serial_number :: Seriennummer des {{{instr}}}
+- name :: Gerätename
+- host :: Name des {{{ic_s}}}, an dem das {{{instr}}} hängt
+- active :: Information, ob das {{{instr}}} verbunden ist. Wenn ~active ==
+  False~, dann ist die Reservierung fehlgeschlagen.
+- ip :: IP-Adresse des bereitgestellten Sockets
+- port :: Portnummer des bereitgestellten Sockets
+- error_code :: Fehlercode für den Fall, dass die Reservierung fehl schlägt.
+- error :: Text des Fehlercodes, wie er von der API geliefert wird.
+
+~start_sign_of_life(app)~ started einen Thread,
+der in regelmäßigen, durch ~sol_timer~ definierten Abständen
+~get_socket_address()~ aufruft (zur Motivation vgl. Abschnitte ref:absturz_app
+und ref:abbruch_der_kommunikation).
+~stop_sign_of_life()~ beendet diesen Thread.
+
+Die Funktion ~release_device(device_id)~ gibt schließlich das {{{instr}}} wieder
+frei.
+
+** REST-API des {{{rs}}} label:rest-api-rs
+*** Get instrument list label:get-instrument-list
+**** Aufruf
+~GET /list/~
+
+~GET /list/<device_id>~
+**** Funktion
+Abruf der Geräteliste
+**** Antwort
+***** Beispiel 1: 0ghMF8Y besetzt von PC12, hkg4Tu frei
+#+INCLUDE: inc/api-registration_server-list_1.json src js
+
+***** Beispiel 2: 0ghMF8Y besetzt von mir selbst, hkg4Tu besetzt von PC12
+Das von mir selbst besetzte {{{instr}}} hat im Reservation-Knoten IP und Port
+angegeben.
+Daran lässt sich unterscheiden,
+welche {{{instr_m}}} von anderen und welche von mir selbst besetzt sind.
+
+#+INCLUDE: inc/api-registration_server-list_2.json src js
+*** Scan for new instruments
+**** Aufruf
+~GET /scan/~
+**** Funktion
+:PROPERTIES:
+:ID:       a5d6eb75-4305-4454-b7eb-47f62ba8e961
+:END:
+Funktion zum manuellen Scannen der lokal angeschlossenen {{{instr_m}}}. Diese
+Funktion ist die einfachste Möglichkeit, um über externe USB-Seriell-Adapter
+angeschlossene Geräte ({{{zB}}} Doseman) sicher zu erkennen.
+
+Nach ~GET /scan/~ wird in der Regel ~GET /list/~ aufgerufen, um die
+aktualisierte Liste abzufragen.
+**** Antwort
+#+begin_src js
+{
+    "Error": "OK",
+    "Error code": 0
+}
+#+end_src
+
+*** Link request to {{{instr}}}
+**** Aufruf
+~GET /list/<device_id>/reserve?who="Radon Vision - mstrey"~
+
+Im Ausdruck /who/ können dem Link-Request, durch " - " (Leerzeichen,
+Bindestrich, Leerzeichen) getrennt,
+der Name der anfragenden {{{app}}} und der Nutzername mitgegeben werden.
+**** Funktion
+Reservierung einer Verbindung
+**** Antwort
+***** Reservierung erfolgreich
+#+INCLUDE: inc/api-registration_server-reserve.json src js
+
+***** Reservierung fehlgeschlagen -- besetzt
+#+INCLUDE: inc/api-registration_server-reserve_failed_occupied.json src js
+
+In diesem Beispiel ist das {{{instr}}} hkg4Tu bereits von PC12 besetzt
+und kann deshalb nicht reserviert werden.
+
+***** Reservierung fehlgeschlagen -- offline
+#+INCLUDE: inc/api-registration_server-reserve_failed_offline.json src js
+
+In diesem Beispiel ist das {{{instr}}} 0ghMF8Y offline oder existiert nicht.
+*** Release {{{instr}}}
+**** Aufruf
+~GET /list/<device_id>/free~
+**** Funktion
+Freigeben des {{{instr}}}
+**** Antwort
+***** Instrument erfolgreich freigegeben
+#+INCLUDE: inc/api-registration_server-free.json src js
+
+***** Freigabe fehlgeschlagen -- Device not found
+#+INCLUDE: inc/api-registration_server-free_failed.json src js
+
+***** Freigabe fehlgeschlagen -- Already reserved by other party
+#+INCLUDE: inc/api-registration_server-free_reserved_by_other.json src js
+
+***** Freigabe fehlgeschlagen -- No reservation found
+#+INCLUDE: inc/api-registration_server-free_no_reservation_found.json src js
+*** Shutdown {{{rs}}}
+**** Aufruf
+~GET /shutdown~
+**** Funktion
+Beenden des {{{rs}}}.
+
+Wenn der {{{rs}}} als Windows Service läuft, dann ist dieser in der Regel so
+konfiguriert, dass er bei Beendigung automatisch wieder neu gestartet wird.
+Diese Funktion ist damit eine Notlösung, wenn man im Fehlerfall von der
+{{{app}}} aus oder von Hand versuchen will, den {{{rs}}} neu zu starten.
+**** Antwort
+#+begin_src js
+Registration Server going down for restart...
+#+end_src
+*** List local ports
+**** Aufruf
+~GET /ports/~
+
+~GET /ports/list-usb~
+
+~GET /ports/list-native~
+**** Funktion
+Gibt eine Liste aller lokalen seriellen Schnittstellen zurück, an denen
+potentiell ein {{{instr}}} angeschlossen sein könnte.
+
+~list-usb~ zeigt nur die USB-Ports mit USB-Serial-Adaptern an (virtuelle
+COM-Ports).
+
+~list-native~ zeigt nur die hardwaremäßig vorhanden und in der Konfiguration
+freigegebenen RS-232-Schnittstellen an.
+**** Antwort
+Beispiel:
+#+begin_src js
+[
+    {
+        "PID": null,
+        "PORT": "/dev/ttyS0",
+        "VID": null
+    },
+    {
+        "PID": 24577,
+        "PORT": "/dev/ttyUSB0",
+        "VID": 1027
+    }
+]
+#+end_src
+*** Loop port (experimental)
+**** Aufruf
+~GET /ports/<port>/loop~
+
+~GET /ports/<port>/stop~
+**** Funktion
+Fügt die Schnittstelle zur Liste der zu pollenden Schnittstellen hinzu (~loop~)
+bzw. entfernt sie von dieser Liste (~stop~).
+
+Experimentelle Funktion, nur für Debugging. Eingabe eines nicht vorhandenen
+Ports führt zum Programmabbruch.
+*** Status output (experimental)
+**** Aufruf
+~GET /status/<actor_id>~
+**** Funktion
+Veranlasst das Actor System zur Ausgabe des Actor-Status im Debug-Log (nicht im Browser!).
+
+*** Parameter
+:PROPERTIES:
+:ID:       909c3a82-e576-4779-a652-69e5c1d4e321
+:END:
+- Identification.Family :: Gerätefamilie (DACM, RadonScout oder DOSEman)
+- Identification.Type :: Code für den Gerätetyp des {{{instr}}}
+- Identification.Name ::  Name des {{{instr}}}
+- Identification.Serial number :: Seriennummer des {{{instr}}}
+- Identification.Host :: Hostname des {{{ic}}}}
+- Reservation.Active :: Gibt an, ob das {{{instr}}} von einer {{{app}}} besetzt
+  (reserved) ist.
+- Reservation.Host :: Hostname des {{{ac}}}
+- Reservation.App :: Name der {{{app}}}, die das {{{instr}}} besetzt hält
+- Reservation.User :: Name des Nutzers, der die {{{app}}} gestartet hat
+- Reservation.Timestamp :: Zeitstempel für den Beginn der Reservierung
+
+Die Device-Id ist ein PQDN oder FQDN, der aus durch Punkt getrennten Komponenten
+zusammengesetzt ist. Die ersten drei Komponenten von links nach rechts sind obligatorisch:
+- Instrument Id :: {{{zB}}} ~0ghMF8Y~; wird aus Family, Type und Serial Number gebildet
+- Device protocol :: Bezeichnung des binären Protokolls des {{{instr}}}; ist
+  bei allen aktuellen {{{instr_m}}} durch Family und Type schon festgelegt.
+  - ~sarad-1688~
+  - ~sarad-dacm~
+  - ~sarad-doseman~
+- Network protocol :: Bezeichnet das für den Datentransport im Netzwerk
+  verwendete Protokoll
+  - ~_rfc2217~[fn:2]
+  - ~mqtt~
+
+Die Device-Id kann weitere Komponenten bis zu einer FQDN enthalten, wenn
+dies Implementierungsvorteile bringt.
+
+Typische Beispiele für Device-Ids:
+- ~0ghMF8Y.sarad-1688._rfc2217._tcp.local.~ bei RFC2217
+- ~0ghMF8Y.sarad-1688.mqtt~ bei MQTT
+
+*** Error Codes
+Tabelle ref:tab_errors gibt einen Überblick über die in der API verwendeten
+Fehlercodes und ihre Bedeutung.
+
+label:tab_errors
+#+CAPTION: Fehlermeldungen und Fehlercodes in der API
+#+ATTR_LATEX: :font \footnotesize :align @{}rp{2cm}p{8cm}@{}
+| Error Code | Error                                       | Bedeutung                                                                                               |
+|------------+---------------------------------------------+---------------------------------------------------------------------------------------------------------|
+|          0 | OK                                          |                                                                                                         |
+|          6 | Device occupied                             | Es wurde versucht, ein Gerät zu reservieren, das bereits von jemand anderem reserviert ist.             |
+|         10 | OK, skipped                                 | Es wurde versucht, ein nicht reserviertes Gerät freizugeben.                                            |
+|         11 | Device not found                            | Das zur Reservierung angefragte Gerät wurde nicht gefunden.                                             |
+|         13 | No or incomplete attributes                 | Ein für den HTTP-Request erforderlicher Parameter ist nicht vorhanden oder hat nicht die richtige Form. |
+|         20 | OK, updated                                 | sollte in der API nie auftreten                                                                         |
+|         34 | Error when subscribing to an MQTT topic     | sollte in der API nie auftreten                                                                         |
+|         35 | Error when unsubscribing from an MQTT topic | sollte in der API nie auftreten                                                                         |
+|         40 | Port does not exist.                        | sollte in der API nie auftreten                                                                         |
+|         99 | Critical error. Stop and shutdown system.   |                                                                                                         |
+
+** Fehlerbehandlung
+*** Absturz der {{{app}}} label:absturz_app
+- Problem :: Wenn die {{{app}}} ein {{{instr}}} für sich reserviert hat und dann
+  nicht regulär mit der Freigabe dieses {{{instr}}} beendet wird, dann bleibt
+  das betreffende {{{instr}}} für alle anderen Apps blockiert.
+- Lösung :: Die {{{app}}} sendet alle 30 Sekunden ein Lebenszeichen in Form
+  eines get_socket_address-Requests an den {{{rs}}}. Bleibt das Lebenszeichen
+  für länger als eine Minute aus, dann wird das betreffende {{{instr}}} wieder
+  frei gegeben.
+*** Konkurrierender Zugriff
+- Problem :: Zwischen der Übergabe der Geräteliste vom {{{rs}}} an die
+  {{{app}}} und dem Verbindungsaufbau zu einem in der {{{app}}} ausgewählten
+  {{{instr}}} kann einige Zeit vergehen, in der eine andere {{{app}}} das
+  betreffende {{{instr}}} verbunden und dadurch blockiert hat.
+- Lösung :: Von Seiten der {{{app}}} muss sicher gestellt werden, dass
+  unmittelbar vor jedem Link-Request die Geräteliste noch einmal aktualisiert
+  wird.
+*** Änderung der Geräteliste
+- Problem :: Nach dem ersten Abruf der Geräteliste durch die {{{app}}} ändert
+  sich die Liste, weil einzelne {{{instr_m}}} abgezogen werden und dann offline sind.
+- Lösung :: Zwischen dem Delphi-Teil der {{{app}}} und dem in Python
+  geschriebenen app_adapter, der das Bindeglied zum {{{rs}}} bildet, muss bei
+  der Kommunikation stets die Device_Id verwendet werden.  Die {{{app}}} erhält
+  deshalb vom app_adapter neben der Liste der anzuzeigenden Geräteinformationen
+  auch stets eine dazu passende Liste der Device_Ids.
+*** Abbruch der Kommunikation label:abbruch_der_kommunikation
+- Problem :: Nachdem die Reservierung schon erfolgreich war und die
+  Socket-Parameter IP und Port vom {{{rs}}} an die {{{app}}} übergeben sind,
+  zieht am {{{instr}}} jemand den Stecker.  An der {{{app}}} stockt jetzt die
+  Socket-Kommunikation.  Um jetzt mit Sicherheit sagen zu können, dass das
+  {{{instr}}} weg ist, wäre es gut, einen zweiten Weg zu haben, um diesen
+  Fehlerzustand zu verifizieren.
+- Lösung :: Wir verwenden die Antwort auf den schon in ref:absturz_app als
+  Lebenszeichen benutzten get_socket_address-Request.  Schlägt die Reservierung
+  fehl, ist dies das gesuchte Kriterium zur Ausgabe einer Fehlermeldung.
+
+
+* {{{sn2}}} -- Implementierungsdetails
+** Verbindungsaufbau
+Die {{{app}}} bezieht die Liste der verfügbaren {{{instr_m}}}
+vom {{{rs2}}}.
+Um zu einem {{{instr}}} zu verbinden,
+schickt die {{{app}}} einen Link-Request
+and den {{{rs2}}}.
+Dieser gibt den Link-Request
+an den entsprechenden {{{is2}}} weiter.
+Dieser markiert das {{{instr}}} als "aktiv",
+öffnet einen TCP/IP-Socket und gibt die Portadresse
+an den {{{rs2}}} zurück.
+Der {{{rs2}}} markiert das {{{instr}}} seinerseits ebenfalls als aktiv,
+öffnet einen TCP/IP-Socket zur {{{app}}},
+verbindet beide Sockets
+und gibt die Portadresse
+an die {{{app}}} zurück.
+Danach stellt die {{{app}}} über den Socket des {{{rs2}}}
+die Verbindung zum {{{instr}}} her (Abbildung ref:uml-apprs2is2)
+
+#+NAME: uml-apprs2is2
+#+begin_src plantuml :file uml-apprs2is2.png
+app -> rs2: Get instrument list
+rs2 --> app: Instrument list
+
+app -> rs2: Link request to instr xy-z
+rs2 -> is2_xy: Link request to instr z
+is2_xy --> rs2: Port address of instr z
+rs2 --> app: Port address of instr xy-z
+#+end_src
+
+#+CAPTION: Verbindungsaufbau zwischen {{{app}}} und {{{is2}}}. label:uml-apprs2is2
+#+ATTR_LATEX: :width 0.7\textwidth
+#+RESULTS: uml-apprs2is2
+[[file:uml-apprs2is2.png]]
+
+Wenn das {{{instr}}} bereits durch eine andere {{{app}}} belegt ist,
+dann lehnt {{{rs2}}} den Verbindungsaufbau ab (Abbildung ref:uml-denylink).
+
+#+NAME: uml-denylink
+#+begin_src plantuml :file uml-denylink.png
+app -> rs2: Get instrument list
+rs2 --> app: Instrument list
+
+app -> rs2: Link request to instr xy-z
+rs2 -> is2_xy: Link request to instr z
+is2_xy --> rs2: Instr z occupied
+rs2 --> app: Instr xy-z occupied
+#+end_src
+
+#+CAPTION: Ablehnung des Verbindungsaufbaus. label:uml-denylink
+#+ATTR_LATEX: :width 0.7\textwidth
+#+RESULTS: uml-denylink
+[[file:uml-denylink.png]]
+** Verbindungsabbau
+Nach Abschluss der Operation gibt die {{{app}}}
+das {{{instr}}} mit einem entsprechenden Request am {{{rs2}}}
+wieder frei.
+Der {{{rs2}}} meldet die Freigabe weiter
+an den zuständigen {{{is2}}} (Abbildung ref:uml-unlinkrs2).
+
+#+NAME: uml-unlinkrs2
+#+begin_src plantuml :file uml-unlinkrs2.png
+app -> rs2: Release instr xy-z
+rs2 -> is2_xy: Release instr z
+is2_xy --> rs2: Instr z released
+#+end_src
+
+#+CAPTION: Verbindungsabbau mit {{{rs2}}}. label:uml-unlinkrs2
+#+ATTR_LATEX: :width 0.7\textwidth
+#+RESULTS: uml-unlinkrs2
+[[file:uml-unlinkrs2.png]]
+** REST-API des {{{is2}}} label:rest-api-is2
+*** Get instrument list
+**** Aufruf
+~GET /list/~
+**** Funktion
+Abruf der Geräteliste
+**** Antwort
+***** Beispiel 1: 0ghMF8Y besetzt von PC12, hkg4Tu frei
+#+INCLUDE: inc/api-registration_server-list_1.json src js
+
+***** Beispiel 2: 0ghMF8Y besetzt von mir selbst, hkg4Tu besetzt von PC12
+Das von mir selbst besetzte {{{instr}}} hat im Reservation-Knoten IP und Port
+angegeben.
+Daran lässt sich unterscheiden,
+welche {{{instr_m}}} von anderen und welche von mir selbst besetzt sind.
+
+#+INCLUDE: inc/api-registration_server-list_2.json src js
+
+*** Link request to {{{instr}}}
+**** Aufruf
+~GET /list/<id>/reserve?who="Radon Vision - mstrey"&host="WS02"~
+
+Im Ausdruck /who/ können dem Link-Request, durch " - " (Leerzeichen,
+Bindestrich, Leerzeichen) getrennt,
+der Name der anfragenden {{{app}}} und der Nutzername mitgegeben werden.
+
+Der Parameter /host/ bezeichnet den {{{ac}}},
+der versucht, das {{{instr}}} für seine {{{app}}} zu reservieren.
+**** Funktion
+Reservierung einer Verbindung
+**** Antwort
+***** Reservierung erfolgreich
+#+INCLUDE: inc/api-registration_server-reserve.json src js
+
+***** Reservierung fehlgeschlagen -- besetzt
+#+INCLUDE: inc/api-registration_server-reserve_failed_occupied.json src js
+
+In diesem Beispiel ist das {{{instr}}} hkg4Tu bereits von PC12 besetzt
+und kann deshalb nicht reserviert werden.
+
+***** Reservierung fehlgeschlagen -- offline
+#+INCLUDE: inc/api-registration_server-reserve_failed_offline.json src js
+
+In diesem Beispiel ist das {{{instr}}} 0ghMF8Y offline oder existiert nicht.
+*** Release {{{instr}}}
+**** Aufruf
+~GET /list/<id>/free~
+**** Funktion
+Freigeben des {{{instr}}}
+**** Antwort
+***** Instrument erfolgreich freigegeben
+#+INCLUDE: inc/api-registration_server-free.json src js
+
+***** Freigabe fehlgeschlagen -- Device not found
+#+INCLUDE: inc/api-registration_server-free_failed.json src js
+
+***** Freigabe fehlgeschlagen -- Already reserved by other party
+#+INCLUDE: inc/api-registration_server-free_reserved_by_other.json src js
+
+***** Freigabe fehlgeschlagen -- No reservation found
+#+INCLUDE: inc/api-registration_server-free_no_reservation_found.json src js
+
+* {{{snmqtt}}} -- Implementierungsdetails
+** Begriffe und Abkürzungen
+
+In Ergänzung und unter Verwendung der in Abschnitt ref:begriffe definierten
+Begriffe
+legt Tabelle ref:tab_begriffe Abkürzungen fest,
+die bei der Definition der Topic-Struktur und in den Diagrammen der folgenden
+Abschnitte verwendet werden.
+
+label:tab_begriffe
+#+CAPTION: In den MQTT-Topics und Diagrammen verwendete Abkürzungen
+#+ATTR_LATEX: :font \footnotesize :align @{}llp{7cm}@{}
+| Kürzel     | Begriff                         | Bedeutung                                                                                                                                          |
+|------------+---------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------|
+| <group_id> | Identifikation der Host-Gruppe  | Die Gruppen-Id dient dazu, {{{ismqtt}}} verschiedener Kunden voneinander zu trennen. Jedem Kunden werden eine oder mehrere Gruppen-Ids zugewiesen. |
+| <is_id>    | Identifikation des MQTT-Clients | MQTT-Clients sind Bestandteil sowohl des {{{rsmqtt}}} als auch des {{{ismqtt}}}. Dies ist die Client-Id des {{{ismqtt}}}.                          |
+| <instr_id> | Identifikation des {{{instr}}}  | eindeutige Kennzeichnung eines {{{instr}}}, gebildet als Hash aus Gerätefamilie, -typ und Seriennr. {{{zB}}} ~0ghMF8Y~                             |
+| rs_mqtt    | {{{rsmqtt}}}                    |                                                                                                                                                    |
+| is_mqtt    | {{{ismqtt}}}                    |                                                                                                                                                    |
+| broker     | MQTT-Broker                     |                                                                                                                                                    |
+| LWT        | Last Will and Testament         | Feature von MQTT zur Hinterlegung einer letzten Nachricht beim Broker für den Fall eines unerwarteten Verbindungsabbruches                         |
+
+** Technik und Funktionen von {{{ismqtt}}} und {{{rsmqtt}}}
+*** {{{ismqtt}}}
+Der {{{ismqtt}}} besteht aus den Modulen:
+- Discoverer :: Ein Programmmodul,
+  das in regelmäßigen Abständen
+  alle virtuellen seriellen Ports des {{{ic}}}
+  nach evtl. neu angeschlossenen {{{instr_m}}}
+  durchsucht
+  und diese mit ihren Identifikationsmerkmalen
+  in eine Liste einträgt.
+- Connector :: stellt den transparenten Kommunikationskanal
+  für das binäre serielle Protokoll zur Steuerung und Abfrage
+  der {{{instr_m}}} zur Verfügung.
+- MQTT-Client :: der sich mit dem,
+  auf dem {{{scs}}} laufenden,
+  zentralen MQTT-Broker verbindet
+  und seine lokale Geräteliste dort veröffentlicht (Publish).
+
+Er übernimmt die folgenden Funktionen:
+1) Fortlaufende Aktualisierung der Liste der an den {{{ic}}}
+   direkt, über RS-485-Bus oder ZigBee angeschlossenen
+   {{{instr_m}}}.
+2) Meldung (publish) aller angeschlossenen {{{instr_m}}} an den MQTT-Broker.
+3) Auf abonnierten (subscribe) Request -- Verbindung
+   des seriellen Ports des ausgewählten {{{instr}}}
+   mit dem MQTT-Client.
+4) Ein- bzw. Auspacken der binären Messages
+   in bzw. aus MQTT-Botschaften (publish).
+
+*** {{{rsmqtt}}}
+Der Aufbau des {{{rsmqtt}}} und das Zusammenspiel seiner Komponenten sind in
+Abschnitt ref:rs_components beschrieben.
+
+Er übernimmt die folgenden Funktionen:
+1) Führen einer globalen Liste von {{{instr_m}}}.
+2) Auf HTTP-Request von der {{{app}}} -- Meldung der Liste an die anfragende Instanz.
+3) Auf HTTP-Request von der {{{app}}} -- Abbonnieren des msg-Topics eines bestimmten ausgewählten Messgeräts
+4) Bereitstellung eines Server-Sockets als Schnittstelle zur {{{app}}}
+   für das binäre Kommunikationsprotokoll.
+   Ausgehende Nachrichten werden als binäre Messages in MQTT-Botschaften verpackt und veröffentlicht (publish).
+   Eingehende Nachrichten aus dem abbonnierten Topic (subscribe) des ausgewählten {{{instr}}}
+   werden ausgepackt und zum Client-Socket der {{{app}}} gestreamt.
+
+** Implementierungen
+
+*** {{{regserver}}}
+Der {{{regserver}}}, kurz /RegServer/, vereinigt die Python-Implementierung des
+{{{ismqtt}}} und des {{{rsmqtt}}} innerhalb einer Software, die sowohl unter
+Windows als Windows-Dienst als auch unter Linux als Daemon arbeitet. Dabei
+entspricht das MQTT-Frontend des /RegServer/ dem {{{ismqtt}}} und das
+MQTT-Backend des /RegServer/ dem {{{rsmqtt}}}.
+
+*** Implementierung eines minimalen {{{ismqtt}}} in MicroPython
+Diese Implementierung ist in der Diplomarbeit von Herrn Yixiang Yang entstanden
+und läuft auf einem PyBoard mit WLAN mit einem fest angeschlossenen {{{srs}}}.
+Sie wurde nicht weiter gepflegt, weil das PyBoard zu teuer erschien und in
+Konkurrenz zu der im Haus bereits entwickelten Lösung aus STM32 und ESP8266
+stand, die mit dem (bisher nicht eingelösten) Versprechen kommt, alle möglichen
+Kommunikationsstandards abbilden zu können.
+
+** Topic-Struktur label:topic_struktur
+
+Die Topic-Struktur lehnt sich an die in
+[[https://github.com/mqtt-smarthome/mqtt-smarthome/blob/master/Architecture.md][mqtt-smarthome]]
+vorgeschlagene Struktur an.
+
+- ~<group_id>/<is_id>/meta~ :: Metadaten zum Client
+- ~<group_id>/<is_id>/<instr_id>/cmd~ :: Binäres Steuerkommando für ein bestimmtes {{{instr}}}
+- ~<group_id>/<is_id>/<instr_id>/msg~ :: Binäre Botschaft, die das {{{instr}}} auf ein Steuerkommando hin zurückgibt.
+- ~<group_id>/<is_id>/<instr_id>/meta~ :: Metadaten für ein bestimmtes {{{instr}}}.
+  Diese enthalten auch die Statusinformationen.
+- ~<group_id>/<is_id>/<instr_id>/control~ :: JSON-Ausdruck für die Initierung
+  (reserve) oder Beendigung (free) der
+  Binärverbindung zu einem bestimmten {{{instr}}}.
+- ~<group_id>/<is_id>/<instr_id>/reservation~ :: JSON-Ausdruck für die
+  Bestätigung der am {{{ismqtt}}} erfolgten Initiierung
+  (reserve) oder Beendigung (free) der
+  Binärverbindung zu einem bestimmten {{{instr}}}.
+
+
+Dazu kommen mit Blick auf zukünftige Anwendungen die folgenden Topics,
+die hier nicht weiter betrachtet werden:
+- ~<group_id>/<is_id>/cmd~ :: Steuerkommando für den Client
+- ~<group_id>/<is_id>/<instr_id>/<sensor_id>~ :: Sensor-Metadaten
+- ~<group_id>/<is_id>/<instr_id>/<sensor_id>/connected~ :: Status für einen
+  bestimmten Sensor
+  - 0 :: disconnected
+  - 1 :: connected, but not operational
+  - 2 :: connected and measuring
+- ~<group_id>/<is_id>/status/<instr_id>/<sensor_id>~ :: Messdaten eines Sensors
+
+** JSON-Strings in Topics
+***  ~<group_id>/<is_id>/meta~
+
+#+BEGIN_SRC js
+{
+    "State": 2
+    "Host": "sarad_is2_2",
+    "Description": "Testserver",
+    "Place": "Livingroom at home",
+    "Lat": 51.03850,
+    "Lon": 13.673210,
+    "Height": 172.6
+}
+#+END_SRC
+
+mit folgenden Bedeutungen für "State":
+- 0 :: disconnected from MQTT Broker
+- 1 :: connected to MQTT, but disconnected from hardware
+- 2 :: connected to MQTT and hardware, i.e. fully operational
+
+
+
+***  ~<group_id>/<is_id>/<instr_id>/meta~
+
+#+BEGIN_SRC js
+{
+    "State": 2
+    "Identification": {
+        "Family": 2,
+        "Type": 8,
+        "Name": "Radon Scout Home",
+        "Serial number": 791
+    },
+    "Reservation": {
+        "Active": true,
+        "App": "Radon Vision",
+        "Host": "WS02",
+        "Timestamp": "2020-10-09T09:30:52Z",
+        "User":"mstrey"
+    }
+}
+#+END_SRC
+
+mit folgenden Bedeutungen für "State":
+- 0 :: disconnected from MQTT Broker
+- 1 :: connected to MQTT, but disconnected from hardware
+- 2 :: connected to MQTT and hardware, i.e. fully operational
+
+***  ~<group_id>/<is_id>/<instr_id>/control~
+**** Reserve-Request
+
+#+BEGIN_SRC js
+{
+    "Req": "reserve",
+    "App": "Radon Vision",
+    "Host": "WS02",
+    "User": "mstrey"
+}
+#+END_SRC
+
+**** Free-Request
+
+#+BEGIN_SRC js
+{
+    "Req": "free"
+}
+#+END_SRC
+
+***  ~<group_id>/<is_id>/<instr_id>/reservation~
+#+BEGIN_SRC js
+{
+    "Reservation": {
+        "Active": true,
+        "App": "Radon Vision",
+        "Host": "WS02",
+        "Timestamp": "2020-10-09T09:30:52Z",
+        "User":"mstrey"
+    }
+}
+#+END_SRC
+
+** Discovery -- Erkennen der Netzwerkstruktur
+Bevor überhaupt eine Verbindung zwischen {{{rsmqtt}}} und einem {{{ismqtt}}}
+hergestellt werden kann,
+muss der {{{rsmqtt}}} in Erfahrung bringen,
+welche {{{ismqtt}}} überhaupt in seinem Netzwerk
+erreichbar sind.
+
+Wir gehen davon aus,
+dass es einen gemeinsam genutzten MQTT-Broker gibt,
+der allen {{{rsmqtt}}} und allen {{{ismqtt}}}
+über ihre Konfiguration bekannt gemacht wurde.
+
+Abbildung ref:uml-discovery zeigt das Zusammenspiel von {{{rsmqtt}}},
+MQTT-Broker und {{{ismqtt}}}.
+
+#+NAME: uml-discovery
+#+begin_src plantuml :file uml-discovery.png
+participant "rs_mqtt" as rsmqtt
+
+rsmqtt -> broker: Connect
+rsmqtt --> broker: Subscribe topic ""+/connected""
+is_mqtt -> broker: Connect \n with LWT message ""<client_id>/connected = 0""
+is_mqtt -> broker: Publish ""<client_id>/connected = 2"" \n with ""retained=true""
+
+rsmqtt --> broker: Subscribe topic ""+/meta""
+rsmqtt --> broker: Subscribe topic ""+/+/connected""
+rsmqtt --> broker: Subscribe topic ""+/+/meta""
+is_mqtt -> broker: Publish ""<client_id>/meta"" \n with ""retained=true""
+is_mqtt -> broker: Publish ""<client_id>/<instr_id>/connected = 2"" \n with ""retained=true""
+is_mqtt -> broker: Publish ""<client_id>/<instr_id>/meta"" \n with ""retained=true""
+
+is_mqtt -> broker: Subscribe ""<client_id>/+/control""
+#+end_src
+
+#+CAPTION: Nachrichtenaustausch zum Erkennen der Netzwerkstruktur. label:uml-discovery
+#+ATTR_LATEX: :width 0.8\textwidth
+#+RESULTS: uml-discovery
+[[file:uml-discovery.png]]
+
+Der {{{rsmqtt}}} abonniert mit der "+"-Wildcard die /connect/-Topics aller
+{{{ismqtt}}}-Clients.
+Er bekommt so eine Liste aller verbundenen {{{ismqtt}}}-Clients,
+von der ausgehend er gezielt weitere Topics abonnieren kann.
+
+Der {{{ismqtt}}} gibt beim Verbindungsaufbau eine LWT-Nachricht mit,
+die vom Broker zwischengespeichert und im Falle eines unvorhergesehenen Verbindungsabbruchs
+an den {{{rsmqtt}}} geschickt wird.
+In unserem Fall besagt diese LWT-Message, dass der betreffende Client nun nicht
+mehr mit dem Broker verbunden ist.
+
+Mit dem Connect veröffentlicht der {{{ismqtt}}} den Topic
+~<client_id>/connected~ mit der Payload "1" bzw. "2".
+Damit der {{{rsmqtt}}} alle erforderlichen Informationen auch dann bekommt,
+wenn er sich erst nach dem {{{ismqtt}}} mit dem Broker verbindet,
+wird das /retained/-Flag gesetzt,
+das dafür sorgt, dass die Information auf dem Broker gespeichert und an neu
+hinzukommende Abonnenten verschickt wird.
+
+Im weiteren Verlauf[fn:1] abonniert der {{{rsmqtt}}} alle Topics,
+die zum Aufbau der Liste von verfügbaren {{{instr_m}}} nötig sind.
+
+Schließlich abonniert der {{{ismqtt}}} die vom {{{rsmqtt}}} erwarteten
+Steuerbefehle (reserve, free) zum Herstellen bzw. Beenden der Binärverbindung zu
+einem der an diesem {{{ic}}} verfügbaren {{{instr_m}}}.
+
+** Ablauf des Verbindungsaufbaus
+Die {{{app}}} fragt den {{{rsmqtt}}} ab
+und erhält als Antwort eine Liste von {{{instr_m}}}
+mit ihren zugehörigen Routing-Informationen.
+
+Soll zu einem der {{{instr_m}}} Verbindung aufgenommen werden,
+dann sendet die {{{app}}}
+dem {{{rsmqtt}}}
+einen /Reserve/-Request (vgl. Abschnitt ref:rest-api-rs).
+
+Zur Bestätigung der erfolgreichen Reservierung sendet der {{{ismqtt}}} eine
+Nachricht mit aktualisierten Metadaten des reservierten {{{instr}}}
+im Topic ~<client_id>/<instr_id>/meta~ (Abbildung ref:uml-reserve_mqtt).
+Ferner baut er einen Server-Socket als binäre Schnittstelle zur {{{app}}} auf.
+
+Daraufhin abonniert der {{{rsmqtt}}}
+den msg-Topic des betreffenden {{{instr}}}.
+
+Der verantwortliche {{{ismqtt}}} empfängt (subscribe)
+den Request vom {{{rsmqtt}}}
+und stellt
+durch Subscribe des cmd-Topic
+und Publish des msg-Topic
+die transparente Verbindung für das binäre Protokoll her.
+
+#+NAME: uml-reserve_mqtt
+#+begin_src plantuml :file uml-reserve_mqtt.png
+participant "Device Actor\nMQTT client" as rsmqtt
+
+rsmqtt -> broker: Publish ""<client_id>/<instr_id>/control""\n mit //reserve//-Befehl
+is_mqtt -> broker: Publish ""<client_id>/<instr_id>/meta""
+note left of rs_mqtt
+check meta information
+establish server socket for app
+end note
+rsmqtt --> broker: Subscribe ""<client_id>/<instr_id>/msg""
+rsmqtt -> broker: Publish ""<client_id>/<instr_id>/cmd""
+is_mqtt --> broker: Subscribe ""<client_id>/<instr_id>/cmd""
+is_mqtt -> broker: Publish ""<client_id>/<instr_id>/msg""
+#+end_src
+
+#+CAPTION: Verbindungsaufbau zwischen {{{app}}} und {{{is2}}}. label:uml-reserve_mqtt
+#+ATTR_LATEX: :width \textwidth
+#+RESULTS: uml-reserve_mqtt
+[[file:uml-reserve_mqtt.png]]
+
+** TODO Konfiguration des {{{rsmqtt}}}
+Jeder {{{src}}} wird durch eine Ini-Datei konfiguriert.
+
+#+begin_example
+; Allgemeine Angaben zur Identifikation dieses
+; SARAD Registration Clients
+[common]
+; Eindeutige Identifikation des Registration Clients
+id = cluster_A
+
+; Aussagekräftige Bezeichnung für das Cluster
+name = Radon-Monitoring-Netz in Gebäude A
+
+; Port unter dem der SARAD Registration Client auf Anfragen
+; von außen reagiert.
+src_port = 80
+
+; IP-Ports zur Herstellung von tranparenten Datenverbindungen
+; zu Messinstrumenten.
+; Bei Betrieb der Messinstrumente in einem entfernten lokalen Netz
+; müssen diese Ports am Router für die Portweiterleitung freigegeben
+; sein.
+instrument_ports = [50001, 50002, 50003]
+
+; Liste von untergeordneten Netzwerkknoten, deren Geräte bei der
+; Zusammenstellung der Liste der Messinstrumente berücksichtigt
+; werden sollen.
+; default: inherit_from = all - berücksichtige alle Knoten,
+;                               die ihre Geräteliste melden
+inherit_from = [room_25, room_56]
+
+; Einstellungen zur Steuerung der Suche nach lokal angeschlossenen
+; Messinstrumenten
+[local]
+; 0 - ignoriere lokal angeschlossene Messinstrumente
+; 1 (default) - lokal angeschlossene Messinstrumente auflisten
+list_local = 1
+
+; Suche alle n Sekunden nach neuen Messinstrumenten
+; default: scan_interval = 30
+scan_interval = 30
+
+
+; Verbindungseinstellungen für bekannte, über Modem angeschlossene
+; Messinstrumente.  Es wird davon ausgegangen, dass auf PC-Seite
+; nur ein Modem verwendet wird und auf Geräteseite nur Modems des
+; gleichen Typs im Einsatz sind.
+[modem]
+; 0 - prüfe nur einmal beim Start des Service
+;     ob, und wenn ja, welches Messinstrument erreichbar ist.
+; n - suche alle n Sekunden nach neuen Messinstrumenten
+; default: scan_interval = 0
+scan_interval = 0
+
+; COM-Port, mit dem das Modem auf der PC-Seite verbunden ist.
+com = 1
+
+; Sequenz der AT-Befehle zur Initialisierung des PC-Modems
+at_init =
+
+; Einwahlsequenz zum Verbindungsaufbau
+at_dial =
+
+; Sequenz von AT-Befehlen zum Beenden der Verbindung
+at_hangup =
+
+; Zeit in Sekunden bis zur Aufgabe eines erfolglosen Einwählversuchs
+; default: timeout = 30
+timeout = 30
+
+; Telefonnummern zur Herstellung von Wählverbindungen
+; mit verschiedenen Messinstrumenten
+tel = [+493516580730, +493025405060, +493516580718]
+
+; Sequenz der AT-Befehle zur einmaligen Initialisierung
+; des Modem auf der Seite des Messinstruments.
+; Das Modem muss zur Initialisierung direkt am PC angeschlossen sein.
+at_init_remote =
+
+
+; Route zum SARAD Registration Client des übergeordneten Netzknotens.
+[superior]
+; IP-Adresse und Port des übergeordneten Registration Clients
+ip_address = 192.168.10.116
+port = 80
+
+; In welchem Abstand (in Sekunden) soll sich
+; dieser Registration Client beim übergeordneten Knoten melden
+; und seine Liste von Messinstrumenten abgeben.
+; 0 - nie
+; default: notification_interval = 600
+notification_interval = 600
+#+end_example
+
+Nach jeder Konfigurationsänderung ist ein Neustart des Service notwendig.
+
+* Konfiguration der Datenfernübertragung in der {{{app}}}
+Der {{{rs}}} erfordert in aller Regel keine Konfiguration durch den Anwender.
+Bei speziellen kundenspezifischen Installationen ist die Konfiguration über das
+Editieren der config-Datei mit einem Texteditor möglich.
+
+Auf Seiten des {{{is}}} ist eine Konfiguration nötig.
+Die obligatorischen Konfigurationsparameter werden zunächst in der
+Konfigurationsdatei des {{{is}}} gesucht. Sind sie dort nicht gesetzt, versucht
+der {{{is}}} diese Daten aus den angeschlossenen {{{instr_m}}} auszulesen. Er
+benutzt dabei den ersten Datensatz den er findet. Wird kein Satz von
+Konfigurationsparametern gefunden, bricht der {{{is}}} mit einer Fehlermeldung ab.
+
+**** Obligatorisch:
+
+- IP-Adresse/Port :: Interpretation abhängig von der Implementierung
+  - {{{ismqtt}}} :: IP-Adresse und Port des MQTT-Brokers
+  - {{{is1}}} :: IP-Adresse und Port eines im lokalen Netz verfügbaren {{{rs}}}
+  - {{{is2}}} :: nicht benötigt
+
+**** Optional:
+Entsprechend der in Abschnitt ref:topic_struktur vorgegebenen Topic-Struktur
+soll es möglich sein,
+auf dem {{{ic}}} zusätzliche Metadaten
+über das {{{instr}}}
+und über das von dem betreffenden {{{ic}}} verwaltete Cluster
+anzugeben.
+Die Speicherung der Parameter für den {{{ic}}} erfolgt in der Config-Datei des
+{{{is}}}, die gerätespezifischen Daten werden in einer persistenten Gerätedatei
+pro angeschlossenem {{{instr}}} gespeichert.
+
+* Installation und Start der Softwarekomponenten label:start_komponenten
+** {{{rs}}} als Windows-Service
+Bei der Installation der {{{app}}} wird der {{{rs}}} als optionale
+Softwarekomponente installiert und als Windows-Service gestartet.
+Der Service wird bei jedem Systemstart automatisch gestartet (verzögerter Start)
+und bei unerwartetem Programmabbruch jeweils auch automatisch neu gestartet.
+
+Eine Konfiguration des Service ist nicht erforderlich.
+
+Damit der {{{rs}}} beim Neustart des Systems zuverlässig gestartet wird, muss
+das Verzeichnis, in dem er installiert ist, zu diesem Zeitpunkt bereits
+verfügbar sein. Da dies bei einer portablen Installation, {{{zB}}} auf einem
+USB-Stick, nicht zu garantieren ist, wird die portable Installation in Zukunft
+nicht mehr als Installationsoption angeboten.
+
+Damit verschiedene {{{app_m}}} den {{{rs}}} nicht mehrfach in verschiedenen
+Verzeichnissen installieren, wird auch das Installationsverzeichnis auf
+~%programfiles%\SARAD\RegistrationServer\~ festgelegt und kann vom Nutzer
+während der Installation nicht verändert werden.
+
+** {{{is}}}
+Der {{{is}}} wird in der Regel vorinstalliert auf dem {{{ic}}} geliefert. Unter
+Windows läuft er als Windows-Service, unter Linux als Daemon, der mit systemd
+gestartet wird.
+
+* Unterstützung von RS-485
+In ~Y:\Entwicklung\projects\hardware\Kommunikation\Dokumentation\RS485 Netzwerke
+mit SARAD Monitoren.docx~ ist das adressierbare binäre Übertragungsprotokoll für
+Geräte mit RS-485-Schnittstelle beschrieben.
+
+Der {{{rs}}} soll {{{instr_m}}} mit dieser Schnittstelle automatisch als solche
+erkennen und in die Liste der {{{instr_m}}} aufnehmen. Um diese Geräteerkennung
+tatsächlich vollautomatisch vorzunehmen, müsste man wie folgt vorgehen:
+1. Testen aller ~native_serial_ports~ auf RS-232-{{{instr_m}}}, die auf das
+   Protokoll mit "B" am Anfang reagieren.
+2. Wenn 1. erfolglos bleibt, dann muss dieselbe Schnittstelle noch einmal wie
+   eine adressierbare RS-485-Schnittstelle behandelt werden, wobei mit "b" am
+   Anfang des Protokollframes alle möglichen Busadressen von 1 bis 250 und 255
+   (für Erstinbetriebnahme) durchprobiert werden müssen.
+3. In gleicher Weise ist mit allen erkannten USB-/RS-232-Konvertern zu
+   verfahren, da an jedem dieser Konverter auch ein RS-485-Adapter hängen kann.
+
+In aller Regel werden RS-485-Geräte im Rahmen einer geplanten Installation
+eingesetzt. D.h. wir haben einen bestimmten Hostcomputer mit
+RS-485-Schnittstelle und eine Reihe von {{{instr_m}}} für die nach einem Plan
+Busadressen vergeben und eingestellt werden. Mit diesen Informationen lässt sich
+auch die automatische Erkennung vereinfachen und beschleunigen.
+
+In der Konfigurationsdatei des {{{rs}}} wird dafür ein Eintrag "rs_485_bus" der
+folgenden Form erwartet:
+
+#+begin_example
+rs_485_bus = {"/dev/ttyS0" = [[1, 3], [10, 20]], "/dev/ttyUSB0" = [1, [2, 120]]}
+#+end_example
+
+Dabei wird der serielle Port zusammen mit einer Reihe von Adressen bzw.
+Adressbereichen festgelegt, die auf verbundene RS-485-{{{instr_m}}} (und nur
+auf diese) getestet werden sollen.
+
+Die Implementierung des modifizierten Protokolls erfolgt in ~sari.py~ im
+/data_collector/.
+Allen relevanten Funktionen wird der Parameter ~bus_address~ mitgegeben. Ist
+dieser Parameter ~None~, dann greift das Default-Verhalten. Ist ~bus_address~
+dagegen ein Integer im Bereich von 1 bis 255, dann wird der modifizierte
+Binärframe des RS-485-Protokolls in der Funktion verwendet.
+
+* Unterstützung von ZigBee
+In ~Y:\Entwicklung\projects\hardware\Kommunikation\ZigBee\ZigBee Adapter für
+SARAD Protokoll.docx~ ist das binäre Übertragungsprotokoll für den SARAD
+ZigBee-Koordinator beschrieben.
+
+* Bibliography                                                        :ignore:
+#+BEGIN_EXPORT LaTeX
+\printbibliography
+#+END_EXPORT
+
+* Glossary                                                            :ignore:
+#+BEGIN_EXPORT LaTeX
+\printglossaries
+#+END_EXPORT
+
+* Index                                                               :ignore:
+printindex:nil
+
+* Buffer settings                                                   :noexport:
+#+MACRO: am /Access Manager/
+#+MACRO: app /SARAD-App/
+#+MACRO: app_adapter /App-Adapter/
+#+MACRO: app_m /SARAD-Apps/
+#+MACRO: btnSearch /Suchen/
+#+MACRO: dm /DOSEman/
+#+MACRO: dmp /DOSEman PRO/
+#+MACRO: srs /Smart Radon Sensor/
+#+MACRO: dv /dVision/
+#+MACRO: ic /Instrument Controller/
+#+MACRO: ic_s /Instrument Controllers/
+#+MACRO: instr /SARAD-Instrument/
+#+MACRO: instr_m /SARAD-Instrumente/
+#+MACRO: instr_n /SARAD-Instrumenten/
+#+MACRO: is /Instrument Server/
+#+MACRO: is1 /Instrument Server 1/
+#+MACRO: is2 /Instrument Server 2/
+#+MACRO: ismqtt /Instrument Server MQTT/
+#+MACRO: iswlan /Instrument Server WLAN/
+#+MACRO: ac /App-Computer/
+#+MACRO: rooms /ROOMS/
+#+MACRO: rs /Registration Server/
+#+MACRO: rs1 /Registration Server 1/
+#+MACRO: rs2 /Registration Server 2/
+#+MACRO: rsmqtt /Registration Server MQTT/
+#+MACRO: rsp /Radon Scout Professional/
+#+MACRO: rtm /RTM 1688-2/
+#+MACRO: rv /Radon Vision 8/
+#+MACRO: sn /SARAD Network/
+#+MACRO: sn1 /SARAD Network 1/
+#+MACRO: sn2 /SARAD Network 2/
+#+MACRO: snmqtt /SARAD Network MQTT/
+#+MACRO: src /SARAD Registration Client/
+#+MACRO: src_m /SARAD Registration Clients/
+#+MACRO: scs /SARAD Cloud Server/
+#+MACRO: swm /SARAD-WLAN-Modul/
+#+MACRO: swm_m /SARAD-WLAN-Module/
+#+MACRO: tabRegistrationServers /Registration Server/
+#+MACRO: dh d.\thinsp{}h.
+#+MACRO: zB z.\thinsp{}B.
+#+MACRO: iA i.\thinsp{}Allg.
+#+MACRO: rest_api /REST API/
+#+MACRO: device_actor /Device Actor/
+#+MACRO: device_base_actor /Device Base Actor/
+#+MACRO: mdns_listener /mDNS Listener/
+#+MACRO: win_listener /Win Listener/
+#+MACRO: unix_listener /Unix Listener/
+#+MACRO: mqtt_subscriber /MQTT Subscriber/
+#+MACRO: device_manager /Device Actor Manager/
+#+MACRO: redirector /Redirector Actor/
+#+MACRO: regserver /SARAD Registration Server Service/
+
+#+TITLE: SARAD-Netzwerk für Telemetrie
+#+SUBTITLE: Spezifikation
+#+AUTHOR: SARAD GmbH
+#+EMAIL: info@sarad.de
+#+DESCRIPTION: Spezifikation und Bedienungsanleitung zum SARAD Registration Client
+#+KEYWORDS: SARAD, Handbuch, Manual, Registration, Client, Datenfernübertragung
+#+CREATOR: <a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.3.50.3 (<a href="http://orgmode.org">Org</a> mode 8.0.3)
+#+LANGUAGE: de
+#+OPTIONS: toc:2 H:5 tags:nil email:t ^:{} -:t ':t d:nil
+#+LATEX_CLASS: report
+#+LATEX_CLASS_OPTIONS: [ngerman]
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LATEX_HEADER: \usepackage{babel}
+#+LATEX_HEADER: \usepackage{translator}
+#+LATEX_HEADER: \sisetup{locale = DE}
+#+LATEX_HEADER: \usepackage{luatex85}
+#+LATEX_HEADER: \def\todo#1{{\color{red}#1}}
+#+LATEX_HEADER: \def\next#1{{\color{red}#1}}
+#+LATEX_HEADER: \def\done#1{{\color{green}#1}}
+#+LATEX_HEADER: \def\cancelled#1{{\color{green}#1}}
+#+LATEX_HEADER: \setmainfont[Ligatures=TeX]{Linux Libertine O}
+#+LATEX_HEADER: \setsansfont[Ligatures=TeX]{Linux Biolinum O}
+#+LATEX_HEADER: \usepackage{rotating}
+#+LATEX_HEADER: \usepackage{newunicodechar}
+#+LATEX_HEADER: \usepackage[xindy,toc,nonumberlist]{glossaries}
+#+LATEX_HEADER: \makeglossaries
+#+LATEX_HEADER: \usepackage[xindy]{imakeidx}
+#+LATEX_HEADER: \makeindex
+#+LATEX_HEADER: \usepackage[babel, german=quotes]{csquotes}
+#+LATEX_HEADER: \usepackage[style=numeric-comp]{biblatex}
+#+LATEX_HEADER: \addbibresource{../references.bib}
+#+LATEX_HEADER: \usepackage{caption}
+#+LATEX_HEADER: \usepackage{xparse}
+#+LATEX_HEADER: \usepackage{pgffor}
+#+LATEX_HEADER: \makeatletter
+#+LATEX_HEADER: \let\latex@@caption\caption
+#+LATEX_HEADER: \newif\ifallcaptionsshort
+#+LATEX_HEADER: \allcaptionsshortfalse
+#+LATEX_HEADER: \RenewDocumentCommand{\caption}{+o+m}{%
+#+LATEX_HEADER:   \def\@figcaptype{figure}
+#+LATEX_HEADER:   \ifx\@captype\@figcaptype
+#+LATEX_HEADER:   \ifallcaptionsshort
+#+LATEX_HEADER:   \IfValueTF{#1}{%
+#+LATEX_HEADER:     \latex@@caption[#1]{#2}%
+#+LATEX_HEADER:   }{%
+#+LATEX_HEADER:     \latex@@caption[#2]{#2}% No [#1] give
+#+LATEX_HEADER:   }
+#+LATEX_HEADER:   \else
+#+LATEX_HEADER:   \latex@@caption[#2]{#2}%
+#+LATEX_HEADER:   \fi
+#+LATEX_HEADER:   \else
+#+LATEX_HEADER:   \IfValueTF{#1}{%
+#+LATEX_HEADER:     \latex@@caption[#1]{#2}%
+#+LATEX_HEADER:   }{%
+#+LATEX_HEADER:     \latex@@caption[#2]{#2}% No [#1] give
+#+LATEX_HEADER:   }
+#+LATEX_HEADER:   \fi
+#+LATEX_HEADER: }
+#+LATEX_HEADER: \makeatother
+#+LATEX_HEADER: \usepackage{tikz-imagelabels}
+#+LATEX_HEADER: \usepackage[os=win]{menukeys}
+#+LATEX_HEADER: \newcommand{\texticon}[1]{%
+#+LATEX_HEADER: \includegraphics[height=2ex]{./fig/#1.png}%
+#+LATEX_HEADER: }%
+#+LATEX_HEADER: \usepackage[framemethod=tikz]{mdframed}
+#+LATEX_HEADER: \newmdenv[%
+#+LATEX_HEADER: outerlinewidth=2,%
+#+LATEX_HEADER: roundcorner=10pt,%
+#+LATEX_HEADER: leftmargin=40,%
+#+LATEX_HEADER: rightmargin=40,%
+#+LATEX_HEADER: backgroundcolor=yellow!40,%
+#+LATEX_HEADER: outerlinecolor=blue!70!black,%
+#+LATEX_HEADER: innertopmargin=\topskip,%
+#+LATEX_HEADER: splittopskip=\topskip,%
+#+LATEX_HEADER: frametitle=Exkurs,%
+#+LATEX_HEADER: ]{excursus}
+#+LATEX_HEADER: \newmdenv[%
+#+LATEX_HEADER: outerlinewidth=2,%
+#+LATEX_HEADER: roundcorner=10pt,%
+#+LATEX_HEADER: leftmargin=40,%
+#+LATEX_HEADER: rightmargin=40,%
+#+LATEX_HEADER: backgroundcolor=yellow!40,%
+#+LATEX_HEADER: outerlinecolor=green!70!black,%
+#+LATEX_HEADER: innertopmargin=\topskip,%
+#+LATEX_HEADER: splittopskip=\topskip,%
+#+LATEX_HEADER: frametitle=Hinweis,%
+#+LATEX_HEADER: ]{hint}
+#+LATEX_HEADER: \newmdenv[%
+#+LATEX_HEADER: outerlinewidth=2,%
+#+LATEX_HEADER: roundcorner=10pt,%
+#+LATEX_HEADER: leftmargin=40,%
+#+LATEX_HEADER: rightmargin=40,%
+#+LATEX_HEADER: backgroundcolor=yellow!40,%
+#+LATEX_HEADER: outerlinecolor=red!70!black,%
+#+LATEX_HEADER: innertopmargin=\topskip,%
+#+LATEX_HEADER: splittopskip=\topskip,%
+#+LATEX_HEADER: frametitle=Warnung,%
+#+LATEX_HEADER: ]{warning}
+
+#+TAGS: export noexport ARCHIVE
+#+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport
+#+STARTUP: overview
+#+STARTUP: hidestars
+#+STARTUP: logdone
+#+STARTUP: indent
+
+#+LATEX_HEADER: \newglossaryentry{PAEC}{name=PAEC, description={Potential Alpha Energy Concentration}}
+#+LATEX_HEADER: \newglossaryentry{PAEE}{name=PAEE, description={Potential Alpha Energy Exposure}}
+
+* Footnotes
+
+[fn:2] Der Unterstrich wird hier gebraucht, weil er vom Standard für
+ZeroConf-Services gefordert ist.
+
+[fn:1] Das ist nicht ganz korrekt. Genau genommen ist die Reihenfolge der
+Publish- und Subscribe-Aktionen unwichtig, weil beim Subscribe mit der
+"+"-Wildcard gearbeitet wird. Die sequentielle Darstellung dient lediglich dem
+besseren Verständnis der Zusammengehörigkeit der abonnierten und
+veröffentlichten Topics.

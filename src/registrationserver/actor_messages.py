@@ -96,6 +96,7 @@ class ActorType(Enum):
     NONE = 0
     DEVICE = 1
     HOST = 2
+    NODE = 4
 
 
 class TransportTechnology(IntEnum):

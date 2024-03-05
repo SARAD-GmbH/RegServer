@@ -1,0 +1,494 @@
+#############################################################################
+# Rename this file to `config.toml`, uncomment lines by removing the '#' and
+# change parameters to customize the SARAD Registration Server Service (in the
+# following called RegServer)!
+#############################################################################
+
+### Key: debug_level
+## Defines the verbosity of the log file the RegServer is writing.
+##
+## Allowed values:
+##     "fatal"
+##     "critical"
+##     "error"
+##     "warning"
+##     "info" (default)
+##     "debug"
+##
+## Sensible values are "critical" for a minimal log, "info" for operation in
+## production on a desktop PC, and "debug" for debugging.
+### Default: "info"
+#debug_level = "info"
+
+## The following parameters `is_id`, `description`, `place`, `latitude`,
+## `longitude`, `height`, `my_ip`, and `my_hostname` are relevant for RegServers
+## that are connected with SARAD instruments via their USB backend, thus working
+## as Instrument Servers.
+
+### Key: is_id
+## `is_id` stands for Instrument Server Id. It shall contain a short string
+## identifying the host, your RegServer is running at.
+##
+### Default: The hostname of your computer
+#is_id = "my-computer"
+
+### Key: description
+## `description` can contain a longer text describing the local host.
+### Default: "SARAD Instrument Server"
+#description = "SARAD Instrument Server"
+
+### Key: place
+## `place` can contain a text describing where the host running this RegServer is
+## located.
+### Default: ""
+#place = ""
+
+## `latitude`, `longitude`, and `height` shall contain the geographic coordinates
+## of the host.
+
+### Key: latitude
+## positive values for North, negative for South
+### Default: 0 (deg)
+#latitude = 51.0764194
+
+### Key: longitude
+## positive values for East, negative for West
+### Default: 0 (deg)
+#longitude = 13.7383917
+
+### Key: height
+## in meters
+### Default: 0 (m)
+#height = 102
+
+# `my_ip` is the IPv4 address of the host. `my_hostname` is the unique name of
+# the host within your network. Only change these parameters, if the
+# automatically detected values do not work.
+
+### Key: my_ip
+### Default: external IPv4 address of this computer
+#my_ip = "127.0.0.1"
+
+### Key: my_hostname
+### Default: hostname of this computer
+#my_hostname = "this-pc"
+
+## The `frontends` section defines, which frontends will be switched on.
+## - `rest` :: Defines whether the REST API will be active.
+## - `mqtt` :: Defined whether the MQTT frontend will be active. This might
+##             require further configuration in section `[mqtt]`.
+## - `mdns` :: Defines whether the mDNS frontend will be active.
+## - `modbus_rtu` :: Defines whether the Modbus RTU frontend will be active.
+##
+## Per default the REST and the mDNS frontends are switched on.
+[frontends]
+### Key: rest
+### Default: true
+#rest = true
+
+### Key: mqtt
+### Default: false
+#mqtt = false
+
+### Key: mdns
+### Default: true
+#mdns = true
+
+### Key: modbus_rtu
+### Default: false
+#modbus_rtu = false
+
+
+## The `backends` section defines, which backends will be switched on.
+## - `usb` :: Defines whether the USB backend for locally connected SARAD
+##            instruments will be active.
+## - `mqtt` :: Defines whether the MQTT backend will be active.
+## - `mdns` :: Defines whether the mDNS backend will be active.
+## - `is1` :: Defines whether the IS1 backend for the legacy SARAD Instrument
+##            Server will be active. This backend is required for some devices
+##            with WLAN modules.
+[backends]
+### Key: usb
+### Default: true
+#usb = true
+
+### Key: mqtt
+## As a convenience feature `mqtt` can not only have the values true or false but
+## also the value 2. This value will switch the MQTT backend into automatic mode.
+## The backend will be switched on, if the RegServer finds a set of MQTT keys for
+## authentication at the MQTT Broker and TLS.
+## 0 or false: off
+## 1 or true: on
+## 2: auto
+### Default: 2
+#mqtt = 2
+
+### Key: mdns
+### Default: true
+#mdns = true
+
+### Key: is1
+## Take care to set this key to true at only one RegServer in your LAN.
+## The WLAN configuration of your IS1 WLAN modules has to be set to the IP address
+## of the RegServer where `is` is set to true.
+### Default: false
+#is1 = false
+
+
+## The `rest_frontend` section allows to modify parameters of the REST API.
+[rest_frontend]
+### Key: api_port
+## `api_port` allows to modify the port number of the REST API.
+### Default: 8008
+#api_port = 8008
+
+### Key: port_range
+## `port_range` contains a range of ports the RegServer will use when
+## establishing a socket for communication with the SARAD application software.
+## The first element of the provided list is the start of the port range, the
+## second one the end of the port range.
+### Default: [50003, 50500]
+#port_range = [50003, 50500]
+
+
+## The `mqtt` section contains parameters regarding both the MQTT frontend as
+## well as the MQTT backend.
+[mqtt]
+### Key: mqtt_client_id
+## This is a unique identifier for the MQTT Client of the MQTT backend.
+## The MQTT frontend will use the `is_id` as MQTT Client Id.
+## In order to avoid duplications the ids will be unified by appending the
+## hex representation of the MAC address of the computer.
+### Default: "Id"
+#mqtt_client_id = "Id"
+
+### Key: group
+## The `group` is used as first part of all MQTT topics to keep all instruments
+## belonging to one customer or one project together and devided from other
+## groups.
+### Default: group gained from TLS key files or "lan" resp.
+#group = "SARAD-0001"
+
+### Key: mqtt_broker
+## URL of the server hosting the MQTT Broker.
+### Default: "sarad.de"
+#mqtt_broker = "sarad.de"
+
+### Key: port
+## TCP port used by the MQTT Broker.
+### Default: 8883
+#port = 8883
+
+### Key: keepalive
+## Keep Alive is a feature of the MQTT protocol that allows an MQTT client to
+## maintain its connection with a broker by sending regular control packets
+## called PINGREQ to the broker. This parameters defines the interval in seconds
+## between two of these messages.
+### Default: 60 (s)
+#keepalive = 60
+
+### Key: qos
+## Quality of Service setting for the MQTT Client.
+### Default: 2
+#qos = 2
+
+### Key: retry_interval
+## If the MQTT Client in the MQTT backend cannot establish a connection to the
+## MQTT Broker, it will retry forever to connect within `retry_interval`. The
+## value is in seconds.
+### Default: 5 (s)
+#retry_interval = 5
+
+### Key: tls_use_tls
+## If false, the connection to the MQTT Broker will be insecure.
+### Default: true
+#tls_use_tls = true
+
+### Key: tls_ca_file
+## This is the certificate file of the Certificate Authority (CA).
+### Default: f"{app_folder}tls_cert_sarad.pem"
+#tls_ca_file = "/home/pi/RegServer/src/None/SARAD/tls_cert_sarad.pem"
+
+### Key: tls_key_file
+## This is the actual key for authentication and TLS encryption.
+### Default: f"{app_folder}tls_key_personal.pem"
+#tls_key_file = "/home/pi/RegServer/src/None/SARAD/tls_key_personal.pem"
+
+### Key: tls_cert_file
+## This is the certificate for the TLS key in PEM file format.
+### Default: f"{app_folder}tls_cert_personal.crt"
+#tls_cert_file = "/home/pi/RegServer/src/None/SARAD/tls_cert_personal.crt"
+
+
+## The `mqtt_frontend` provides MQTT parameters regarding the MQTT frontend only.
+[mqtt_frontend]
+### Key: reboot_after
+## Time in minutes after disconnect causing a reboot. 0 = never. The computer
+## hosting the Regserver shall perform a reboot after this time. This is a
+## precaution to reset the complete system including maybe the LTE modem.
+### Default: 60 (s)
+#reboot_after = 60
+
+### Key: restart_instead_of_reboot
+## If set to 1, the RegServer will be restarted instead of performing a reboot.
+## This setting should be used on desktop computers running the RegServer with
+## active MQTT frontend. Typically we don't want a desktop computer to reboot
+## without user intervention.
+### Default: 0
+#estart_instead_of_reboot = 0
+
+
+## The `modbus_rtu_frontend` section allows to modify the parameters of the
+## Modbus RTU frontend. This section is mandatory, if the `modbus_rtu` frontend
+## in the `frontends` section is activated.
+[modbus_rtu_frontend]
+### Key: slave_address
+## `slave_address` contains the Modbus RTU Slave Address (called node address as
+## well). Each slave device in the daisy-chain on RS-485 is assigned a unique
+## address, ranging from 1 to 247. The master device uses these addresses to
+## communicate with specific slave devices.
+### Default: 1
+#slave_address = 1
+
+### Key: port
+## Typically, there will be a USB to RS-485 adapter connected to a USB socket of
+## the host running the RegServer. `port` contains the path to the device file
+## associated with this USB port. It's strongly recommended to use the path from
+## the `by-id` subdirectory, since other paths (like `/dev/serial/ttyUSB0`) might
+## change if the assignment of USB connectors will be changed during operation.
+### Default:
+### "/dev/serial/by-id/usb-FTDI_Atil_UD-101i_USB__-__RS422_485-if00-port0"
+#port = "/dev/serial/by-id/usb-FTDI_Atil_UD-101i_USB__-__RS422_485-if00-port0"
+
+### Key: baudrate
+## On one Modbus RTU bus, all devices have to be set to the same baud rate. No
+## specific baud rate is specified by the protocol: typical baud rates are 9600
+## or 19200.
+### Default: 9600 (baud)
+#baudrate = 9600
+
+### Key: parity
+## Allowed values for `parity` are 'N' for None, 'O' for Odd, and 'E' for Even.
+### Default: "N"
+#parity = "N"
+
+### Key: device_id
+## `device_id` is the identifier of the connected SARAD instrument. It can be
+## obtained from the REST API with `http://<host>:<port>/list/`.
+### Default: None
+#device_id = "28tkhn4V.sarad-dacm.local"
+
+
+## The `usb_backend` section contains parameter modifying the behaviour of the
+## backend for locally connected SARAD instruments. Other than suggested by its
+## name, the USB backend will handle as well devices that are connected via
+## RS-232 ports.
+[usb_backend]
+### Key: poll_serial_ports
+## SARAD instruments connected via USB will usually be detected automatically.
+## The detection will be triggered by the operating system when the USB is
+## plugged in. For devices connected via RS-232, we don't have such a mechanism.
+## The RegServer will look for connected SARAD instruments on startup but if a
+## device will be connected later, it won't be detected. To overcome this issue,
+## such ports have to be polled. `poll_serial_ports` can contain a comma
+## separated list of RS-232 or USB ports that shall be polled for newly
+## connected SARAD instruments.
+### Default: "COM1" on Windows computers, "/dev/ttyS0" on Linux computers
+#poll_serial_ports = ["/dev/ttyS0"]
+
+### Key: local_retry_interval
+## `local_retry_interval` defines the polling frequency for the serial ports
+## listed in `poll_serial_ports` in seconds.
+### Default: 30 (s)
+#local_retry_interval = 30  # in seconds, must be lager than 5
+
+### Key: ignored_serial_ports
+## `ignored_serial_ports` can contains a comma separated list of serial ports
+## that shall be ignored by the RegServer. Typically these are ports where other
+## serial devices from third parties are connected to that should not be
+## interfered by the RegServer. This list will be empty by default.
+### Default: []
+#ignored_serial_ports = ["/dev/ttyS0", "/dev/ttyACM0"]
+
+### Key: ignored_hwids
+## `ignored_hwids` contains a list of hardware identifiers delivered from USB
+## devices that should be ignored by the RegServer.
+## By default these are:
+## - Serial Bluetooth device :: "BTHENUM"
+## - Quectel LTE modem :: "2c7c"
+##
+## Two other potential candidates might be:
+## - Prolific and no-name USB-to-serial converters: "067B"
+## - QinHeng Electronics USB-to-serial converters: "1a86"
+##
+## The HWID of the FTDI FT232 used for the USB interface of SARAD instruments is
+## "0403". This one shouldn't be ignored!
+### Default: ["BTHENUM", "2c7c"]
+#ignored_hwids = ["BTHENUM", "2c7c"]
+
+### Key: set_realtime_clock
+## The RegServer can set the realtime clock (RTC) of the connected SARAD
+## instrument on every start of the RegServer and whenever an instrument is
+## connected. If `set_realtime_clock` is set to true, this function will be
+## active.
+### Default: false
+#set_realtime_clock = false
+
+### Key: use_utc
+## With `use_utc` you can decide whether UTC (true) or local time (false)
+## shall be used. For monitoring systems we strongly recommend using UTC.
+### Default: false
+#use_utc = false
+
+
+## There are SARAD instruments (e. g. the Smart Radon Sensor) that can be
+## connected by RS-485 via an addressable daisy chain. The `rs485_backend`
+## section can contain several lines defining a serial port and a list of node
+## addresses for instruments connected in the RS-485 daisy-chain on this port.
+## This section is mandatory, if SARAD instruments shall be connected via RS-485.
+[rs485_backend]
+### Key: serial port with connected RS-485 adapter
+### Default: None
+#"/dev/ttyUSB0" = [1]  # example for Linux with one instrument
+#"COM2" = [2, 3, 7]  # example for Windows with three instruments
+
+
+## The `is1_backend` section contains the configuration for the backend
+## connection legacy SARAD instrument servers (Instrument Server 1). Typically
+## these are only SARAD instruments with WLAN module. There is no reason to use the
+## legacy SARAD Instrument Server for Windows PCs anymore.
+[is1_backend]
+### Key: registration_port
+## The `registration_port` is the port where the RegServer is listening for IS1
+## to register on. Don't touch this value, if you don't understand what you are
+## doing!
+### Default: 50002
+#registration_port = 50002
+
+### Key: hosts
+## The RegServer will keep a persistent list of hostnames of IS1 WLAN modules
+## that have registered on the RegServer in the past. This is required, since
+## these WLAN-Modules register themselves only during their startup or reset. The
+## RegServer will fill the list of host names in `hosts` automatically but it's
+## possible to add the host names by hand as well.
+### Default: []
+#hosts = ["ESP-C8C1A8", "ESP-C8C1B1", "ESP-0B6980"]
+
+### Key: scan_interval
+## The IS1 backend scans all known IS1 hosts from `hosts` in regular
+## `scan_interval` for availability. The value is in seconds.
+### Default: 60 (s)
+#scan_interval = 60
+
+
+## The `mdns_backend` section contains the settings for the mDNS (Zeroconf)
+## backend. RegServers with the mDNS frontend identify themselves by multicast
+## messages in the LAN. Refer to
+## https://python-zeroconf.readthedocs.io/en/latest/api.html.
+[mdns_backend]
+### Key: type
+## `type` designates the type of the multicast mDNS message. Don't change it.
+### Default: "_raw._tcp.local."
+#type = "_raw._tcp.local."
+
+### Key: mdns_timeout
+## `mdns_timeout` is the timeout of the `get_service_info` function given in
+## milliseconds. It defaults to 3 s.
+### Default: 3000 (ms)
+#mdns_timeout = 3000
+
+### Key: ip_version
+## `ip_version` can be "v4only", "v6only", or "all". Defaults to "all".
+### Default: "all"
+#ip_version = "all"
+
+### Key: hosts
+## `hosts` may contain a list of hosts running RegServers with mDNS frontend. It
+## has the form
+## [[host1, host2], [port1, port2]]
+## The first list contains the hostnames, the second the belonging port numbers
+## of the REST APIs on these hosts (usually 8008).
+##
+## Usually it will not be necessary to maintain such a list since its the sense
+## of mDNS to identify hosts automatically. But under special circumstances,
+## where multicast doesn't work this list might be the livesaver.
+### Default: [ [], [] ]
+#hosts = [[], []]
+
+### Key: scan_interval
+## `scan_interval` defines the frequency, how often the hosts given in `hosts`
+## shall be scanned for connected SARAD instruments. The value is in seconds and
+## defaults to 60. 0 = scan only once during startup.
+### Default: 60 (s)
+#scan_interval = 60
+
+
+## The RegServer was implemented using the Thespian Actor Model library (refer
+## to https://thespianpy.com/). The entries in the `actor` section allow some
+## fine tuning.
+[actor]
+### Key: system_base
+## Uncomment one of the following three base technologies for the Actor system.
+## By default this is set to A). B) was found to work on some older Windows PCs
+## where A) doesn't work. C) doesn't work at all with the latest version of Thespian.
+## A) Experimental multithreading base
+### Default: "multiprocQueueBase"
+#system_base = "multiprocQueueBase"
+
+## B) UDP based messages
+#system_base = "multiprocUDPBase"
+### Key: admin_port
+### Default: 1029 (for UDP)
+#admin_port = 1029
+
+## C) TCP based messages
+#system_base = "multiprocTCPBase"
+### Key: admin_port
+### Default: 1900 (for TCP)
+#admin_port = 1900
+### Key: convention_address
+### Default: "127.0.0.1"
+#convention_address = "127.0.0.1"
+
+### Key: process_startup_method
+## `process_startup_method` must be "fork" on Windows and "spawn" on Windows. It
+## will be set automatically in the right way. No need to change anything here.
+### Default: "fork" (Linux), "spawn" (Windows)
+#process_startup_method = "fork"
+
+## The RegServers has two watchdogs to check the health of the Actor system.
+## There is a central Actor called Registrar keeping track of all created
+## Actors. The inner watchdog checks whether all Actors the Registrar knows
+## about are still alive and functional. The outer watchdog checks whether the
+## Registrar Actor itself is still responding. The RegServer will be restarted
+## on every detected failure.
+
+### Key: watchdog_interval
+## `watchdog_interval` in seconds defines how often all Actors shall be checked
+## by the Registrar.
+## 0 = inner watchdog switched off.
+### Default: 2 (s)
+#watchdog_interval = 2
+
+### Key: watchdog_wait
+## `watchdog_wait` in seconds defines the time the Registrar shall wait for a
+## reply of the Actor.
+### Default: 2 (s)
+#watchdog_wait = 2
+
+### Key: watchdog_check
+## If true, each Actor has to re-register at the Registrar.
+### Default: true
+#watchdog_check = true
+
+### Key: outer_watchdog_interval
+## `outer_watchdog_interval` defines how frequently the outer process shall poll
+## the Registrar for a reply. The value is given in seconds.
+### Default: 60 (s)
+#outer_watchdog_interval = 60
+
+### Key: outer_watchdog_trials
+## If the registrar doesn't reply, how often shall the outer process try to get a
+## sign of life from it? 0 = outer watchdog is switched off.
+### Default: 1
+#outer_watchdog_trials = 1

@@ -8,6 +8,10 @@ twine = "*"
 wheel = "*"
 pytest = "*"
 pyinstaller = "*"
+sphinx = {version = "*", markers="sys_platform == 'linux'"}
+sphinx-autodoc-typehints = {version = "*", markers="sys_platform == 'linux'"}
+sphinxcontrib-plantuml = {version = "*", markers="sys_platform == 'linux'"}
+sphinx-autoapi = {version = "*", markers="sys_platform == 'linux'"}
 
 [packages]
 zeroconf = "*"
@@ -30,11 +34,11 @@ requests = "*"
 waitress = "*"
 modbus-tk = "*"
 flask-restx = "*"
-rpi-gpio = {version = "*", sys_platform = "== 'linux'"}
-pywin32 = {version = "*", sys_platform = "== 'win32'"}
+rpi-gpio = {version = "*", markers="sys_platform == 'linux'"}
+pywin32 = {version = "*", markers="sys_platform == 'win32'"}
 datacollector = {editable = true, git = "https://github.com/SARAD-GmbH/data_collector.git"}
-gpiozero = {version = "*", sys_platform = "== 'linux'"}
-systemd-python = {version = "*", sys_platform = "== 'linux'"}
+gpiozero = {version = "*", markers="sys_platform == 'linux'"}
+systemd-python = {version = "*", markers="sys_platform == 'linux'"}
 tomlkit = "*"
 
 [requires]

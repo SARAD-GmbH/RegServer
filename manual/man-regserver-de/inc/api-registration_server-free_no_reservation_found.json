@@ -1,0 +1,13 @@
+{
+    "Error": "No reservation found",
+    "Error code": 10,
+    "0ghMF8Y.sarad-1688._rfc2217._tcp.local.": {
+        "Identification": {
+            "Family": 2,
+            "Host": "serviri.hq.sarad.de",
+            "Name": "Radon Scout Home",
+            "Serial number": 791,
+            "Type": 8
+        }
+    }
+}
