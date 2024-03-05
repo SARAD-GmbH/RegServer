@@ -14,7 +14,7 @@ sphinxcontrib-plantuml = {version = "*", markers="sys_platform == 'linux'"}
 sphinx-autoapi = {version = "*", markers="sys_platform == 'linux'"}
 
 [packages]
-zeroconf = "*"
+zeroconf = "0.118.0"
 pyudev = "*"
 thespian = "*"
 flask = "*"
