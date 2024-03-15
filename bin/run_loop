@@ -5,10 +5,10 @@ WAIT_LOG=5
 RESTART_TIME=10
 
 until (cd $mydir && pipenv run python sarad_registration_server.py)
-do 
-  echo Saving old log in $WAIT_LOG seconds.  
+do
+  echo Saving old log in $WAIT_LOG seconds.
   sleep $WAIT_LOG
-  cp ~/SARAD/log/registrationserver.log ~/SARAD/log/registrationserver.$(date '+%Y-%m-%d_%H-%M-%S').log
+  cp ~/SARAD/log/regserver.log ~/SARAD/log/regserver.$(date '+%Y-%m-%d_%H-%M-%S').log
   echo Restarting in $RESTART_TIME seconds.
   sleep $RESTART_TIME
 done

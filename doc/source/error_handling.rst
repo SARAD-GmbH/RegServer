@@ -49,6 +49,6 @@ Emergency System Shutdown
 =========================
 
 The emergency shutdown is done by function ``system_shutdown()`` defined in
-module ``registrationserver.shutdown``. It removes a file that is used as flag
+module ``regserver.shutdown``. It removes a file that is used as flag
 to break the main loop in the main program (``main.py`` for the Registration Server,
 ``ismqtt_main.py`` for the Instrument Server MQTT.
