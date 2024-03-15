@@ -14,32 +14,26 @@ sphinxcontrib-plantuml = {version = "*", markers="sys_platform == 'linux'"}
 sphinx-autoapi = {version = "*", markers="sys_platform == 'linux'"}
 
 [packages]
-zeroconf = "0.118.0"
+zeroconf = {version = "==0.118.0"}
 pyudev = "*"
 thespian = "*"
 flask = "*"
 pyserial = "*"
 hashids = "*"
-pyserial-asyncio = "*"
 paho-mqtt = "*"
 pyyaml = "*"
 appdirs = "*"
 overrides = "*"
-click = "*"
-keyboard = "*"
-polling2 = "*"
-pefile = "*"
-pyinstaller = "*"
 requests = "*"
 waitress = "*"
 modbus-tk = "*"
 flask-restx = "*"
 rpi-gpio = {version = "*", markers="sys_platform == 'linux'"}
 pywin32 = {version = "*", markers="sys_platform == 'win32'"}
-datacollector = {editable = true, git = "https://github.com/SARAD-GmbH/data_collector.git"}
 gpiozero = {version = "*", markers="sys_platform == 'linux'"}
 systemd-python = {version = "*", markers="sys_platform == 'linux'"}
 tomlkit = "*"
+sarad = {ref = "master", git = "https://github.com/SARAD-GmbH/sarad.git"}
 
 [requires]
 python_version = "3.9"

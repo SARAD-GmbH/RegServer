@@ -1,5 +1,5 @@
 @startuml
-box "RegistrationServer 2"
+box "SARAD Registration Server Service"
 entity "Main Executable" as main
 database "Configuration" as config
 entity "mDNS" as mdns

@@ -10,8 +10,8 @@
 import multiprocessing
 import signal
 
-import registrationserver.main
-from registrationserver.shutdown import system_shutdown
+import regserver.main
+from regserver.shutdown import system_shutdown
 
 
 def signal_handler(_sig, _frame):
@@ -23,9 +23,9 @@ def signal_handler(_sig, _frame):
 
 
 def main():
-    """Starting the RegistrationServer"""
+    """Starting the RegServer"""
 
-    registrationserver.main.main()
+    regserver.main.main()
 
 
 if __name__ == "__main__":

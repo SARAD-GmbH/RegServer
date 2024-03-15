@@ -18,48 +18,48 @@ regserver-service.py
 .. automodule:: regserver-service
    :members:
 
-registrationserver.main
+regserver.main
 -----------------------
 
-.. automodule:: registrationserver.main
+.. automodule:: regserver.main
    :members:
    :undoc-members:
 
-registrationserver.restapi
+regserver.restapi
 --------------------------
 
-.. automodule:: registrationserver.restapi
+.. automodule:: regserver.restapi
    :members:
    :undoc-members:
 
-registrationserver.device_actor
+regserver.device_actor
 -------------------------------
 
-.. automodule:: registrationserver.modules.device_actor
+.. automodule:: regserver.modules.device_actor
    :members:
    :undoc-members:
 
-registrationserver.redirect_actor
+regserver.redirect_actor
 ---------------------------------
 
-.. automodule:: registrationserver.redirect_actor
+.. automodule:: regserver.redirect_actor
    :members:
    :undoc-members:
 
 Modules for local USB and RS-232 connection
 ===========================================
 
-registrationserver.modules.backend.usb.win_listener
+regserver.modules.backend.usb.win_listener
 ---------------------------------------------------
 
-.. automodule:: registrationserver.modules.backend.usb.win_listener
+.. automodule:: regserver.modules.backend.usb.win_listener
    :members:
    :undoc-members:
 
-registrationserver.modules.backend.usb.usb_actor
+regserver.modules.backend.usb.usb_actor
 ------------------------------------------------
 
-.. automodule:: registrationserver.modules.backend.usb.usb_actor
+.. automodule:: regserver.modules.backend.usb.usb_actor
    :members:
    :undoc-members:
 
@@ -67,43 +67,43 @@ registrationserver.modules.backend.usb.usb_actor
 Backend modules for raw socket communication advertised by mDNS
 ===============================================================
 
-registrationserver.modules.backend.mdns.mdns_listener
+regserver.modules.backend.mdns.mdns_listener
 -----------------------------------------------------
 
-.. automodule :: registrationserver.modules.backend.mdns.mdns_listener
+.. automodule :: regserver.modules.backend.mdns.mdns_listener
    :members:
    :undoc-members:
 
-registrationserver.modules.backend.mdns.device_actor
+regserver.modules.backend.mdns.device_actor
 ----------------------------------------------------
 
-.. automodule:: registrationserver.modules.backend.mdns.device_actor
+.. automodule:: regserver.modules.backend.mdns.device_actor
    :members:
    :undoc-members:
 
 Modules specific to the MQTT backend
 ====================================
 
-registrationserver.modules.backend.mqtt.mqtt_client_actor
+regserver.modules.backend.mqtt.mqtt_client_actor
 ---------------------------------------------------------
 
-.. automodule :: registrationserver.modules.backend.mqtt.mqtt_client_actor
+.. automodule :: regserver.modules.backend.mqtt.mqtt_client_actor
    :members:
    :undoc-members:
 
-registrationserver.modules.backend.mqtt.mqtt_device_actor
+regserver.modules.backend.mqtt.mqtt_device_actor
 ---------------------------------------------------------
 
-.. automodule:: registrationserver.modules.backend.mqtt.mqtt_device_actor
+.. automodule:: regserver.modules.backend.mqtt.mqtt_device_actor
    :members:
    :undoc-members:
 
 Helper modules
 ==============
 
-registrationserver.config
+regserver.config
 -------------------------
 
-.. automodule:: registrationserver.config
+.. automodule:: regserver.config
    :members:
    :undoc-members:

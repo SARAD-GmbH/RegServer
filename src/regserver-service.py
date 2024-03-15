@@ -16,8 +16,8 @@ import win32event
 import win32service
 import win32serviceutil
 
-import registrationserver.main
-from registrationserver.shutdown import system_shutdown
+import regserver.main
+from regserver.shutdown import system_shutdown
 from version import VERSION
 
 
@@ -54,7 +54,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
             servicemanager.PYS_SERVICE_STARTED,
             (self._svc_name_, ""),
         )
-        registrationserver.main.main()
+        regserver.main.main()
 
 
 if __name__ == "__main__":
