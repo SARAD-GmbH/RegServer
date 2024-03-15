@@ -189,8 +189,8 @@
 
 ### Key: qos
 ## Quality of Service setting for the MQTT Client.
-### Default: 2
-#qos = 2
+### Default: 1
+#qos = 1
 
 ### Key: retry_interval
 ## If the MQTT Client in the MQTT backend cannot establish a connection to the
