@@ -300,7 +300,7 @@ class UsbActor(DeviceBaseActor):
             logger.info("Killing myself")
             self._kill_myself()
         elif not reply["is_valid"]:
-            logger.warning("Invalid binary message from instrument.")
+            logger.warning("Invalid binary message from instrument. %s", reply)
             self.next_method = (self._finish_tx_binary, reply["raw"])
 
     def _tx_binary_proceed(self):
@@ -323,7 +323,7 @@ class UsbActor(DeviceBaseActor):
             logger.info("Killing myself")
             self._kill_myself()
         elif not reply["is_valid"]:
-            logger.warning("Invalid binary message from instrument.")
+            logger.warning("Invalid binary message from instrument. %s", reply)
             self.next_method = (self._finish_tx_binary, reply["raw"])
 
     def _finish_tx_binary(self, data):
