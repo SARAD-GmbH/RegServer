@@ -9,10 +9,10 @@ socket as actor messages to the device actor.
     | Michael Strey <strey@sarad.de>
 
 """
-import datetime
 import select
 import socket
 import time
+from threading import Thread
 
 from overrides import overrides  # type: ignore
 
@@ -35,6 +35,10 @@ class RedirectorActor(BaseActor):
         self._host = config["MY_IP"]
         self._port = None
         self.read_list = None
+        self.socket_loop_thread = Thread(
+            target=self._loop,
+            daemon=True,
+        )
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
@@ -43,7 +47,7 @@ class RedirectorActor(BaseActor):
             self._loop()
 
     def _loop(self):
-        if not self.on_kill:
+        while not self.on_kill:
             try:
                 # Listen to socket and redirect any message from the socket to the device actor
                 server_socket = self.read_list[0]
@@ -60,7 +64,6 @@ class RedirectorActor(BaseActor):
                         self._cmd_handler()
             except (ValueError, IOError) as exception:
                 logger.error("%s in _loop function of redirector", exception)
-            self.wakeupAfter(datetime.timedelta(seconds=0.055), payload="loop")
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -106,8 +109,8 @@ class RedirectorActor(BaseActor):
         logger.debug("Setup finished with %s", return_msg)
         self.send(sender, return_msg)
         logger.debug("Start socket loop")
-        self.wakeupAfter(datetime.timedelta(seconds=0.01), payload="loop")
-        logger.info("Redirector %s initialized", self.my_id)
+        self.socket_loop_thread.start()
+        logger.info("Redirector thread in %s initialized", self.my_id)
 
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
