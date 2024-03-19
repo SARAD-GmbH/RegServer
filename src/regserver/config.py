@@ -126,7 +126,7 @@ DEFAULT_FRONTENDS = {Frontend.REST, Frontend.MDNS}
 if customization.value.get("frontends") is None:
     frontend_config = DEFAULT_FRONTENDS
 else:
-    if customization.value["frontends"].get("rest", False):
+    if customization.value["frontends"].get("rest", True):
         frontend_config.add(Frontend.REST)
     if customization.value["frontends"].get("mqtt", False):
         frontend_config.add(Frontend.MQTT)
