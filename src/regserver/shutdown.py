@@ -91,14 +91,18 @@ def kill_processes(regex):
     if os.name == "posix":
         try:
             my_pid = os.getpid()
+            logger.info("My pid is %s", my_pid)
             pids = []
-            for line in os.popen("ps ax | grep " + regex + " | grep -v grep"):
+            for line in os.popen(
+                "ps ax | grep -E -i " + regex + " | grep -v -E 'grep|pdm'"
+            ):
                 fields = line.split()
                 pid = int(fields[0])
                 if pid != my_pid:
                     pids.append(pid)
             pids.sort(reverse=True)
             for pid in pids:
+                logger.info("Killing pid %s", pid)
                 os.kill(pid, signal.SIGKILL)
             return None
         except Exception as exception:  # pylint: disable=broad-except

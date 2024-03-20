@@ -207,7 +207,7 @@ def kill_residual_processes(end_with_error=True):
     if end_with_error:
         logger.info("Trying to kill residual processes. Fingers crossed!")
     if os.name == "posix":
-        process_regex = "python.sarad_registration_server"
+        process_regex = "python.+sarad_registration_server"
     elif os.name == "nt":
         process_regex = "regserver-service.exe"
     else:
@@ -313,14 +313,14 @@ def main():
             logger.info("Log entries go to %s", LOGFILENAME)
     except Exception:  # pylint: disable=broad-except
         logger.error("Initialization of log file failed.")
-    # maybe there are processes left from last run
-    kill_residual_processes(end_with_error=False)
     threading.excepthook = custom_hook
     if len(sys.argv) < 2:
         start_stop = "start"
     else:
         start_stop = sys.argv[1]
     if start_stop == "start":
+        # maybe there are processes left from last run
+        kill_residual_processes(end_with_error=False)
         set_file_flag(True)
         startup_tupel = startup()
         if not startup_tupel:

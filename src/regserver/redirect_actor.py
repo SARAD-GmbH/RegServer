@@ -11,8 +11,8 @@ socket as actor messages to the device actor.
 """
 import select
 import socket
-import time
 from threading import Thread
+from time import sleep
 
 from overrides import overrides  # type: ignore
 
@@ -32,12 +32,10 @@ class RedirectorActor(BaseActor):
         self._client_socket = None
         self._socket_info = None
         self.conn = None
-        self._host = config["MY_IP"]
-        self._port = None
+        self._address = (config["MY_IP"], None)
         self.read_list = None
         self.socket_loop_thread = Thread(
             target=self._loop,
-            daemon=True,
         )
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
@@ -47,6 +45,7 @@ class RedirectorActor(BaseActor):
             self._loop()
 
     def _loop(self):
+        logger.info("Redirector thread in %s initialized", self.my_id)
         while not self.on_kill:
             try:
                 # Listen to socket and redirect any message from the socket to the device actor
@@ -64,33 +63,50 @@ class RedirectorActor(BaseActor):
                         self._cmd_handler()
             except (ValueError, IOError) as exception:
                 logger.error("%s in _loop function of redirector", exception)
+        self.read_list[0].close()
+        logger.info("Socket at port %d closed.", self._address[1])
+        logger.info("Finish socket_loop_thread")
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
         logger.debug("Setup redirector actor")
         super().receiveMsg_SetupMsg(msg, sender)
-        for self._port in rest_frontend_config["PORT_RANGE"]:
-            try:
-                server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                server_socket.bind((self._host, self._port))
-                self._port = server_socket.getsockname()[1]
-                break
-            except OSError:
+        for port in rest_frontend_config["PORT_RANGE"]:
+            self._address = (self._address[0], port)
+            for res in socket.getaddrinfo(
+                self._address[0],
+                port,
+                socket.AF_UNSPEC,
+                socket.SOCK_STREAM,
+                0,
+                socket.AI_PASSIVE,
+            ):
+                af, socktype, proto, _canonname, sa = res
                 try:
-                    server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-                    server_socket.bind((self._host, self._port))
-                    self._port = server_socket.getsockname()[1]
-                    break
+                    server_socket = socket.socket(af, socktype, proto)
+                    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 except OSError as exception:
-                    logger.error("Cannot use port %d. %s", self._port, exception)
+                    logger.error("Cannot use port %d. %s", self._address[1], exception)
+                    server_socket = None
+                    self._address = (self._address[0], None)
+                    continue
+                try:
+                    server_socket.bind(sa)
+                    server_socket.listen(1)
+                except OSError as exception:
+                    logger.error(
+                        "Cannot listen on port %d. %s", self._address[1], exception
+                    )
                     server_socket.close()
-        try:
-            server_socket.listen()  # listen(5) maybe???
-        except OSError:
-            self._port = None
+                    server_socket = None
+                    self._address = (self._address[0], None)
+                    continue
+                break
+            if server_socket is not None:
+                break
         logger.debug("Server socket: %s", server_socket)
         self.read_list = [server_socket]
-        if self._port is None:
+        if self._address[1] is None:
             logger.critical(
                 "Cannot open socket in the configured port range %s",
                 rest_frontend_config["PORT_RANGE"],
@@ -99,26 +115,19 @@ class RedirectorActor(BaseActor):
         elif self.my_parent is None:
             self.my_parent = sender
             return_msg = SocketMsg(
-                ip_address=self._host, port=self._port, status=Status.OK
+                ip_address=self._address[0], port=self._address[1], status=Status.OK
             )
         else:
             logger.debug("my_parent: %s", self.my_parent)
             return_msg = SocketMsg(
-                ip_address=self._host, port=self._port, status=Status.OK_SKIPPED
+                ip_address=self._address[0],
+                port=self._address[1],
+                status=Status.OK_SKIPPED,
             )
         logger.debug("Setup finished with %s", return_msg)
         self.send(sender, return_msg)
         logger.debug("Start socket loop")
         self.socket_loop_thread.start()
-        logger.info("Redirector thread in %s initialized", self.my_id)
-
-    @overrides
-    def _kill_myself(self, register=True, resurrect=False):
-        try:
-            self.read_list[0].close()
-        except (ValueError, IOError) as exception:
-            logger.error("%s in KillMsg handler of redirector", exception)
-        super()._kill_myself(register=register, resurrect=resurrect)
 
     def _cmd_handler(self):
         """Handle a binary SARAD command received via the socket."""
@@ -129,7 +138,7 @@ class RedirectorActor(BaseActor):
             except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")
                 data = None
-                time.sleep(5)
+                sleep(5)
             except (ValueError, IOError) as exception:
                 logger.error("%s in _sendall function", exception)
         if data is None:
@@ -157,7 +166,7 @@ class RedirectorActor(BaseActor):
                 return
             except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")
-                time.sleep(5)
+                sleep(5)
             except (ValueError, IOError) as exception:
                 logger.error("%s in RxBinaryMsg handler", exception)
         logger.critical("Application software seems to be dead.")
