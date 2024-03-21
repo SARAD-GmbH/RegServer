@@ -2,28 +2,35 @@
 Setup of Windows service
 ========================
 
-Packaging into a directory with EXE file
-========================================
+Step by step instruction to create the setup EXE file
+=====================================================
 
-Initially::
+1. Clone the project into a project file on a Windows PC.
+2. ``pdm install --dev``
+3. Test with ``pdm run python sarad_registration_server.py``.
+4. ``pdm run pyinstaller.exe .\src\regserver-service.spec --noconfirm``
+5. Compile the InnoSetup project in ``.\InnoSetup\setup-regserver_service.iss``.
 
-	pyinstaller -D --collect-all sarad --hidden-import=thespian.system.multiprocTCPBase .\sarad_registration_server.py
-	pyinstaller -D --collect-all sarad --hidden-import=thespian.system.multiprocTCPBase --hidden-import=win32timezone .\regserver-service.py
+Toolchain
+=========
 
-For every following run::
+The required Python-Version and all dependencies are defined in
+``pyproject.toml``. *PDM* is used to collect all dependencies in
+``__pypackages__`` and to provide the appropriate environment with ``pdm run``.
+*PyInstaller* collects all dependencies and builds
+``.\dist\regserver-service\regserver-service.exe``.
 
-	pyinstaller .\sarad_registration_server.spec
-	pyinstaller .\regserver-service.spec
+*InnoSetup* is used to create the setup EXE for the service. It will call
+``pre-compile.bat` before compilation. This batch file will call the
+*PowerShell* script ``.\copy-distribution.ps1`` in order to copy all required
+files to ``Y:\Software\Sarad_dev\regserver-service`` and to sign
+``regserver-service.exe`` with SARAD's certificate.
 
-Steps for installation
-======================
+``post-compile.bat`` that is called by *InnoSetup*, finally will copy the setup
+EXE to ``Z:\GERÄTESOFTWARE\RegServer_Service``.
 
-The following steps are to be made in `setup-rss.bat`::
-
-	.\regserver-service.exe install
-	sc.exe config SaradRegistrationServer start= delayed-auto type=own obj= "NT AUTHORITY\LocalService" password= "0123_Kennwort"
-	sc.exe failure SaradRegistrationServer reset= 60 actions= restart/5000
-  sc.exe failureflag SaradRegistrationServer 1
-	.\regserver-service.exe start
-
-The ``startstop.file`` has to be placed into a folder where the *Local Service* user has read/write access.
+During the installation ``setup-rss.bat`` will:
+- install the Windows service,
+- configure the Windows service,
+- start the Windows service,
+- set all required firewall rules by calling the *PowerShell* script ``add-firewall-rule.ps1``.

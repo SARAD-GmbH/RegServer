@@ -54,4 +54,5 @@ dev = [
     "sphinx-autodoc-typehints; sys_platform == \"linux\"",
     "sphinxcontrib-plantuml; sys_platform == \"linux\"",
     "sphinx-autoapi; sys_platform == \"linux\"",
+    "sphinx_rtd_theme; sys_platform == \"linux\"",
 ]
