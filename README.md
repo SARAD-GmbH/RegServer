@@ -38,16 +38,14 @@ For test and development, the program is prepared to run in a virtual environmen
 to clone the working directory from the git repository.
 
     cd RegServer
-    pipenv install
-    pipenv shell
+    pdm install
 
-to create the virtual environment, install all required dependencies and start
-the shell within this virtual environment.
+to create and fill the '__pypackages__' directory with all required dependencies.
 
 If you want to do further development and use modules that are only required
 during the development or to make the documentation using SPHINX, use
 
-    pipenv install --dev
+    pdm install --dev
 
 ### Configuration ###
 In the configuration file `src\config.toml`, you can switch on or off the
@@ -60,7 +58,7 @@ of this configuration file containing all configurable parameters.
 Make sure that port 8008 is not used by any other application.
 
     cd src
-    python sarad_registration_server.py
+    pdm run python sarad_registration_server.py
 
 to start the program.
 
@@ -79,7 +77,7 @@ Type, Serial number.
 Subdirectory `manual` contains the user manual.
 
 The documentation of the implementation details is in subdirectory `doc`. It is
-made with SPHINX (refer to https://www.sphinx-doc.org/en/master/). Run `make
+made with SPHINX (refer to https://www.sphinx-doc.org/en/master/). Run `pdm make
 html` in this directory to make the documentation from the source files.
 
 #### In the SARAD intranet ####
