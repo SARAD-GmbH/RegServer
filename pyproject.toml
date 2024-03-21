@@ -1,0 +1,57 @@
+[project]
+name = "RegServer"
+version = "2.3.0"
+description = "SARAD Registration Server Service"
+authors = [
+    {name = "Michael Strey", email = "strey@sarad.de"},
+]
+dependencies = [
+    "pyudev",
+    "thespian==3.10.5",
+    "flask",
+    "pyserial",
+    "hashids",
+    "pyserial-asyncio",
+    "paho-mqtt",
+    "pyyaml",
+    "appdirs",
+    "overrides",
+    "requests",
+    "waitress",
+    "modbus-tk",
+    "flask-restx",
+    "rpi-gpio; sys_platform == \"linux\"",
+    "pywin32; sys_platform == \"win32\"",
+    "gpiozero; sys_platform == \"linux\"",
+    "systemd-python; sys_platform == \"linux\"",
+    "tomlkit",
+    "zeroconf==0.118.0",
+    "sarad @ git+https://github.com/SARAD-GmbH/sarad.git@master",
+]
+requires-python = "<3.11, >=3.9"
+readme = "README.md"
+license = {text = "LGPL-3.0-or-later"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+distribution = true
+
+[[tool.pdm.source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "twine",
+    "wheel",
+    "pytest",
+    "pyinstaller",
+    "sphinx; sys_platform == \"linux\"",
+    "sphinx-autodoc-typehints; sys_platform == \"linux\"",
+    "sphinxcontrib-plantuml; sys_platform == \"linux\"",
+    "sphinx-autoapi; sys_platform == \"linux\"",
+]

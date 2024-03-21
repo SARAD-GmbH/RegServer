@@ -1,36 +1,3 @@
-*
-# Scan all the folders
-!/**/*/
-# Python inside source
-!/src/**/*.py
-# Stub files for type checking with mypy
-!/src/**/*.pyi
-# Dokumentation files (README...)
-!/*.md
-!/doc/**
-!/manual/**
-# License
-!/LICENSE
-# this file (in all subfolders)
-!.gitignore
-!.git*
-!.dir-locals.el
-# Pipenv
-!Pipfile
-!Pipfile.lock
-!/.env
-# Coding style
-!pylintrc
-!/*.ps1
-flycheck*
-# Config files
-!/src/*.toml
-# Helpful scripts
-!/bin/**
-# Distribution
-/src/dist
-
-
 # Resource files are binaries containing manifest, project icon and version info.
 # They can not be viewed as text or compared by diff-tools. Consider replacing them with .rc files.
 *.res
@@ -416,3 +383,10 @@ TSWLatexianTemp*
 
 # binary data
 *.png
+*.pyo
+
+# pdm
+__pypackages__/
+
+# individual config
+src/config.toml
