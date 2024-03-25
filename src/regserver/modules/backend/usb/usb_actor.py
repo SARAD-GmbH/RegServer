@@ -59,16 +59,6 @@ class UsbActor(DeviceBaseActor):
             target=self._check_connection,
             daemon=True,
         )
-        self.tx_binary_thread = Thread(
-            target=self._tx_binary,
-            kwargs={"data": None},
-            daemon=True,
-        )
-        self.tx_binary_thread_proceed = Thread(
-            target=self._tx_binary_proceed,
-            kwargs={"data": None},
-            daemon=True,
-        )
         self.get_recent_value_thread = Thread(
             target=self._get_recent_value,
             kwargs={
@@ -87,20 +77,20 @@ class UsbActor(DeviceBaseActor):
         self.start_measuring_thread = Thread(
             target=self._start_measuring_function, daemon=True
         )
+        self.tx_binary_thread_proceed = Thread(
+            target=self._tx_binary_proceed,
+            kwargs={"data": None},
+            daemon=True,
+        )
 
     def _start_thread(self, thread, thread_type: ThreadType):
         if (
             not self.check_connection_thread.is_alive()
-            and not self.tx_binary_thread.is_alive()
             and not self.get_recent_value_thread.is_alive()
         ):
             if thread_type == ThreadType.CHECK_CONNECTION:
                 self.check_connection_thread = thread
                 self.check_connection_thread.start()
-            elif thread_type == ThreadType.TX_BINARY:
-                self.tx_binary_thread = thread
-                self.tx_binary_thread.start()
-                self.wakeupAfter(timedelta(seconds=0.01), payload="tx_binary")
             elif thread_type == ThreadType.RECENT_VALUE:
                 self.get_recent_value_thread = thread
                 self.get_recent_value_thread.start()
@@ -202,16 +192,6 @@ class UsbActor(DeviceBaseActor):
             else:
                 self.next_method()
                 self.next_method = None
-        elif msg.payload == "tx_binary":
-            if self.next_method is None:
-                self.wakeupAfter(timedelta(seconds=0.01), payload=msg.payload)
-            elif isinstance(self.next_method, tuple):
-                self.next_method[0](self.next_method[1])
-                self.next_method = None
-            else:
-                logger.critical(
-                    "self.next_method should be a tuple and not %s.", self.next_method
-                )
         elif msg.payload == "start_measuring":
             self._start_measuring()
         elif msg.payload == "get_values":
@@ -257,87 +237,51 @@ class UsbActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Handler for binary message from App to Instrument."""
         super().receiveMsg_TxBinaryMsg(msg, sender)
-        is_reserved = self.device_status.get("Reservation", False)
-        if is_reserved:
+        self.tx_binary_thread_proceed = Thread(
+            target=self._tx_binary_proceed,
+            kwargs={"data": msg.data},
+            daemon=True,
+        )
+        if not self.tx_binary_thread_proceed.is_alive():
+            self.tx_binary_thread_proceed.start()
+
+    def _tx_binary_proceed(self, data):
+        has_reservation_section = self.device_status.get("Reservation", False)
+        if has_reservation_section:
             is_reserved = self.device_status["Reservation"].get("Active", False)
         if is_reserved:
-            self._start_thread(
-                Thread(
-                    target=self._tx_binary,
-                    kwargs={"data": msg.data},
-                    daemon=True,
-                ),
-                ThreadType.TX_BINARY,
-            )
-
-    def _tx_binary(self, data):
-        dummy_reply = self.dummy_reply(data)
-        if dummy_reply:
-            reply = dummy_reply
-            self.next_method = (self._finish_tx_binary, dummy_reply)
-            return
-        if not self.instrument.check_cmd(data):
-            logger.error("Command %s from app is invalid", data)
-            self.next_method = (self._finish_tx_binary, b"")
-            return
-        emergency = False
-        try:
-            reply = self.instrument.get_message_payload(data, timeout=3)
-        except (SerialException, OSError):
-            logger.error("Connection to %s lost", self.instrument)
-            reply = {"is_valid": False, "is_last_frame": True}
-            emergency = True
-        logger.debug("Instrument replied %s", reply)
-        if reply["is_valid"]:
-            if reply["is_last_frame"]:
-                self.next_method = (self._finish_tx_binary, reply["standard_frame"])
-            else:
-                self.next_method = (
-                    self._finish_tx_binary_proceed,
-                    reply["standard_frame"],
-                )
-        if emergency:
-            logger.info("Killing myself")
-            self._kill_myself()
-        elif not reply["is_valid"]:
-            logger.warning("Invalid binary message from instrument. %s", reply)
-            self.next_method = (self._finish_tx_binary, reply["raw"])
-
-    def _tx_binary_proceed(self):
-        emergency = False
-        try:
-            reply = self.instrument.get_next_payload(timeout=3)
-        except (SerialException, OSError):
-            logger.error("Connection to %s lost", self.my_id)
-            reply = {"is_valid": False, "is_last_frame": True}
-            emergency = True
-        if reply["is_valid"]:
-            if reply["is_last_frame"]:
-                self.next_method = (self._finish_tx_binary, reply["standard_frame"])
-            else:
-                self.next_method = (
-                    self._finish_tx_binary_proceed,
-                    reply["standard_frame"],
-                )
-        if emergency:
-            logger.info("Killing myself")
-            self._kill_myself()
-        elif not reply["is_valid"]:
-            logger.warning("Invalid binary message from instrument. %s", reply)
-            self.next_method = (self._finish_tx_binary, reply["raw"])
-
-    def _finish_tx_binary(self, data):
-        self.send(self.redirector_actor, RxBinaryMsg(data))
-
-    def _finish_tx_binary_proceed(self, data):
-        self.send(self.redirector_actor, RxBinaryMsg(data))
-        self._start_thread(
-            Thread(
-                target=self._tx_binary_proceed,
-                daemon=True,
-            ),
-            ThreadType.TX_BINARY,
-        )
+            dummy_reply = self.dummy_reply(data)
+            if dummy_reply:
+                self.send(self.redirector_actor, RxBinaryMsg(dummy_reply))
+                return
+            if not self.instrument.check_cmd(data):
+                logger.error("Command %s from app is invalid", data)
+                self.send(self.redirector_actor, RxBinaryMsg(b""))
+                return
+            emergency = False
+            read_next = True
+            while read_next:
+                try:
+                    reply = self.instrument.get_message_payload(data, timeout=3)
+                except (SerialException, OSError):
+                    logger.error("Connection to %s lost", self.instrument)
+                    reply = {"is_valid": False, "is_last_frame": True}
+                    emergency = True
+                logger.debug("Instrument replied %s", reply)
+                if reply["is_valid"]:
+                    self.send(
+                        self.redirector_actor, RxBinaryMsg(reply["standard_frame"])
+                    )
+                    read_next = not reply["is_last_frame"]
+                    data = b""
+                    continue
+                if emergency:
+                    logger.info("Killing myself")
+                    self._kill_myself()
+                    return
+                logger.warning("Invalid binary message from instrument. %s", reply)
+                self.send(self.redirector_actor, RxBinaryMsg(reply["raw"]))
+                return
 
     @overrides
     def _request_reserve_at_is(self):
