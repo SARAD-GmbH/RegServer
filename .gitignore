@@ -390,3 +390,6 @@ __pypackages__/
 
 # individual config
 src/config.toml
+
+# .pdm-python is platform specific
+.pdm-python

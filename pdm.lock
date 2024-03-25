@@ -1103,11 +1103,11 @@ files = [
 
 [[package]]
 name = "sarad"
-version = "1.0.2"
+version = "1.0.3"
 requires_python = ">=3.9"
 git = "https://github.com/SARAD-GmbH/sarad.git"
 ref = "master"
-revision = "e5c45febf80dbf215ba4a3aa9f0cd81518415be4"
+revision = "1e841585d2e3a11e74adc7a6fb735ad7de471501"
 summary = "Library and sample application to collect data from SARAD instruments."
 groups = ["default"]
 dependencies = [

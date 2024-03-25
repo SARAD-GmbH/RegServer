@@ -30,6 +30,7 @@ files to ``Y:\Software\Sarad_dev\regserver-service`` and to sign
 EXE to ``Z:\GERÄTESOFTWARE\RegServer_Service``.
 
 During the installation ``setup-rss.bat`` will:
+
 - install the Windows service,
 - configure the Windows service,
 - start the Windows service,
