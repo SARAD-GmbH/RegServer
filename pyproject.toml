@@ -1,5 +1,5 @@
 [project]
-name = "RegServer"
+name = "regserver"
 version = "2.3.0"
 description = "SARAD Registration Server Service"
 authors = [
@@ -56,3 +56,32 @@ dev = [
     "sphinx-autoapi; sys_platform == \"linux\"",
     "sphinx_rtd_theme; sys_platform == \"linux\"",
 ]
+lint = [
+    "ruff>=0.3.4",
+]
+
+[tool.pylint.MAIN]
+init-hook = """
+try: import pylint_venv
+except ImportError: pass
+else: pylint_venv.inithook()
+"""
+
+[tool.ruff]
+lint.select = [
+    "B", # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "E", # pycodestyle - Error
+    "F", # Pyflakes
+    "I", # isort
+    "W", # pycodestyle - Warning
+    "UP", # pyupgrade
+]
+
+lint.ignore = [
+]
+
+include = ["**/*.py", "**/*.pyi", "**/pyproject.toml"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
