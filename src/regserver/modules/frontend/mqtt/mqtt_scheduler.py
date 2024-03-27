@@ -26,7 +26,7 @@ from regserver.modules.ismqtt_messages import (ControlType,
                                                Reservation, get_instr_control,
                                                get_instr_reservation,
                                                get_is_meta)
-from version import VERSION
+from regserver.version import VERSION
 
 if os.name != "nt":
     from gpiozero import PWMLED  # type: ignore

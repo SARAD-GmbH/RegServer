@@ -20,7 +20,6 @@ from datetime import datetime, timedelta
 from serial.serialutil import SerialException  # type: ignore
 from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
-from version import VERSION
 
 from regserver.actor_messages import Backend, Frontend, KillMsg, SetupMsg
 from regserver.config import (actor_config, backend_config, frontend_config,
@@ -33,6 +32,7 @@ from regserver.registrar import Registrar
 from regserver.restapi import run
 from regserver.shutdown import (is_flag_set, kill_processes, set_file_flag,
                                 system_shutdown)
+from regserver.version import VERSION
 
 if os.name == "nt":
     from regserver.modules.backend.usb.win_listener import UsbListener

@@ -18,7 +18,7 @@ import win32serviceutil
 
 import regserver.main
 from regserver.shutdown import system_shutdown
-from version import VERSION
+from regserver.version import VERSION
 
 
 class SaradRegistrationServer(win32serviceutil.ServiceFramework):
@@ -57,7 +57,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         regserver.main.main()
 
 
-if __name__ == "__main__":
+def main():
     # Pyinstaller fix
     multiprocessing.freeze_support()
     if len(sys.argv) == 1:
@@ -66,3 +66,7 @@ if __name__ == "__main__":
         servicemanager.StartServiceCtrlDispatcher()
     else:
         win32serviceutil.HandleCommandLine(SaradRegistrationServer)
+
+
+if __name__ == "__main__":
+    main()
