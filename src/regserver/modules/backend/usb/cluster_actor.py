@@ -23,9 +23,9 @@ from regserver.base_actor import BaseActor
 from regserver.config import config, rs485_backend_config, usb_backend_config
 from regserver.logger import logger
 from regserver.modules.backend.usb.com_actor import ComActor
+from regserver.version import VERSION
 from sarad.sari import Route  # type: ignore
 from serial.tools.list_ports import comports, grep  # type: ignore
-from version import VERSION
 
 
 class ClusterActor(BaseActor):

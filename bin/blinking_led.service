@@ -1,0 +1,10 @@
+[Unit]
+Description=Blinking LED indicates waiting for time-sync.target
+After=getty.target
+
+[Service]
+Type=idle
+ExecStart=/usr/bin/python /home/pi/blinking_led.py
+
+[Install]
+WantedBy=multi-user.target

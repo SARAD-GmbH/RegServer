@@ -5,6 +5,13 @@ Setup of Windows service
 Step by step instruction to create the setup EXE file
 =====================================================
 
+Requirements:
+
+- Python 3
+- PDM (https://pdm-project.org)
+
+Steps:
+
 1. Clone the project into a project file on a Windows PC.
 2. ``pdm install --dev``
 3. Test with ``pdm run python sarad_registration_server.py``.
@@ -35,3 +42,106 @@ During the installation ``setup-rss.bat`` will:
 - configure the Windows service,
 - start the Windows service,
 - set all required firewall rules by calling the *PowerShell* script ``add-firewall-rule.ps1``.
+
+====================================
+Setup of Systemd service under Linux
+====================================
+
+Folders
+=======
+
+Virtual environment for RegServer and executable binary
+-------------------------------------------------------
+
+::
+
+  PIPX_HOME=/opt/pipx
+  PIPX_BIN_DIR=/usr/local/bin
+
+Configuration file
+------------------
+
+::
+
+  /etc/regserver/config.toml
+
+Keys for MQTT broker
+--------------------
+
+::
+
+  /etc/regserver/tls_*
+
+Log files
+---------
+
+::
+
+   /var/log
+
+Step by step installation
+=========================
+
+Requirements
+------------
+
+Python 3 and `Pipx <https://github.com/pypa/pipx>`_ must be installed on the
+target system.
+
+Installation of RegServer
+-------------------------
+
+::
+
+  sudo -H PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install git+http://r2d2.hq.sarad.de:3000/SARAD/RegServer.git
+
+Possible sources for the installation in the command line above are:
+
+http://r2d2.hq.sarad.de:3000/SARAD/RegServer.git
+
+and
+
+https://github.com/SARAD-GmbH/RegServer.git
+
+Setup Systemd service
+---------------------
+
+Copy the required files from the Git repository on a remote PC::
+
+  scp ./bin/regserver.service pi@araneaxxxx:/home/pi/
+  scp ./src/config.example.toml pi@araneaxxxx:/home/pi/
+
+In this example, the target is a Linux computer with hostname "araneaxxxx" and user "pi".
+
+On the target system::
+
+  sudo mv regserver.service /etc/systemd/system/
+  sudo cp config.example.toml /etc/regserver/config.toml
+  sudo systemctl enable regserver.service
+  sudo systemctl start regserver.service
+
+Check the proper function with::
+
+  systemctl status regserver.service
+
+Update of the RegServer
+=======================
+
+::
+
+  sudo -H PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx upgrade regserver
+
+Accessory to control the LED on SARAD Aranea
+============================================
+
+Copy the required files from the Git repository on a remote PC::
+
+  scp ./bin/blinking_led.py pi@araneaxxxx:/home/pi/
+  scp ./bin/blinking_led.service pi@araneaxxxx:/home/pi/
+
+
+On the target system::
+
+  sudo mv blinking_led.service /etc/systemd/system/
+  sudo systemctl enable blinking_led.service
+  sudo systemctl start blinking_led.service

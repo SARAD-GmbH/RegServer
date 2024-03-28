@@ -20,7 +20,6 @@ from thespian.actors import ActorSystem  # type: ignore
 from thespian.actors import Thespian_ActorStatus
 from thespian.system.messages.status import (  # type: ignore
     Thespian_StatusReq, formatStatus)
-from version import VERSION
 from waitress import serve
 
 from regserver.actor_messages import (AddPortToLoopMsg, BaudRateFinishedMsg,
@@ -43,6 +42,7 @@ from regserver.helpers import (check_msg, get_actor,
 from regserver.logdef import LOGFILENAME
 from regserver.logger import logger  # type: ignore
 from regserver.shutdown import system_shutdown
+from regserver.version import VERSION
 
 # logger.debug("%s -> %s", __package__, __file__)
 

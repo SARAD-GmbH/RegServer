@@ -1,6 +1,6 @@
 [project]
 name = "regserver"
-version = "2.3.0"
+version = "2.3.1"
 description = "SARAD Registration Server Service"
 authors = [
     {name = "Michael Strey", email = "strey@sarad.de"},
@@ -27,10 +27,25 @@ dependencies = [
     "tomlkit",
     "zeroconf==0.118.0",
     "sarad @ git+https://github.com/SARAD-GmbH/sarad.git@master",
+    "platformdirs>=4.2.0",
 ]
 requires-python = "<3.11, >=3.9"
 readme = "README.md"
 license = {text = "LGPL-3.0-or-later"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Programming Language :: Python :: 3",
+    "Topic :: Communications",
+]
+
+[project.scripts]
+sarad_registration_server = "regserver.main:main"
 
 [build-system]
 requires = ["pdm-backend"]
