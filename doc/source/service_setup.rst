@@ -2,6 +2,43 @@
 Setup of Windows service
 ========================
 
+Folders
+=======
+
+Program files
+-------------
+
+::
+
+   %ProgramFiles%\SARAD\RegServer-Service
+
+Configuration file
+------------------
+
+::
+
+   %ProgramData%\SARAD\RegServer-Service\config.toml
+
+During the installation the setup program will copy ``config.example.toml`` into
+this folder. It has to be renamed into or copied to ``config.toml`` in order to
+become active.
+
+Keys for MQTT broker
+--------------------
+
+::
+
+   %systemroot%\ServiceProfiles\LocalService\AppData\Local\SARAD
+
+Log files
+---------
+
+This is configurable in ``config.toml`` in key ``log_folder``. The default is::
+
+   %systemroot%\ServiceProfiles\LocalService\AppData\Local\SARAD\log
+
+
+
 Step by step instruction to create the setup EXE file
 =====================================================
 
@@ -14,7 +51,7 @@ Steps:
 
 1. Clone the project into a project file on a Windows PC.
 2. ``pdm install --dev``
-3. Test with ``pdm run python sarad_registration_server.py``.
+3. Test with ``pdm run python .\src\sarad_registration_server.py``.
 4. ``pdm run pyinstaller.exe .\src\regserver-service.spec --noconfirm``
 5. Compile the InnoSetup project in ``.\InnoSetup\setup-regserver_service.iss``.
 

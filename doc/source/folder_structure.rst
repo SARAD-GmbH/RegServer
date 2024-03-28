@@ -5,10 +5,11 @@ Folder Structure
 Project Files
 -------------
 
-* Pipfile: Contains Projectinformation as well as required dependencies
-* Pipfile.lock: All Dependencies, and dependencies of dependencies with a fixed version
+We are using `PDM <https://pdm-project.org>`_ as package und dependency manager.
+
+* pyproject.toml: Contains project information as well as required dependencies
+* pdm.lock: All dependencies with fixed versions
 * README.md: General help file
-* pylintrc: Lint formatting information (Automatically used by pydev)
 * LICENSE: current LICENSE draft
 
 src: Python Source Files
