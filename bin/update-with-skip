@@ -1,7 +1,0 @@
-#!/bin/bash
-mydir="$(cd "$(dirname "$BASH_SOURCE")"; pwd)"/..
-logdir=~/log
-mkdir -p $logdir
-logfile=$logdir/pipenv-install-log-$('/usr/bin/date' '--iso-8601=date').log
-echo ======= $('/usr/bin/date' '--iso-8601=seconds') ==== >> $logfile
-cd $mydir && pipenv install --skip-lock &>> $logfile

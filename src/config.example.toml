@@ -20,6 +20,18 @@
 ### Default: "info"
 #debug_level = "info"
 
+### Key: log_folder
+## The folder where the log files shall go to. If the user has no permisson on
+## the given folder, a fallback will be used, that will be generated from
+## platformdirs.user_log_dir().
+### Default: "/var/log/"
+#log_folder = "/var/log/"
+
+### Key: log_file
+## The name of the log file.
+### Default: "regserver.log"
+#log_file = "regserver.log"
+
 ## The following parameters `is_id`, `description`, `place`, `latitude`,
 ## `longitude`, `height`, `my_ip`, and `my_hostname` are relevant for RegServers
 ## that are connected with SARAD instruments via their USB backend, thus working
@@ -206,18 +218,18 @@
 
 ### Key: tls_ca_file
 ## This is the certificate file of the Certificate Authority (CA).
-### Default: f"{app_folder}tls_cert_sarad.pem"
-#tls_ca_file = "/home/pi/RegServer/src/None/SARAD/tls_cert_sarad.pem"
+### Default: f"{config_folder}tls_cert_sarad.pem"
+#tls_ca_file = "/etc/regserver/tls_cert_sarad.pem"
 
 ### Key: tls_key_file
 ## This is the actual key for authentication and TLS encryption.
-### Default: f"{app_folder}tls_key_personal.pem"
-#tls_key_file = "/home/pi/RegServer/src/None/SARAD/tls_key_personal.pem"
+### Default: f"{config_folder}tls_key_personal.pem"
+#tls_key_file = "/etc/regserver/tls_key_personal.pem"
 
 ### Key: tls_cert_file
 ## This is the certificate for the TLS key in PEM file format.
-### Default: f"{app_folder}tls_cert_personal.crt"
-#tls_cert_file = "/home/pi/RegServer/src/None/SARAD/tls_cert_personal.crt"
+### Default: f"{config_folder}tls_cert_personal.crt"
+#tls_cert_file = "/etc/regserver/tls_cert_personal.crt"
 
 
 ## The `mqtt_frontend` provides MQTT parameters regarding the MQTT frontend only.

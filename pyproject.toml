@@ -27,8 +27,9 @@ dependencies = [
     "tomlkit",
     "zeroconf==0.118.0",
     "sarad @ git+https://github.com/SARAD-GmbH/sarad.git@master",
+    "platformdirs>=4.2.0",
 ]
-requires-python = ">=3.9"
+requires-python = "<3.11, >=3.9"
 readme = "README.md"
 license = {text = "LGPL-3.0-or-later"}
 classifiers = [

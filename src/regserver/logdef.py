@@ -11,20 +11,17 @@ import logging
 import logging.handlers
 import os
 
-from regserver.config import app_folder, config
+from regserver.config import config, dirs
 
 LOGLEVEL = config["LEVEL"]
 
-home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
-config.setdefault("LEVEL", logging.CRITICAL)
-config.setdefault("LOG_FOLDER", f"{app_folder}log{os.path.sep}")
-config.setdefault("LOG_FILE", "regserver.log")
-
-LOGFILENAME = "regserver.log"
-if config["LOG_FILE"] is not None:
-    log_folder = config["LOG_FOLDER"]
-    log_file = config["LOG_FILE"]
-    LOGFILENAME = log_folder + log_file
+LOGFILENAME = config["LOG_FOLDER"] + config["LOG_FILE"]
+try:
+    os.makedirs(os.path.dirname(LOGFILENAME), exist_ok=True)
+    with open(LOGFILENAME, "a", encoding="utf-8") as f:
+        pass
+except PermissionError:
+    LOGFILENAME = f"{dirs.user_log_dir}{os.path.sep}{config['LOG_FILE']}"
     os.makedirs(os.path.dirname(LOGFILENAME), exist_ok=True)
     with open(LOGFILENAME, "a", encoding="utf-8") as f:
         pass

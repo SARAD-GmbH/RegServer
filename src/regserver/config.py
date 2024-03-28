@@ -11,11 +11,11 @@ import logging
 import os
 import re
 import socket
-import sys
 from typing import List, Union
 from uuid import getnode as get_mac
 
 import tomlkit
+from platformdirs import PlatformDirs
 from zeroconf import IPVersion
 
 from regserver.actor_messages import Backend, Frontend
@@ -68,13 +68,19 @@ def unique_id(ambiguous_id):
 
 
 home = os.environ.get("HOME") or os.environ.get("LOCALAPPDATA")
-app_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
-if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-    # We are running in a bundle
-    config_path = f"{os.path.dirname(sys.executable)}{os.path.sep}"
+os.environ["XDG_CONFIG_DIRS"] = "/etc:/usr/local/etc"
+if os.name == "nt":
+    APP_NAME = "RegServer-Service"
 else:
-    config_path = f"{os.path.abspath(os.getcwd())}{os.path.sep}"
-config_file = f"{config_path}config.toml"
+    APP_NAME = "regserver"
+APP_VENDOR = "SARAD"
+dirs = PlatformDirs(APP_NAME, APP_VENDOR)
+config_folder = f"{dirs.site_config_dir}{os.path.sep}"
+config_file = f"{config_folder}config.toml"
+if os.name == "nt":
+    tls_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
+else:
+    tls_folder = config_folder
 try:
     with open(config_file, "rt", encoding="utf8") as custom_file:
         customization = tomlkit.load(custom_file)
@@ -100,6 +106,11 @@ if customization.value.get("debug_level") in level_dict:
     DEBUG_LEVEL = level_dict[customization.value["debug_level"]]
 else:
     DEBUG_LEVEL = DEFAULT_LEVEL
+if os.name == "nt":
+    DEFAULT_LOG_FOLDER = f"{tls_folder}log{os.path.sep}"
+else:
+    DEFAULT_LOG_FOLDER = "/var/log/"
+DEFAULT_LOG_FILE = "regserver.log"
 try:
     DEFAULT_IS_ID = socket.gethostname()
 except Exception:  # pylint: disable=broad-except
@@ -109,6 +120,8 @@ DEFAULT_MY_HOSTNAME = get_hostname(DEFAULT_MY_IP)
 
 config = {
     "LEVEL": DEBUG_LEVEL,
+    "LOG_FOLDER": customization.value.get("log_folder", DEFAULT_LOG_FOLDER),
+    "LOG_FILE": customization.value.get("log_file", DEFAULT_LOG_FILE),
     "IS_ID": customization.value.get("is_id", DEFAULT_IS_ID),
     "DESCRIPTION": customization.value.get("description", DEFAULT_DESCRIPTION),
     "PLACE": customization.value.get("place", DEFAULT_PLACE),
@@ -145,9 +158,9 @@ DEFAULT_KEEPALIVE = 60
 DEFAULT_QOS = 1
 DEFAULT_RETRY_INTERVAL = 5
 DEFAULT_TLS_USE_TLS = True
-DEFAULT_TLS_CA_FILE = f"{app_folder}tls_cert_sarad.pem"
-DEFAULT_TLS_KEY_FILE = f"{app_folder}tls_key_personal.pem"
-DEFAULT_TLS_CERT_FILE = f"{app_folder}tls_cert_personal.crt"
+DEFAULT_TLS_CA_FILE = f"{tls_folder}tls_cert_sarad.pem"
+DEFAULT_TLS_KEY_FILE = f"{tls_folder}tls_key_personal.pem"
+DEFAULT_TLS_CERT_FILE = f"{tls_folder}tls_cert_personal.crt"
 tls_present = os.path.isfile(DEFAULT_TLS_CERT_FILE)
 if tls_present:
     with open(DEFAULT_TLS_CERT_FILE, "r", encoding="utf8") as cert_file:

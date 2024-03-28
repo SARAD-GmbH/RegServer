@@ -22,8 +22,9 @@ from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
 
 from regserver.actor_messages import Backend, Frontend, KillMsg, SetupMsg
-from regserver.config import (actor_config, backend_config, frontend_config,
-                              mdns_backend_config, rest_frontend_config)
+from regserver.config import (actor_config, backend_config, config_file,
+                              frontend_config, mdns_backend_config,
+                              rest_frontend_config)
 from regserver.logdef import LOGFILENAME, logcfg
 from regserver.logger import logger
 from regserver.modules.backend.mdns.mdns_listener import MdnsListener
@@ -310,6 +311,7 @@ def main():
     try:
         with open(LOGFILENAME, "w", encoding="utf8") as _:
             logger.info("SARAD Registration Server %s", VERSION)
+            logger.info("Configuration taken from %s", config_file)
             logger.info("Log entries go to %s", LOGFILENAME)
     except Exception:  # pylint: disable=broad-except
         logger.error("Initialization of log file failed.")
