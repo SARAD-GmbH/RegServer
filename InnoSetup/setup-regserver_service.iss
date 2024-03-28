@@ -2,12 +2,13 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "RegServer-Service"
-#define MyAppVersion "2.3.0"
+#define MyAppVersion "2.3.1"
 #define MyAppPublisher "SARAD"
 #define MyAppURL "https://www.sarad.de"
-#define MyOutputDir "D:\bin\RegServer-Service"
-#define Source "Y:\Software\Sarad_dev\regserver-service"
+#define MyOutputDir "..\dist"
+#define Source "..\dist\regserver-service"
 #define Destination "{commonpf64}\SARAD\RegServer-Service"
+#define Config "{commonappdata}\SARAD\RegServer-Service"
 #define Distribution "\\server\system\distribution"
 #define DriverExeName "CDM212364_Setup.exe"
 
@@ -69,6 +70,7 @@ Name: "ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
 [Files]
 ; Source: "{#Distribution}\{#DriverExeName}"; DestDir: "{tmp}"; Flags: deleteafterinstall; Components: Drivers
 Source: "{#Source}\*"; DestDir: "{#Destination}"; Flags: createallsubdirs recursesubdirs promptifolder restartreplace uninsrestartdelete; Components: RS
+Source: "{#Source}\config.example.toml"; DestDir: "{#Config}"; Components: RS
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Run]
