@@ -1,8 +1,8 @@
 ================
-Folder Structure
+Folder structure
 ================
 
-Project Files
+Project files
 -------------
 
 We are using `PDM <https://pdm-project.org>`_ as package und dependency manager.
@@ -12,7 +12,13 @@ We are using `PDM <https://pdm-project.org>`_ as package und dependency manager.
 * README.md: General help file
 * LICENSE: current LICENSE draft
 
-src: Python Source Files
+systemd: Installation as Systemd service under Linux
+----------------------------------------------------
+
+Files and scripts for the installation as Systemd service under Linux.
+
+
+src: Python source files
 ------------------------
 
 * modules: Contains code that is specific to a special implementation of the RegServer
