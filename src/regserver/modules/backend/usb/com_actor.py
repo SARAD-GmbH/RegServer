@@ -33,13 +33,12 @@ class ComActor(BaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self.loop_running: bool = False
-        self.stop_loop: bool = False
+        self.polling_loop_running: bool = False
+        self.stop_polling: bool = False
         self.route = None
-        self.loop_interval = 0
+        self.polling_interval = 0
         self.poll_doseman = False
-        self.loop_thread = Thread(target=self._loop_function, daemon=True)
-        self.next_method = None
+        self.detect_instr_thread = Thread(target=self._detect_instr, daemon=True)
         self.instrument = None
 
     def receiveMsg_SetupComActorMsg(self, msg, sender):
@@ -47,11 +46,11 @@ class ComActor(BaseActor):
         """Handle message to initialize ComActor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.route = msg.route
-        self.loop_interval = msg.loop_interval
+        self.polling_interval = msg.loop_interval
         if self.child_actors:
             logger.debug("%s: Update device actor", self.my_id)
             self._forward_to_children(KillMsg())
-            self.stop_loop = self.loop_running
+            self.stop_polling = self.polling_loop_running
             # refer to receiveMsg_ChildActorExited()
         else:
             logger.debug("%s: Update -- no child", self.my_id)
@@ -66,54 +65,44 @@ class ComActor(BaseActor):
             self._start_polling()
 
     def _do_loop(self) -> None:
-        if not self.loop_thread.is_alive():
-            self.loop_thread = Thread(target=self._loop_function, daemon=True)
+        if not self.detect_instr_thread.is_alive():
+            self.detect_instr_thread = Thread(target=self._detect_instr, daemon=True)
             try:
-                self.loop_thread.start()
-                self.wakeupAfter(timedelta(seconds=0.5), payload="loop")
+                self.detect_instr_thread.start()
             except RuntimeError:
                 pass
 
-    def _loop_function(self) -> None:
-        logger.debug("[_do_loop] %s", self.route)
+    def _detect_instr(self) -> None:
+        logger.debug("[_detect_instr] %s", self.route)
         self.instrument = None
         if not self.child_actors:
             self.instrument = self._get_instrument(self.route)
         if self.instrument is not None:
-            self.next_method = self._create_and_setup_actor
-        else:
-            self.next_method = self._do_nothing
+            self._create_and_setup_actor()
 
     def _start_polling(self):
-        if self.loop_interval and (not self.loop_running):
+        if self.polling_interval and (not self.polling_loop_running):
             logger.info(
                 "%s: Start polling %s every %d s.",
                 self.my_id,
                 self.route,
-                self.loop_interval,
+                self.polling_interval,
             )
-            self.loop_running = True
-            self.wakeupAfter(self.loop_interval)
+            self.polling_loop_running = True
+            self.wakeupAfter(self.polling_interval)
         else:
-            self.stop_loop = False
+            self.stop_polling = False
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
         logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
-        if msg.payload == "loop":
-            if self.next_method is None:
-                self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
-            else:
-                self.next_method()
-                self.next_method = None
-        elif msg.payload is None:
-            if (not self.on_kill) and self.loop_interval and not self.stop_loop:
-                self._do_loop()
-                self.wakeupAfter(self.loop_interval)
-                self.loop_running = True
-            else:
-                self.loop_running = False
+        if (not self.on_kill) and self.polling_interval and not self.stop_polling:
+            self._do_loop()
+            self.wakeupAfter(self.polling_interval)
+            self.polling_loop_running = True
+        else:
+            self.polling_loop_running = False
 
     def _get_instrument(self, route) -> Union[SI, None]:
         hid = Hashids()
@@ -148,7 +137,7 @@ class ComActor(BaseActor):
                 test_instrument.release_instrument()
             except (SerialException, OSError) as exception:
                 logger.error("%s: %s not accessible: %s", self.my_id, route, exception)
-                self.next_method = self._kill_myself
+                self._kill_myself()
                 break
         if instr_id is not None:
             return test_instrument
@@ -181,8 +170,8 @@ class ComActor(BaseActor):
         if (family == 1) and (self.instrument.type_id in (1, 2)):
             # DOSEman and DOSEman Pro are using an IR cradle with USB/ser adapter
             self.poll_doseman = True
-            if (not self.loop_running) and not self.loop_interval:
-                self.loop_interval = usb_backend_config["LOCAL_RETRY_INTERVAL"]
+            if (not self.polling_loop_running) and not self.polling_interval:
+                self.polling_interval = usb_backend_config["LOCAL_RETRY_INTERVAL"]
                 self._start_polling()
         else:
             self.poll_doseman = False
@@ -210,7 +199,7 @@ class ComActor(BaseActor):
             SetupUsbActorMsg(
                 self.instrument.route,
                 self.instrument.family,
-                bool(self.loop_interval) or self.poll_doseman,
+                bool(self.polling_interval) or self.poll_doseman,
             ),
         )
 
