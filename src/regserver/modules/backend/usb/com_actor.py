@@ -8,10 +8,10 @@
 
 """
 
-from datetime import timedelta
 from threading import Thread
 from typing import Union
 
+import serial.tools.list_ports as list_ports
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (KillMsg, SetDeviceStatusMsg,
@@ -106,7 +106,10 @@ class ComActor(BaseActor):
 
     def _get_instrument(self, route) -> Union[SI, None]:
         hid = Hashids()
-        instruments_to_test = (DacmInst(), RscInst(), DosemanInst())
+        instruments_to_test = (DosemanInst(), DacmInst(), RscInst())
+        for port in list_ports.grep(r"(?i)radon"):
+            if route.port == port.device:
+                instruments_to_test = (DacmInst(), RscInst(), DosemanInst())
         instr_id = None
         for test_instrument in instruments_to_test:
             try:
