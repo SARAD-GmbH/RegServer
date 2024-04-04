@@ -33,8 +33,8 @@ class ComActor(BaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self.polling_loop_running: bool = False
-        self.stop_polling: bool = False
+        self.polling_loop_running = False
+        self.stop_polling = False
         self.route = None
         self.polling_interval = 0
         self.poll_doseman = False

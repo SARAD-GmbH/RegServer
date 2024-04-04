@@ -54,7 +54,6 @@ class UsbActor(DeviceBaseActor):
         super().__init__()
         self.instrument: Union[SaradInst, None] = None
         self.is_connected = True
-        self.next_method = None
         self.check_connection_thread = Thread(
             target=self._check_connection,
             daemon=True,
@@ -105,10 +104,9 @@ class UsbActor(DeviceBaseActor):
         if self.instrument is not None:
             self.is_connected = self.instrument.get_description()
         if purpose == Purpose.WAKEUP:
-            self.next_method = self._finish_poll
+            self._finish_poll()
         elif purpose == Purpose.RESERVE:
-            logger.debug("Call _finish_reserve at next Wakeup")
-            self.next_method = self._finish_reserve
+            self._finish_reserve()
 
     def receiveMsg_SetupUsbActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -178,20 +176,9 @@ class UsbActor(DeviceBaseActor):
                         ),
                         thread_type=ThreadType.CHECK_CONNECTION,
                     )
-                self.wakeupAfter(timedelta(seconds=0.5), payload="poll")
         elif isinstance(msg.payload, tuple) and isinstance(msg.payload[0], Thread):
             logger.debug("Start %s thread", msg.payload[1])
             self._start_thread(msg.payload[0], msg.payload[1])
-        elif msg.payload in ("reserve", "poll"):
-            if self.next_method is None:
-                self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
-            elif isinstance(self.next_method, tuple):
-                logger.critical(
-                    "self.next_method should be a method and not %s.", self.next_method
-                )
-            else:
-                self.next_method()
-                self.next_method = None
         elif msg.payload == "start_measuring":
             self._start_measuring()
         elif msg.payload == "get_values":
@@ -302,7 +289,6 @@ class UsbActor(DeviceBaseActor):
             ),
             ThreadType.CHECK_CONNECTION,
         )
-        self.wakeupAfter(timedelta(seconds=0.5), payload="reserve")
 
     def _finish_reserve(self):
         """Forward the reservation state from the Instrument Server to the REST API."""
