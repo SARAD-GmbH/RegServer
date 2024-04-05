@@ -9,9 +9,9 @@
 """
 
 from threading import Thread
+from time import sleep
 from typing import Union
 
-import serial.tools.list_ports as list_ports
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (KillMsg, SetDeviceStatusMsg,
@@ -25,6 +25,7 @@ from sarad.doseman import DosemanInst  # type: ignore
 from sarad.radonscout import RscInst  # type: ignore
 from sarad.sari import SI  # type: ignore
 from serial import SerialException  # type: ignore
+from serial.tools import list_ports
 
 
 class ComActor(BaseActor):
@@ -40,6 +41,7 @@ class ComActor(BaseActor):
         self.poll_doseman = False
         self.detect_instr_thread = Thread(target=self._detect_instr, daemon=True)
         self.instrument = None
+        self.guessed_family = None  # id of instrument family
 
     def receiveMsg_SetupComActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -54,6 +56,15 @@ class ComActor(BaseActor):
             # refer to receiveMsg_ChildActorExited()
         else:
             logger.debug("%s: Update -- no child", self.my_id)
+            self.guessed_family = 1  # DOSEman family
+            for port in list_ports.grep(r"(?i)monitor"):
+                if self.route.port == port.device:
+                    self.guessed_family = 5  # DACM family
+            for port in list_ports.grep(r"(?i)scout"):
+                if self.route.port == port.device:
+                    self.guessed_family = 2  # RadonScout family
+            if self.guessed_family == 5:
+                sleep(2.5)  # Wait for the relay
             self._do_loop()
             self._start_polling()
 
@@ -106,10 +117,12 @@ class ComActor(BaseActor):
 
     def _get_instrument(self, route) -> Union[SI, None]:
         hid = Hashids()
-        instruments_to_test = (DosemanInst(), DacmInst(), RscInst())
-        for port in list_ports.grep(r"(?i)radon"):
-            if route.port == port.device:
-                instruments_to_test = (DacmInst(), RscInst(), DosemanInst())
+        if self.guessed_family == 2:
+            instruments_to_test = (RscInst(), DacmInst(), DosemanInst())
+        elif self.guessed_family == 5:
+            instruments_to_test = (DacmInst(), RscInst(), DosemanInst())
+        else:
+            instruments_to_test = (DosemanInst(), DacmInst(), RscInst())
         instr_id = None
         for test_instrument in instruments_to_test:
             try:

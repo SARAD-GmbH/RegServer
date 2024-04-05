@@ -1144,7 +1144,7 @@ version = "1.0.4"
 requires_python = ">=3.9"
 git = "https://github.com/SARAD-GmbH/sarad.git"
 ref = "master"
-revision = "442d6058dc861e039636d8b8d8276787604ff32d"
+revision = "39877b59b83bcb03ecb369217920a9dfb0745021"
 summary = "Library and sample application to collect data from SARAD instruments."
 groups = ["default"]
 dependencies = [
