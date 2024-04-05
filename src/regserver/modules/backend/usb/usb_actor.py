@@ -149,7 +149,7 @@ class UsbActor(DeviceBaseActor):
             logger.info("Set RTC of %s to %s", self.my_id, now)
             self.instrument.set_real_time_clock(now)
         self.instrument.release_instrument()
-        logger.info("Instrument with Id %s detected.", self.my_id)
+        logger.debug("Instrument with Id %s detected.", self.my_id)
         return
 
     def receiveMsg_WakeupMessage(self, msg, _sender):

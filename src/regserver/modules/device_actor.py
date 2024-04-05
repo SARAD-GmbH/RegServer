@@ -8,6 +8,7 @@
     | Michael Strey <strey@sarad.de>
 
 """
+
 from datetime import datetime, timedelta, timezone
 
 from overrides import overrides  # type: ignore
@@ -88,7 +89,7 @@ class DeviceBaseActor(BaseActor):
         if msg.device_status.get("State", False):
             self.device_status["State"] = msg.device_status["State"]
         logger.info(
-            "Device actor %s created or updated at %s. is_id = %s",
+            "%s created or updated at %s. is_id = %s",
             self.my_id,
             self.device_status["Identification"].get("Host"),
             self.device_status["Identification"].get("IS Id"),
@@ -451,7 +452,7 @@ class DeviceBaseActor(BaseActor):
     def receiveMsg_ActorExitRequest(self, msg, sender):
         super().receiveMsg_ActorExitRequest(msg, sender)
         logger.info(
-            "Device actor %s exited at %s.",
+            "%s exited at %s.",
             self.my_id,
             self.device_status["Identification"]["Host"],
         )

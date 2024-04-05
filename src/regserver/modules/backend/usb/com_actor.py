@@ -43,6 +43,24 @@ class ComActor(BaseActor):
         self.instrument = None
         self.guessed_family = None  # id of instrument family
 
+    def _guess_family(self):
+        family_mapping = [
+            (r"(?i)irda", 1),
+            (r"(?i)monitor", 5),
+            (r"(?i)scout|(?i)smart", 2),
+        ]
+        self.guessed_family = 1  # DOSEman family
+        for mapping in family_mapping:
+            for port in list_ports.grep(mapping[0]):
+                if self.route.port == port.device:
+                    self.guessed_family = mapping[1]
+                    logger.info(
+                        "%s, %s, #%d",
+                        port.device,
+                        port.description,
+                        self.guessed_family,
+                    )
+
     def receiveMsg_SetupComActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handle message to initialize ComActor."""
@@ -56,13 +74,7 @@ class ComActor(BaseActor):
             # refer to receiveMsg_ChildActorExited()
         else:
             logger.debug("%s: Update -- no child", self.my_id)
-            self.guessed_family = 1  # DOSEman family
-            for port in list_ports.grep(r"(?i)monitor"):
-                if self.route.port == port.device:
-                    self.guessed_family = 5  # DACM family
-            for port in list_ports.grep(r"(?i)scout"):
-                if self.route.port == port.device:
-                    self.guessed_family = 2  # RadonScout family
+            self._guess_family()
             if self.guessed_family == 5:
                 sleep(2.5)  # Wait for the relay
             self._do_loop()
