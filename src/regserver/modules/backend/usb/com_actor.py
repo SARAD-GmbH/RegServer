@@ -20,12 +20,10 @@ from regserver.base_actor import BaseActor
 from regserver.config import config, usb_backend_config
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
-from sarad.dacm import DacmInst  # type: ignore
 from sarad.doseman import DosemanInst  # type: ignore
-from sarad.radonscout import RscInst  # type: ignore
-from sarad.sari import SI  # type: ignore
+from sarad.sari import SI, SaradInst, sarad_family  # type: ignore
 from serial import SerialException  # type: ignore
-from serial.tools import list_ports
+from serial.tools import list_ports  # type: ignore
 
 
 class ComActor(BaseActor):
@@ -38,9 +36,7 @@ class ComActor(BaseActor):
         self.stop_polling = False
         self.route = None
         self.polling_interval = 0
-        self.poll_doseman = False
         self.detect_instr_thread = Thread(target=self._detect_instr, daemon=True)
-        self.instrument = None
         self.guessed_family = None  # id of instrument family
 
     def _guess_family(self):
@@ -49,7 +45,7 @@ class ComActor(BaseActor):
             (r"(?i)monitor", 5),
             (r"(?i)scout|(?i)smart", 2),
         ]
-        self.guessed_family = 1  # DOSEman family
+        self.guessed_family = 1  # DOSEman family is the default
         for mapping in family_mapping:
             for port in list_ports.grep(mapping[0]):
                 if self.route.port == port.device:
@@ -97,11 +93,10 @@ class ComActor(BaseActor):
 
     def _detect_instr(self) -> None:
         logger.debug("[_detect_instr] %s", self.route)
-        self.instrument = None
         if not self.child_actors:
-            self.instrument = self._get_instrument(self.route)
-        if self.instrument is not None:
-            self._create_and_setup_actor()
+            instrument = self._get_instrument(self.route)
+        if instrument is not None:
+            self._create_and_setup_actor(instrument)
 
     def _start_polling(self):
         if self.polling_interval and (not self.polling_loop_running):
@@ -129,12 +124,10 @@ class ComActor(BaseActor):
 
     def _get_instrument(self, route) -> Union[SI, None]:
         hid = Hashids()
-        if self.guessed_family == 2:
-            instruments_to_test = (RscInst(), DacmInst(), DosemanInst())
-        elif self.guessed_family == 5:
-            instruments_to_test = (DacmInst(), RscInst(), DosemanInst())
+        if self.guessed_family in (2, 5):
+            instruments_to_test = (SaradInst(family=sarad_family(0)), DosemanInst())
         else:
-            instruments_to_test = (DosemanInst(), DacmInst(), RscInst())
+            instruments_to_test = (DosemanInst(), SaradInst(family=sarad_family(0)))
         instr_id = None
         for test_instrument in instruments_to_test:
             try:
@@ -174,16 +167,14 @@ class ComActor(BaseActor):
     def _do_nothing(self):
         logger.debug("No new instrument found on %s", self.my_id)
 
-    def _create_and_setup_actor(self):
+    def _create_and_setup_actor(self, instrument):
         logger.debug("[_create_and_setup_actor] on %s", self.my_id)
         try:
-            family = self.instrument.family["family_id"]
+            family = instrument.family["family_id"]
         except AttributeError:
-            logger.error(
-                "_create_and_setup_called but self.instrument is %s", self.instrument
-            )
+            logger.error("_create_and_setup_called but instrument is %s", instrument)
             return
-        instr_id = self.instrument.device_id
+        instr_id = instrument.device_id
         if family == 5:
             sarad_type = "sarad-dacm"
         elif family in [1, 2]:
@@ -195,29 +186,29 @@ class ComActor(BaseActor):
                 family,
             )
             sarad_type = "unknown"
-        if (family == 1) and (self.instrument.type_id in (1, 2)):
-            # DOSEman and DOSEman Pro are using an IR cradle with USB/ser adapter
-            self.poll_doseman = True
+        if (family == 1) and (instrument.type_id in (1, 2, 3)):
+            # DOSEman, DOSEman Pro, and MyRIAM are using an IR cradle with USB/ser adapter
+            poll_doseman = True
             if (not self.polling_loop_running) and not self.polling_interval:
                 self.polling_interval = usb_backend_config["LOCAL_RETRY_INTERVAL"]
                 self._start_polling()
         else:
-            self.poll_doseman = False
+            poll_doseman = False
         actor_id = f"{instr_id}.{sarad_type}.local"
         logger.debug("Create actor %s on %s", actor_id, self.my_id)
         device_actor = self._create_actor(UsbActor, actor_id, None)
         device_status = {
             "Identification": {
-                "Name": self.instrument.type_name,
+                "Name": instrument.type_name,
                 "Family": family,
-                "Type": self.instrument.type_id,
-                "Serial number": self.instrument.serial_number,
-                "Firmware version": self.instrument.software_version,
+                "Type": instrument.type_id,
+                "Serial number": instrument.serial_number,
+                "Firmware version": instrument.software_version,
                 "Host": "127.0.0.1",
                 "Protocol": sarad_type,
                 "IS Id": config["IS_ID"],
             },
-            "Serial": self.instrument.route.port,
+            "Serial": instrument.route.port,
             "State": 2,
         }
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
@@ -225,9 +216,9 @@ class ComActor(BaseActor):
         self.send(
             device_actor,
             SetupUsbActorMsg(
-                self.instrument.route,
-                self.instrument.family,
-                bool(self.polling_interval) or self.poll_doseman,
+                instrument.route,
+                instrument.family,
+                bool(self.polling_interval) or poll_doseman,
             ),
         )
 
