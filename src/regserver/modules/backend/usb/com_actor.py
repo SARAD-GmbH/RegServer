@@ -44,12 +44,22 @@ class ComActor(BaseActor):
             (r"(?i)irda", 1),
             (r"(?i)monitor", 5),
             (r"(?i)scout|(?i)smart", 2),
+            (r"(?i)ft232", 4),
         ]
-        self.guessed_family = 1  # DOSEman family is the default
         for mapping in family_mapping:
             for port in list_ports.grep(mapping[0]):
                 if self.route.port == port.device:
                     self.guessed_family = mapping[1]
+                    logger.info(
+                        "%s, %s, #%d",
+                        port.device,
+                        port.description,
+                        self.guessed_family,
+                    )
+        if self.guessed_family is None:
+            self.guessed_family = 1  # DOSEman family is the default
+            for port in list_ports.comports():
+                if self.route.port == port.device:
                     logger.info(
                         "%s, %s, #%d",
                         port.device,
@@ -73,6 +83,8 @@ class ComActor(BaseActor):
             self._guess_family()
             if self.guessed_family == 5:
                 sleep(2.5)  # Wait for the relay
+            elif self.guessed_family == 4:
+                sleep(8)  # Wait for ZigBee coordinator to start
             self._do_loop()
             self._start_polling()
 
@@ -124,7 +136,7 @@ class ComActor(BaseActor):
 
     def _get_instrument(self, route) -> Union[SI, None]:
         hid = Hashids()
-        if self.guessed_family in (2, 5):
+        if self.guessed_family in (2, 4, 5):
             instruments_to_test = (SaradInst(family=sarad_family(0)), DosemanInst())
         else:
             instruments_to_test = (DosemanInst(), SaradInst(family=sarad_family(0)))
