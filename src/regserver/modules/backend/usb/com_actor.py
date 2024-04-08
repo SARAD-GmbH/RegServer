@@ -145,7 +145,11 @@ class ComActor(BaseActor):
             try:
                 test_instrument.route = route
                 if not test_instrument.valid_family:
-                    logger.debug("Family not valid")
+                    logger.debug(
+                        "Family %s not valid on port %s",
+                        test_instrument.family["family_name"],
+                        self.route.port,
+                    )
                     test_instrument.release_instrument()
                     continue
                 logger.debug(
