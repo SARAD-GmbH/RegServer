@@ -19,6 +19,7 @@ from regserver.actor_messages import (KillMsg, SetDeviceStatusMsg,
 from regserver.base_actor import BaseActor
 from regserver.config import config, usb_backend_config
 from regserver.logger import logger
+from regserver.modules.backend.usb.net_usb_actor import NetUsbActor
 from regserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.doseman import DosemanInst  # type: ignore
 from sarad.sari import SI, SaradInst, sarad_family  # type: ignore
@@ -193,7 +194,7 @@ class ComActor(BaseActor):
         instr_id = instrument.device_id
         if family == 5:
             sarad_type = "sarad-dacm"
-        elif family in [1, 2]:
+        elif family in [1, 2, 4]:
             sarad_type = "sarad-1688"
         else:
             logger.error(
@@ -212,7 +213,10 @@ class ComActor(BaseActor):
             poll_doseman = False
         actor_id = f"{instr_id}.{sarad_type}.local"
         logger.debug("Create actor %s on %s", actor_id, self.my_id)
-        device_actor = self._create_actor(UsbActor, actor_id, None)
+        if family == 4:
+            device_actor = self._create_actor(NetUsbActor, actor_id, None)
+        else:
+            device_actor = self._create_actor(UsbActor, actor_id, None)
         device_status = {
             "Identification": {
                 "Name": instrument.type_name,

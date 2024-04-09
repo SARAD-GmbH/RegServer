@@ -15,13 +15,14 @@ from threading import Thread
 from typing import Union
 
 from hashids import Hashids  # type: ignore
-from overrides import overrides  # type: ignore
+from overrides import overrides
 from regserver.actor_messages import (Gps, RecentValueMsg, RescanMsg,
                                       RxBinaryMsg, Status)
 from regserver.config import usb_backend_config
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
+from sarad.cluster import NetworkInst  # type: ignore
 from sarad.dacm import DacmInst  # type: ignore
 from sarad.doseman import DosemanInst  # type: ignore
 from sarad.radonscout import RscInst  # type: ignore
@@ -133,6 +134,8 @@ class UsbActor(DeviceBaseActor):
             family_class = DosemanInst
         elif family_id == 2:
             family_class = RscInst
+        elif family_id == 4:
+            family_class = NetworkInst
         elif family_id == 5:
             family_class = DacmInst
         else:

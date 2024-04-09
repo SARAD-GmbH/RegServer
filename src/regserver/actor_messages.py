@@ -8,7 +8,7 @@ commands and data within the actor system
     | Michael Strey <strey@sarad.de>
 
 """
-import socket
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, IntEnum, unique
