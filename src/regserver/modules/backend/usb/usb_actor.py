@@ -17,15 +17,12 @@ from typing import Union
 from hashids import Hashids  # type: ignore
 from overrides import overrides
 from regserver.actor_messages import (Gps, RecentValueMsg, RescanMsg,
-                                      RxBinaryMsg, Status)
-from regserver.config import usb_backend_config
+                                      RxBinaryMsg, SetDeviceStatusMsg, Status)
+from regserver.config import config, usb_backend_config
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
-from sarad.cluster import NetworkInst  # type: ignore
-from sarad.dacm import DacmInst  # type: ignore
-from sarad.doseman import DosemanInst  # type: ignore
-from sarad.radonscout import RscInst  # type: ignore
+from sarad.mapping import id_family_mapping  # type: ignore
 from sarad.sari import SaradInst  # type: ignore
 from serial import SerialException  # type: ignore
 
@@ -130,19 +127,11 @@ class UsbActor(DeviceBaseActor):
         self.setup_thread.start()
 
     def _setup(self, family_id=None, route=None):
-        if family_id == 1:
-            family_class = DosemanInst
-        elif family_id == 2:
-            family_class = RscInst
-        elif family_id == 4:
-            family_class = NetworkInst
-        elif family_id == 5:
-            family_class = DacmInst
-        else:
+        self.instrument = id_family_mapping.get(family_id)
+        if self.instrument is None:
             logger.critical("Family %s not supported", family_id)
             self.is_connected = False
             return
-        self.instrument = family_class()
         self.instrument.route = route
         if usb_backend_config["SET_RTC"]:
             if usb_backend_config["USE_UTC"]:
@@ -151,6 +140,26 @@ class UsbActor(DeviceBaseActor):
                 now = datetime.now()
             logger.info("Set RTC of %s to %s", self.my_id, now)
             self.instrument.set_real_time_clock(now)
+        if family_id == 5:
+            sarad_type = "sarad-dacm"
+        elif family_id in [1, 2, 4]:
+            sarad_type = "sarad-1688"
+        device_status = {
+            "Identification": {
+                "Name": self.instrument.type_name,
+                "Family": family_id,
+                "Type": self.instrument.type_id,
+                "Serial number": self.instrument.serial_number,
+                "Firmware version": self.instrument.software_version,
+                "Host": "127.0.0.1",
+                "Protocol": sarad_type,
+                "IS Id": config["IS_ID"],
+            },
+            "Serial": self.instrument.route.port,
+            "State": 2,
+        }
+        self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
+        self._publish_status_change()
         self.instrument.release_instrument()
         logger.debug("Instrument with Id %s detected.", self.my_id)
         return

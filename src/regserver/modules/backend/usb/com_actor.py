@@ -217,22 +217,6 @@ class ComActor(BaseActor):
             device_actor = self._create_actor(NetUsbActor, actor_id, None)
         else:
             device_actor = self._create_actor(UsbActor, actor_id, None)
-        device_status = {
-            "Identification": {
-                "Name": instrument.type_name,
-                "Family": family,
-                "Type": instrument.type_id,
-                "Serial number": instrument.serial_number,
-                "Firmware version": instrument.software_version,
-                "Host": "127.0.0.1",
-                "Protocol": sarad_type,
-                "IS Id": config["IS_ID"],
-            },
-            "Serial": instrument.route.port,
-            "State": 2,
-        }
-        logger.debug("Setup device actor %s with %s", actor_id, device_status)
-        self.send(device_actor, SetDeviceStatusMsg(device_status))
         self.send(
             device_actor,
             SetupUsbActorMsg(
