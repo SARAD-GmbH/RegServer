@@ -137,7 +137,7 @@ class Registrar(BaseActor):
         """
         logger.error("The actor %s already exists in the system.", actor_id)
         self.send(sender, KillMsg(register=False))
-        if actor_type == ActorType.DEVICE:
+        if actor_type in (ActorType.DEVICE, ActorType.NODE):
             hid = Hashids()
             serial_number = hid.decode(short_id(actor_id))[2]
             if serial_number == 65535:
@@ -261,7 +261,7 @@ class Registrar(BaseActor):
             )
             self.send(sender, MqttConnectMsg())
         logger.debug("MQTT group of %s = %s", msg.actor_id, mqtt_config["GROUP"])
-        if msg.actor_type == ActorType.DEVICE:
+        if msg.actor_type in (ActorType.DEVICE, ActorType.NODE):
             self._handle_device_actor(sender, msg.actor_id)
         elif msg.actor_type == ActorType.HOST:
             self.send(sender, GetHostInfoMsg())
@@ -337,7 +337,7 @@ class Registrar(BaseActor):
         device_actor_dict = {
             id: dict["address"]
             for id, dict in self.actor_dict.items()
-            if (dict["actor_type"] == ActorType.DEVICE)
+            if (dict["actor_type"] in (ActorType.DEVICE, ActorType.NODE))
         }
         for actor_id, actor_address in device_actor_dict.items():
             if actor_id == msg.device_id:
@@ -476,7 +476,10 @@ class Registrar(BaseActor):
     def check_integrity(self) -> bool:
         """Check integrity between self.actor_dict and self.device_statuses"""
         for actor_id in self.actor_dict:
-            if self.actor_dict[actor_id]["actor_type"] == ActorType.DEVICE:
+            if self.actor_dict[actor_id]["actor_type"] in (
+                ActorType.DEVICE,
+                ActorType.NODE,
+            ):
                 if actor_id not in self.device_statuses:
                     logger.critical(
                         "self.actor_dict contains %s that is not in %s",
