@@ -107,8 +107,8 @@ class ComActor(BaseActor):
         logger.debug("[_detect_instr] %s", self.route)
         if not self.child_actors:
             instrument = self._get_instrument(self.route)
-        if instrument is not None:
-            self._create_and_setup_actor(instrument)
+            if instrument is not None:
+                self._create_and_setup_actor(instrument)
 
     def _start_polling(self):
         if self.polling_interval and (not self.polling_loop_running):
