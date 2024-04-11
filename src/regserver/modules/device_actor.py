@@ -426,14 +426,15 @@ class DeviceBaseActor(BaseActor):
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
-        if self.device_status["Reservation"].get("IP") is not None:
-            self.device_status["Reservation"].pop("IP")
-        if self.device_status["Reservation"].get("Port") is not None:
-            self.device_status["Reservation"].pop("Port")
-        if self.return_message is None:
-            pass
-        else:
-            self._send_reservation_status_msg()
+        if self.device_status.get("Reservation", False):
+            if self.device_status["Reservation"].get("IP", False):
+                self.device_status["Reservation"].pop("IP")
+            if self.device_status["Reservation"].get("Port", False):
+                self.device_status["Reservation"].pop("Port")
+            if self.return_message is None:
+                pass
+            else:
+                self._send_reservation_status_msg()
         super().receiveMsg_ChildActorExited(msg, sender)
 
     @overrides

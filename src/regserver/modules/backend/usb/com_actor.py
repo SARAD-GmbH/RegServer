@@ -14,8 +14,7 @@ from typing import Union
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
-from regserver.actor_messages import (KillMsg, SetDeviceStatusMsg,
-                                      SetupUsbActorMsg)
+from regserver.actor_messages import KillMsg, SetupUsbActorMsg
 from regserver.base_actor import BaseActor
 from regserver.config import config, usb_backend_config
 from regserver.logger import logger
