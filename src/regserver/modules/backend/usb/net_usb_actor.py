@@ -105,3 +105,8 @@ class NetUsbActor(UsbActor):
                     ),
                 )
         return
+
+    @overrides
+    def _kill_myself(self, register=True, resurrect=False):
+        self.instrument.close_channel()
+        return super()._kill_myself(register, resurrect)
