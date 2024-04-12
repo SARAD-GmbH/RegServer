@@ -6,6 +6,7 @@
 :Authors:
     | Michael Strey <strey@sarad.de>
 """
+
 import select
 import socket
 import time
@@ -24,9 +25,7 @@ from regserver.config import config, config_file, is1_backend_config
 from regserver.helpers import check_message, make_command_msg
 from regserver.logger import logger
 from regserver.modules.backend.is1.is1_actor import Is1Actor
-from sarad.sari import SaradInst  # type: ignore
-
-# logger.debug("%s -> %s", __package__, __file__)
+from sarad.global_helpers import sarad_family  # type: ignore
 
 
 class Is1Listener(BaseActor):
@@ -101,11 +100,9 @@ class Is1Listener(BaseActor):
         hid = Hashids()
         family_id = hid.decode(instr_id)[0]
         type_id = hid.decode(instr_id)[1]
-        for family in SaradInst.products:
-            if family["family_id"] == family_id:
-                for instr_type in family["types"]:
-                    if instr_type["type_id"] == type_id:
-                        return instr_type["type_name"]
+        for instr_type in sarad_family(family_id)["types"]:
+            if instr_type["type_id"] == type_id:
+                return instr_type["type_name"]
         return "Unknown"
 
     @staticmethod
