@@ -14,8 +14,8 @@ from overrides import overrides
 from regserver.actor_messages import (FinishSetupUsbActorMsg,
                                       ReservationStatusMsg, Status)
 from regserver.logger import logger
-from regserver.modules.backend.usb.usb_actor import Purpose, UsbActor
-from serial import SerialException
+from regserver.modules.backend.usb.usb_actor import UsbActor
+from serial import SerialException  # type: ignore
 
 
 class ZigBeeDeviceActor(UsbActor):
@@ -25,8 +25,6 @@ class ZigBeeDeviceActor(UsbActor):
     def __init__(self):
         super().__init__()
         self.zigbee_address = 0
-        self.setup_msg = None
-        self.setup_sender = None
         self.forwarded_reserve_pending = False
         self.forwarded_free_pending = False
 
