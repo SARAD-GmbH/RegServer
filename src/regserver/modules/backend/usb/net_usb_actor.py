@@ -21,6 +21,7 @@ from regserver.modules.backend.usb.usb_actor import UsbActor
 from regserver.modules.backend.usb.zigbee_device_actor import ZigBeeDeviceActor
 from sarad.mapping import id_family_mapping  # type: ignore
 from sarad.sari import sarad_family  # type: ignore
+from serial import SerialException
 
 
 class NetUsbActor(UsbActor):
@@ -69,7 +70,10 @@ class NetUsbActor(UsbActor):
 
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
-        self.instrument.close_channel()
+        try:
+            self.instrument.close_channel()
+        except SerialException:
+            pass
         return super()._kill_myself(register, resurrect)
 
     @overrides
