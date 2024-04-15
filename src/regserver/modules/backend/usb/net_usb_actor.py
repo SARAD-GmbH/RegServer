@@ -8,9 +8,12 @@
 
 """
 
+from dataclasses import replace
+from datetime import timedelta
+
 from hashids import Hashids  # type: ignore
 from overrides import overrides
-from regserver.actor_messages import (ActorType, SetDeviceStatusMsg,
+from regserver.actor_messages import (ActorType, KillMsg, SetDeviceStatusMsg,
                                       SetupUsbActorMsg)
 from regserver.config import config
 from regserver.logger import logger
@@ -27,7 +30,8 @@ class NetUsbActor(UsbActor):
     def __init__(self):
         super().__init__()
         self.actor_type = ActorType.NODE
-        self.channels = []
+        self.channels = set()
+        self.blocked = False
 
     @overrides
     def _setup(self, family_id=None, route=None):
@@ -57,56 +61,114 @@ class NetUsbActor(UsbActor):
         }
         self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
         self._publish_status_change()
-        self.channels = self.instrument.scan()
-        self.instrument.release_instrument()
         logger.debug("NetMonitors Coordinator with Id %s detected.", self.my_id)
-        if self.channels:
-            logger.info("Instruments connected via ZigBee: %s", self.channels)
-            for channel in self.channels:
-                route_to_instr = route
-                route_to_instr.zigbee_address = channel["short_address"]
-                logger.info(route_to_instr)
-                family_id = channel["family_id"]
-                if family_id == 3:  # Workaround for bug in endpoint firmware
-                    family_id = 5
-                if sarad_family(family_id) is None:
-                    logger.error("Family %d not defined in instruments.yaml", family_id)
-                    continue
-                instrument = id_family_mapping[family_id]
-                instrument.route = route_to_instr
-                family_dict = instrument.family
-                hid = Hashids()
-                instr_id = hid.encode(
-                    family_id,
-                    instrument.type_id,
-                    instrument.serial_number,
-                )
-                instrument.release_instrument()
-                if family_id == 5:
-                    sarad_type = "sarad-dacm"
-                elif family_id in [1, 2]:
-                    sarad_type = "sarad-1688"
-                else:
-                    logger.error(
-                        "Add Instrument on %s: unknown instrument family (index: %s)",
-                        self.my_id,
-                        family_id,
-                    )
-                    sarad_type = "unknown"
-                actor_id = f"{instr_id}.{sarad_type}.local"
-                logger.debug("Create actor %s on %s", actor_id, self.my_id)
-                device_actor = self._create_actor(ZigBeeDeviceActor, actor_id, None)
-                self.send(
-                    device_actor,
-                    SetupUsbActorMsg(
-                        route_to_instr,
-                        family_dict,
-                        False,
-                    ),
-                )
+        # self.instrument.coordinator_reset()
+        self.scan()
+        self.wakeupAfter(timedelta(seconds=30), payload="scan")
         return
 
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
         self.instrument.close_channel()
         return super()._kill_myself(register, resurrect)
+
+    @overrides
+    def receiveMsg_WakeupMessage(self, msg, _sender):
+        super().receiveMsg_WakeupMessage(msg, _sender)
+        if (msg.payload == "scan") and not self.blocked:
+            self.scan()
+        self.wakeupAfter(timedelta(seconds=30), payload="scan")
+
+    @overrides
+    def receiveMsg_ReserveDeviceMsg(self, msg, sender):
+        self.blocked = True
+        self._forward_to_children(msg)
+
+    @overrides
+    def receiveMsg_FreeDeviceMsg(self, msg, sender):
+        self.blocked = False
+        self._forward_to_children(msg)
+
+    def scan(self):
+        """Scan for instruments connected to this NetMonitors Coordinator"""
+        logger.info("Rescan")
+        known_channels = self.channels.copy()
+        self.channels = self.instrument.scan()
+        logger.debug("Instruments connected via ZigBee: %s", self.channels)
+        new_channels = self.channels.difference(known_channels)
+        gone_channels = known_channels.difference(self.channels)
+        if gone_channels:
+            logger.info("Instruments removed from ZigBee: %s", gone_channels)
+            for frozen_channel in gone_channels:
+                actor_id = self.get_actor_id(frozen_channel)
+                logger.info("Kill actor %s on %s", actor_id, self.my_id)
+                for child_id, child_actor in self.child_actors.items():
+                    if child_id == actor_id:
+                        self.send(child_actor["actor_address"], KillMsg())
+        if new_channels:
+            logger.info("New instruments connected via ZigBee: %s", new_channels)
+            for frozen_channel in new_channels:
+                actor_id = self.get_actor_id(frozen_channel)
+                logger.info("Create actor %s on %s", actor_id, self.my_id)
+                self._create_actor(ZigBeeDeviceActor, actor_id, None)
+                channel = dict(frozen_channel)
+                route_to_instr = replace(self.instrument.route)
+                route_to_instr.zigbee_address = channel["short_address"]
+                for child_id, child_actor in self.child_actors.items():
+                    if child_id == actor_id:
+                        child_actor["initialized"] = False
+                        child_actor["route_to_instr"] = route_to_instr
+                        child_actor["family_id"] = channel["family_id"]
+        self.instrument.release_instrument()
+        self.setup_one_child()
+
+    def setup_one_child(self):
+        """Go through the list of child Actors and initialize the first uninitialized Actor."""
+        for _child_id, child_actor in self.child_actors.items():
+            if not child_actor["initialized"]:
+                self.send(
+                    child_actor["actor_address"],
+                    SetupUsbActorMsg(
+                        child_actor["route_to_instr"],
+                        sarad_family(child_actor["family_id"]),
+                        False,
+                    ),
+                )
+                return
+
+    def receiveMsg_FinishSetupUsbActorMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """The initialization of one of the child actors was finished"""
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        for _child_id, child_actor in self.child_actors.items():
+            if child_actor["actor_address"] == sender:
+                child_actor["initialized"] = True
+        self.setup_one_child()
+
+    def get_actor_id(self, frozen_channel):
+        """Generate the actor_id from the channel information gained from
+        NetMonitors Coordinator"""
+        channel = dict(frozen_channel)
+        family_id = channel["family_id"]
+        instr_id = Hashids().encode(
+            family_id,
+            channel["device_type"],
+            channel["serial_number"],
+        )
+        if family_id == 5:
+            sarad_type = "sarad-dacm"
+        elif family_id in [1, 2]:
+            sarad_type = "sarad-1688"
+        else:
+            logger.error(
+                "Add Instrument on %s: unknown instrument family (index: %s)",
+                self.my_id,
+                family_id,
+            )
+            sarad_type = "unknown"
+        return f"{instr_id}.{sarad_type}.local"
+
+    def receiveMsg_ReservationStatusMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handle the ReservationStatusMsg from child ZigBeeDeviceActor"""
+        logger.info("%s for %s from %s", msg, self.my_id, sender)

@@ -313,6 +313,11 @@ class FinishSetupMdnsActorMsg:
 
 
 @dataclass
+class FinishSetupUsbActorMsg:
+    """Message from UsbActor indicating that initialization was completed"""
+
+
+@dataclass
 class FinishWakeupMsg:
     """Internal message of MDNS device Actor"""
 
