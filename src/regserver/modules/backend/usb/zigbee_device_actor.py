@@ -37,9 +37,9 @@ class ZigBeeDeviceActor(UsbActor):
 
     @overrides
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
-        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if sender != self.parent.parent_address:
-            logger.info("Forward %s to NetUsbActor", msg)
+            logger.debug("Forward %s to NetUsbActor", msg)
             self.send(self.parent.parent_address, msg)
             self.forwarded_reserve_pending = True
             has_reservation_section = self.device_status.get("Reservation", False)
@@ -48,11 +48,11 @@ class ZigBeeDeviceActor(UsbActor):
             else:
                 is_reserved = False
             if self.zigbee_address and not is_reserved:
-                logger.info("Regular reservation of %s", self.my_id)
+                logger.debug("Regular reservation of %s", self.my_id)
                 self.instrument.select_channel(self.zigbee_address)
                 super().receiveMsg_ReserveDeviceMsg(msg, sender)
             elif is_reserved:
-                logger.info("%s occupied", self.my_id)
+                logger.debug("%s occupied", self.my_id)
                 self.reserve_lock = datetime.now()
                 if self.sender_api is None:
                     self.sender_api = sender
@@ -63,12 +63,12 @@ class ZigBeeDeviceActor(UsbActor):
                 self._send_reservation_status_msg()
                 self.sender_api = None
         elif self.forwarded_reserve_pending:
-            logger.info(
+            logger.debug(
                 "The ReserveDeviceMsg for %s is comming from NetUsbActor", self.my_id
             )
             self.forwarded_reserve_pending = False
         else:
-            logger.info("Another ZigBee instrument is blocking %s", self.my_id)
+            logger.debug("Another ZigBee instrument is blocking %s", self.my_id)
             if self.sender_api is None:
                 self.sender_api = sender
             self.reserve_device_msg = msg
@@ -89,7 +89,7 @@ class ZigBeeDeviceActor(UsbActor):
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         if sender != self.parent.parent_address:
-            logger.info("Forward %s to NetUsbActor", msg)
+            logger.debug("Forward %s to NetUsbActor", msg)
             self.send(self.parent.parent_address, msg)
             self.forwarded_free_pending = True
             if self.zigbee_address:
@@ -114,5 +114,5 @@ class ZigBeeDeviceActor(UsbActor):
 
     @overrides
     def receiveMsg_SetupUsbActorMsg(self, msg, sender):
-        logger.info("Setup ZigBeeDeviceActor %s", self.my_id)
+        logger.debug("Setup ZigBeeDeviceActor %s", self.my_id)
         super().receiveMsg_SetupUsbActorMsg(msg, sender)
