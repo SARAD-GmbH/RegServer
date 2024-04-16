@@ -261,7 +261,11 @@ class UsbActor(DeviceBaseActor):
             read_next = True
             while read_next:
                 try:
-                    reply = self.instrument.get_message_payload(data, timeout=3)
+                    start_time = datetime.now()
+                    reply = self.instrument.get_message_payload(
+                        data, timeout=self.instrument.COM_TIMEOUT
+                    )
+                    stop_time = datetime.now()
                 except (SerialException, OSError):
                     logger.error("Connection to %s lost", self.instrument)
                     reply = {"is_valid": False, "is_last_frame": True}
@@ -278,7 +282,12 @@ class UsbActor(DeviceBaseActor):
                     logger.info("Killing myself")
                     self._kill_myself()
                     return
-                logger.warning("Invalid binary message from instrument. %s", reply)
+                logger.warning(
+                    "Invalid binary message from %s after %s: %s",
+                    self.my_id,
+                    stop_time - start_time,
+                    reply,
+                )
                 self.send(self.redirector_actor, RxBinaryMsg(reply["raw"]))
                 return
 

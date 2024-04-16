@@ -18,10 +18,11 @@ from regserver.actor_messages import (ActorType, KillMsg, SetDeviceStatusMsg,
 from regserver.config import config
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
-from regserver.modules.backend.usb.zigbee_device_actor import ZigBeeDeviceActor
+from regserver.modules.backend.usb.zigbee_device_actor import (
+    COM_TIMEOUT, ZigBeeDeviceActor)
 from sarad.mapping import id_family_mapping  # type: ignore
 from sarad.sari import sarad_family  # type: ignore
-from serial import SerialException
+from serial import SerialException  # type: ignore
 
 
 class NetUsbActor(UsbActor):
@@ -42,6 +43,7 @@ class NetUsbActor(UsbActor):
             self.is_connected = False
             return
         self.instrument.route = route
+        self.instrument.COM_TIMEOUT = COM_TIMEOUT
         if family_id == 5:
             sarad_type = "sarad-dacm"
         elif family_id in [1, 2, 4]:

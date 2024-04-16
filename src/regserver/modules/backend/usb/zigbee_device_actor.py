@@ -12,10 +12,15 @@ from datetime import datetime, timezone
 
 from overrides import overrides
 from regserver.actor_messages import (FinishSetupUsbActorMsg,
-                                      ReservationStatusMsg, Status)
+                                      ReservationStatusMsg, SetDeviceStatusMsg,
+                                      Status)
+from regserver.config import config, usb_backend_config
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
+from sarad.mapping import id_family_mapping  # type: ignore
 from serial import SerialException  # type: ignore
+
+COM_TIMEOUT = 10
 
 
 class ZigBeeDeviceActor(UsbActor):
@@ -30,7 +35,50 @@ class ZigBeeDeviceActor(UsbActor):
 
     @overrides
     def _setup(self, family_id=None, route=None):
-        super()._setup(family_id, route)
+        self.instrument = id_family_mapping.get(family_id)
+        self.instrument.COM_TIMEOUT = COM_TIMEOUT
+        if self.instrument is None:
+            logger.critical("Family %s not supported", family_id)
+            self.is_connected = False
+            return
+        self.instrument.route = route
+        if usb_backend_config["SET_RTC"]:
+            if usb_backend_config["USE_UTC"]:
+                now = datetime.now(timezone.utc)
+            else:
+                now = datetime.now()
+            logger.info("Set RTC of %s to %s", self.my_id, now)
+            self.instrument.set_real_time_clock(now)
+        if family_id == 5:
+            sarad_type = "sarad-dacm"
+            family_dict = dict(self.instrument.family)
+            family_dict["serial"] = [
+                d for d in family_dict["serial"] if d["baudrate"] == 9600
+            ]
+            self.instrument.family = family_dict
+            logger.info(
+                "With ZigBee we are using only %s", self.instrument.family["serial"]
+            )
+        elif family_id in [1, 2, 4]:
+            sarad_type = "sarad-1688"
+        device_status = {
+            "Identification": {
+                "Name": self.instrument.type_name,
+                "Family": family_id,
+                "Type": self.instrument.type_id,
+                "Serial number": self.instrument.serial_number,
+                "Firmware version": self.instrument.software_version,
+                "Host": "127.0.0.1",
+                "Protocol": sarad_type,
+                "IS Id": config["IS_ID"],
+            },
+            "Serial": self.instrument.route.port,
+            "State": 2,
+        }
+        self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
+        self._publish_status_change()
+        self.instrument.release_instrument()
+        logger.debug("Instrument with Id %s detected.", self.my_id)
         self.zigbee_address = self.instrument.route.zigbee_address
         self.instrument.release_instrument()
         self.send(self.parent.parent_address, FinishSetupUsbActorMsg())
