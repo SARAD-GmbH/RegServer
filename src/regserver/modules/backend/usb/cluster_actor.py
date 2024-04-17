@@ -222,9 +222,6 @@ class ClusterActor(BaseActor):
                 for address in self.rs485_ports[port]:
                     route = Route(port=port, rs485_address=address, zigbee_address=None)
                     self._create_and_setup_actor(route, loop_interval)
-            elif port in self.zigbee_ports:
-                pass
-                # TODO: zigbee
             else:
                 route = Route(port=port, rs485_address=None, zigbee_address=None)
                 if port in self.loop_ports:
@@ -235,9 +232,6 @@ class ClusterActor(BaseActor):
                 for address in self.rs485_ports[port]:
                     route = Route(port=port, rs485_address=address, zigbee_address=None)
                     self._remove_actor(route)
-            elif port in self.zigbee_ports:
-                pass
-                # TODO: zigbee
             else:
                 route = Route(port=port, rs485_address=None, zigbee_address=None)
                 self._remove_actor(route)
