@@ -1378,7 +1378,7 @@ files = [
 [[package]]
 name = "systemd-python"
 version = "235"
-summary = ""
+summary = "Python interface for libsystemd"
 groups = ["default"]
 marker = "sys_platform == \"linux\""
 files = [
