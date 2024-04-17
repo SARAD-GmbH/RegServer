@@ -8,7 +8,7 @@ commands and data within the actor system
     | Michael Strey <strey@sarad.de>
 
 """
-import socket
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, IntEnum, unique
@@ -310,6 +310,11 @@ class SetupMdnsActorMsg:
 @dataclass
 class FinishSetupMdnsActorMsg:
     """Internal message of MDNS device Actor"""
+
+
+@dataclass
+class FinishSetupUsbActorMsg:
+    """Message from UsbActor indicating that initialization was completed"""
 
 
 @dataclass

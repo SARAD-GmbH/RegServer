@@ -7,11 +7,12 @@
     | Riccardo Förster <foerster@sarad.de>,
     | Michael Strey <strey@sarad.de>
 """
+
 import logging
 import os
 import re
 import socket
-from typing import List, Union
+from typing import List, TypedDict, Union
 from uuid import getnode as get_mac
 
 import tomlkit
@@ -19,6 +20,17 @@ from platformdirs import PlatformDirs
 from zeroconf import IPVersion
 
 from regserver.actor_messages import Backend, Frontend
+
+
+class UsbBackendConfigDict(TypedDict):
+    # pylint: disable=inherit-non-class, too-few-public-methods
+    """Type declaration for usb_backend_config."""
+    POLL_SERIAL_PORTS: List[str]
+    IGNORED_SERIAL_PORTS: List[str]
+    IGNORED_HWIDS: List[str]
+    LOCAL_RETRY_INTERVAL: float
+    SET_RTC: bool
+    USE_UTC: bool
 
 
 def get_ip(ipv6=False):
@@ -369,7 +381,7 @@ DEFAULT_SET_RTC = False
 DEFAULT_USE_UTC = False
 
 if customization.value.get("usb_backend") is None:
-    usb_backend_config = {
+    usb_backend_config: UsbBackendConfigDict = {
         "POLL_SERIAL_PORTS": DEFAULT_POLL_SERIAL_PORTS,
         "IGNORED_SERIAL_PORTS": DEFAULT_IGNORED_SERIAL_PORTS,
         "IGNORED_HWIDS": DEFAULT_IGNORED_HWIDS,

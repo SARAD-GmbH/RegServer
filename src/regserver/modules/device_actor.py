@@ -8,6 +8,7 @@
     | Michael Strey <strey@sarad.de>
 
 """
+
 from datetime import datetime, timedelta, timezone
 
 from overrides import overrides  # type: ignore
@@ -88,7 +89,7 @@ class DeviceBaseActor(BaseActor):
         if msg.device_status.get("State", False):
             self.device_status["State"] = msg.device_status["State"]
         logger.info(
-            "Device actor %s created or updated at %s. is_id = %s",
+            "%s created or updated at %s. is_id = %s",
             self.my_id,
             self.device_status["Identification"].get("Host"),
             self.device_status["Identification"].get("IS Id"),
@@ -425,14 +426,15 @@ class DeviceBaseActor(BaseActor):
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
-        if self.device_status["Reservation"].get("IP") is not None:
-            self.device_status["Reservation"].pop("IP")
-        if self.device_status["Reservation"].get("Port") is not None:
-            self.device_status["Reservation"].pop("Port")
-        if self.return_message is None:
-            pass
-        else:
-            self._send_reservation_status_msg()
+        if self.device_status.get("Reservation", False):
+            if self.device_status["Reservation"].get("IP", False):
+                self.device_status["Reservation"].pop("IP")
+            if self.device_status["Reservation"].get("Port", False):
+                self.device_status["Reservation"].pop("Port")
+            if self.return_message is None:
+                pass
+            else:
+                self._send_reservation_status_msg()
         super().receiveMsg_ChildActorExited(msg, sender)
 
     @overrides
@@ -451,7 +453,7 @@ class DeviceBaseActor(BaseActor):
     def receiveMsg_ActorExitRequest(self, msg, sender):
         super().receiveMsg_ActorExitRequest(msg, sender)
         logger.info(
-            "Device actor %s exited at %s.",
+            "%s exited at %s.",
             self.my_id,
             self.device_status["Identification"]["Host"],
         )

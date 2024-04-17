@@ -134,27 +134,38 @@ class Registrar(BaseActor):
             sender: Actor address of the Actor sending the SubscribeMsg
             actor_id: Id of the actor that shall be subscribed
             actor_type (ActorType): indicates a device actor
+
+        Return:
+            True: go on and register the new Actor
+            False: don't register the new Actor
         """
         logger.error("The actor %s already exists in the system.", actor_id)
-        self.send(sender, KillMsg(register=False))
-        if actor_type == ActorType.DEVICE:
+        if actor_type in (ActorType.DEVICE, ActorType.NODE):
             hid = Hashids()
             serial_number = hid.decode(short_id(actor_id))[2]
             if serial_number == 65535:
                 logger.info(
-                    "Someone has attached a virgin SARAD instrument. Ignore it!"
+                    "%s is a virgin SARAD instrument. We are using the last attached device.",
+                    serial_number,
                 )
+                self.send(self.actor_dict[actor_id]["address"], KillMsg(register=True))
             elif transport_technology(actor_id) == "mdns":
                 logger.debug(
                     "%s is availabel from different hosts. First come, first served.",
                     actor_id,
                 )
+                self.send(sender, KillMsg(register=False))
+                return False
             else:
-                logger.critical("SN %d != 65535 -> Emergency shutdown", serial_number)
-                system_shutdown()
+                logger.info(
+                    "We will use the last attached instrument and kill the old Actor."
+                )
+                self.send(self.actor_dict[actor_id]["address"], KillMsg(register=True))
         else:
             logger.critical("-> Emergency shutdown")
             system_shutdown()
+            return False
+        return True
 
     def _handle_device_actor(self, sender, actor_id):
         """Do whatever is required if the SubscribeMsg handler finds a Device
@@ -167,19 +178,18 @@ class Registrar(BaseActor):
         keep_new_actor = True
         new_device_id = actor_id
         for old_device_id in self.actor_dict:
+            old_tt = transport_technology(old_device_id)
+            new_tt = transport_technology(new_device_id)
             if (
                 (short_id(old_device_id) == short_id(new_device_id))
                 and (new_device_id != old_device_id)
-                and (
-                    transport_technology(old_device_id)
-                    in ["local", "mdns", "mqtt", "is1"]
-                )
+                and (old_tt in ["local", "mdns", "mqtt", "is1", "zigbee"])
             ):
-                old_tt = transport_technology(old_device_id)
-                new_tt = transport_technology(new_device_id)
                 logger.debug("New device_id: %s", new_device_id)
                 logger.debug("Old device_id: %s", old_device_id)
-                if new_tt == "local":
+                if (new_tt == "local") or (
+                    (new_tt == "zigbee") and (old_tt != "local")
+                ):
                     logger.debug(
                         "Keep new %s and kill the old %s",
                         new_device_id,
@@ -233,8 +243,8 @@ class Registrar(BaseActor):
             self._is_alive(msg.actor_id)
             return
         if msg.actor_id in self.actor_dict:
-            self._handle_existing_actor(sender, msg.actor_id, msg.actor_type)
-            return
+            if not self._handle_existing_actor(sender, msg.actor_id, msg.actor_type):
+                return
         self.actor_dict[msg.actor_id] = {
             "address": sender,
             "parent": msg.parent,
@@ -261,7 +271,7 @@ class Registrar(BaseActor):
             )
             self.send(sender, MqttConnectMsg())
         logger.debug("MQTT group of %s = %s", msg.actor_id, mqtt_config["GROUP"])
-        if msg.actor_type == ActorType.DEVICE:
+        if msg.actor_type in (ActorType.DEVICE, ActorType.NODE):
             self._handle_device_actor(sender, msg.actor_id)
         elif msg.actor_type == ActorType.HOST:
             self.send(sender, GetHostInfoMsg())
@@ -337,7 +347,7 @@ class Registrar(BaseActor):
         device_actor_dict = {
             id: dict["address"]
             for id, dict in self.actor_dict.items()
-            if (dict["actor_type"] == ActorType.DEVICE)
+            if (dict["actor_type"] in (ActorType.DEVICE, ActorType.NODE))
         }
         for actor_id, actor_address in device_actor_dict.items():
             if actor_id == msg.device_id:
@@ -476,7 +486,10 @@ class Registrar(BaseActor):
     def check_integrity(self) -> bool:
         """Check integrity between self.actor_dict and self.device_statuses"""
         for actor_id in self.actor_dict:
-            if self.actor_dict[actor_id]["actor_type"] == ActorType.DEVICE:
+            if self.actor_dict[actor_id]["actor_type"] in (
+                ActorType.DEVICE,
+                ActorType.NODE,
+            ):
                 if actor_id not in self.device_statuses:
                     logger.critical(
                         "self.actor_dict contains %s that is not in %s",

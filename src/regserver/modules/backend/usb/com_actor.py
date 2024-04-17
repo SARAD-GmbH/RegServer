@@ -8,23 +8,22 @@
 
 """
 
-from datetime import timedelta
 from threading import Thread
+from time import sleep
 from typing import Union
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
-from regserver.actor_messages import (KillMsg, SetDeviceStatusMsg,
-                                      SetupUsbActorMsg)
+from regserver.actor_messages import KillMsg, SetupUsbActorMsg
 from regserver.base_actor import BaseActor
-from regserver.config import config, usb_backend_config
+from regserver.config import usb_backend_config
 from regserver.logger import logger
+from regserver.modules.backend.usb.net_usb_actor import NetUsbActor
 from regserver.modules.backend.usb.usb_actor import UsbActor
-from sarad.dacm import DacmInst  # type: ignore
 from sarad.doseman import DosemanInst  # type: ignore
-from sarad.radonscout import RscInst  # type: ignore
-from sarad.sari import SI  # type: ignore
+from sarad.sari import SI, SaradInst, sarad_family  # type: ignore
 from serial import SerialException  # type: ignore
+from serial.tools import list_ports  # type: ignore
 
 
 class ComActor(BaseActor):
@@ -33,28 +32,55 @@ class ComActor(BaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self.loop_running: bool = False
-        self.stop_loop: bool = False
+        self.polling_loop_running = False
+        self.stop_polling = False
         self.route = None
-        self.loop_interval = 0
-        self.poll_doseman = False
-        self.loop_thread = Thread(target=self._loop_function, daemon=True)
-        self.next_method = None
-        self.instrument = None
+        self.polling_interval = 0
+        self.detect_instr_thread = Thread(target=self._detect_instr, daemon=True)
+        self.guessed_family = None  # id of instrument family
+
+    def _guess_family(self):
+        family_mapping = [
+            (r"(?i)irda", 1),
+            (r"(?i)monitor", 5),
+            (r"(?i)scout|(?i)smart", 2),
+            (r"(?i)ft232", 4),
+        ]
+        for mapping in family_mapping:
+            for port in list_ports.grep(mapping[0]):
+                if self.route.port == port.device:
+                    self.guessed_family = mapping[1]
+                    logger.info(
+                        "%s, %s, #%d",
+                        port.device,
+                        port.description,
+                        self.guessed_family,
+                    )
+        if self.guessed_family is None:
+            self.guessed_family = 1  # DOSEman family is the default
+            for port in list_ports.comports():
+                if self.route.port == port.device:
+                    logger.info(
+                        "%s, %s, #%d",
+                        port.device,
+                        port.description,
+                        self.guessed_family,
+                    )
 
     def receiveMsg_SetupComActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handle message to initialize ComActor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.route = msg.route
-        self.loop_interval = msg.loop_interval
+        self.polling_interval = msg.loop_interval
         if self.child_actors:
             logger.debug("%s: Update device actor", self.my_id)
             self._forward_to_children(KillMsg())
-            self.stop_loop = self.loop_running
+            self.stop_polling = self.polling_loop_running
             # refer to receiveMsg_ChildActorExited()
         else:
             logger.debug("%s: Update -- no child", self.my_id)
+            self._guess_family()
             self._do_loop()
             self._start_polling()
 
@@ -66,64 +92,64 @@ class ComActor(BaseActor):
             self._start_polling()
 
     def _do_loop(self) -> None:
-        if not self.loop_thread.is_alive():
-            self.loop_thread = Thread(target=self._loop_function, daemon=True)
+        if not self.detect_instr_thread.is_alive():
+            self.detect_instr_thread = Thread(target=self._detect_instr, daemon=True)
             try:
-                self.loop_thread.start()
-                self.wakeupAfter(timedelta(seconds=0.5), payload="loop")
+                self.detect_instr_thread.start()
             except RuntimeError:
                 pass
 
-    def _loop_function(self) -> None:
-        logger.debug("[_do_loop] %s", self.route)
-        self.instrument = None
+    def _detect_instr(self) -> None:
+        logger.debug("[_detect_instr] %s", self.route)
+        if self.guessed_family == 5:
+            sleep(2.5)  # Wait for the relay
+        elif self.guessed_family == 4:
+            sleep(8)  # Wait for ZigBee coordinator to start
         if not self.child_actors:
-            self.instrument = self._get_instrument(self.route)
-        if self.instrument is not None:
-            self.next_method = self._create_and_setup_actor
-        else:
-            self.next_method = self._do_nothing
+            instrument = self._get_instrument(self.route)
+            if instrument is not None:
+                self._create_and_setup_actor(instrument)
 
     def _start_polling(self):
-        if self.loop_interval and (not self.loop_running):
+        if self.polling_interval and (not self.polling_loop_running):
             logger.info(
                 "%s: Start polling %s every %d s.",
                 self.my_id,
                 self.route,
-                self.loop_interval,
+                self.polling_interval,
             )
-            self.loop_running = True
-            self.wakeupAfter(self.loop_interval)
+            self.polling_loop_running = True
+            self.wakeupAfter(self.polling_interval)
         else:
-            self.stop_loop = False
+            self.stop_polling = False
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
         logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
-        if msg.payload == "loop":
-            if self.next_method is None:
-                self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
-            else:
-                self.next_method()
-                self.next_method = None
-        elif msg.payload is None:
-            if (not self.on_kill) and self.loop_interval and not self.stop_loop:
-                self._do_loop()
-                self.wakeupAfter(self.loop_interval)
-                self.loop_running = True
-            else:
-                self.loop_running = False
+        if (not self.on_kill) and self.polling_interval and not self.stop_polling:
+            self._do_loop()
+            self.wakeupAfter(self.polling_interval)
+            self.polling_loop_running = True
+        else:
+            self.polling_loop_running = False
 
     def _get_instrument(self, route) -> Union[SI, None]:
         hid = Hashids()
-        instruments_to_test = (DacmInst(), RscInst(), DosemanInst())
+        if self.guessed_family in (2, 4, 5):
+            instruments_to_test = (SaradInst(family=sarad_family(0)), DosemanInst())
+        else:
+            instruments_to_test = (DosemanInst(), SaradInst(family=sarad_family(0)))
         instr_id = None
         for test_instrument in instruments_to_test:
             try:
                 test_instrument.route = route
                 if not test_instrument.valid_family:
-                    logger.debug("Family not valid")
+                    logger.debug(
+                        "Family %s not valid on port %s",
+                        test_instrument.family["family_name"],
+                        self.route.port,
+                    )
                     test_instrument.release_instrument()
                     continue
                 logger.debug(
@@ -148,7 +174,7 @@ class ComActor(BaseActor):
                 test_instrument.release_instrument()
             except (SerialException, OSError) as exception:
                 logger.error("%s: %s not accessible: %s", self.my_id, route, exception)
-                self.next_method = self._kill_myself
+                self._kill_myself()
                 break
         if instr_id is not None:
             return test_instrument
@@ -157,19 +183,17 @@ class ComActor(BaseActor):
     def _do_nothing(self):
         logger.debug("No new instrument found on %s", self.my_id)
 
-    def _create_and_setup_actor(self):
+    def _create_and_setup_actor(self, instrument):
         logger.debug("[_create_and_setup_actor] on %s", self.my_id)
         try:
-            family = self.instrument.family["family_id"]
+            family = instrument.family["family_id"]
         except AttributeError:
-            logger.error(
-                "_create_and_setup_called but self.instrument is %s", self.instrument
-            )
+            logger.error("_create_and_setup_called but instrument is %s", instrument)
             return
-        instr_id = self.instrument.device_id
+        instr_id = instrument.device_id
         if family == 5:
             sarad_type = "sarad-dacm"
-        elif family in [1, 2]:
+        elif family in [1, 2, 4]:
             sarad_type = "sarad-1688"
         else:
             logger.error(
@@ -178,39 +202,26 @@ class ComActor(BaseActor):
                 family,
             )
             sarad_type = "unknown"
-        if (family == 1) and (self.instrument.type_id in (1, 2)):
-            # DOSEman and DOSEman Pro are using an IR cradle with USB/ser adapter
-            self.poll_doseman = True
-            if (not self.loop_running) and not self.loop_interval:
-                self.loop_interval = usb_backend_config["LOCAL_RETRY_INTERVAL"]
+        if (family == 1) and (instrument.type_id in (1, 2, 3)):
+            # DOSEman, DOSEman Pro, and MyRIAM are using an IR cradle with USB/ser adapter
+            poll_doseman = True
+            if (not self.polling_loop_running) and not self.polling_interval:
+                self.polling_interval = usb_backend_config["LOCAL_RETRY_INTERVAL"]
                 self._start_polling()
         else:
-            self.poll_doseman = False
+            poll_doseman = False
         actor_id = f"{instr_id}.{sarad_type}.local"
         logger.debug("Create actor %s on %s", actor_id, self.my_id)
-        device_actor = self._create_actor(UsbActor, actor_id, None)
-        device_status = {
-            "Identification": {
-                "Name": self.instrument.type_name,
-                "Family": family,
-                "Type": self.instrument.type_id,
-                "Serial number": self.instrument.serial_number,
-                "Firmware version": self.instrument.software_version,
-                "Host": "127.0.0.1",
-                "Protocol": sarad_type,
-                "IS Id": config["IS_ID"],
-            },
-            "Serial": self.instrument.route.port,
-            "State": 2,
-        }
-        logger.debug("Setup device actor %s with %s", actor_id, device_status)
-        self.send(device_actor, SetDeviceStatusMsg(device_status))
+        if family == 4:
+            device_actor = self._create_actor(NetUsbActor, actor_id, None)
+        else:
+            device_actor = self._create_actor(UsbActor, actor_id, None)
         self.send(
             device_actor,
             SetupUsbActorMsg(
-                self.instrument.route,
-                self.instrument.family,
-                bool(self.loop_interval) or self.poll_doseman,
+                instrument.route,
+                instrument.family,
+                bool(self.polling_interval) or poll_doseman,
             ),
         )
 

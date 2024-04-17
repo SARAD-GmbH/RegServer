@@ -12,7 +12,7 @@ Covers as well USB ports as native RS-232 ports, addressed RS-485 as ZigBee.
 
 import os
 from datetime import datetime, timezone
-from typing import Set
+from typing import List, Set
 
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj, KillMsg,
@@ -74,8 +74,6 @@ class ClusterActor(BaseActor):
         }
         self.loop_ports: Set[str] = self.poll_ports.difference(self.ignore_ports)
         self.rs485_ports = rs485_backend_config
-        # self.zigbee_ports = zigbee_backend_config
-        self.zigbee_ports = []
         super().__init__()
         self.actor_type = ActorType.HOST
         self.instr_counter = 0  # counting connected instruments
@@ -140,7 +138,8 @@ class ClusterActor(BaseActor):
         active_ports = comports()
         logger.debug("RS-232 or UART ports: %s", [port.device for port in active_ports])
         toxic_ports = []
-        for hwid_filter in usb_backend_config["IGNORED_HWIDS"]:
+        ignored_hwids: List[str] = usb_backend_config["IGNORED_HWIDS"]
+        for hwid_filter in ignored_hwids:
             toxic_ports.extend(grep(hwid_filter))
         for port in toxic_ports:
             self.ignore_ports.add(port.device)
@@ -222,9 +221,6 @@ class ClusterActor(BaseActor):
                 for address in self.rs485_ports[port]:
                     route = Route(port=port, rs485_address=address, zigbee_address=None)
                     self._create_and_setup_actor(route, loop_interval)
-            elif port in self.zigbee_ports:
-                pass
-                # TODO: zigbee
             else:
                 route = Route(port=port, rs485_address=None, zigbee_address=None)
                 if port in self.loop_ports:
@@ -235,9 +231,6 @@ class ClusterActor(BaseActor):
                 for address in self.rs485_ports[port]:
                     route = Route(port=port, rs485_address=address, zigbee_address=None)
                     self._remove_actor(route)
-            elif port in self.zigbee_ports:
-                pass
-                # TODO: zigbee
             else:
                 route = Route(port=port, rs485_address=None, zigbee_address=None)
                 self._remove_actor(route)
