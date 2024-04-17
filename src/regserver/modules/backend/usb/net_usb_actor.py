@@ -16,6 +16,7 @@ from overrides import overrides
 from regserver.actor_messages import (ActorType, KillMsg, SetDeviceStatusMsg,
                                       SetupUsbActorMsg)
 from regserver.config import config
+from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
 from regserver.modules.backend.usb.zigbee_device_actor import (
@@ -32,7 +33,6 @@ class NetUsbActor(UsbActor):
     def __init__(self):
         super().__init__()
         self.actor_type = ActorType.NODE
-        self.channels = set()
         self.blocked = False
 
     @overrides
@@ -98,33 +98,33 @@ class NetUsbActor(UsbActor):
     def scan(self):
         """Scan for instruments connected to this NetMonitors Coordinator"""
         logger.info("Rescan")
-        known_channels = self.channels.copy()
-        self.channels = self.instrument.scan()
-        logger.debug("Instruments connected via ZigBee: %s", self.channels)
-        new_channels = self.channels.difference(known_channels)
-        gone_channels = known_channels.difference(self.channels)
+        channels = self.instrument.scan()
+        logger.info("Instruments connected via ZigBee: %s", channels)
+        new_channels = {}
+        for instr_id, address in channels.items():
+            actor_id = self.get_actor_id(instr_id)
+            if actor_id not in self.child_actors:
+                new_channels[actor_id] = address
+        gone_channels = []
+        for actor_id in self.child_actors:
+            if short_id(actor_id) not in channels:
+                gone_channels.append(actor_id)
         if gone_channels:
             logger.info("Instruments removed from ZigBee: %s", gone_channels)
-            for frozen_channel in gone_channels:
-                actor_id = self.get_actor_id(frozen_channel)
+            for actor_id in gone_channels:
                 logger.info("Kill actor %s on %s", actor_id, self.my_id)
-                for child_id, child_actor in self.child_actors.items():
-                    if child_id == actor_id:
-                        self.send(child_actor["actor_address"], KillMsg())
+                self.send(self.child_actors[actor_id]["actor_address"], KillMsg())
         if new_channels:
             logger.info("New instruments connected via ZigBee: %s", new_channels)
-            for frozen_channel in new_channels:
-                actor_id = self.get_actor_id(frozen_channel)
+            for actor_id, address in new_channels.items():
                 logger.info("Create actor %s on %s", actor_id, self.my_id)
                 self._create_actor(ZigBeeDeviceActor, actor_id, None)
-                channel = dict(frozen_channel)
+                family_id = Hashids().decode(short_id(actor_id))[0]
                 route_to_instr = replace(self.instrument.route)
-                route_to_instr.zigbee_address = channel["short_address"]
-                for child_id, child_actor in self.child_actors.items():
-                    if child_id == actor_id:
-                        child_actor["initialized"] = False
-                        child_actor["route_to_instr"] = route_to_instr
-                        child_actor["family_id"] = channel["family_id"]
+                route_to_instr.zigbee_address = address
+                self.child_actors[actor_id]["initialized"] = False
+                self.child_actors[actor_id]["route_to_instr"] = route_to_instr
+                self.child_actors[actor_id]["family_id"] = family_id
         self.instrument.release_instrument()
         self.setup_one_child()
 
@@ -151,16 +151,10 @@ class NetUsbActor(UsbActor):
                 child_actor["initialized"] = True
         self.setup_one_child()
 
-    def get_actor_id(self, frozen_channel):
+    def get_actor_id(self, instr_id):
         """Generate the actor_id from the channel information gained from
         NetMonitors Coordinator"""
-        channel = dict(frozen_channel)
-        family_id = channel["family_id"]
-        instr_id = Hashids().encode(
-            family_id,
-            channel["device_type"],
-            channel["serial_number"],
-        )
+        family_id = Hashids().decode(instr_id)[0]
         if family_id == 5:
             sarad_type = "sarad-dacm"
         elif family_id in [1, 2]:
@@ -172,7 +166,7 @@ class NetUsbActor(UsbActor):
                 family_id,
             )
             sarad_type = "unknown"
-        return f"{instr_id}.{sarad_type}.local"
+        return f"{instr_id}.{sarad_type}.zigbee"
 
     def receiveMsg_ReservationStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
