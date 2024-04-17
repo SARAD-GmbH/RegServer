@@ -11,7 +11,7 @@
 from datetime import datetime, timezone
 
 from overrides import overrides
-from regserver.actor_messages import (FinishSetupUsbActorMsg,
+from regserver.actor_messages import (FinishSetupUsbActorMsg, FreeDeviceMsg,
                                       ReservationStatusMsg, SetDeviceStatusMsg,
                                       Status)
 from regserver.config import config, usb_backend_config
@@ -153,6 +153,13 @@ class ZigBeeDeviceActor(UsbActor):
 
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
+        has_reservation_section = self.device_status.get("Reservation", False)
+        if has_reservation_section:
+            is_reserved = self.device_status["Reservation"].get("Active", False)
+        else:
+            is_reserved = False
+        if is_reserved:
+            self.send(self.parent.parent_address, FreeDeviceMsg())
         if self.zigbee_address:
             try:
                 self.instrument.close_channel()

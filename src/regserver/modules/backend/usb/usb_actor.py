@@ -266,10 +266,16 @@ class UsbActor(DeviceBaseActor):
                         data, timeout=self.instrument.COM_TIMEOUT
                     )
                     stop_time = datetime.now()
-                except (SerialException, OSError):
-                    logger.error("Connection to %s lost", self.instrument)
-                    reply = {"is_valid": False, "is_last_frame": True}
+                except (SerialException, OSError, TypeError) as exception:
+                    # logger.error(
+                    #     "Connection to %s lost: %s", self.instrument, exception
+                    # )
+                    # reply = {"is_valid": False, "is_last_frame": True}
                     emergency = True
+                if emergency:
+                    logger.info("Killing myself")
+                    self._kill_myself()
+                    return
                 logger.debug("Instrument replied %s", reply)
                 if reply["is_valid"]:
                     self.send(
