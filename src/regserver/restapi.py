@@ -20,7 +20,7 @@ from thespian.actors import ActorSystem  # type: ignore
 from thespian.actors import Thespian_ActorStatus
 from thespian.system.messages.status import (  # type: ignore
     Thespian_StatusReq, formatStatus)
-from waitress import serve
+from waitress import serve  # type: ignore
 
 from regserver.actor_messages import (AddPortToLoopMsg, BaudRateFinishedMsg,
                                       BaudRateMsg, GetLocalPortsMsg,
