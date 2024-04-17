@@ -178,19 +178,18 @@ class Registrar(BaseActor):
         keep_new_actor = True
         new_device_id = actor_id
         for old_device_id in self.actor_dict:
+            old_tt = transport_technology(old_device_id)
+            new_tt = transport_technology(new_device_id)
             if (
                 (short_id(old_device_id) == short_id(new_device_id))
                 and (new_device_id != old_device_id)
-                and (
-                    transport_technology(old_device_id)
-                    in ["local", "mdns", "mqtt", "is1"]
-                )
+                and (old_tt in ["local", "mdns", "mqtt", "is1", "zigbee"])
             ):
-                old_tt = transport_technology(old_device_id)
-                new_tt = transport_technology(new_device_id)
                 logger.debug("New device_id: %s", new_device_id)
                 logger.debug("Old device_id: %s", old_device_id)
-                if new_tt == "local":
+                if (new_tt == "local") or (
+                    (new_tt == "zigbee") and (old_tt != "local")
+                ):
                     logger.debug(
                         "Keep new %s and kill the old %s",
                         new_device_id,
