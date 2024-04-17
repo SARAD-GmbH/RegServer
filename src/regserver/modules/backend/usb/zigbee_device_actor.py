@@ -143,7 +143,7 @@ class ZigBeeDeviceActor(UsbActor):
             if self.zigbee_address:
                 try:
                     self.instrument.close_channel()
-                except SerialException as exception:
+                except (SerialException, TypeError) as exception:
                     logger.warning("Freeing %s caused %s", self.my_id, exception)
             super().receiveMsg_FreeDeviceMsg(msg, sender)
         elif self.forwarded_free_pending:
@@ -158,7 +158,7 @@ class ZigBeeDeviceActor(UsbActor):
             is_reserved = self.device_status["Reservation"].get("Active", False)
         else:
             is_reserved = False
-        if is_reserved:
+        if is_reserved or self.reserve_lock:
             self.send(self.parent.parent_address, FreeDeviceMsg())
         if self.zigbee_address:
             try:
