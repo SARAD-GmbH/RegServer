@@ -9,6 +9,7 @@
 """
 
 from datetime import datetime, timezone
+from threading import Thread
 
 from overrides import overrides
 from regserver.actor_messages import (FinishSetupUsbActorMsg, FreeDeviceMsg,
@@ -32,6 +33,12 @@ class ZigBeeDeviceActor(UsbActor):
         self.zigbee_address = 0
         self.forwarded_reserve_pending = False
         self.forwarded_free_pending = False
+        self.select_channel_thread = Thread(
+            target=self._select_channel,
+            kwargs={"msg": None, "sender": None},
+            daemon=True,
+        )
+        self.close_channel_thread = Thread(target=self._close_channel, daemon=True)
 
     @overrides
     def _setup(self, family_id=None, route=None):
@@ -56,7 +63,7 @@ class ZigBeeDeviceActor(UsbActor):
                 d for d in family_dict["serial"] if d["baudrate"] == 9600
             ]
             self.instrument.family = family_dict
-            logger.info(
+            logger.debug(
                 "With ZigBee we are using only %s", self.instrument.family["serial"]
             )
         elif family_id in [1, 2, 4]:
@@ -97,8 +104,13 @@ class ZigBeeDeviceActor(UsbActor):
                 is_reserved = False
             if self.zigbee_address and not is_reserved:
                 logger.debug("Regular reservation of %s", self.my_id)
-                self.instrument.select_channel(self.zigbee_address)
-                super().receiveMsg_ReserveDeviceMsg(msg, sender)
+                if not self.select_channel_thread.is_alive():
+                    self.select_channel_thread = Thread(
+                        target=self._select_channel,
+                        kwargs={"msg": msg, "sender": sender},
+                        daemon=True,
+                    )
+                    self.select_channel_thread.start()
             elif is_reserved:
                 logger.debug("%s occupied", self.my_id)
                 self.reserve_lock = datetime.now()
@@ -134,6 +146,10 @@ class ZigBeeDeviceActor(UsbActor):
             self._publish_status_change()
             self.sender_api = None
 
+    def _select_channel(self, msg, sender):
+        self.instrument.select_channel(self.zigbee_address)
+        super().receiveMsg_ReserveDeviceMsg(msg, sender)
+
     @overrides
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         if sender != self.parent.parent_address:
@@ -141,10 +157,11 @@ class ZigBeeDeviceActor(UsbActor):
             self.send(self.parent.parent_address, msg)
             self.forwarded_free_pending = True
             if self.zigbee_address:
-                try:
-                    self.instrument.close_channel()
-                except (SerialException, TypeError) as exception:
-                    logger.warning("Freeing %s caused %s", self.my_id, exception)
+                if not self.close_channel_thread.is_alive():
+                    self.close_channel_thread = Thread(
+                        target=self._close_channel, daemon=True
+                    )
+                    self.close_channel_thread.start()
             super().receiveMsg_FreeDeviceMsg(msg, sender)
         elif self.forwarded_free_pending:
             self.forwarded_free_pending = False
@@ -161,11 +178,19 @@ class ZigBeeDeviceActor(UsbActor):
         if is_reserved or self.reserve_lock:
             self.send(self.parent.parent_address, FreeDeviceMsg())
         if self.zigbee_address:
-            try:
-                self.instrument.close_channel()
-            except SerialException:
-                pass
+            if not self.close_channel_thread.is_alive():
+                self.close_channel_thread = Thread(
+                    target=self._close_channel, daemon=True
+                )
+                self.close_channel_thread.start()
         return super()._kill_myself(register, resurrect)
+
+    def _close_channel(self):
+        try:
+            self.instrument.release_instrument()
+            self.instrument.close_channel()
+        except (SerialException, TypeError) as exception:
+            logger.warning("%s during _close_channel from %s", exception, self.my_id)
 
     @overrides
     def receiveMsg_SetupUsbActorMsg(self, msg, sender):

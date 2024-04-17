@@ -81,10 +81,6 @@ class ComActor(BaseActor):
         else:
             logger.debug("%s: Update -- no child", self.my_id)
             self._guess_family()
-            if self.guessed_family == 5:
-                sleep(2.5)  # Wait for the relay
-            elif self.guessed_family == 4:
-                sleep(8)  # Wait for ZigBee coordinator to start
             self._do_loop()
             self._start_polling()
 
@@ -105,6 +101,10 @@ class ComActor(BaseActor):
 
     def _detect_instr(self) -> None:
         logger.debug("[_detect_instr] %s", self.route)
+        if self.guessed_family == 5:
+            sleep(2.5)  # Wait for the relay
+        elif self.guessed_family == 4:
+            sleep(8)  # Wait for ZigBee coordinator to start
         if not self.child_actors:
             instrument = self._get_instrument(self.route)
             if instrument is not None:

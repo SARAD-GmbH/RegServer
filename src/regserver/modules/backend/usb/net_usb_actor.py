@@ -10,6 +10,7 @@
 
 from dataclasses import replace
 from datetime import timedelta
+from threading import Thread
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides
@@ -34,6 +35,8 @@ class NetUsbActor(UsbActor):
         super().__init__()
         self.actor_type = ActorType.NODE
         self.blocked = False
+        self.scan_thread = Thread(target=self.scan, daemon=True)
+        self.close_channel_thread = Thread(target=self._close_channel, daemon=True)
 
     @overrides
     def _setup(self, family_id=None, route=None):
@@ -72,18 +75,25 @@ class NetUsbActor(UsbActor):
 
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
+        if not self.close_channel_thread.is_alive():
+            self.close_channel_thread = Thread(target=self._close_channel, daemon=True)
+            self.close_channel_thread.start()
+        return super()._kill_myself(register, resurrect)
+
+    def _close_channel(self):
         try:
             self.instrument.close_channel()
-        except SerialException:
-            pass
-        return super()._kill_myself(register, resurrect)
+        except (SerialException, TypeError) as exception:
+            logger.warning("%s during _close_channel from %s", exception, self.my_id)
 
     @overrides
     def receiveMsg_WakeupMessage(self, msg, _sender):
         super().receiveMsg_WakeupMessage(msg, _sender)
         if (msg.payload == "scan") and not self.blocked:
-            self.scan()
-        self.wakeupAfter(timedelta(seconds=30), payload="scan")
+            if not self.scan_thread.is_alive():
+                self.scan_thread = Thread(target=self.scan, daemon=True)
+                self.scan_thread.start()
+        self.wakeupAfter(timedelta(seconds=10), payload="scan")
 
     @overrides
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
@@ -97,9 +107,9 @@ class NetUsbActor(UsbActor):
 
     def scan(self):
         """Scan for instruments connected to this NetMonitors Coordinator"""
-        logger.info("Rescan")
+        logger.debug("Rescan")
         channels = self.instrument.scan()
-        logger.info("Instruments connected via ZigBee: %s", channels)
+        logger.debug("Instruments connected via ZigBee: %s", channels)
         new_channels = {}
         for instr_id, address in channels.items():
             actor_id = self.get_actor_id(instr_id)
@@ -112,12 +122,12 @@ class NetUsbActor(UsbActor):
         if gone_channels:
             logger.info("Instruments removed from ZigBee: %s", gone_channels)
             for actor_id in gone_channels:
-                logger.info("Kill actor %s on %s", actor_id, self.my_id)
+                logger.debug("Kill actor %s on %s", actor_id, self.my_id)
                 self.send(self.child_actors[actor_id]["actor_address"], KillMsg())
         if new_channels:
             logger.info("New instruments connected via ZigBee: %s", new_channels)
             for actor_id, address in new_channels.items():
-                logger.info("Create actor %s on %s", actor_id, self.my_id)
+                logger.debug("Create actor %s on %s", actor_id, self.my_id)
                 self._create_actor(ZigBeeDeviceActor, actor_id, None)
                 family_id = Hashids().decode(short_id(actor_id))[0]
                 route_to_instr = replace(self.instrument.route)
@@ -145,7 +155,7 @@ class NetUsbActor(UsbActor):
     def receiveMsg_FinishSetupUsbActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """The initialization of one of the child actors was finished"""
-        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for _child_id, child_actor in self.child_actors.items():
             if child_actor["actor_address"] == sender:
                 child_actor["initialized"] = True
@@ -171,4 +181,4 @@ class NetUsbActor(UsbActor):
     def receiveMsg_ReservationStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handle the ReservationStatusMsg from child ZigBeeDeviceActor"""
-        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
