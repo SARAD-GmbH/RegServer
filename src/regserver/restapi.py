@@ -478,7 +478,8 @@ class ReserveDevice(Resource):
         logger.debug("Before RESERVE operation")
         device_state = get_device_status_from_registrar(registrar_actor, device_id)
         if (
-            transport_technology(device_id) not in ["local", "is1", "mdns", "mqtt"]
+            transport_technology(device_id)
+            not in ["local", "is1", "mdns", "mqtt", "zigbee"]
         ) or (device_state == {}):
             logger.error("Requested service not supported by actor system.")
             status = Status.NOT_FOUND
