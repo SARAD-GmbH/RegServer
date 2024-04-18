@@ -401,7 +401,11 @@ class Registrar(BaseActor):
         if sending_actor != "REST API":
             logger.debug("%s for %s from %s", msg, self.my_id, sending_actor)
         self.check_integrity()
-        self.send(sender, UpdateDeviceStatusesMsg(self.device_statuses))
+        device_statuses = {}
+        for device, status in self.device_statuses.items():
+            if status:
+                device_statuses[device] = status
+        self.send(sender, UpdateDeviceStatusesMsg(device_statuses))
 
     def receiveMsg_RescanMsg(self, msg, sender):
         # pylint: disable=invalid-name
