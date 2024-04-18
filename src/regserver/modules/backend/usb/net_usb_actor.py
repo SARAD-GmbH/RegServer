@@ -75,7 +75,7 @@ class NetUsbActor(UsbActor):
         }
         self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
         self._publish_status_change()
-        logger.debug("NetMonitors Coordinator with Id %s detected.", self.my_id)
+        logger.info("NetMonitors Coordinator with Id %s detected.", self.my_id)
         # self.instrument.coordinator_reset()
         self.scan()
         self.wakeupAfter(timedelta(seconds=SCAN_INTERVAL), payload="scan")
