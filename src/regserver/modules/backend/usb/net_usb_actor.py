@@ -129,11 +129,37 @@ class NetUsbActor(UsbActor):
         new_channels = {}
         for instr_id, address in channels.items():
             actor_id = self.get_actor_id(instr_id)
+            if self.child_actors:
+                old_zb_address = self.child_actors[actor_id][
+                    "route_to_instr"
+                ].zigbee_address
+            else:
+                old_zb_address = 0
+            new_zb_address = channels[short_id(actor_id)]
             if actor_id not in self.child_actors:
                 new_channels[actor_id] = address
+            elif old_zb_address != new_zb_address:
+                logger.warning(
+                    "%s has changed its ZigBee address from %d to %d",
+                    actor_id,
+                    old_zb_address,
+                    new_zb_address,
+                )
+                new_channels[actor_id] = address
         gone_channels = []
-        for actor_id in self.child_actors:
-            if short_id(actor_id) not in channels:
+        for actor_id, info in self.child_actors.items():
+            instr_id = short_id(actor_id)
+            old_zb_address = info["route_to_instr"].zigbee_address
+            new_zb_address = channels[instr_id]
+            if instr_id not in channels:
+                gone_channels.append(actor_id)
+            elif old_zb_address != new_zb_address:
+                logger.warning(
+                    "%s has changed its ZigBee address from %d to %d",
+                    actor_id,
+                    old_zb_address,
+                    new_zb_address,
+                )
                 gone_channels.append(actor_id)
         if gone_channels:
             logger.info("Instruments removed from ZigBee: %s", gone_channels)
