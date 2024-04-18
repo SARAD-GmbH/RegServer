@@ -4,8 +4,7 @@ After=time-sync.target
 Wants=time-sync.target
 
 [Service]
-WorkingDirectory=/home/pi/RegServer/src
-ExecStart=/usr/local/bin/start-regserver
+ExecStart=/usr/local/bin/sarad_registration_server
 Restart=always
 RestartSec=3
 TimeoutStopSec=7

@@ -145,7 +145,7 @@ Setup Systemd service
 
 Copy the required files from the Git repository on a remote PC::
 
-  scp ./bin/regserver.service pi@araneaxxxx:/home/pi/
+  scp ./systemd/regserver.service pi@araneaxxxx:/home/pi/
   scp ./src/config.example.toml pi@araneaxxxx:/home/pi/
 
 In this example, the target is a Linux computer with hostname "araneaxxxx" and user "pi".
@@ -173,8 +173,8 @@ Accessory to control the LED on SARAD Aranea
 
 Copy the required files from the Git repository on a remote PC::
 
-  scp ./bin/blinking_led.py pi@araneaxxxx:/home/pi/
-  scp ./bin/blinking_led.service pi@araneaxxxx:/home/pi/
+  scp ./systemd/blinking_led.py pi@araneaxxxx:/home/pi/
+  scp ./systemd/blinking_led.service pi@araneaxxxx:/home/pi/
 
 
 On the target system::
