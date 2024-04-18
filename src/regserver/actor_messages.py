@@ -314,7 +314,13 @@ class FinishSetupMdnsActorMsg:
 
 @dataclass
 class FinishSetupUsbActorMsg:
-    """Message from UsbActor indicating that initialization was completed"""
+    """Message from UsbActor indicating that initialization was completed.
+
+    Args:
+        success (bool): True, if the setup was successful
+    """
+
+    success: bool
 
 
 @dataclass

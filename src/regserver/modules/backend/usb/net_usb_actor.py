@@ -175,10 +175,13 @@ class NetUsbActor(UsbActor):
     def receiveMsg_FinishSetupUsbActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """The initialization of one of the child actors was finished"""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        for _child_id, child_actor in self.child_actors.items():
-            if child_actor["actor_address"] == sender:
-                child_actor["initialized"] = True
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        if msg.success:
+            for _child_id, child_actor in self.child_actors.items():
+                if child_actor["actor_address"] == sender:
+                    child_actor["initialized"] = True
+        else:
+            self.send(sender, KillMsg())
         self.setup_one_child()
 
     def get_actor_id(self, instr_id):

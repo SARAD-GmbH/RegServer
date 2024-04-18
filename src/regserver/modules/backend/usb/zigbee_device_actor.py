@@ -43,19 +43,6 @@ class ZigBeeDeviceActor(UsbActor):
     @overrides
     def _setup(self, family_id=None, route=None):
         self.instrument = id_family_mapping.get(family_id)
-        self.instrument.COM_TIMEOUT = COM_TIMEOUT
-        if self.instrument is None:
-            logger.critical("Family %s not supported", family_id)
-            self.is_connected = False
-            return
-        self.instrument.route = route
-        if usb_backend_config["SET_RTC"]:
-            if usb_backend_config["USE_UTC"]:
-                now = datetime.now(timezone.utc)
-            else:
-                now = datetime.now()
-            logger.info("Set RTC of %s to %s", self.my_id, now)
-            self.instrument.set_real_time_clock(now)
         if family_id == 5:
             sarad_type = "sarad-dacm"
             family_dict = dict(self.instrument.family)
@@ -68,26 +55,39 @@ class ZigBeeDeviceActor(UsbActor):
             )
         elif family_id in [1, 2, 4]:
             sarad_type = "sarad-1688"
-        device_status = {
-            "Identification": {
-                "Name": self.instrument.type_name,
-                "Family": family_id,
-                "Type": self.instrument.type_id,
-                "Serial number": self.instrument.serial_number,
-                "Firmware version": self.instrument.software_version,
-                "Host": "127.0.0.1",
-                "Protocol": sarad_type,
-                "IS Id": config["IS_ID"],
-            },
-            "Serial": self.instrument.route.port,
-            "State": 2,
-        }
-        self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
-        self._publish_status_change()
-        logger.debug("Instrument with Id %s detected.", self.my_id)
-        self.zigbee_address = self.instrument.route.zigbee_address
-        self.instrument.release_instrument()
-        self.send(self.parent.parent_address, FinishSetupUsbActorMsg())
+        self.instrument.COM_TIMEOUT = COM_TIMEOUT
+        self.instrument.route = route
+        if self.instrument.type_id == 0:
+            logger.error("Setup of ZigBee Actor failed")
+            self.send(self.parent.parent_address, FinishSetupUsbActorMsg(success=False))
+        else:
+            if usb_backend_config["SET_RTC"]:
+                if usb_backend_config["USE_UTC"]:
+                    now = datetime.now(timezone.utc)
+                else:
+                    now = datetime.now()
+                logger.info("Set RTC of %s to %s", self.my_id, now)
+                self.instrument.set_real_time_clock(now)
+            device_status = {
+                "Identification": {
+                    "Name": self.instrument.type_name,
+                    "Family": family_id,
+                    "Type": self.instrument.type_id,
+                    "Serial number": self.instrument.serial_number,
+                    "Firmware version": self.instrument.software_version,
+                    "Host": "127.0.0.1",
+                    "Protocol": sarad_type,
+                    "IS Id": config["IS_ID"],
+                },
+                "Serial": self.instrument.route.port,
+                "State": 2,
+            }
+            self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
+            self._publish_status_change()
+            logger.debug("Instrument with Id %s detected.", self.my_id)
+            self.zigbee_address = self.instrument.route.zigbee_address
+            self.instrument.release_instrument()
+            self.send(self.parent.parent_address, FinishSetupUsbActorMsg(success=True))
 
     @overrides
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
