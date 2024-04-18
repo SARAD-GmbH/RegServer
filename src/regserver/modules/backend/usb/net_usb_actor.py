@@ -114,6 +114,12 @@ class NetUsbActor(UsbActor):
         self.blocked = False
         self._forward_to_children(msg)
 
+    @overrides
+    def receiveMsg_ChildActorExited(self, msg, sender):
+        if not self.child_actors:
+            self.blocked = False
+        return super().receiveMsg_ChildActorExited(msg, sender)
+
     def scan(self):
         """Scan for instruments connected to this NetMonitors Coordinator"""
         logger.debug("Rescan")
