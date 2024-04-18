@@ -76,8 +76,8 @@ class NetUsbActor(UsbActor):
         self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
         self._publish_status_change()
         logger.info("NetMonitors Coordinator with Id %s detected.", self.my_id)
-        # self.instrument.coordinator_reset()
-        self.scan()
+        self.instrument.coordinator_reset()
+        self.instrument.release_instrument()
         self.wakeupAfter(timedelta(seconds=SCAN_INTERVAL), payload="scan")
         return
 
@@ -129,7 +129,7 @@ class NetUsbActor(UsbActor):
         new_channels = {}
         for instr_id, address in channels.items():
             actor_id = self.get_actor_id(instr_id)
-            if self.child_actors:
+            if self.child_actors.get(actor_id, False):
                 old_zb_address = self.child_actors[actor_id][
                     "route_to_instr"
                 ].zigbee_address
@@ -180,7 +180,7 @@ class NetUsbActor(UsbActor):
                         instr_already_represented = True
                         break
                 if not instr_already_represented:
-                    logger.info("Create actor %s on %s", actor_id, self.my_id)
+                    logger.debug("Create actor %s on %s", actor_id, self.my_id)
                     self._create_actor(ZigBeeDeviceActor, actor_id, None)
                     family_id = Hashids().decode(short_id(actor_id))[0]
                     route_to_instr = replace(self.instrument.route)
@@ -207,10 +207,11 @@ class NetUsbActor(UsbActor):
     def receiveMsg_FinishSetupUsbActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """The initialization of one of the child actors was finished"""
-        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if msg.success:
-            for _child_id, child_actor in self.child_actors.items():
+            for child_id, child_actor in self.child_actors.items():
                 if child_actor["actor_address"] == sender:
+                    logger.info("%s initialized", child_id)
                     child_actor["initialized"] = True
         else:
             self.send(sender, KillMsg())
