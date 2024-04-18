@@ -26,6 +26,9 @@ from sarad.mapping import id_family_mapping  # type: ignore
 from sarad.sari import sarad_family  # type: ignore
 from serial import SerialException  # type: ignore
 
+# period in seconds to ask coordinator for updated instrument list
+SCAN_INTERVAL = 15  # must be longer than COM_TIMEOUT
+
 
 class NetUsbActor(UsbActor):
     """Device Actor for a NetMonitors Coordinator"""
@@ -37,6 +40,11 @@ class NetUsbActor(UsbActor):
         self.blocked = False
         self.scan_thread = Thread(target=self.scan, daemon=True)
         self.close_channel_thread = Thread(target=self._close_channel, daemon=True)
+
+    @overrides
+    def receiveMsg_SetupMsg(self, msg, sender):
+        super().receiveMsg_SetupMsg(msg, sender)
+        self._subscribe_to_actor_dict_msg()
 
     @overrides
     def _setup(self, family_id=None, route=None):
@@ -70,7 +78,7 @@ class NetUsbActor(UsbActor):
         logger.debug("NetMonitors Coordinator with Id %s detected.", self.my_id)
         # self.instrument.coordinator_reset()
         self.scan()
-        self.wakeupAfter(timedelta(seconds=30), payload="scan")
+        self.wakeupAfter(timedelta(seconds=SCAN_INTERVAL), payload="scan")
         return
 
     @overrides
@@ -83,6 +91,7 @@ class NetUsbActor(UsbActor):
     def _close_channel(self):
         try:
             self.instrument.close_channel()
+            self.instrument.release_instrument()
         except (SerialException, TypeError) as exception:
             logger.warning("%s during _close_channel from %s", exception, self.my_id)
 
@@ -93,7 +102,7 @@ class NetUsbActor(UsbActor):
             if not self.scan_thread.is_alive():
                 self.scan_thread = Thread(target=self.scan, daemon=True)
                 self.scan_thread.start()
-        self.wakeupAfter(timedelta(seconds=10), payload="scan")
+        self.wakeupAfter(timedelta(seconds=SCAN_INTERVAL), payload="scan")
 
     @overrides
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
@@ -109,6 +118,7 @@ class NetUsbActor(UsbActor):
         """Scan for instruments connected to this NetMonitors Coordinator"""
         logger.debug("Rescan")
         channels = self.instrument.scan()
+        self.instrument.release_instrument()
         logger.debug("Instruments connected via ZigBee: %s", channels)
         new_channels = {}
         for instr_id, address in channels.items():
@@ -127,15 +137,25 @@ class NetUsbActor(UsbActor):
         if new_channels:
             logger.info("New instruments connected via ZigBee: %s", new_channels)
             for actor_id, address in new_channels.items():
-                logger.debug("Create actor %s on %s", actor_id, self.my_id)
-                self._create_actor(ZigBeeDeviceActor, actor_id, None)
-                family_id = Hashids().decode(short_id(actor_id))[0]
-                route_to_instr = replace(self.instrument.route)
-                route_to_instr.zigbee_address = address
-                self.child_actors[actor_id]["initialized"] = False
-                self.child_actors[actor_id]["route_to_instr"] = route_to_instr
-                self.child_actors[actor_id]["family_id"] = family_id
-        self.instrument.release_instrument()
+                instr_already_represented = False
+                for existing_device_id in self.actor_dict:
+                    if short_id(existing_device_id) == short_id(actor_id):
+                        logger.info(
+                            "%s is already represented by %s",
+                            short_id(actor_id),
+                            existing_device_id,
+                        )
+                        instr_already_represented = True
+                        break
+                if not instr_already_represented:
+                    logger.info("Create actor %s on %s", actor_id, self.my_id)
+                    self._create_actor(ZigBeeDeviceActor, actor_id, None)
+                    family_id = Hashids().decode(short_id(actor_id))[0]
+                    route_to_instr = replace(self.instrument.route)
+                    route_to_instr.zigbee_address = address
+                    self.child_actors[actor_id]["initialized"] = False
+                    self.child_actors[actor_id]["route_to_instr"] = route_to_instr
+                    self.child_actors[actor_id]["family_id"] = family_id
         self.setup_one_child()
 
     def setup_one_child(self):

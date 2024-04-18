@@ -84,7 +84,6 @@ class ZigBeeDeviceActor(UsbActor):
         }
         self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
         self._publish_status_change()
-        self.instrument.release_instrument()
         logger.debug("Instrument with Id %s detected.", self.my_id)
         self.zigbee_address = self.instrument.route.zigbee_address
         self.instrument.release_instrument()
@@ -148,6 +147,7 @@ class ZigBeeDeviceActor(UsbActor):
 
     def _select_channel(self, msg, sender):
         self.instrument.select_channel(self.zigbee_address)
+        self.instrument.release_instrument()
         super().receiveMsg_ReserveDeviceMsg(msg, sender)
 
     @overrides
@@ -189,6 +189,7 @@ class ZigBeeDeviceActor(UsbActor):
         try:
             self.instrument.release_instrument()
             self.instrument.close_channel()
+            self.instrument.release_instrument()
         except (SerialException, TypeError) as exception:
             logger.warning("%s during _close_channel from %s", exception, self.my_id)
 

@@ -6,6 +6,7 @@ Created
 Authors
     Michael Strey <strey@sarad.de>
 """
+
 import fnmatch
 import os
 from collections.abc import MutableMapping
@@ -140,7 +141,7 @@ def sarad_protocol(device_id: str) -> str:
 
 def transport_technology(device_id: str) -> str:
     """Get the last part of the device_id designating the transport technology (tt).
-    This is in ["local", "is1", "mdns", "mqtt"].
+    This is in ["local", "is1", "mdns", "mqtt", "zigbee"].
 
     Args:
         device_id (str): long ID of the instrument that is used

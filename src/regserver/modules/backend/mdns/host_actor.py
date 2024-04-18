@@ -7,6 +7,7 @@
     | Michael Strey <strey@sarad.de>
 
 """
+
 import time
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -57,7 +58,7 @@ class HostActor(BaseActor):
     @staticmethod
     def mdns_id(local_id):
         """Convert device_id from local name into a proper mDNS device_id/actor_id"""
-        if transport_technology(local_id) in ("local", "is1", "mqtt"):
+        if transport_technology(local_id) in ("local", "is1", "mqtt", "zigbee"):
             return f"{short_id(local_id, check=False)}.{sarad_protocol(local_id)}.mdns"
         return local_id
 
