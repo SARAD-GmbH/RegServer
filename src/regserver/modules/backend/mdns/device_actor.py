@@ -8,19 +8,20 @@
     | Michael Strey <strey@sarad.de>
 
 """
+
 from datetime import timedelta
 from enum import Enum
 from threading import Thread
 
-import requests
+import requests  # type: ignore
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import ReservationStatusMsg, Status
 from regserver.config import config
 from regserver.hostname_functions import compare_hostnames
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter  # type: ignore
+from urllib3.util.retry import Retry  # type: ignore
 
 CMD_CYCLE_TIMEOUT = 1
 DEFAULT_TIMEOUT = 8  # seconds
