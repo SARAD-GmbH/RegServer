@@ -128,12 +128,14 @@ class HostActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SetupHostActorMsg initialising the host status information."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if self.scan_interval and not msg.scan_interval:
+            logger.info("Stop scanning %s. We can rely on mDNS ", self.base_url)
         self.scan_interval = msg.scan_interval
         self.base_url = f"http://{msg.host}:{msg.port}"
         self.port = msg.port
-        self._scan()
         if self.scan_interval:
             logger.info("Scan %s every %d seconds", self.base_url, self.scan_interval)
+            self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")
 
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -231,10 +233,13 @@ class HostActor(BaseActor):
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handle WakeupMessage for regular pings to hosts REST API"""
+        logger.debug("WakeupMessage %s received at %s", msg, self.my_id)
         if msg.payload == "ping":
             self._ping()
         elif msg.payload == "scan":
             self._scan()
+            if self.scan_interval:
+                self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")
 
     def _ping(self):
         if (not self.ping_thread.is_alive()) and (not self.scan_thread.is_alive()):
@@ -278,28 +283,24 @@ class HostActor(BaseActor):
         self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
     def _scan(self):
-        if (
-            (not self.scan_thread.is_alive())
-            and (not self.ping_thread.is_alive())
-            and (not self.get_host_info_thread.is_alive())
-        ):
-            self.scan_thread = Thread(target=self._scan_function, daemon=True)
-            try:
-                self.scan_thread.start()
-            except RuntimeError:
-                pass
+        self.scan_thread = Thread(target=self._scan_function, daemon=True)
+        try:
+            self.scan_thread.start()
+        except RuntimeError as exception:
+            logger.warning(exception)
 
     def _scan_function(self):
         logger.debug(
             "Scan REST API of %s for new instruments and host info", self.my_id
         )
         while not self.base_url:
+            logger.warning("Waiting for base URL")
             time.sleep(0.5)
         try:
             resp = self.http.get(f"{self.base_url}/list")
             device_list = resp.json()
         except Exception as exception:  # pylint: disable=broad-except
-            logger.debug("REST API of IS is not responding. %s", exception)
+            logger.warning("REST API of IS is not responding. %s", exception)
             success = Status.IS_NOT_FOUND
             logger.warning("%s in _scan_function of %s", success, self.my_id)
             self._forward_to_children(KillMsg())
@@ -320,8 +321,7 @@ class HostActor(BaseActor):
                         device_actor_id = self.mdns_id(device_id)
                         if device_actor_id not in self.child_actors:
                             self._set_device_status({device_actor_id: device_status})
-        if self.scan_interval:
-            self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")
+        logger.debug("Scan of %s finished", self.my_id)
 
     def _get_host_info(self):
         self.get_host_info_thread = Thread(

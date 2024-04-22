@@ -417,20 +417,22 @@
 ### Key: hosts
 ## `hosts` may contain a list of hosts running RegServers with mDNS frontend. It
 ## has the form
-## [[host1, host2], [port1, port2]]
-## The first list contains the hostnames, the second the belonging port numbers
-## of the REST APIs on these hosts (usually 8008).
+## [[host1, 8008], [host2, 8080]]
+## The first element of an entry contains the hostname, the second the belonging port number
+## of the REST APIs on this host (usually 8008).
 ##
 ## Usually it will not be necessary to maintain such a list since its the sense
 ## of mDNS to identify hosts automatically. But under special circumstances,
-## where multicast doesn't work this list might be the livesaver.
-### Default: [ [], [] ]
-#hosts = [[], []]
+## where multicast doesn't work this list might be the lifesaver.
+### Default: []
+#hosts = []
 
 ### Key: scan_interval
 ## `scan_interval` defines the frequency, how often the hosts given in `hosts`
 ## shall be scanned for connected SARAD instruments. The value is in seconds and
 ## defaults to 60. 0 = scan only once during startup.
+## NOTE: As soon as the RegServer receives a regular mDNS message from a host,
+## the scan_interval will be set to 0 automatically in order to avoid unneeded polling.
 ### Default: 60 (s)
 #scan_interval = 60
 
