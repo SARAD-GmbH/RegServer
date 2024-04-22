@@ -22,7 +22,7 @@ from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                       SetupIs1ActorMsg, TransportTechnology)
 from regserver.base_actor import BaseActor
 from regserver.config import config, config_file, is1_backend_config
-from regserver.helpers import check_message, make_command_msg
+from regserver.helpers import check_message, decode_instr_id, make_command_msg
 from regserver.logger import logger
 from regserver.modules.backend.is1.is1_actor import Is1Actor
 from sarad.global_helpers import sarad_family  # type: ignore
@@ -62,8 +62,7 @@ class Is1Listener(BaseActor):
                 payload[4:6], byteorder="little", signed=False
             )
             family_id = int(payload[6])
-            hid = Hashids()
-            instr_id = hid.encode(family_id, type_id, serial_number)
+            instr_id = Hashids().encode(family_id, type_id, serial_number)
             return {
                 "port": port,
                 "type_id": type_id,
@@ -97,9 +96,8 @@ class Is1Listener(BaseActor):
 
         Returns:
             string with name of instrument type"""
-        hid = Hashids()
-        family_id = hid.decode(instr_id)[0]
-        type_id = hid.decode(instr_id)[1]
+        family_id = decode_instr_id(instr_id)[0]
+        type_id = decode_instr_id(instr_id)[1]
         for instr_type in sarad_family(family_id)["types"]:
             if instr_type["type_id"] == type_id:
                 return instr_type["type_name"]
@@ -346,8 +344,7 @@ class Is1Listener(BaseActor):
         self, instr_id, port, is1_address: Is1Address, firmware_version: int
     ):
         logger.debug("[_create_and_setup_actor]")
-        hid = Hashids()
-        family_id = hid.decode(instr_id)[0]
+        family_id = decode_instr_id(instr_id)[0]
         if family_id == 5:
             sarad_type = "sarad-dacm"
         elif family_id in [1, 2]:
@@ -378,8 +375,8 @@ class Is1Listener(BaseActor):
             "Identification": {
                 "Name": self._get_name(instr_id),
                 "Family": family_id,
-                "Type": hid.decode(instr_id)[1],
-                "Serial number": hid.decode(instr_id)[2],
+                "Type": decode_instr_id(instr_id)[1],
+                "Serial number": decode_instr_id(instr_id)[2],
                 "Host": is1_address.hostname,
                 "Firmware version": firmware_version,
                 "IS Id": is1_address.hostname,

@@ -16,7 +16,6 @@ device actors referenced in the dictionary.
 from dataclasses import replace
 from datetime import timedelta
 
-from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 
 from regserver.actor_messages import (ActorType, Backend, BaudRateFinishedMsg,
@@ -32,7 +31,7 @@ from regserver.actor_messages import (ActorType, Backend, BaudRateFinishedMsg,
 from regserver.base_actor import BaseActor
 from regserver.config import (actor_config, backend_config, config,
                               frontend_config, mqtt_config, unique_id)
-from regserver.helpers import short_id, transport_technology
+from regserver.helpers import decode_instr_id, short_id, transport_technology
 from regserver.logger import logger
 from regserver.modules.backend.is1.is1_listener import Is1Listener
 from regserver.modules.backend.mqtt.mqtt_client_actor import MqttClientActor
@@ -141,8 +140,7 @@ class Registrar(BaseActor):
         """
         logger.error("The actor %s already exists in the system.", actor_id)
         if actor_type in (ActorType.DEVICE, ActorType.NODE):
-            hid = Hashids()
-            serial_number = hid.decode(short_id(actor_id))[2]
+            serial_number = decode_instr_id(short_id(actor_id))[2]
             if serial_number == 65535:
                 logger.info(
                     "%s is a virgin SARAD instrument. We are using the last attached device.",

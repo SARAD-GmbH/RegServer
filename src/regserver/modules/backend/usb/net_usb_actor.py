@@ -12,12 +12,11 @@ from dataclasses import replace
 from datetime import timedelta
 from threading import Thread
 
-from hashids import Hashids  # type: ignore
 from overrides import overrides
 from regserver.actor_messages import (ActorType, KillMsg, SetDeviceStatusMsg,
                                       SetupUsbActorMsg)
 from regserver.config import config
-from regserver.helpers import short_id
+from regserver.helpers import decode_instr_id, short_id
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
 from regserver.modules.backend.usb.zigbee_device_actor import (
@@ -182,7 +181,7 @@ class NetUsbActor(UsbActor):
                 if not instr_already_represented:
                     logger.debug("Create actor %s on %s", actor_id, self.my_id)
                     self._create_actor(ZigBeeDeviceActor, actor_id, None)
-                    family_id = Hashids().decode(short_id(actor_id))[0]
+                    family_id = decode_instr_id(short_id(actor_id))[0]
                     route_to_instr = replace(self.instrument.route)
                     route_to_instr.zigbee_address = address
                     self.child_actors[actor_id]["initialized"] = False
@@ -220,7 +219,7 @@ class NetUsbActor(UsbActor):
     def get_actor_id(self, instr_id):
         """Generate the actor_id from the channel information gained from
         NetMonitors Coordinator"""
-        family_id = Hashids().decode(instr_id)[0]
+        family_id = decode_instr_id(instr_id)[0]
         if family_id == 5:
             sarad_type = "sarad-dacm"
         elif family_id in [1, 2]:

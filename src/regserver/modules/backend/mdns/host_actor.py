@@ -13,7 +13,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 from threading import Thread
 
-import requests
+import requests  # type: ignore
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorCreatedMsg, ActorType, HostInfoMsg,
                                       HostObj, KillMsg, SetDeviceStatusMsg,
@@ -23,8 +23,8 @@ from regserver.base_actor import BaseActor
 from regserver.helpers import sarad_protocol, short_id, transport_technology
 from regserver.logger import logger
 from regserver.modules.backend.mdns.device_actor import DeviceActor
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter  # type: ignore
+from urllib3.util.retry import Retry  # type: ignore
 
 PING_INTERVAL = 5  # in minutes
 DEFAULT_TIMEOUT = 8  # seconds

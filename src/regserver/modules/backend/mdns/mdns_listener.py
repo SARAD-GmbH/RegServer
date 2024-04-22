@@ -9,16 +9,16 @@ services (SARAD devices) in the local network.
     | Michael Strey <strey@sarad.de>
 
 """
+
 import ipaddress
 import socket
 import threading
 
-import hashids  # type: ignore
 from regserver.actor_messages import (ActorCreatedMsg, CreateActorMsg, KillMsg,
                                       SetDeviceStatusMsg, SetupHostActorMsg)
 from regserver.config import config, mdns_backend_config
-from regserver.helpers import (get_actor, sarad_protocol, short_id,
-                               transport_technology)
+from regserver.helpers import (decode_instr_id, get_actor, sarad_protocol,
+                               short_id, transport_technology)
 from regserver.hostname_functions import compare_hostnames
 from regserver.logger import logger
 from regserver.modules.backend.mdns.host_actor import HostActor
@@ -86,8 +86,7 @@ class MdnsListener(ServiceListener):
             return None
         instr_id = serial_short.decode("utf-8").split(".")[0]
         sarad_protocol_ = serial_short.decode("utf-8").split(".")[1]
-        hids = hashids.Hashids()
-        ids = hids.decode(instr_id)
+        ids = decode_instr_id(instr_id)
         if ids is None:
             logger.error("ids is None")
             return None
