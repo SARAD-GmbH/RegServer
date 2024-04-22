@@ -265,7 +265,7 @@ class MdnsListener(ServiceListener):
             device_id = self.device_id(name)
             device_actor = get_actor(self.registrar, device_id)
             if device_actor is None:
-                logger.warning("Actor %s does not exist.", device_id)
+                logger.debug("Actor %s does not exist.", device_id)
             else:
                 logger.debug("Kill device actor %s", device_id)
                 ActorSystem().tell(device_actor, KillMsg())

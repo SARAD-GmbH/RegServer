@@ -149,7 +149,10 @@ class NetUsbActor(UsbActor):
         for actor_id, info in self.child_actors.items():
             instr_id = short_id(actor_id)
             old_zb_address = info["route_to_instr"].zigbee_address
-            new_zb_address = channels[instr_id]
+            if channels and channels.get(instr_id, False):
+                new_zb_address = channels[instr_id]
+            else:
+                new_zb_address = old_zb_address
             if instr_id not in channels:
                 gone_channels.append(actor_id)
             elif old_zb_address != new_zb_address:

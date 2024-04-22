@@ -204,7 +204,6 @@ class BaseActor(ActorTypeDispatcher):
         """
         if not is_flag_set()[0]:
             return
-        logger.warning("%s for %s from %s", msg, self.my_id, sender)
         if isinstance(
             msg.deadMessage,
             (
@@ -223,13 +222,14 @@ class BaseActor(ActorTypeDispatcher):
             ),
         ):
             self.send(self.registrar, UnsubscribeMsg(msg.deadAddress))
-            logger.info("The above warning can safely be ignored.")
         elif isinstance(msg.deadMessage, KeepAliveMsg):
             self.send(
                 msg.deadMessage.parent.parent_address,
                 DeadChildMsg(msg.deadMessage.child),
             )
+            logger.warning("%s for %s from %s", msg, self.my_id, sender)
         else:
+            logger.critical("%s for %s from %s", msg, self.my_id, sender)
             logger.critical("%s -> Emergency shutdown", self.my_id)
             system_shutdown()
 
