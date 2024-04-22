@@ -499,6 +499,15 @@ def decode_instr_id(instr_id: str) -> Tuple:
     Returns: tuple of family_id, type_id, serial_number
     """
     try:
-        return Hashids().decode(instr_id)
-    except IndexError:
-        return tuple(instr_id.split("-"))
+        instr_id_tuple = Hashids().decode(instr_id)
+        assert instr_id_tuple is not None
+        assert len(instr_id_tuple) == 3
+        return instr_id_tuple
+    except (IndexError, AssertionError):
+        try:
+            instr_id_tuple = tuple(int(x) for x in instr_id.split("-"))
+            assert len(instr_id_tuple) == 3
+            return instr_id_tuple
+        except AssertionError:
+            logger.critical("Error decoding instr_id %s", instr_id)
+            return ()
