@@ -22,9 +22,9 @@ from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
 
 from regserver.actor_messages import Backend, Frontend, KillMsg, SetupMsg
-from regserver.config import (actor_config, backend_config, config_file,
-                              frontend_config, mdns_backend_config,
-                              rest_frontend_config)
+from regserver.config import (FRMT, PING_FILE_NAME, actor_config,
+                              backend_config, config_file, frontend_config,
+                              mdns_backend_config, rest_frontend_config)
 from regserver.logdef import LOGFILENAME, logcfg
 from regserver.logger import logger
 from regserver.modules.backend.mdns.mdns_listener import MdnsListener
@@ -301,6 +301,14 @@ def check_network():
                 GLOBAL_LED.blink()
 
 
+def write_ping_file():
+    """Write the current datetime into a file"""
+    if (Backend.MQTT in backend_config) and (Frontend.MQTT not in frontend_config):
+        with open(PING_FILE_NAME, "w", encoding="utf8") as pingfile:
+            logger.debug("Write datetime to %s", PING_FILE_NAME)
+            pingfile.write(datetime.utcnow().strftime(FRMT))
+
+
 def main():
     # pylint: disable=too-many-branches
     """Main function of the Registration Server"""
@@ -350,6 +358,7 @@ def main():
                 startup_tupel[0], number_of_trials=actor_config["OUTER_WATCHDOG_TRIALS"]
             )
             last_trial = before
+            write_ping_file()
         else:
             registrar_is_down = False
         if registrar_is_down:

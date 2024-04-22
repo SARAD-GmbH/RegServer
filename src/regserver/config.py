@@ -98,6 +98,9 @@ try:
         customization = tomlkit.load(custom_file)
 except OSError:
     customization = tomlkit.document()
+PING_FILE_NAME = f"{dirs.user_runtime_dir}{os.sep}ping"
+os.makedirs(os.path.dirname(PING_FILE_NAME), exist_ok=True)
+FRMT = "%Y-%m-%dT%H:%M:%S"
 
 # General configuration
 DEFAULT_DESCRIPTION = "SARAD Instrument Server"

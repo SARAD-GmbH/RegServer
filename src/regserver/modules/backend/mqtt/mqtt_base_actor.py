@@ -7,6 +7,7 @@
     | Michael Strey <strey@sarad.de>
 
 """
+
 import os
 import socket
 import ssl
@@ -16,9 +17,11 @@ from threading import Thread
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
-from regserver.actor_messages import Frontend
+from regserver.actor_messages import Backend, Frontend
 from regserver.base_actor import BaseActor
-from regserver.config import frontend_config, mqtt_config, mqtt_frontend_config
+from regserver.config import (FRMT, PING_FILE_NAME, backend_config,
+                              frontend_config, mqtt_config,
+                              mqtt_frontend_config)
 from regserver.logger import logger
 from regserver.shutdown import is_flag_set, system_shutdown
 
@@ -54,6 +57,26 @@ class MqttBaseActor(BaseActor):
         logger.info("%s: Client loop stopped", self.my_id)
         super()._kill_myself(register=register, resurrect=resurrect)
 
+    def clean_session(self) -> bool:
+        """Read datetime from ping file and compare with currrent time.
+
+        Returns:
+            True, if MQTT client shall be started as clean session"""
+        if (Backend.MQTT in backend_config) and (Frontend.MQTT not in frontend_config):
+            try:
+                with open(PING_FILE_NAME, "r", encoding="utf8") as pingfile:
+                    finished_at = datetime.strptime(pingfile.read(), FRMT)
+            except FileNotFoundError:
+                logger.warning("No Ping file from last run. -> Clean session")
+                return True
+            now = datetime.utcnow()
+            if (now - finished_at) > timedelta(hours=6):
+                logger.info("Clean session")
+                return True
+            logger.info("Persistent connection")
+            return False
+        return False
+
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for PrepareMqttActorMsg from MQTT Listener"""
@@ -62,7 +85,7 @@ class MqttBaseActor(BaseActor):
         self.mqttc = MQTT.Client(
             MQTT.CallbackAPIVersion.VERSION2,
             client_id=msg.client_id,
-            clean_session=False,
+            clean_session=self.clean_session(),
         )
         self.group = msg.group
         self.mqttc.on_connect = self.on_connect
