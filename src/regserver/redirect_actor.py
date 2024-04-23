@@ -9,6 +9,7 @@ socket as actor messages to the device actor.
     | Michael Strey <strey@sarad.de>
 
 """
+
 import select
 import socket
 from threading import Thread
@@ -138,7 +139,7 @@ class RedirectorActor(BaseActor):
             except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")
                 data = None
-                sleep(5)
+                sleep(0.1)
             except (ValueError, IOError) as exception:
                 logger.error("%s in _sendall function", exception)
         if data is None:
@@ -166,7 +167,7 @@ class RedirectorActor(BaseActor):
                 return
             except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")
-                sleep(5)
+                sleep(0.1)
             except (ValueError, IOError) as exception:
                 logger.error("%s in RxBinaryMsg handler", exception)
         logger.critical("Application software seems to be dead.")
