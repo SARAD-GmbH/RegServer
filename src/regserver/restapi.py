@@ -909,7 +909,7 @@ class GetValues(Resource):
     @api.expect(values_arguments, validate=True)
     def get(self, device_id):
         # pylint: disable=too-many-return-statements
-        """Gather a measuring value from a SARAD instrument of DACM family"""
+        """Gather a measuring value from a SARAD instrument"""
         registrar_actor = get_registrar_actor()
         if registrar_actor is None:
             status = Status.CRITICAL
@@ -933,14 +933,12 @@ class GetValues(Resource):
             device_id,
         )
         device_state = get_device_status_from_registrar(registrar_actor, device_id)
-        if (
-            (device_state == {})
-            or (transport_technology(device_id) not in ["local"])
-            or ("sarad-dacm" not in device_id)
+        if (device_state == {}) or (
+            transport_technology(device_id) not in ["local", "zigbee"]
         ):
-            logger.error("Request only supported for local DACM instruments.")
+            logger.error("Request only supported for local and ZigBee instruments.")
             status = Status.NOT_FOUND
-            notification = "Only supported for local DACM instruments"
+            notification = "Only supported for local and ZigBee instruments"
             return {
                 "Error code": status.value,
                 "Error": str(status),
