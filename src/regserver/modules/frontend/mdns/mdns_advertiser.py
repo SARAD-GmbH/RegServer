@@ -12,6 +12,7 @@ The associated Redirector will be created by the Device Actor on Reservation.
 Based on work of Riccardo Förster <foerster@sarad.de>.
 
 """
+
 import socket
 
 from overrides import overrides  # type: ignore
@@ -59,7 +60,13 @@ class MdnsAdvertiserActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         instr_id = short_id(msg.device_id)
         sarad_protocol = msg.device_id.split(".")[1]
-        self.instr_name = msg.device_status["Identification"]["Name"]
+        if msg.device_status.get("Identification", False):
+            self.instr_name = msg.device_status["Identification"].get("Name", "")
+        else:
+            logger.error(
+                "Something went wrong with the initialization of %s", msg.device_id
+            )
+            return
         self.service_name = f"{instr_id}.{sarad_protocol}"
         self.device_id = msg.device_id
         if msg.device_status.get("Reservation") is None:
