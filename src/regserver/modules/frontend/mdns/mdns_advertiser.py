@@ -149,5 +149,7 @@ class MdnsAdvertiserActor(BaseActor):
         try:
             self.zeroconf.update_service(self.service)
         except (EventLoopBlocked, AssertionError) as exception:
-            logger.critical("Exception in __update_service: %s", exception)
-            system_shutdown()
+            logger.critical(
+                "Exception in __update_service: %s, %s", exception, self.service
+            )
+            # system_shutdown()
