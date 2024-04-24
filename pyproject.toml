@@ -26,7 +26,7 @@ dependencies = [
     "systemd-python; sys_platform == \"linux\"",
     "tomlkit",
     "zeroconf==0.118.0",
-    # "sarad @ git+https://github.com/SARAD-GmbH/sarad.git@master",
+    "sarad @ git+https://github.com/SARAD-GmbH/sarad.git@master",
     "platformdirs>=4.2.0",
 ]
 requires-python = "<3.11, >=3.9"
@@ -70,7 +70,7 @@ dev = [
     "sphinxcontrib-plantuml; sys_platform == \"linux\"",
     "sphinx-autoapi; sys_platform == \"linux\"",
     "sphinx_rtd_theme; sys_platform == \"linux\"",
-    "-e git+https://github.com/SARAD-GmbH/sarad.git@master#egg=sarad",
+    # "-e git+https://github.com/SARAD-GmbH/sarad.git@master#egg=sarad",
 ]
 lint = [
     "ruff>=0.3.4",
