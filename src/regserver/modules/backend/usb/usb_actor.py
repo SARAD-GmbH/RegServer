@@ -425,7 +425,7 @@ class UsbActor(DeviceBaseActor):
             sender = self.registrar
         try:
             reply = self.instrument.get_recent_value(component, sensor, measurand)
-        except IndexError:
+        except (IndexError, AttributeError):
             answer = RecentValueMsg(status=Status.INDEX_ERROR)
             self.send(sender, answer)
             return

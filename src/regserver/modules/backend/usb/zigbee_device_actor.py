@@ -56,7 +56,11 @@ class ZigBeeDeviceActor(UsbActor):
         elif family_id in [1, 2, 4]:
             sarad_type = "sarad-1688"
         self.instrument.COM_TIMEOUT = COM_TIMEOUT
-        self.instrument.route = route
+        try:
+            self.instrument.route = route
+        except SerialException as exception:
+            logger.error("Exception during setup of %s: %s", self.my_id, exception)
+            self.instrument.type_id = 0
         if self.instrument.type_id == 0:
             logger.error("Setup of ZigBee Actor failed")
             self.send(self.parent.parent_address, FinishSetupUsbActorMsg(success=False))
