@@ -184,24 +184,46 @@ ports_arguments = reqparse.RequestParser()
 ports_arguments.add_argument("port", type=str, required=False)
 values_arguments = reqparse.RequestParser()
 values_arguments.add_argument(
+    "app",
+    type=str,
+    required=True,
+    help="Requires an argument identifying the requesting application.",
+    trim=True,
+)
+values_arguments.add_argument(
+    "user",
+    type=str,
+    required=True,
+    help="Requires an argument identifying the requesting user.",
+    trim=True,
+)
+values_arguments.add_argument(
+    "host",
+    type=str,
+    required=True,
+    help="Requires an argument identifying the requesting host.",
+    trim=True,
+)
+values_arguments.add_argument(
     "component",
     type=int,
     required=True,
-    help="Requires component, sensor, measurand.",
+    help="Index of the component of the instrument containing the sensor.",
     trim=True,
 )
 values_arguments.add_argument(
     "sensor",
     type=int,
     required=True,
-    help="Requires component, sensor, measurand.",
+    help="Index of the sensor providing the wanted value.",
     trim=True,
 )
 values_arguments.add_argument(
     "measurand",
     type=int,
     required=True,
-    help="Requires component, sensor, measurand.",
+    help="Index of the measurand. The meaning is provided by the instrument description.\n"
+    + "(e. g. 0 - recent, 1 - recent error, 2 - average, 3 - average error)",
     choices=[0, 1, 2, 3],
     trim=True,
 )
@@ -458,9 +480,11 @@ class ReserveDevice(Resource):
         arguments = reserve_arguments.parse_args()
         try:
             attribute_who = arguments["who"]
-            application = attribute_who.split(" - ")[0]
-            user = attribute_who.split(" - ")[1]
-            request_host = attribute_who.split(" - ")[2]
+            who = {
+                "app": attribute_who.split(" - ")[0],
+                "user": attribute_who.split(" - ")[1],
+                "host": attribute_who.split(" - ")[2],
+            }
         except (IndexError, AttributeError):
             logger.warning("Reserve request without proper who attribute.")
             status = Status.ATTRIBUTE_ERROR
@@ -469,13 +493,16 @@ class ReserveDevice(Resource):
                 "Error": str(status),
                 device_id: {},
             }
+        return self.reserve_device(registrar_actor, device_id, who)
+
+    def reserve_device(self, registrar_actor, device_id, who):
+        """The actual reserve method. It will be called after checking all
+        boundary conditions."""
         logger.info(
-            "Request reservation of %s for %s@%s",
+            "Request reservation of %s for %s",
             device_id,
-            attribute_who,
-            request_host,
+            who,
         )
-        logger.debug("Before RESERVE operation")
         device_state = get_device_status_from_registrar(registrar_actor, device_id)
         if (
             transport_technology(device_id)
@@ -485,7 +512,11 @@ class ReserveDevice(Resource):
             status = Status.NOT_FOUND
         else:
             status = send_reserve_message(
-                device_id, registrar_actor, request_host, user, application
+                device_id,
+                registrar_actor,
+                who["host"],
+                who["user"],
+                who["app"],
             )
         if status in (
             Status.OK,
@@ -922,14 +953,11 @@ class GetValues(Resource):
                 "Requester": "Emergency shutdown",
             }
         arguments = values_arguments.parse_args()
-        component_id = arguments["component"]
-        sensor_id = arguments["sensor"]
-        measurand_id = arguments["measurand"]
         logger.info(
             "Request value %d/%d/%d of %s",
-            component_id,
-            sensor_id,
-            measurand_id,
+            arguments["component"],
+            arguments["sensor"],
+            arguments["measurand"],
             device_id,
         )
         device_state = get_device_status_from_registrar(registrar_actor, device_id)
@@ -952,60 +980,81 @@ class GetValues(Resource):
                 "Error code": status.value,
                 "Error": str(status),
             }
-        with ActorSystem().private() as value_sys:
-            try:
-                value_return = value_sys.ask(
-                    device_actor,
-                    GetRecentValueMsg(component_id, sensor_id, measurand_id),
-                    timeout=TIMEOUT,
-                )
-            except ConnectionResetError:
-                status = Status.CRITICAL
-                logger.critical("No response from Actor System. -> Emergency shutdown")
-                system_shutdown()
-                return {
-                    "Error code": status.value,
-                    "Error": str(status),
-                    "Notification": "Registration Server going down for restart.",
-                    "Requester": "Emergency shutdown",
-                }
-        reply_is_corrupted = check_msg(value_return, RecentValueMsg)
-        if reply_is_corrupted:
-            return reply_is_corrupted
-        if value_return.status in [Status.INDEX_ERROR, Status.OCCUPIED]:
-            if value_return.status == Status.OCCUPIED:
-                notification = "The instrument is occupied by somebody else."
-            elif value_return.status == Status.INDEX_ERROR:
-                notification = "The requested measurand is not available."
-            return {
-                "Error code": value_return.status.value,
-                "Error": str(value_return.status),
-                "Notification": notification,
-            }
-        timestamp = (
-            value_return.timestamp.isoformat(timespec="seconds") + "Z"
-            if value_return.timestamp is not None
-            else None
+        reserve_state = ReserveDevice().reserve_device(
+            registrar_actor,
+            device_id,
+            arguments,
         )
-        return {
-            "Device Id": device_id,
-            "Component name": value_return.component_name,
-            "Sensor name": value_return.sensor_name,
-            "Measurand name": value_return.measurand_name,
-            "Measurand": value_return.measurand,
-            "Operator": value_return.operator,
-            "Value": value_return.value,
-            "Unit": value_return.unit,
-            "Timestamp": timestamp,
-            "Fetched": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "GPS": {
-                "Valid": value_return.gps.valid,
-                "Latitude": value_return.gps.latitude,
-                "Longitude": value_return.gps.longitude,
-                "Altitude": value_return.gps.altitude,
-                "Deviation": value_return.gps.deviation,
-            },
-        }
+        if reserve_state.get("Error code") in [
+            Status.OK.value,
+            Status.OK_SKIPPED.value,
+            Status.OK_UPDATED.value,
+        ]:
+            with ActorSystem().private() as value_sys:
+                try:
+                    value_return = value_sys.ask(
+                        device_actor,
+                        GetRecentValueMsg(
+                            arguments["component"],
+                            arguments["sensor"],
+                            arguments["measurand"],
+                        ),
+                        timeout=TIMEOUT,
+                    )
+                except ConnectionResetError:
+                    status = Status.CRITICAL
+                    logger.critical(
+                        "No response from Actor System. -> Emergency shutdown"
+                    )
+                    system_shutdown()
+                    FreeDevice().get(device_id)
+                    return {
+                        "Error code": status.value,
+                        "Error": str(status),
+                        "Notification": "Registration Server going down for restart.",
+                        "Requester": "Emergency shutdown",
+                    }
+            reply_is_corrupted = check_msg(value_return, RecentValueMsg)
+            if reply_is_corrupted:
+                FreeDevice().get(device_id)
+                return reply_is_corrupted
+            if value_return.status in [Status.INDEX_ERROR, Status.OCCUPIED]:
+                if value_return.status == Status.OCCUPIED:
+                    notification = "The instrument is occupied by somebody else."
+                elif value_return.status == Status.INDEX_ERROR:
+                    notification = "The requested measurand is not available."
+                FreeDevice().get(device_id)
+                return {
+                    "Error code": value_return.status.value,
+                    "Error": str(value_return.status),
+                    "Notification": notification,
+                }
+            timestamp = (
+                value_return.timestamp.isoformat(timespec="seconds") + "Z"
+                if value_return.timestamp is not None
+                else None
+            )
+            FreeDevice().get(device_id)
+            return {
+                "Device Id": device_id,
+                "Component name": value_return.component_name,
+                "Sensor name": value_return.sensor_name,
+                "Measurand name": value_return.measurand_name,
+                "Measurand": value_return.measurand,
+                "Operator": value_return.operator,
+                "Value": value_return.value,
+                "Unit": value_return.unit,
+                "Timestamp": timestamp,
+                "Fetched": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "GPS": {
+                    "Valid": value_return.gps.valid,
+                    "Latitude": value_return.gps.latitude,
+                    "Longitude": value_return.gps.longitude,
+                    "Altitude": value_return.gps.altitude,
+                    "Deviation": value_return.gps.deviation,
+                },
+            }
+        return reserve_state
 
 
 @ports_ns.route("/")
