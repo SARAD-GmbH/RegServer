@@ -501,6 +501,7 @@ class UsbActor(DeviceBaseActor):
             self._publish_status_change()
             if self.free_lock:
                 self.free_lock = False
+            self.sender_api = None
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):

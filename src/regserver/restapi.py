@@ -972,11 +972,15 @@ class GetValues(Resource):
         reply_is_corrupted = check_msg(value_return, RecentValueMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
-        if value_return.status == Status.INDEX_ERROR:
+        if value_return.status in [Status.INDEX_ERROR, Status.OCCUPIED]:
+            if value_return.status == Status.OCCUPIED:
+                notification = "The instrument is occupied by somebody else."
+            elif value_return.status == Status.INDEX_ERROR:
+                notification = "The requested measurand is not available."
             return {
                 "Error code": value_return.status.value,
                 "Error": str(value_return.status),
-                "Notification": "The requested measurand is not available.",
+                "Notification": notification,
             }
         timestamp = (
             value_return.timestamp.isoformat(timespec="seconds") + "Z"
