@@ -13,8 +13,8 @@ from datetime import datetime, timedelta, timezone
 
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, Frontend, KillMsg,
-                                      ReservationStatusMsg, Status,
-                                      UpdateDeviceStatusMsg)
+                                      RecentValueMsg, ReservationStatusMsg,
+                                      Status, UpdateDeviceStatusMsg)
 from regserver.base_actor import BaseActor
 from regserver.config import frontend_config
 from regserver.helpers import short_id
@@ -339,6 +339,29 @@ class DeviceBaseActor(BaseActor):
         self._update_reservation_status(reservation)
         self._send_reservation_status_msg()
         logger.debug("_send_reservation_status_msg case B")
+
+    def receiveMsg_GetRecentValueMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Get a value from a DACM instrument."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if self.sender_api is None:
+            self.sender_api = sender
+        self._request_recent_value_at_is(msg, sender)
+
+    def _request_recent_value_at_is(self, msg, sender):
+        # pylint: disable=unused-argument
+        """Request the a recent value at the Instrument Server. This function has
+        to be implemented (overridden) in the protocol specific modules.
+        """
+
+    def _handle_recent_value_reply_from_is(self, answer: RecentValueMsg):
+        # pylint: disable=unused-argument
+        """Inform all interested parties that the instrument is free.
+        Forward the recent value from the Instrument Server to the REST API.
+        This function has to be called in the protocol specific modules.
+        """
+        self.send(self.sender_api, answer)
+        self.sender_api = None
 
     def _update_reservation_status(self, reservation):
         self.device_status["Reservation"] = reservation

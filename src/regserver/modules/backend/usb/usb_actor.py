@@ -17,8 +17,7 @@ from typing import Union
 from hashids import Hashids  # type: ignore
 from overrides import overrides
 from regserver.actor_messages import (Gps, RecentValueMsg, RescanMsg,
-                                      ReserveDeviceMsg, RxBinaryMsg,
-                                      SetDeviceStatusMsg, Status)
+                                      RxBinaryMsg, SetDeviceStatusMsg, Status)
 from regserver.config import config, usb_backend_config
 from regserver.helpers import short_id
 from regserver.logger import logger
@@ -80,8 +79,6 @@ class UsbActor(DeviceBaseActor):
             kwargs={"data": None},
             daemon=True,
         )
-        self.do_after_reserve = None
-        self.kwargs_after_reserve = {}
 
     def _start_thread(self, thread, thread_type: ThreadType):
         if (
@@ -196,10 +193,10 @@ class UsbActor(DeviceBaseActor):
             self._start_thread(msg.payload[0], msg.payload[1])
         elif msg.payload == "start_measuring":
             self._start_measuring()
-        elif msg.payload == "get_values":
-            self._get_recent_value(
-                sender=None, component=component, sensor=sensor, measurand=measurand
-            )
+        # elif msg.payload == "get_values":
+        #     self._get_recent_value(
+        #         sender=None, component=component, sensor=sensor, measurand=measurand
+        #     )
 
     def _finish_poll(self):
         """Finalize the handling of WakeupMessage for regular rescan"""
@@ -324,10 +321,7 @@ class UsbActor(DeviceBaseActor):
             self._kill_myself()
             self._handle_reserve_reply_from_is(Status.NOT_FOUND)
         else:
-            if self.do_after_reserve is None:
-                self._handle_reserve_reply_from_is(Status.OK)
-            else:
-                self.do_after_reserve(**self.kwargs_after_reserve)
+            self._handle_reserve_reply_from_is(Status.OK)
 
     @overrides
     def _request_free_at_is(self):
@@ -404,35 +398,8 @@ class UsbActor(DeviceBaseActor):
             msg.baud_rate
         )
 
-    def receiveMsg_GetRecentValueMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Get a value from a DACM instrument."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.device_status.get("Reservation", False):
-            if self.device_status["Reservation"].get("Active"):
-                self.send(
-                    sender, RecentValueMsg(status=Status.OCCUPIED, gps=Gps(valid=False))
-                )
-                return
-        self.do_after_reserve = self.handle_get_recent_value_msg
-        self.kwargs_after_reserve = {"msg": msg, "sender": sender}
-        reserve_device_msg = ReserveDeviceMsg("localhost", "rest_api", "RegServer")
-        self.receiveMsg_ReserveDeviceMsg(reserve_device_msg, sender)
-
-    def handle_get_recent_value_msg(self, msg, sender):
-        """This is the method that will be started after a successful
-        reservation after receiving GetRecentValueMsg."""
-        reservation = {
-            "Active": True,
-            "App": self.reserve_device_msg.app,
-            "Host": self.reserve_device_msg.host,
-            "User": self.reserve_device_msg.user,
-            "Timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        }
-        self._update_reservation_status(reservation)
-        self._publish_status_change()
-        if self.reserve_lock:
-            self.reserve_lock = False
+    @overrides
+    def _request_recent_value_at_is(self, msg, sender):
         self._start_thread(
             Thread(
                 target=self._get_recent_value,
@@ -493,17 +460,7 @@ class UsbActor(DeviceBaseActor):
                 answer = RecentValueMsg(status=Status.INDEX_ERROR)
             logger.info(answer)
         finally:
-            self.send(sender, answer)
-            self.do_after_reserve = None
-            # free
-            self.device_status["Reservation"]["Active"] = False
-            self.device_status["Reservation"]["Timestamp"] = datetime.now(
-                timezone.utc
-            ).isoformat(timespec="seconds")
-            self._publish_status_change()
-            if self.free_lock:
-                self.free_lock = False
-            self.sender_api = None
+            self._handle_recent_value_reply_from_is(answer)
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
