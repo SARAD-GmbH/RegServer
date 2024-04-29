@@ -245,6 +245,7 @@ class UsbActor(DeviceBaseActor):
             self.tx_binary_thread_proceed.start()
 
     def _tx_binary_proceed(self, data):
+        logger.debug(data)
         has_reservation_section = self.device_status.get("Reservation", False)
         if has_reservation_section:
             is_reserved = self.device_status["Reservation"].get("Active", False)
@@ -267,10 +268,9 @@ class UsbActor(DeviceBaseActor):
                     )
                     stop_time = datetime.now()
                 except (SerialException, OSError, TypeError) as exception:
-                    # logger.error(
-                    #     "Connection to %s lost: %s", self.instrument, exception
-                    # )
-                    # reply = {"is_valid": False, "is_last_frame": True}
+                    logger.error(
+                        "Connection to %s lost: %s", self.instrument, exception
+                    )
                     emergency = True
                 if emergency:
                     logger.info("Killing myself")
@@ -284,10 +284,6 @@ class UsbActor(DeviceBaseActor):
                     read_next = not reply["is_last_frame"]
                     data = b""
                     continue
-                if emergency:
-                    logger.info("Killing myself")
-                    self._kill_myself()
-                    return
                 logger.warning(
                     "Invalid binary message from %s after %s: %s",
                     self.my_id,
