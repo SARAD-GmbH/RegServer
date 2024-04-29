@@ -17,7 +17,8 @@ from typing import Union
 from hashids import Hashids  # type: ignore
 from overrides import overrides
 from regserver.actor_messages import (Gps, RecentValueMsg, RescanMsg,
-                                      RxBinaryMsg, SetDeviceStatusMsg, Status)
+                                      ReserveDeviceMsg, RxBinaryMsg,
+                                      SetDeviceStatusMsg, Status)
 from regserver.config import config, usb_backend_config
 from regserver.helpers import short_id
 from regserver.logger import logger
@@ -79,6 +80,8 @@ class UsbActor(DeviceBaseActor):
             kwargs={"data": None},
             daemon=True,
         )
+        self.do_after_reserve = None
+        self.kwargs_after_reserve = {}
 
     def _start_thread(self, thread, thread_type: ThreadType):
         if (
@@ -321,7 +324,10 @@ class UsbActor(DeviceBaseActor):
             self._kill_myself()
             self._handle_reserve_reply_from_is(Status.NOT_FOUND)
         else:
-            self._handle_reserve_reply_from_is(Status.OK)
+            if self.do_after_reserve is None:
+                self._handle_reserve_reply_from_is(Status.OK)
+            else:
+                self.do_after_reserve(**self.kwargs_after_reserve)
 
     @overrides
     def _request_free_at_is(self):
@@ -402,6 +408,29 @@ class UsbActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Get a value from a DACM instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if self.device_status.get("Reservation", False):
+            if self.device_status["Reservation"].get("Active"):
+                self.send(
+                    sender, RecentValueMsg(status=Status.OCCUPIED, gps=Gps(valid=False))
+                )
+                return
+        self.do_after_reserve = self.handle_get_recent_value_msg
+        self.kwargs_after_reserve = {"msg": msg, "sender": sender}
+        reserve_device_msg = ReserveDeviceMsg("localhost", "rest_api", "RegServer")
+        self.receiveMsg_ReserveDeviceMsg(reserve_device_msg, sender)
+
+    def handle_get_recent_value_msg(self, msg, sender):
+        reservation = {
+            "Active": True,
+            "App": self.reserve_device_msg.app,
+            "Host": self.reserve_device_msg.host,
+            "User": self.reserve_device_msg.user,
+            "Timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        }
+        self._update_reservation_status(reservation)
+        self._publish_status_change()
+        if self.reserve_lock:
+            self.reserve_lock = False
         self._start_thread(
             Thread(
                 target=self._get_recent_value,
@@ -423,46 +452,55 @@ class UsbActor(DeviceBaseActor):
             reply = self.instrument.get_recent_value(component, sensor, measurand)
         except (IndexError, AttributeError):
             answer = RecentValueMsg(status=Status.INDEX_ERROR)
-            self.send(sender, answer)
-            return
-        logger.debug(
-            "get_recent_value(%d, %d, %d) came back with %s",
-            component,
-            sensor,
-            measurand,
-            reply,
-        )
-        if reply:
-            if reply.get("gps") is None:
-                gps = Gps(valid=False)
-            else:
-                gps = Gps(
-                    valid=reply["gps"]["valid"],
-                    latitude=reply["gps"]["latitude"],
-                    longitude=reply["gps"]["longitude"],
-                    altitude=reply["gps"]["altitude"],
-                    deviation=reply["gps"]["deviation"],
-                )
-            if measurand:
-                timestamp = reply["datetime"]
-            else:
-                timestamp = datetime.now(timezone.utc)
-            answer = RecentValueMsg(
-                component_name=reply["component_name"],
-                sensor_name=reply["sensor_name"],
-                measurand_name=reply["measurand_name"],
-                measurand=reply["measurand"],
-                operator=reply["measurand_operator"],
-                value=reply["value"],
-                unit=reply["measurand_unit"],
-                timestamp=timestamp,
-                gps=gps,
-                status=Status.OK,
-            )
         else:
-            answer = RecentValueMsg(status=Status.INDEX_ERROR)
-        logger.info(answer)
-        self.send(sender, answer)
+            logger.debug(
+                "get_recent_value(%d, %d, %d) came back with %s",
+                component,
+                sensor,
+                measurand,
+                reply,
+            )
+            if reply:
+                if reply.get("gps") is None:
+                    gps = Gps(valid=False)
+                else:
+                    gps = Gps(
+                        valid=reply["gps"]["valid"],
+                        latitude=reply["gps"]["latitude"],
+                        longitude=reply["gps"]["longitude"],
+                        altitude=reply["gps"]["altitude"],
+                        deviation=reply["gps"]["deviation"],
+                    )
+                if measurand:
+                    timestamp = reply["datetime"]
+                else:
+                    timestamp = datetime.now(timezone.utc)
+                answer = RecentValueMsg(
+                    component_name=reply["component_name"],
+                    sensor_name=reply["sensor_name"],
+                    measurand_name=reply["measurand_name"],
+                    measurand=reply["measurand"],
+                    operator=reply["measurand_operator"],
+                    value=reply["value"],
+                    unit=reply["measurand_unit"],
+                    timestamp=timestamp,
+                    gps=gps,
+                    status=Status.OK,
+                )
+            else:
+                answer = RecentValueMsg(status=Status.INDEX_ERROR)
+            logger.info(answer)
+        finally:
+            self.send(sender, answer)
+            self.do_after_reserve = None
+            # free
+            self.device_status["Reservation"]["Active"] = False
+            self.device_status["Reservation"]["Timestamp"] = datetime.now(
+                timezone.utc
+            ).isoformat(timespec="seconds")
+            self._publish_status_change()
+            if self.free_lock:
+                self.free_lock = False
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
