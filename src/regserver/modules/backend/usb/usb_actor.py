@@ -420,6 +420,8 @@ class UsbActor(DeviceBaseActor):
         self.receiveMsg_ReserveDeviceMsg(reserve_device_msg, sender)
 
     def handle_get_recent_value_msg(self, msg, sender):
+        """This is the method that will be started after a successful
+        reservation after receiving GetRecentValueMsg."""
         reservation = {
             "Active": True,
             "App": self.reserve_device_msg.app,
