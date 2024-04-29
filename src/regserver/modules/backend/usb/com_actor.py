@@ -101,7 +101,7 @@ class ComActor(BaseActor):
 
     def _detect_instr(self) -> None:
         logger.debug("[_detect_instr] %s", self.route)
-        if self.guessed_family == 5:
+        if self.guessed_family in [2, 5]:
             sleep(2.5)  # Wait for the relay
         elif self.guessed_family == 4:
             sleep(8)  # Wait for ZigBee coordinator to start
