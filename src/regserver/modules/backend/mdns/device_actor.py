@@ -58,6 +58,7 @@ class Purpose(Enum):
     RESERVE = 3
     FREE = 4
     STATUS = 5
+    VALUE = 6
 
 
 class DeviceActor(DeviceBaseActor):
@@ -116,6 +117,8 @@ class DeviceActor(DeviceBaseActor):
             self.next_method = self._finish_reserve
         elif purpose == Purpose.FREE:
             self.next_method = self._finish_free
+        elif purpose == Purpose.VALUE:
+            self.next_method = self._handle_recent_value_reply_from_is
         elif purpose == Purpose.STATUS:
             self.next_method = self._finish_set_device_status
 
@@ -301,6 +304,27 @@ class DeviceActor(DeviceBaseActor):
             logger.error("%s during reservation", success)
             self._kill_myself()
         self._send_reservation_status_msg()
+
+    @overrides
+    def _request_recent_value_at_is(self, msg, sender):
+        self._start_thread(
+            Thread(
+                target=self._http_get_function,
+                kwargs={
+                    "endpoint": f"{self.base_url}/values/{self.device_id}",
+                    "params": {
+                        "app": msg.app,
+                        "user": msg.user,
+                        "host": msg.host,
+                        "component": msg.component,
+                        "sensor": msg.sensor,
+                        "measurand": msg.measurand,
+                    },
+                    "purpose": Purpose.VALUE,
+                },
+                daemon=True,
+            )
+        )
 
     @overrides
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):

@@ -14,6 +14,7 @@ from datetime import datetime
 from enum import Enum, IntEnum, unique
 from typing import Any, ByteString, Dict, List, Tuple, Union
 
+from flask import app
 from sarad.sari import FamilyDict, Route  # type: ignore
 from thespian.actors import ActorAddress, ActorSystemMessage  # type: ignore
 
@@ -829,11 +830,17 @@ class GetRecentValueMsg:
     initiate a get_recent_value command on a DACM instrument.
 
     Args:
+        app (str): Requesting application
+        user (str): Requesting user
+        host (str): Requesting host
         component (int): Index of the DACM component
         sensor (int): Index of the DACM sensor/actor
         measurand (int): Index of the DACM measurand
     """
 
+    app: str
+    user: str
+    host: str
     component: int
     sensor: int
     measurand: int

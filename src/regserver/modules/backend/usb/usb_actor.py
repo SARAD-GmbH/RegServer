@@ -302,16 +302,23 @@ class UsbActor(DeviceBaseActor):
         RS-232, we have to double-check the availability of the instrument.
 
         """
-        self._start_thread(
-            Thread(
-                target=self._check_connection,
-                kwargs={
-                    "purpose": Purpose.RESERVE,
-                },
-                daemon=True,
-            ),
-            ThreadType.CHECK_CONNECTION,
-        )
+        try:
+            is_reserved = self.device_status["Reservation"]["Active"]
+        except KeyError:
+            is_reserved = False
+        if not is_reserved:
+            self._start_thread(
+                Thread(
+                    target=self._check_connection,
+                    kwargs={
+                        "purpose": Purpose.RESERVE,
+                    },
+                    daemon=True,
+                ),
+                ThreadType.CHECK_CONNECTION,
+            )
+        else:
+            self._finish_reserve()
 
     def _finish_reserve(self):
         """Forward the reservation state from the Instrument Server to the REST API."""

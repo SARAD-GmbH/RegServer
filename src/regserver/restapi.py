@@ -962,7 +962,7 @@ class GetValues(Resource):
         )
         device_state = get_device_status_from_registrar(registrar_actor, device_id)
         if (device_state == {}) or (
-            transport_technology(device_id) not in ["local", "zigbee"]
+            transport_technology(device_id) not in ["local", "zigbee", "mdns"]
         ):
             logger.error("Request only supported for local and ZigBee instruments.")
             status = Status.NOT_FOUND
@@ -995,6 +995,9 @@ class GetValues(Resource):
                     value_return = value_sys.ask(
                         device_actor,
                         GetRecentValueMsg(
+                            arguments["app"],
+                            arguments["user"],
+                            arguments["host"],
                             arguments["component"],
                             arguments["sensor"],
                             arguments["measurand"],
