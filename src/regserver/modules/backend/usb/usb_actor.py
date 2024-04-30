@@ -459,7 +459,7 @@ class UsbActor(DeviceBaseActor):
                     operator=reply["measurand_operator"],
                     value=reply["value"],
                     unit=reply["measurand_unit"],
-                    timestamp=timestamp,
+                    timestamp=timestamp.timestamp(),
                     gps=gps,
                     status=Status.OK,
                 )

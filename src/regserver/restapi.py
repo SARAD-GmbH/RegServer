@@ -1032,11 +1032,6 @@ class GetValues(Resource):
                     "Error": str(value_return.status),
                     "Notification": notification,
                 }
-            timestamp = (
-                value_return.timestamp.isoformat(timespec="seconds") + "+00:00"
-                if value_return.timestamp is not None
-                else None
-            )
             FreeDevice().get(device_id)
             return {
                 "Device Id": device_id,
@@ -1047,7 +1042,7 @@ class GetValues(Resource):
                 "Operator": value_return.operator,
                 "Value": value_return.value,
                 "Unit": value_return.unit,
-                "Timestamp": timestamp,
+                "Timestamp": value_return.timestamp,
                 "Fetched": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                 "GPS": {
                     "Valid": value_return.gps.valid,

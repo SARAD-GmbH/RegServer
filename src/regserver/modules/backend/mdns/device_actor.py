@@ -132,7 +132,7 @@ class DeviceActor(DeviceBaseActor):
                     operator=self.response["Operator"],
                     value=self.response["Value"],
                     unit=self.response["Unit"],
-                    timestamp=datetime.fromisoformat(self.response["Timestamp"]),
+                    timestamp=self.response["Timestamp"],
                     gps=Gps(
                         valid=self.response["GPS"]["Valid"],
                         latitude=self.response["GPS"]["Latitude"],

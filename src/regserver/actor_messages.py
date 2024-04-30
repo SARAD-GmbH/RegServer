@@ -872,7 +872,7 @@ class RecentValueMsg:
         operator (str): Operator associated (i.e. < or >)
         value (float): Value of the measurand
         unit (str): Measuring unit for this value
-        timestamp (datetime): date and time of the measuring (end of integration interval)
+        timestamp (float): POSIX timestamp of the measuring (end of integration interval)
         gps (Gps): Parameters from builtin GPS receiver
     """
 
@@ -884,7 +884,7 @@ class RecentValueMsg:
     operator: str = ""
     value: float = 0
     unit: str = ""
-    timestamp: Union[datetime, None] = None
+    timestamp: Union[float, None] = None
     gps: Union[Gps, None] = None
 
 
