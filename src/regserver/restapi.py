@@ -55,7 +55,7 @@ app = Flask(__name__)
 app.url_map.strict_slashes = False
 api = Api(
     app,
-    version="2.0",
+    version="2.1",
     title="RegServer API",
     description="API to get data from and to control the SARAD Registration Server service",
 )
@@ -1033,7 +1033,7 @@ class GetValues(Resource):
                     "Notification": notification,
                 }
             timestamp = (
-                value_return.timestamp.isoformat(timespec="seconds")
+                value_return.timestamp.isoformat(timespec="seconds") + "+00:00"
                 if value_return.timestamp is not None
                 else None
             )
