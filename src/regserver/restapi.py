@@ -1033,7 +1033,7 @@ class GetValues(Resource):
                     "Notification": notification,
                 }
             timestamp = (
-                value_return.timestamp.isoformat(timespec="seconds") + "Z"
+                value_return.timestamp.isoformat(timespec="seconds")
                 if value_return.timestamp is not None
                 else None
             )

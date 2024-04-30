@@ -9,13 +9,14 @@
 
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import Enum
 from threading import Thread
 
 import requests  # type: ignore
 from overrides import overrides  # type: ignore
-from regserver.actor_messages import ReservationStatusMsg, Status
+from regserver.actor_messages import (Gps, RecentValueMsg,
+                                      ReservationStatusMsg, Status)
 from regserver.config import config
 from regserver.hostname_functions import compare_hostnames
 from regserver.logger import logger
@@ -86,6 +87,7 @@ class DeviceActor(DeviceBaseActor):
             daemon=True,
         )
         self.next_method = None
+        self.next_method_kwargs = {}
 
     def _http_get_function(self, endpoint="", params=None, purpose=Purpose.SETUP):
         try:
@@ -99,7 +101,7 @@ class DeviceActor(DeviceBaseActor):
             if (self.response is None) or (self.response == {}):
                 logger.error("%s not available", self.device_id)
                 self.success = Status.NOT_FOUND
-            else:
+            elif purpose in [Purpose.RESERVE, Purpose.SETUP, Purpose.FREE]:
                 device_desc = self.response.get(self.device_id)
                 if (device_desc is None) or (device_desc == {}):
                     logger.error("%s not available", self.device_id)
@@ -118,7 +120,30 @@ class DeviceActor(DeviceBaseActor):
         elif purpose == Purpose.FREE:
             self.next_method = self._finish_free
         elif purpose == Purpose.VALUE:
+            logger.debug("Target responded: %s", self.response)
             self.next_method = self._handle_recent_value_reply_from_is
+            if self.success == Status.OK:
+                answer = RecentValueMsg(
+                    status=self.success,
+                    component_name=self.response["Component name"],
+                    sensor_name=self.response["Sensor name"],
+                    measurand_name=self.response["Measurand name"],
+                    measurand=self.response["Measurand"],
+                    operator=self.response["Operator"],
+                    value=self.response["Value"],
+                    unit=self.response["Unit"],
+                    timestamp=datetime.fromisoformat(self.response["Timestamp"]),
+                    gps=Gps(
+                        valid=self.response["GPS"]["Valid"],
+                        latitude=self.response["GPS"]["Latitude"],
+                        longitude=self.response["GPS"]["Longitude"],
+                        altitude=self.response["GPS"]["Altitude"],
+                        deviation=self.response["GPS"]["Deviation"],
+                    ),
+                )
+            else:
+                answer = RecentValueMsg(status=self.success)
+            self.next_method_kwargs = {"answer": answer}
         elif purpose == Purpose.STATUS:
             self.next_method = self._finish_set_device_status
 
@@ -185,8 +210,9 @@ class DeviceActor(DeviceBaseActor):
             if self.next_method is None:
                 self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
             else:
-                self.next_method()
+                self.next_method(**self.next_method_kwargs)
                 self.next_method = None
+                self.next_method_kwargs = {}
         elif msg.payload == "update":
             if self.occupied:
                 try:
