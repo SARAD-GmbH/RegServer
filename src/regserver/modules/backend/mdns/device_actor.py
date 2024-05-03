@@ -245,12 +245,19 @@ class DeviceActor(DeviceBaseActor):
     def _finish_wakeup(self):
         """Handle WakeupMessage for regular updates"""
         if self.success == Status.OK:
-            device_desc = self.response[self.device_id]
-            reservation = device_desc.get("Reservation")
-            if reservation is None:
-                active = False
+            device_desc = self.response.get(self.device_id, False)
+            if device_desc:
+                reservation = device_desc.get("Reservation", False)
             else:
+                logger.debug(
+                    "%s disappeard whilst still being reserved", self.device_id
+                )
+                self._kill_myself()
+                return
+            if reservation:
                 active = reservation.get("Active", False)
+            else:
+                active = False
             self.device_status["Reservation"]["Active"] = active
             logger.debug("%s reservation active: %s", self.device_id, active)
             self._publish_status_change()
@@ -401,7 +408,11 @@ class DeviceActor(DeviceBaseActor):
                     else:
                         my_host = config["MY_HOSTNAME"]
                     if compare_hostnames(using_host, my_host):
-                        logger.debug("Occupied by me.")
+                        logger.debug(
+                            "Occupied by me. Using host is %s, my host is %s",
+                            using_host,
+                            my_host,
+                        )
                     else:
                         logger.debug("Occupied by somebody else.")
                         logger.debug("Using host: %s, my host: %s", using_host, my_host)
