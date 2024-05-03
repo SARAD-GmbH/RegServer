@@ -14,7 +14,6 @@ from datetime import datetime
 from enum import Enum, IntEnum, unique
 from typing import Any, ByteString, Dict, List, Tuple, Union
 
-from flask import app
 from sarad.sari import FamilyDict, Route  # type: ignore
 from thespian.actors import ActorAddress, ActorSystemMessage  # type: ignore
 
@@ -873,7 +872,7 @@ class RecentValueMsg:
         value (float): Value of the measurand
         unit (str): Measuring unit for this value
         timestamp (float): POSIX timestamp of the measuring (end of integration interval)
-        utc_offset (int): Offset of the RTC of the instrument to UTC
+        utc_offset (int): Offset of the RTC of the instrument to UTC, None if unknown
         sample_interval (int): Duration of sample interval in seconds
         gps (Gps): Parameters from builtin GPS receiver
     """
@@ -887,7 +886,7 @@ class RecentValueMsg:
     value: float = 0
     unit: str = ""
     timestamp: Union[float, None] = None
-    utc_offset: Union[int, str] = "unknown"
+    utc_offset: Union[int, None] = None
     sample_interval: int = 0
     gps: Union[Gps, None] = None
 
@@ -980,7 +979,8 @@ class MqttUnsubscribeMsg:
 
 @dataclass
 class MqttReceiveMsg:
-    """Message forwarding a MQTT message from the singleton MQTT Client Actor to the MQTT Device Actor.
+    """Message forwarding a MQTT message from the singleton MQTT Client Actor
+    to the MQTT Device Actor.
 
     Args:
         topic (str): The MQTT topic

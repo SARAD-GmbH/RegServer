@@ -30,7 +30,7 @@ class UsbBackendConfigDict(TypedDict):
     IGNORED_HWIDS: List[str]
     LOCAL_RETRY_INTERVAL: float
     SET_RTC: bool
-    USE_UTC: bool
+    UTC_OFFSET: int
 
 
 class MdnsBackendConfigDict(TypedDict):
