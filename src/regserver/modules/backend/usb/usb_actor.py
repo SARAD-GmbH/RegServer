@@ -134,12 +134,7 @@ class UsbActor(DeviceBaseActor):
             return
         self.instrument.route = route
         if usb_backend_config["SET_RTC"]:
-            if usb_backend_config["USE_UTC"]:
-                now = datetime.now(timezone.utc)
-            else:
-                now = datetime.now()
-            logger.info("Set RTC of %s to %s", self.my_id, now)
-            self.instrument.set_real_time_clock(now)
+            self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
         if family_id == 5:
             sarad_type = "sarad-dacm"
         elif family_id in [1, 2, 4]:
@@ -369,12 +364,6 @@ class UsbActor(DeviceBaseActor):
         if is_reserved:
             self.wakeupAfter(timedelta(seconds=1), payload="start_measuring")
         else:
-            if usb_backend_config["USE_UTC"]:
-                now = datetime.now(timezone.utc)
-            else:
-                now = datetime.now()
-            logger.info("Set RTC of %s to %s", self.my_id, now)
-            self.instrument.set_real_time_clock(now)
             try:
                 success = self.instrument.start_cycle(cycle_index)
                 logger.info(
@@ -447,10 +436,6 @@ class UsbActor(DeviceBaseActor):
                         altitude=reply["gps"]["altitude"],
                         deviation=reply["gps"]["deviation"],
                     )
-                if measurand:
-                    timestamp = reply["datetime"]
-                else:
-                    timestamp = datetime.now(timezone.utc)
                 answer = RecentValueMsg(
                     component_name=reply["component_name"],
                     sensor_name=reply["sensor_name"],
@@ -459,7 +444,9 @@ class UsbActor(DeviceBaseActor):
                     operator=reply["measurand_operator"],
                     value=reply["value"],
                     unit=reply["measurand_unit"],
-                    timestamp=timestamp.timestamp(),
+                    timestamp=reply["datetime"].timestamp(),
+                    utc_offset=self.instrument.utc_offset,
+                    sample_interval=self.instrument.sample_interval,
                     gps=gps,
                     status=Status.OK,
                 )

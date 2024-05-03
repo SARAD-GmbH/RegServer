@@ -1043,6 +1043,8 @@ class GetValues(Resource):
                 "Value": value_return.value,
                 "Unit": value_return.unit,
                 "Timestamp": value_return.timestamp,
+                "UTC offset": value_return.utc_offset,
+                "Sample interval": value_return.sample_interval,
                 "Fetched": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                 "GPS": {
                     "Valid": value_return.gps.valid,

@@ -384,7 +384,7 @@ DEFAULT_IGNORED_SERIAL_PORTS: List[str] = []
 DEFAULT_IGNORED_HWIDS: List[str] = ["BTHENUM", "2c7c"]
 DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
 DEFAULT_SET_RTC = False
-DEFAULT_USE_UTC = False
+DEFAULT_UTC_OFFSET = 0
 
 if customization.value.get("usb_backend") is None:
     usb_backend_config: UsbBackendConfigDict = {
@@ -393,7 +393,7 @@ if customization.value.get("usb_backend") is None:
         "IGNORED_HWIDS": DEFAULT_IGNORED_HWIDS,
         "LOCAL_RETRY_INTERVAL": DEFAULT_LOCAL_RETRY_INTERVAL,
         "SET_RTC": DEFAULT_SET_RTC,
-        "USE_UTC": DEFAULT_USE_UTC,
+        "UTC_OFFSET": DEFAULT_UTC_OFFSET,
     }
 else:
     usb_backend_config = {
@@ -414,7 +414,9 @@ else:
         "SET_RTC": customization.value["usb_backend"].get(
             "set_realtime_clock", DEFAULT_SET_RTC
         ),
-        "USE_UTC": customization.value["usb_backend"].get("use_utc", DEFAULT_USE_UTC),
+        "UTC_OFFSET": customization.value["usb_backend"].get(
+            "utc_offset", DEFAULT_UTC_OFFSET
+        ),
     }
 
 rs485_backend_config = customization.value.get("rs485_backend", {})

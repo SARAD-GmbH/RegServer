@@ -346,11 +346,11 @@
 ### Default: false
 #set_realtime_clock = false
 
-### Key: use_utc
-## With `use_utc` you can decide whether UTC (true) or local time (false)
-## shall be used. For monitoring systems we strongly recommend using UTC.
-### Default: false
-#use_utc = false
+### Key: utc_offset
+## `utc_offset` defines the offset of the RTC setting to UTC in hours.
+## For monitoring systems we recommend using 0, i.e. the RTC running on UTC.
+### Default: 0
+#utc_offset = 0
 
 
 ## There are SARAD instruments (e. g. the Smart Radon Sensor) that can be

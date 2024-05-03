@@ -133,6 +133,8 @@ class DeviceActor(DeviceBaseActor):
                     value=self.response["Value"],
                     unit=self.response["Unit"],
                     timestamp=self.response["Timestamp"],
+                    utc_offset=self.response["UTC offset"],
+                    sample_interval=self.response["Sample interval"],
                     gps=Gps(
                         valid=self.response["GPS"]["Valid"],
                         latitude=self.response["GPS"]["Latitude"],
