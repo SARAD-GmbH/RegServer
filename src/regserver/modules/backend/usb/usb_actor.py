@@ -133,8 +133,10 @@ class UsbActor(DeviceBaseActor):
             self.is_connected = False
             return
         self.instrument.route = route
+        self.instrument.device_id = self.my_id
         if usb_backend_config["SET_RTC"]:
-            self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
+            seconds_to_full_minute = 60 - datetime.now().time().second
+            self.wakeupAfter(timedelta(seconds=seconds_to_full_minute), "set_rtc")
         if family_id == 5:
             sarad_type = "sarad-dacm"
         elif family_id in [1, 2, 4]:
@@ -188,6 +190,8 @@ class UsbActor(DeviceBaseActor):
             self._start_thread(msg.payload[0], msg.payload[1])
         elif msg.payload == "start_measuring":
             self._start_measuring()
+        elif msg.payload == "set_rtc":
+            self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
         # elif msg.payload == "get_values":
         #     self._get_recent_value(
         #         sender=None, component=component, sensor=sensor, measurand=measurand
