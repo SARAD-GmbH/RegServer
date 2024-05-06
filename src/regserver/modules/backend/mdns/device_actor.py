@@ -387,10 +387,19 @@ class DeviceActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Finalize SetDeviceStatusMsg handler after receiving HTTP request."""
         if self.success == Status.OK:
-            device_desc = self.response[self.device_id]
+            device_desc = self.response.get(self.device_id, False)
             logger.debug("device_desc: %s", device_desc)
+            error = False
+            if device_desc:
+                remote_ident = device_desc.get("Identification", False)
+                error = not bool(remote_ident)
+            else:
+                error = True
+            if error:
+                logger.debug("%s disappeard", self.device_id)
+                self._kill_myself()
+                return
             ident = self.device_status["Identification"]
-            remote_ident = device_desc["Identification"]
             ident["IS Id"] = remote_ident.get("IS Id")
             ident["Firmware version"] = remote_ident.get("Firmware version")
             self.device_status["Identification"] = ident
