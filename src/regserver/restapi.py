@@ -964,9 +964,11 @@ class GetValues(Resource):
         if (device_state == {}) or (
             transport_technology(device_id) not in ["local", "zigbee", "mdns"]
         ):
-            logger.error("Request only supported for local and ZigBee instruments.")
+            logger.error(
+                "Request only supported for local, mDNS and ZigBee instruments."
+            )
             status = Status.NOT_FOUND
-            notification = "Only supported for local and ZigBee instruments"
+            notification = "Only supported for local, mDNS and ZigBee instruments"
             return {
                 "Error code": status.value,
                 "Error": str(status),
