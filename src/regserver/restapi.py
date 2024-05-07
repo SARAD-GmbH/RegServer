@@ -1037,8 +1037,11 @@ class GetValues(Resource):
             FreeDevice().get(device_id)
             return {
                 "Device Id": device_id,
+                "Component id": arguments["component"],
                 "Component name": value_return.component_name,
+                "Sensor id": arguments["sensor"],
                 "Sensor name": value_return.sensor_name,
+                "Measurand id": arguments["measurand"],
                 "Measurand name": value_return.measurand_name,
                 "Measurand": value_return.measurand,
                 "Operator": value_return.operator,

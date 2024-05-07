@@ -450,7 +450,7 @@ class UsbActor(DeviceBaseActor):
                     unit=reply["measurand_unit"],
                     timestamp=reply["datetime"].timestamp(),
                     utc_offset=self.instrument.utc_offset,
-                    sample_interval=self.instrument.sample_interval,
+                    sample_interval=reply["sample_interval"].total_seconds(),
                     gps=gps,
                     status=Status.OK,
                 )
