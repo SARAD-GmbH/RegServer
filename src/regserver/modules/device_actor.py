@@ -94,6 +94,7 @@ class DeviceBaseActor(BaseActor):
             self.device_status["Identification"].get("Host"),
             self.device_status["Identification"].get("IS Id"),
         )
+        self._publish_status_change()
 
     def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name

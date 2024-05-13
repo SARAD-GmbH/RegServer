@@ -87,7 +87,6 @@ class ZigBeeDeviceActor(UsbActor):
                 "State": 2,
             }
             self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
-            self._publish_status_change()
             logger.debug("Instrument with Id %s detected.", self.my_id)
             self.zigbee_address = self.instrument.route.zigbee_address
             self.instrument.release_instrument()

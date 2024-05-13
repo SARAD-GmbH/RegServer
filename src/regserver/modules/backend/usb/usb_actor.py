@@ -156,7 +156,6 @@ class UsbActor(DeviceBaseActor):
             "State": 2,
         }
         self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
-        self._publish_status_change()
         self.instrument.release_instrument()
         logger.debug("Instrument with Id %s detected.", self.my_id)
         return
