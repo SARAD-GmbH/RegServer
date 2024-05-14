@@ -8,13 +8,13 @@
 
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from threading import Thread
 
 from overrides import overrides
 from regserver.actor_messages import (FinishSetupUsbActorMsg, FreeDeviceMsg,
-                                      ReservationStatusMsg, SetDeviceStatusMsg,
-                                      Status)
+                                      ReservationStatusMsg, ReserveDeviceMsg,
+                                      SetDeviceStatusMsg, Status)
 from regserver.config import config, usb_backend_config
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
@@ -66,12 +66,12 @@ class ZigBeeDeviceActor(UsbActor):
             self.send(self.parent.parent_address, FinishSetupUsbActorMsg(success=False))
         else:
             if usb_backend_config["SET_RTC"]:
-                if usb_backend_config["USE_UTC"]:
-                    now = datetime.now(timezone.utc)
-                else:
-                    now = datetime.now()
-                logger.info("Set RTC of %s to %s", self.my_id, now)
-                self.instrument.set_real_time_clock(now)
+                seconds_to_full_minute = 60 - datetime.now().time().second
+                self.reserve_device_msg = ReserveDeviceMsg(
+                    host="localhost", user="self", app="self"
+                )
+                self._handle_reserve_reply_from_is(Status.OK)
+                self.wakeupAfter(timedelta(seconds=seconds_to_full_minute), "set_rtc")
             device_status = {
                 "Identification": {
                     "Name": self.instrument.type_name,
