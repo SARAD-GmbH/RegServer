@@ -19,13 +19,15 @@ from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                       Is1Address, SetDeviceStatusMsg,
-                                      SetupIs1ActorMsg, TransportTechnology)
+                                      SetupUsbActorMsg, TransportTechnology)
 from regserver.base_actor import BaseActor
 from regserver.config import config, config_file, is1_backend_config
 from regserver.helpers import check_message, decode_instr_id, make_command_msg
 from regserver.logger import logger
-from regserver.modules.backend.is1.is1_actor import Is1Actor
+from regserver.modules.backend.usb.usb_actor import UsbActor
+from sarad.cluster import id_family_mapping  # type: ignore
 from sarad.global_helpers import sarad_family  # type: ignore
+from sarad.sari import Route  # type: ignore
 
 
 class Is1Listener(BaseActor):
@@ -35,6 +37,11 @@ class Is1Listener(BaseActor):
     """
 
     GET_FIRST_COM = [b"\xe0", b""]
+    SELECT_COM = b"\xe2"
+    COM_SELECTED = b"\xe5"
+    COM_NOT_AVAILABLE = b"\xe6"
+    COM_FRAME_ERROR = b"\xe7"
+    COM_TIMEOUT = b"\xe8"
     PORTS = [is1_backend_config["REG_PORT"]]
 
     @staticmethod
@@ -110,7 +117,6 @@ class Is1Listener(BaseActor):
     def __init__(self):
         super().__init__()
         self._client_socket = None
-        self._socket_info = None
         self.conn = None
         my_ip = config["MY_IP"]
         logger.debug("IP address of Registration Server: %s", my_ip)
@@ -133,7 +139,9 @@ class Is1Listener(BaseActor):
         if my_port is not None:
             logger.info("Socket listening on %s:%d", my_ip, my_port)
         self.is1_addresses = []  # List of Is1Address
-        self.active_is1_addresses = []  # List of Is1Address with device Actors
+        self.active_is1_addresses = (
+            {}
+        )  # Dict of Is1Address with device Actor_Ids as keys
         self.scan_is_thread = Thread(target=self._scan_is_function, daemon=True)
         self.cmd_thread = Thread(target=self._cmd_handler_function, daemon=True)
         self.actor_type = ActorType.HOST
@@ -170,9 +178,9 @@ class Is1Listener(BaseActor):
             )
             for self.conn in readable:
                 if self.conn is server_socket:
-                    self._client_socket, self._socket_info = server_socket.accept()
+                    self._client_socket, _socket_info = server_socket.accept()
                     self.read_list.append(self._client_socket)
-                    logger.info("Connection from %s", self._socket_info)
+                    logger.info("Connection from %s", _socket_info)
                 else:
                     self._cmd_handler()
         except ValueError:
@@ -243,15 +251,14 @@ class Is1Listener(BaseActor):
             self._scan_one_is(address)
         self._update_host_info()
 
-    def _scan_one_is(self, address: Is1Address):
+    def _get_message_payload(self, cmd_msg, address: Is1Address):
         is_host = address.hostname
         is_port = address.port
-        cmd_msg = make_command_msg(self.GET_FIRST_COM)
-        logger.debug("Send GetFirstCOM: %s", cmd_msg)
+        result = {"is_valid": False}
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
             client_socket.settimeout(5)
             retry = True
-            counter = 5
+            counter = 1
             time.sleep(1)
             while retry and counter:
                 try:
@@ -264,10 +271,10 @@ class Is1Listener(BaseActor):
                     time.sleep(1)
                 except (OSError, TimeoutError, socket.timeout) as exception:
                     logger.debug("%s:%d not reachable. %s", is_host, is_port, exception)
-                    return
+                    return result
             if retry:
                 logger.error("Connection refused on %s:%d", is_host, is_port)
-                return
+                return result
             try:
                 client_socket.sendall(cmd_msg)
                 reply = client_socket.recv(1024)
@@ -278,29 +285,45 @@ class Is1Listener(BaseActor):
                 ConnectionResetError,
             ) as exception:
                 logger.error("%s. IS1 closed or disconnected.", exception)
-                return
-            checked_reply = check_message(reply, multiframe=False)
+                return result
             client_socket.shutdown(socket.SHUT_WR)
-            if checked_reply["is_valid"] and checked_reply["payload"] not in [
-                b"\xe4",
-                b"",
-            ]:
-                this_instrument = self._get_instrument_id(checked_reply["payload"])
-                if this_instrument:
-                    logger.info(
-                        "Instrument %s on COM%d",
-                        this_instrument["instr_id"],
-                        this_instrument["port"],
-                    )
+            return check_message(reply, multiframe=False)
+
+    def _scan_one_is(self, address: Is1Address):
+        cmd_msg = make_command_msg(self.GET_FIRST_COM)
+        logger.debug("Send GetFirstCOM: %s", cmd_msg)
+        checked_reply = self._get_message_payload(cmd_msg, address)
+        if checked_reply["is_valid"] and checked_reply["payload"] not in [
+            b"\xe4",
+            b"",
+        ]:
+            this_instrument = self._get_instrument_id(checked_reply["payload"])
+            if this_instrument:
+                logger.info(
+                    "Instrument %s on COM%d",
+                    this_instrument["instr_id"],
+                    this_instrument["port"],
+                )
+                cmd_msg = make_command_msg(
+                    [
+                        self.SELECT_COM,
+                        (this_instrument["port"]).to_bytes(1, byteorder="little"),
+                    ]
+                )
+                checked_reply = self._get_message_payload(cmd_msg, address)
+                if (
+                    checked_reply["is_valid"]
+                    and checked_reply["payload"][0].to_bytes(1, byteorder="little")
+                    == self.COM_SELECTED
+                ):
                     self._create_and_setup_actor(
                         instr_id=this_instrument["instr_id"],
-                        port=this_instrument["port"],
                         is1_address=address,
                         firmware_version=this_instrument["version"],
                     )
-                else:
-                    logger.error("Error parsing payload received from instrument")
-                    return
+            else:
+                logger.error("Error parsing payload received from instrument")
+                return
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
@@ -311,7 +334,8 @@ class Is1Listener(BaseActor):
     @overrides
     def receiveMsg_ActorExitRequest(self, msg, sender):
         super().receiveMsg_ActorExitRequest(msg, sender)
-        self.is1_addresses.extend(self.active_is1_addresses)
+        for _actor_id, is1_address in self.active_is1_addresses.items():
+            self.is1_addresses.append(is1_address)
         logger.info("is1_addresses = %s", self.is1_addresses)
         with open(config_file, "rt", encoding="utf8") as custom_file:
             customization = tomlkit.load(custom_file)
@@ -327,7 +351,7 @@ class Is1Listener(BaseActor):
             tomlkit.dump(customization, custom_file)
 
     def _create_and_setup_actor(
-        self, instr_id, port, is1_address: Is1Address, firmware_version: int
+        self, instr_id, is1_address: Is1Address, firmware_version: int
     ):
         logger.debug("[_create_and_setup_actor]")
         family_id = decode_instr_id(instr_id)[0]
@@ -346,14 +370,12 @@ class Is1Listener(BaseActor):
         set_of_instruments.add(actor_id)
         if actor_id not in self.child_actors:
             logger.debug("Create actor %s", actor_id)
-            device_actor = self._create_actor(Is1Actor, actor_id, None)
+            family = id_family_mapping.get(family_id).family
+            route = Route(ip_address=is1_address.hostname, ip_port=is1_address.port)
+            device_actor = self._create_actor(UsbActor, actor_id, None)
             self.send(
                 device_actor,
-                SetupIs1ActorMsg(
-                    is1_address=is1_address,
-                    com_port=port,
-                    family_id=family_id,
-                ),
+                SetupUsbActorMsg(route, family, True),
             )
         else:
             device_actor = self.child_actors[actor_id]["actor_address"]
@@ -373,35 +395,32 @@ class Is1Listener(BaseActor):
         logger.debug("Setup device actor %s with %s", actor_id, device_status)
         self.send(device_actor, SetDeviceStatusMsg(device_status))
         logger.debug("IS1 list before add: %s", self.is1_addresses)
-        is1_hostnames = []
-        for address in self.is1_addresses:
-            is1_hostnames.append(address.hostname)
-        if is1_address.hostname not in is1_hostnames:
-            self.active_is1_addresses.append(is1_address)
-        else:
-            self.active_is1_addresses.append(
-                self.is1_addresses.pop(self.is1_addresses.index(is1_address))
-            )
-        self._deduplicate(self.active_is1_addresses)
+        self.active_is1_addresses[actor_id] = is1_address
+        try:
+            self.is1_addresses.remove(is1_address)
+        except (KeyError, ValueError):
+            logger.error("%s not in self.is1_addresses", is1_address)
         logger.debug("List of active IS1: %s", self.active_is1_addresses)
         logger.debug("List of IS1 for next scan: %s", self.is1_addresses)
 
-    def receiveMsg_Is1RemoveMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler for message informing about the IS1 address
-        belonging to a device actor that is about to be removed."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        try:
-            self.is1_addresses.append(
-                self.active_is1_addresses.pop(
-                    self.active_is1_addresses.index(msg.is1_address)
-                )
-            )
-            self.is1_addresses = self._deduplicate(self.is1_addresses)
-            self._update_host_info()
-        except ValueError:
-            logger.error("%s not in self.active_is1_addresses.", msg.is1_address)
-            logger.info("Hopefully this error can be ignored.")
+    @overrides
+    def receiveMsg_ChildActorExited(self, msg, sender):
+        if not self.on_kill:
+            for actor_id, actor_address in self.child_actors.items():
+                if actor_address == msg.childAddress:
+                    try:
+                        self.is1_addresses.append(
+                            self.active_is1_addresses.pop(actor_id)
+                        )
+                        self.is1_addresses = self._deduplicate(self.is1_addresses)
+                        logger.debug("Addresses for next scan: %s", self.is1_addresses)
+                        self._update_host_info()
+                    except (KeyError, ValueError):
+                        logger.error(
+                            "%s not in self.active_is1_addresses.", msg.is1_address
+                        )
+                        logger.info("Hopefully this error can be ignored.")
+        super().receiveMsg_ChildActorExited(msg, sender)
 
     def receiveMsg_GetHostInfoMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -412,7 +431,7 @@ class Is1Listener(BaseActor):
     def _update_host_info(self):
         """Provide the registrar with updated list of hosts."""
         hosts = []
-        for is1_address in self.active_is1_addresses:
+        for _actor_id, is1_address in self.active_is1_addresses.items():
             hosts.append(
                 HostObj(
                     host=is1_address.hostname,

@@ -276,22 +276,6 @@ class SetupUsbActorMsg:
 
 
 @dataclass
-class SetupIs1ActorMsg:
-    """Message used to send the special setup information required for IS1 device Actors.
-    The parameters are required to establish the socket connection to the Instrument Server 1.
-
-    Args:
-        is1_address (object): Dataclass object containing the address of Instrument Server 1.
-        com_port (int): Serial COM port of the instrument.
-        family_id (int): Id describing the instrument family.
-    """
-
-    is1_address: Is1Address
-    com_port: int
-    family_id: int
-
-
-@dataclass
 class SetupMdnsActorMsg:
     """Message used to send the special setup information required for mDNS device Actors.
     The parameters are required to establish the socket connection to the Instrument Server 2.
@@ -813,14 +797,6 @@ class ReturnDeviceActorMsg:
     requested with GetDeviceActorMsg."""
 
     actor_address: ActorAddress
-
-
-@dataclass
-class Is1RemoveMsg:
-    """Message sent form the IS1 device actor to IS1 listener indicating
-    that the resp. device actor is about to be killed."""
-
-    is1_address: Is1Address
 
 
 @dataclass

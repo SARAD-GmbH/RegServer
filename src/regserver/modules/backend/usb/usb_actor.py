@@ -288,6 +288,7 @@ class UsbActor(DeviceBaseActor):
                     stop_time - start_time,
                     reply,
                 )
+                # TODO we should send a binary error message instead!
                 self.send(self.redirector_actor, RxBinaryMsg(reply["raw"]))
                 return
 

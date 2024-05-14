@@ -962,13 +962,13 @@ class GetValues(Resource):
         )
         device_state = get_device_status_from_registrar(registrar_actor, device_id)
         if (device_state == {}) or (
-            transport_technology(device_id) not in ["local", "zigbee", "mdns"]
+            transport_technology(device_id) not in ["local", "zigbee", "mdns", "is1"]
         ):
             logger.error(
-                "Request only supported for local, mDNS and ZigBee instruments."
+                "Request only supported for local, mDNS, IS1 and ZigBee instruments."
             )
             status = Status.NOT_FOUND
-            notification = "Only supported for local, mDNS and ZigBee instruments"
+            notification = "Only supported for local, mDNS, IS1 and ZigBee instruments"
             return {
                 "Error code": status.value,
                 "Error": str(status),
