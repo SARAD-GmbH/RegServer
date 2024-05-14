@@ -17,7 +17,8 @@ from typing import Union
 from hashids import Hashids  # type: ignore
 from overrides import overrides
 from regserver.actor_messages import (Gps, RecentValueMsg, RescanMsg,
-                                      RxBinaryMsg, SetDeviceStatusMsg, Status)
+                                      ReserveDeviceMsg, RxBinaryMsg,
+                                      SetDeviceStatusMsg, Status)
 from regserver.config import config, usb_backend_config
 from regserver.helpers import short_id
 from regserver.logger import logger
@@ -136,6 +137,10 @@ class UsbActor(DeviceBaseActor):
         self.instrument.device_id = self.my_id
         if usb_backend_config["SET_RTC"]:
             seconds_to_full_minute = 60 - datetime.now().time().second
+            self.reserve_device_msg = ReserveDeviceMsg(
+                host="localhost", user="self", app="self"
+            )
+            self._handle_reserve_reply_from_is(Status.OK)
             self.wakeupAfter(timedelta(seconds=seconds_to_full_minute), "set_rtc")
         if family_id == 5:
             sarad_type = "sarad-dacm"
@@ -191,6 +196,7 @@ class UsbActor(DeviceBaseActor):
             self._start_measuring()
         elif msg.payload == "set_rtc":
             self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
+            self._request_free_at_is()
         # elif msg.payload == "get_values":
         #     self._get_recent_value(
         #         sender=None, component=component, sensor=sensor, measurand=measurand
