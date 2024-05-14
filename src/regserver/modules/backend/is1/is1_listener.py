@@ -35,7 +35,6 @@ class Is1Listener(BaseActor):
     """
 
     GET_FIRST_COM = [b"\xe0", b""]
-    GET_NEXT_COM = [b"\xe1", b""]
     PORTS = [is1_backend_config["REG_PORT"]]
 
     @staticmethod
@@ -49,7 +48,7 @@ class Is1Listener(BaseActor):
         """Decode payload of the reply received from IS1 to get instrument id
 
         Args:
-            payload (bytes): content of the reply to GET_FIRST_COM or GET_NEXT_COM
+            payload (bytes): content of the reply to GET_FIRST_COM
 
         Returns:
             Dict of port, type, version, sn, family"""
@@ -281,7 +280,8 @@ class Is1Listener(BaseActor):
                 logger.error("%s. IS1 closed or disconnected.", exception)
                 return
             checked_reply = check_message(reply, multiframe=False)
-            while checked_reply["is_valid"] and checked_reply["payload"] not in [
+            client_socket.shutdown(socket.SHUT_WR)
+            if checked_reply["is_valid"] and checked_reply["payload"] not in [
                 b"\xe4",
                 b"",
             ]:
@@ -298,23 +298,9 @@ class Is1Listener(BaseActor):
                         is1_address=address,
                         firmware_version=this_instrument["version"],
                     )
-                    cmd_msg = make_command_msg(self.GET_NEXT_COM)
-                    try:
-                        client_socket.sendall(cmd_msg)
-                        reply = client_socket.recv(1024)
-                    except (
-                        OSError,
-                        TimeoutError,
-                        socket.timeout,
-                        ConnectionResetError,
-                    ) as exception:
-                        logger.error("%s. IS1 closed or disconnected.", exception)
-                        return
-                    checked_reply = check_message(reply, multiframe=False)
                 else:
                     logger.error("Error parsing payload received from instrument")
                     return
-            client_socket.shutdown(socket.SHUT_WR)
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
