@@ -145,26 +145,29 @@ def get_instr_control(json_data, old_reservation) -> Control:
     except (TypeError, json.decoder.JSONDecodeError):
         logger.warning("Cannot decode %s", json_data.payload)
         return Control(ControlType.UNKNOWN, nodata)
-    if not "Req" in data:
-        logger.error("No 'Req' in payload.")
-        return Control(ctype=ControlType.UNKNOWN, data=nodata)
     req_type = data.get("Req", "")
-    if req_type == "free":
+    if not req_type:
+        logger.error("No 'Req' in payload.")
+        result = Control(ctype=ControlType.UNKNOWN, data=nodata)
+    elif req_type == "free":
         logger.debug("[FREE] request")
         if old_reservation is None:
             logger.debug("[FREE] not reserved, nothing to do")
-            return Control(
+            result = Control(
                 ctype=ControlType.FREE,
                 data=nodata,
             )
-        new_reservation = replace(old_reservation, active=False, timestamp=time.time())
-        return Control(
-            ctype=ControlType.FREE,
-            data=new_reservation,
-        )
-    if req_type == "reserve":
+        else:
+            new_reservation = replace(
+                old_reservation, active=False, timestamp=time.time()
+            )
+            result = Control(
+                ctype=ControlType.FREE,
+                data=new_reservation,
+            )
+    elif req_type == "reserve":
         logger.debug("[RESERVE] request")
-        return Control(
+        result = Control(
             ctype=ControlType.RESERVE,
             data=Reservation(
                 active=True,
@@ -174,12 +177,34 @@ def get_instr_control(json_data, old_reservation) -> Control:
                 timestamp=time.time(),
             ),
         )
-    if req_type == "value":
-        pass
-    if req_type == "monitor":
-        pass
-    if req_type == "config":
-        pass
-
-    logger.error("Unknown control message received. %s", data)
-    return Control(ControlType.UNKNOWN, nodata)
+    elif req_type == "value":
+        logger.debug("[VALUE] request")
+        result = Control(
+            ctype=ControlType.VALUE,
+            data=ValueRequest(
+                component=data.get("Component", 0),
+                sensor=data.get("Sensor", 0),
+                measurand=data.get("Measurand", 0),
+                app=data.get("App", "unknown"),
+                host=data.get("Host", "unknown"),
+                user=data.get("User", "unknown"),
+            ),
+        )
+    elif req_type == "monitor":
+        logger.debug("[MONITOR] request")
+        result = Control(
+            ctype=ControlType.MONITOR,
+            data=None,
+        )
+    elif req_type == "config":
+        logger.debug("[CONFIG] request")
+        result = Control(
+            ctype=ControlType.MONITOR,
+            data=ConfigRequest(
+                cycle=data.get("Cycle", 0), values=data.get("Values", [])
+            ),
+        )
+    else:
+        logger.error("Unknown control message received. %s", data)
+        result = Control(ControlType.UNKNOWN, nodata)
+    return result
