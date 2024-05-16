@@ -11,6 +11,7 @@ Author
 import json
 import os
 import time
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 from overrides import overrides  # type: ignore
@@ -101,7 +102,7 @@ class MqttSchedulerActor(MqttBaseActor):
         # last will and testament
         self.mqttc.will_set(
             topic=f"{self.group}/{msg.client_id}/meta",
-            payload=get_is_meta(self.is_meta._replace(state=10)),
+            payload=get_is_meta(replace(self.is_meta, state=10)),
             qos=2,
             retain=True,
         )
@@ -137,7 +138,9 @@ class MqttSchedulerActor(MqttBaseActor):
         _device_actor, device_id = self._device_actor(msg.instr_id)
         reservation = self.reservations.get(device_id)
         if reservation is not None:
-            self.reservations[device_id]._replace(status=msg.status)
+            self.reservations[device_id] = replace(
+                self.reservations[device_id], status=msg.status
+            )
         else:
             self.reservations[device_id] = Reservation(
                 status=msg.status, timestamp=time.time()
@@ -151,9 +154,9 @@ class MqttSchedulerActor(MqttBaseActor):
                 Status.OK_UPDATED,
             ):
                 if self.pending_control_action == ControlType.RESERVE:
-                    reservation_object._replace(active=True)
+                    reservation_object = replace(reservation_object, active=True)
                 else:
-                    reservation_object._replace(active=False)
+                    reservation_object = replace(reservation_object, active=False)
             self.reservations[device_id] = reservation_object
             reservation_json = get_instr_reservation(reservation_object)
             topic = f"{self.group}/{self.is_id}/{msg.instr_id}/reservation"
@@ -272,14 +275,13 @@ class MqttSchedulerActor(MqttBaseActor):
         old_state = self.is_meta.state
         if self.reservations:
             new_state = 2
-            payload = get_is_meta(self.is_meta._replace(state=new_state))
             if self.led and self.is_connected:
                 self.led.on()
         else:
             new_state = 1
-            payload = get_is_meta(self.is_meta._replace(state=new_state))
             if self.led:
                 self.led.pulse()
+        payload = get_is_meta(replace(self.is_meta, state=new_state))
         if old_state != new_state:
             self.mqttc.publish(
                 topic=topic,

@@ -6,18 +6,21 @@ Created:
 Author:
     Riccardo Förster <riccardo.foerster@sarad.de>
 """
+
 import json
 import time
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum, auto
-from typing import NamedTuple
+from typing import List, Tuple, Union
 
 from regserver.actor_messages import Status
 from regserver.logger import logger
 
 
-class InstrumentServerMeta(NamedTuple):
+@dataclass
+class InstrumentServerMeta:  # pylint: disable=too-many-instance-attributes
     """Data class for storing Instrument Server meta information"""
 
     state: int
@@ -32,18 +35,20 @@ class InstrumentServerMeta(NamedTuple):
     running_since: datetime
 
 
-class InstrumentMeta(NamedTuple):
+@dataclass
+class InstrumentMeta:
     """Data class for storing SARAD Instrument meta information"""
 
     state: int
     host: str
     family: int
-    instrumentType: int
+    instrument_type: int
     name: str
     serial: int
 
 
-class Reservation(NamedTuple):
+@dataclass
+class Reservation:
     """Data class for storing instrument reservation information"""
 
     timestamp: float
@@ -63,19 +68,43 @@ class Reservation(NamedTuple):
         )
 
 
+@dataclass
+class ValueRequest:
+    """Data class for storing instrument reservation information"""
+
+    component: int
+    sensor: int
+    measurand: int
+    app: str = ""
+    host: str = ""
+    user: str = ""
+
+
+@dataclass
+class ConfigRequest:
+    """Data class for storing instrument reservation information"""
+
+    cycle: int
+    values: List[Tuple[int]]
+
+
 class ControlType(Enum):
     """Types of control messages"""
 
     UNKNOWN = 0
     FREE = auto()
     RESERVE = auto()
+    VALUE = auto()
+    MONITOR = auto()
+    CONFIG = auto()
 
 
-class Control(NamedTuple):
+@dataclass
+class Control:
     """Data class for storing instrument control messages"""
 
     ctype: ControlType
-    data: Reservation
+    data: Union[Reservation, ValueRequest, ConfigRequest, None]
 
 
 def get_is_meta(data: InstrumentServerMeta) -> str:
@@ -119,8 +148,8 @@ def get_instr_control(json_data, old_reservation) -> Control:
     if not "Req" in data:
         logger.error("No 'Req' in payload.")
         return Control(ctype=ControlType.UNKNOWN, data=nodata)
-    # FREE
-    if data["Req"] == "free":
+    req_type = data.get("Req", "")
+    if req_type == "free":
         logger.debug("[FREE] request")
         if old_reservation is None:
             logger.debug("[FREE] not reserved, nothing to do")
@@ -128,23 +157,29 @@ def get_instr_control(json_data, old_reservation) -> Control:
                 ctype=ControlType.FREE,
                 data=nodata,
             )
-        new_reservation = old_reservation._replace(active=False, timestamp=time.time())
+        new_reservation = replace(old_reservation, active=False, timestamp=time.time())
         return Control(
             ctype=ControlType.FREE,
             data=new_reservation,
         )
-    # RESERVE
-    if data["Req"] == "reserve" and "App" in data and "Host" in data and "User" in data:
+    if req_type == "reserve":
         logger.debug("[RESERVE] request")
         return Control(
             ctype=ControlType.RESERVE,
             data=Reservation(
                 active=True,
-                app=data["App"],
-                host=data["Host"],
-                user=data["User"],
+                app=data.get("App", "unknown"),
+                host=data.get("Host", "unknown"),
+                user=data.get("User", "unknown"),
                 timestamp=time.time(),
             ),
         )
+    if req_type == "value":
+        pass
+    if req_type == "monitor":
+        pass
+    if req_type == "config":
+        pass
+
     logger.error("Unknown control message received. %s", data)
     return Control(ControlType.UNKNOWN, nodata)
