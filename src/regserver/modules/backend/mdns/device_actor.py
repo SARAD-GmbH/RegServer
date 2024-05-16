@@ -125,6 +125,7 @@ class DeviceActor(DeviceBaseActor):
             if self.success == Status.OK:
                 answer = RecentValueMsg(
                     status=self.success,
+                    instr_id=self.instr_id,
                     component_name=self.response["Component name"],
                     sensor_name=self.response["Sensor name"],
                     measurand_name=self.response["Measurand name"],

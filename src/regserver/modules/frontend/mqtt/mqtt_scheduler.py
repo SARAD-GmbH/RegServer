@@ -16,9 +16,9 @@ from datetime import datetime, timedelta, timezone
 
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, FreeDeviceMsg,
-                                      GetDeviceStatusesMsg, RescanMsg,
-                                      ReserveDeviceMsg, ShutdownMsg, Status,
-                                      TxBinaryMsg)
+                                      GetDeviceStatusesMsg, GetRecentValueMsg,
+                                      RescanMsg, ReserveDeviceMsg, ShutdownMsg,
+                                      Status, TxBinaryMsg)
 from regserver.config import config
 from regserver.helpers import diff_of_dicts, short_id, transport_technology
 from regserver.logger import logger
@@ -163,6 +163,43 @@ class MqttSchedulerActor(MqttBaseActor):
             logger.debug("Publish %s on %s", reservation_json, topic)
             self.mqttc.publish(
                 topic=topic, payload=reservation_json, qos=self.qos, retain=False
+            )
+            self.pending_control_action = ControlType.UNKNOWN
+
+    def receiveMsg_RecentValueMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for RecentValueMsg from Device Actor.
+
+        This message contains the reply to GetRecentValueMsg."""
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        if self.pending_control_action == ControlType.VALUE:
+            topic = f"{self.group}/{self.is_id}/{msg.instr_id}/value"
+            if msg.gps is None:
+                gps_dict = None
+            else:
+                gps_dict = {
+                    "Valid": msg.gps.valid,
+                    "Latitude": msg.gps.latitude,
+                    "Longitude": msg.gps.longitude,
+                    "Altitude": msg.gps.altitude,
+                    "Deviation": msg.gps.deviation,
+                }
+            payload = {
+                "Component name": msg.component_name,
+                "Sensor name": msg.sensor_name,
+                "Measurand name": msg.measurand_name,
+                "Measurand": msg.measurand,
+                "Operator": msg.operator,
+                "Value": msg.value,
+                "Unit": msg.unit,
+                "Timestamp": msg.timestamp,
+                "UTC offset": msg.utc_offset,
+                "Sample interval": msg.sample_interval,
+                "GPS": gps_dict,
+            }
+            logger.debug("Publish %s on %s", payload, topic)
+            self.mqttc.publish(
+                topic=topic, payload=json.dumps(payload), qos=self.qos, retain=False
             )
             self.pending_control_action = ControlType.UNKNOWN
 
@@ -352,7 +389,7 @@ class MqttSchedulerActor(MqttBaseActor):
             self.pending_control_action = control.ctype
             if control.ctype == ControlType.RESERVE:
                 self.process_reserve(instr_id, control)
-            if control.ctype == ControlType.FREE:
+            elif control.ctype == ControlType.FREE:
                 self.process_free(instr_id)
                 logger.debug(
                     "[FREE] client=%s, instr_id=%s, control=%s",
@@ -360,6 +397,12 @@ class MqttSchedulerActor(MqttBaseActor):
                     instr_id,
                     control,
                 )
+            elif control.ctype == ControlType.VALUE:
+                self.process_value(instr_id, control)
+            elif control.ctype == ControlType.CONFIG:
+                self.process_config(instr_id, control)
+            elif control.ctype == ControlType.MONITOR:
+                self.process_monitor(instr_id)
 
     def on_cmd(self, _client, _userdata, message):
         """Event handler for all MQTT messages with cmd topic for instruments."""
@@ -423,12 +466,57 @@ class MqttSchedulerActor(MqttBaseActor):
             )
 
     def process_free(self, instr_id):
-        """Sub event handler that will be called from the on_message event handler,
-        when a MQTT control message with a 'free' request was received
-        for a specific instrument ID."""
+        """Sub event handler that will be called from the on_message event
+        handler, when a MQTT control message with a 'free' request was received
+        for a specific instrument ID.
+
+        """
         device_actor, _device_id = self._device_actor(instr_id)
         if device_actor is not None:
             self.send(device_actor, FreeDeviceMsg())
+
+    def process_value(self, instr_id, control):
+        """Sub event handler that will be called from the on_message event
+        handler, when a MQTT control message with a 'value' request was
+        received for a specific instrument ID.
+
+        """
+        logger.info(
+            "[VALUE] client=%s, instr_id=%s, control=%s",
+            self.mqttc,
+            instr_id,
+            control,
+        )
+        device_actor, _device_id = self._device_actor(instr_id)
+        if device_actor is not None:
+            self.send(
+                device_actor,
+                GetRecentValueMsg(
+                    app=control.data.app,
+                    user=control.data.user,
+                    host=control.data.host,
+                    component=control.data.component,
+                    sensor=control.data.sensor,
+                    measurand=control.data.measurand,
+                ),
+            )
+
+    def process_config(self, instr_id, control):
+        """Sub event handler that will be called from the on_message event
+        handler, when a MQTT control message with a 'config' request was
+        received for a specific instrument ID. The config request configurates
+        the monitoring mode.
+
+        """
+        # TODO implement
+
+    def process_monitor(self, instr_id):
+        """Sub event handler that will be called from the on_message event
+        handler, when a MQTT control message with a 'monitor' request to start
+        the monitoring mode was received for a specific instrument ID.
+
+        """
+        # TODO implement
 
     def on_is_meta(self, _client, _userdata, message):
         """Handler for all messages of topic group/+/meta.

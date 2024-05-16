@@ -27,10 +27,11 @@ class MqttDeviceActor(DeviceBaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self.qos = 2
+        self.qos = 1
         self.allowed_sys_topics = {
             "CTRL": "",
             "RESERVE": "",
+            "VALUE": "",
             "CMD": "",
             "MSG": "",
             "META": "",
@@ -136,7 +137,9 @@ class MqttDeviceActor(DeviceBaseActor):
             logger.debug("allowed topic: %s", self.allowed_sys_topics[k])
         logger.debug("Subscribe MQTT actor to the 'reservation' topic")
         reserve_topic = self.allowed_sys_topics["RESERVE"]
-        self.send(self.parent.parent_address, MqttSubscribeMsg([(reserve_topic, 2)]))
+        self.send(
+            self.parent.parent_address, MqttSubscribeMsg([(reserve_topic, self.qos)])
+        )
 
     @overrides
     def _request_free_at_is(self):
@@ -178,6 +181,10 @@ class MqttDeviceActor(DeviceBaseActor):
         super()._request_recent_value_at_is(msg, sender)
         self.send(
             self.parent.parent_address,
+            MqttSubscribeMsg([(self.allowed_sys_topics["VALUE"], self.qos)]),
+        )
+        self.send(
+            self.parent.parent_address,
             MqttPublishMsg(
                 topic=self.allowed_sys_topics["CTRL"],
                 payload=json.dumps(
@@ -199,9 +206,14 @@ class MqttDeviceActor(DeviceBaseActor):
     def on_value(self, payload):
         """Handler for MQTT messages containing measuring values from instrument"""
         if self.value_lock:
+            self.send(
+                self.parent.parent_address,
+                MqttUnsubscribeMsg([self.allowed_sys_topics["VALUE"]]),
+            )
             self._handle_recent_value_reply_from_is(
                 RecentValueMsg(
                     status=Status.OK,
+                    instr_id=self.instr_id,
                     component_name=payload["Component name"],
                     sensor_name=payload["Sensor name"],
                     measurand_name=payload["Measurand name"],
@@ -258,7 +270,8 @@ class MqttDeviceActor(DeviceBaseActor):
                     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
                 msg_topic = self.allowed_sys_topics["MSG"]
                 self.send(
-                    self.parent.parent_address, MqttSubscribeMsg([(msg_topic, 2)])
+                    self.parent.parent_address,
+                    MqttSubscribeMsg([(msg_topic, self.qos)]),
                 )
                 reservation_status = Status.OK
             else:

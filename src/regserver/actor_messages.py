@@ -839,6 +839,7 @@ class RecentValueMsg:
 
     Args:
         status (Status): Error status
+        instr_id (str): Instrument id
         component_name (str): Name of the DACM component
         sensor_name (str): Name of the sensor within the DACM component (derived from Result Index)
         measurand_name (str): Name of the measurand delivered by the sensor
@@ -854,6 +855,7 @@ class RecentValueMsg:
     """
 
     status: Status
+    instr_id: str = ""
     component_name: str = ""
     sensor_name: str = ""
     measurand_name: str = ""

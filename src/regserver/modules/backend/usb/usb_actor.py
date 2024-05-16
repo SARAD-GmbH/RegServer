@@ -447,6 +447,8 @@ class UsbActor(DeviceBaseActor):
                         deviation=reply["gps"]["deviation"],
                     )
                 answer = RecentValueMsg(
+                    status=Status.OK,
+                    instr_id=self.instr_id,
                     component_name=reply["component_name"],
                     sensor_name=reply["sensor_name"],
                     measurand_name=reply["measurand_name"],
@@ -458,7 +460,6 @@ class UsbActor(DeviceBaseActor):
                     utc_offset=self.instrument.utc_offset,
                     sample_interval=reply["sample_interval"].total_seconds(),
                     gps=gps,
-                    status=Status.OK,
                 )
             else:
                 answer = RecentValueMsg(status=Status.INDEX_ERROR)
