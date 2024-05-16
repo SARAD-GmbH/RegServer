@@ -8,13 +8,14 @@
     | Michael Strey <strey@sarad.de>
 
 """
+
 import json
 from datetime import datetime, timezone
 
 from overrides import overrides  # type: ignore
-from regserver.actor_messages import (MqttPublishMsg, MqttSubscribeMsg,
-                                      MqttUnsubscribeMsg, ResurrectMsg,
-                                      RxBinaryMsg, Status)
+from regserver.actor_messages import (Gps, MqttPublishMsg, MqttSubscribeMsg,
+                                      MqttUnsubscribeMsg, RecentValueMsg,
+                                      ResurrectMsg, RxBinaryMsg, Status)
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
@@ -37,6 +38,7 @@ class MqttDeviceActor(DeviceBaseActor):
         self.allowed_sys_options = {
             "CTRL": "control",
             "RESERVE": "reservation",
+            "VALUE": "value",
             "CMD": "cmd",
             "MSG": "msg",
             "META": "meta",
@@ -44,18 +46,15 @@ class MqttDeviceActor(DeviceBaseActor):
         self.state = {
             "RESERVE": {
                 "Pending": False,
-                # if there be a reply to wait for, then it should be true
+                # if there is a reply to wait for, then it should be true
                 "Active": None,
                 # store the reservation status
             },
             "SEND": {
                 "Pending": False,
-                # if there be a reply to wait for, then it should be true
+                # if there is a reply to wait for, then it should be true
                 "CMD_ID": None,
                 # store the CMD ID
-                "Reply": None,
-                "Sender": None,
-                # store the address of the sender
             },
         }
         self.cmd_id = 0
@@ -77,7 +76,6 @@ class MqttDeviceActor(DeviceBaseActor):
         self.state["SEND"]["Pending"] = True
         self.state["SEND"]["CMD_ID"] = bytes([self.cmd_id])
         logger.debug("CMD ID is: %s", self.state["SEND"]["CMD_ID"])
-        self.state["SEND"]["Sender"] = sender
         self.send(
             self.parent.parent_address,
             MqttPublishMsg(
@@ -170,8 +168,59 @@ class MqttDeviceActor(DeviceBaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if msg.topic == self.allowed_sys_topics["RESERVE"]:
             self.on_reserve(msg.payload)
-        if msg.topic == self.allowed_sys_topics["MSG"]:
+        elif msg.topic == self.allowed_sys_topics["MSG"]:
             self.on_msg(msg.payload)
+        elif msg.topic == self.allowed_sys_topics["VALUE"]:
+            self.on_value(msg.payload)
+
+    @overrides
+    def _request_recent_value_at_is(self, msg, sender):
+        super()._request_recent_value_at_is(msg, sender)
+        self.send(
+            self.parent.parent_address,
+            MqttPublishMsg(
+                topic=self.allowed_sys_topics["CTRL"],
+                payload=json.dumps(
+                    {
+                        "Req": "value",
+                        "Component": msg.component,
+                        "Sensor": msg.sensor,
+                        "Measurand": msg.measurand,
+                        "App": msg.app,
+                        "Host": msg.host,
+                        "User": msg.user,
+                    }
+                ),
+                qos=self.qos,
+                retain=False,
+            ),
+        )
+
+    def on_value(self, payload):
+        """Handler for MQTT messages containing measuring values from instrument"""
+        if self.value_lock:
+            self._handle_recent_value_reply_from_is(
+                RecentValueMsg(
+                    status=Status.OK,
+                    component_name=payload["Component name"],
+                    sensor_name=payload["Sensor name"],
+                    measurand_name=payload["Measurand name"],
+                    measurand=payload["Measurand"],
+                    operator=payload["Operator"],
+                    value=payload["Value"],
+                    unit=payload["Unit"],
+                    timestamp=payload["Timestamp"],
+                    utc_offset=payload["UTC offset"],
+                    sample_interval=payload["Sample interval"],
+                    gps=Gps(
+                        valid=payload["GPS"]["Valid"],
+                        latitude=payload["GPS"]["Latitude"],
+                        longitude=payload["GPS"]["Longitude"],
+                        altitude=payload["GPS"]["Altitude"],
+                        deviation=payload["GPS"]["Deviation"],
+                    ),
+                )
+            )
 
     def on_reserve(self, payload):
         """Handler for MQTT messages regarding reservation of instruments"""
@@ -272,10 +321,9 @@ class MqttDeviceActor(DeviceBaseActor):
                     payload[1:],
                     self.my_id,
                 )
-                self.state["SEND"]["Reply"] = payload[1:]
                 self.send(
                     self.redirector_actor,
-                    RxBinaryMsg(self.state["SEND"]["Reply"]),
+                    RxBinaryMsg(payload[1:]),
                 )
                 return
             logger.warning(

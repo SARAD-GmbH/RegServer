@@ -22,6 +22,7 @@ from regserver.logger import logger
 from regserver.redirect_actor import RedirectorActor
 
 RESERVE_TIMEOUT = timedelta(seconds=10)  # Timeout for RESERVE or FREE operations
+VALUE_TIMEOUT = timedelta(seconds=10)  # Timeout for VALUE operations
 
 
 class DeviceBaseActor(BaseActor):
@@ -65,6 +66,7 @@ class DeviceBaseActor(BaseActor):
         self.instr_id = None
         self.reserve_lock = False
         self.free_lock = False
+        self.value_lock = False
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -108,6 +110,11 @@ class DeviceBaseActor(BaseActor):
         elif (msg.payload == "timeout_on_free") and self.free_lock:
             self.free_lock = False
             self._handle_free_reply_from_is(success=Status.NOT_FOUND)
+        elif (msg.payload == "timeout_on_value") and self.value_lock:
+            self.value_lock = False
+            self._handle_recent_value_reply_from_is(
+                answer=RecentValueMsg(status=Status.NOT_FOUND)
+            )
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -345,15 +352,39 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Get a value from a DACM instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.sender_api is None:
-            self.sender_api = sender
-        self._request_recent_value_at_is(msg, sender)
+        is_reserved = self.device_status.get("Reservation", False)
+        if is_reserved:
+            if self.value_lock:
+                logger.info("%s VALUE action pending", self.my_id)
+                if datetime.now() - self.value_lock > VALUE_TIMEOUT:
+                    logger.warning(
+                        "Pending VALUE on %s took longer than %s",
+                        self.my_id,
+                        VALUE_TIMEOUT,
+                    )
+                    self._kill_myself(resurrect=True)
+                    return
+                self.wakeupAfter(
+                    timedelta(milliseconds=500),
+                    (self.receiveMsg_GetRecentValueMsg, msg, sender),
+                )
+                return
+            self.value_lock = datetime.now()
+            logger.debug("%s: value_lock set to %s", self.my_id, self.value_lock)
+            if self.sender_api is None:
+                self.sender_api = sender
+            self._request_recent_value_at_is(msg, sender)
+        else:
+            self._handle_recent_value_reply_from_is(
+                answer=RecentValueMsg(status=Status.CRITICAL)
+            )
 
     def _request_recent_value_at_is(self, msg, sender):
         # pylint: disable=unused-argument
         """Request the a recent value at the Instrument Server. This function has
         to be implemented (overridden) in the protocol specific modules.
         """
+        self.wakeupAfter(VALUE_TIMEOUT, "timeout_on_value")
 
     def _handle_recent_value_reply_from_is(self, answer: RecentValueMsg):
         # pylint: disable=unused-argument

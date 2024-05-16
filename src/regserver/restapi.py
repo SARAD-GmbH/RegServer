@@ -962,13 +962,16 @@ class GetValues(Resource):
         )
         device_state = get_device_status_from_registrar(registrar_actor, device_id)
         if (device_state == {}) or (
-            transport_technology(device_id) not in ["local", "zigbee", "mdns", "is1"]
+            transport_technology(device_id)
+            not in ["local", "zigbee", "mdns", "is1", "mqtt"]
         ):
             logger.error(
-                "Request only supported for local, mDNS, IS1 and ZigBee instruments."
+                "Request only supported for local, mDNS, IS1, MQTT and ZigBee instruments."
             )
             status = Status.NOT_FOUND
-            notification = "Only supported for local, mDNS, IS1 and ZigBee instruments"
+            notification = (
+                "Only supported for local, mDNS, IS1, MQTT and ZigBee instruments"
+            )
             return {
                 "Error code": status.value,
                 "Error": str(status),
@@ -1034,7 +1037,29 @@ class GetValues(Resource):
                     "Error": str(value_return.status),
                     "Notification": notification,
                 }
+            if value_return.status in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
+                if value_return.status == Status.NOT_FOUND:
+                    notification = "The instrument does not reply."
+                elif value_return.status == Status.IS_NOT_FOUND:
+                    notification = "The instrument server hosting the instrument cannot be reached."
+                FreeDevice().get(device_id)
+                return {
+                    "Error code": value_return.status.value,
+                    "Error": str(value_return.status),
+                    "Notification": notification,
+                }
+
             FreeDevice().get(device_id)
+            if value_return.gps is None:
+                gps_dict = None
+            else:
+                gps_dict = {
+                    "Valid": value_return.gps.valid,
+                    "Latitude": value_return.gps.latitude,
+                    "Longitude": value_return.gps.longitude,
+                    "Altitude": value_return.gps.altitude,
+                    "Deviation": value_return.gps.deviation,
+                }
             return {
                 "Device Id": device_id,
                 "Component id": arguments["component"],
@@ -1051,13 +1076,7 @@ class GetValues(Resource):
                 "UTC offset": value_return.utc_offset,
                 "Sample interval": value_return.sample_interval,
                 "Fetched": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                "GPS": {
-                    "Valid": value_return.gps.valid,
-                    "Latitude": value_return.gps.latitude,
-                    "Longitude": value_return.gps.longitude,
-                    "Altitude": value_return.gps.altitude,
-                    "Deviation": value_return.gps.deviation,
-                },
+                "GPS": gps_dict,
             }
         return reserve_state
 
