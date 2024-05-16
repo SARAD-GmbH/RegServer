@@ -388,12 +388,13 @@ class DeviceBaseActor(BaseActor):
 
     def _handle_recent_value_reply_from_is(self, answer: RecentValueMsg):
         # pylint: disable=unused-argument
-        """Inform all interested parties that the instrument is free.
-        Forward the recent value from the Instrument Server to the REST API.
+        """Forward the recent value from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
         self.send(self.sender_api, answer)
         self.sender_api = None
+        if self.value_lock:
+            self.value_lock = False
 
     def _update_reservation_status(self, reservation):
         self.device_status["Reservation"] = reservation

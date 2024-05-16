@@ -210,27 +210,32 @@ class MqttDeviceActor(DeviceBaseActor):
                 self.parent.parent_address,
                 MqttUnsubscribeMsg([self.allowed_sys_topics["VALUE"]]),
             )
+            value_dict = json.loads(payload)
+            if value_dict.get("GPS", False):
+                gps = Gps(
+                    valid=value_dict["GPS"]["Valid"],
+                    latitude=value_dict["GPS"]["Latitude"],
+                    longitude=value_dict["GPS"]["Longitude"],
+                    altitude=value_dict["GPS"]["Altitude"],
+                    deviation=value_dict["GPS"]["Deviation"],
+                )
+            else:
+                gps = None
             self._handle_recent_value_reply_from_is(
                 RecentValueMsg(
                     status=Status.OK,
                     instr_id=self.instr_id,
-                    component_name=payload["Component name"],
-                    sensor_name=payload["Sensor name"],
-                    measurand_name=payload["Measurand name"],
-                    measurand=payload["Measurand"],
-                    operator=payload["Operator"],
-                    value=payload["Value"],
-                    unit=payload["Unit"],
-                    timestamp=payload["Timestamp"],
-                    utc_offset=payload["UTC offset"],
-                    sample_interval=payload["Sample interval"],
-                    gps=Gps(
-                        valid=payload["GPS"]["Valid"],
-                        latitude=payload["GPS"]["Latitude"],
-                        longitude=payload["GPS"]["Longitude"],
-                        altitude=payload["GPS"]["Altitude"],
-                        deviation=payload["GPS"]["Deviation"],
-                    ),
+                    component_name=value_dict.get("Component name", ""),
+                    sensor_name=value_dict.get("Sensor name", ""),
+                    measurand_name=value_dict.get("Measurand name", ""),
+                    measurand=value_dict.get("Measurand", ""),
+                    operator=value_dict.get("Operator", ""),
+                    value=value_dict.get("Value", 0),
+                    unit=value_dict.get("Unit", ""),
+                    timestamp=value_dict.get("Timestamp", 0),
+                    utc_offset=value_dict.get("UTC offset", 0),
+                    sample_interval=value_dict.get("Sample interval", 0),
+                    gps=gps,
                 )
             )
 
