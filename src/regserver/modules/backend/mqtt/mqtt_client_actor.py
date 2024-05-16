@@ -8,6 +8,7 @@
     | Michael Strey <strey@sarad.de>
 
 """
+
 import json
 from datetime import datetime, timedelta
 
@@ -130,6 +131,7 @@ class MqttClientActor(MqttBaseActor):
         self.mqttc.message_callback_add(
             f"{self.group}/+/+/reservation", self.on_instr_reserve
         )
+        self.mqttc.message_callback_add(f"{self.group}/+/+/value", self.on_instr_value)
         self.mqttc.message_callback_add(f"{self.group}/+/+/msg", self.on_instr_msg)
 
     def _add_instr(self, is_id, instr_id, payload: dict, resurrect=False) -> None:
@@ -401,6 +403,30 @@ class MqttClientActor(MqttBaseActor):
                     MqttReceiveMsg(topic=message.topic, payload=message.payload),
                 )
 
+    def on_instr_value(self, _client, _userdata, message):
+        """Handler for all messages of topic group/is_id/+/value"""
+        logger.debug("[on_instr_value] %s, %s", message.topic, message.payload)
+        try:
+            _payload = json.loads(message.payload)
+        except (TypeError, json.decoder.JSONDecodeError):
+            if message.payload == b"":
+                logger.debug("Retained %s removed", message.topic)
+            else:
+                logger.warning(
+                    "Cannot decode %s at topic %s", message.payload, message.topic
+                )
+            return
+        instr_id = message.topic.split("/")[2]
+        is_id = message.topic.split("/")[1]
+        device_id = self.device_id_2(is_id, instr_id)
+        child_actors = self.child_actors.copy()
+        for child_id, device_actor in child_actors.items():
+            if child_id == device_id:
+                self.send(
+                    device_actor["actor_address"],
+                    MqttReceiveMsg(topic=message.topic, payload=message.payload),
+                )
+
     def on_instr_msg(self, _client, _userdata, message):
         """Handler for all messages of topic +/+/+/msg"""
         logger.debug("[on_instr_msg] %s, %s", message.topic, message.payload)
@@ -417,6 +443,7 @@ class MqttClientActor(MqttBaseActor):
 
     @overrides
     def on_connect(self, client, userdata, flags, reason_code, properties):
+        # pylint: disable=too-many-arguments
         super().on_connect(client, userdata, flags, reason_code, properties)
         self.mqttc.subscribe(f"{self.group}/+/meta", 2)
 
