@@ -111,9 +111,9 @@ class DeviceActor(DeviceBaseActor):
                     if ident is None:
                         logger.error("No Identification section available.")
                         self.success = Status.NOT_FOUND
-        self._handle_http_reply(purpose)
+        self._handle_http_reply(purpose, params)
 
-    def _handle_http_reply(self, purpose: Purpose):
+    def _handle_http_reply(self, purpose: Purpose, params):
         if purpose == Purpose.SETUP:
             self.next_method = self._finish_setup_mdns_actor
         elif purpose == Purpose.WAKEUP:
@@ -142,6 +142,7 @@ class DeviceActor(DeviceBaseActor):
                         gps = None
                     answer = RecentValueMsg(
                         status=self.success,
+                        addressor=(params["host"], params["app"], params["user"]),
                         instr_id=self.instr_id,
                         component_name=self.response.get("Component name", ""),
                         sensor_name=self.response.get("Sensor name", ""),

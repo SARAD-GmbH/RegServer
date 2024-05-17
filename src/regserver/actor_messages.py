@@ -839,6 +839,7 @@ class RecentValueMsg:
 
     Args:
         status (Status): Error status
+        addressor (Tuple[str, str, str]): Requesting host, application, and user
         instr_id (str): Instrument id
         component_name (str): Name of the DACM component
         sensor_name (str): Name of the sensor within the DACM component (derived from Result Index)
@@ -855,6 +856,7 @@ class RecentValueMsg:
     """
 
     status: Status
+    addressor: Tuple[str, str, str] = ("", "", "")
     instr_id: str = ""
     component_name: str = ""
     sensor_name: str = ""

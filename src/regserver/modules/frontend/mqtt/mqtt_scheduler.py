@@ -185,6 +185,9 @@ class MqttSchedulerActor(MqttBaseActor):
                     "Deviation": msg.gps.deviation,
                 }
             payload = {
+                "App": msg.app,
+                "Host": msg.host,
+                "User": msg.user,
                 "Component name": msg.component_name,
                 "Sensor name": msg.sensor_name,
                 "Measurand name": msg.measurand_name,

@@ -60,6 +60,7 @@ class UsbActor(DeviceBaseActor):
         self.get_recent_value_thread = Thread(
             target=self._get_recent_value,
             kwargs={
+                "addressor": ("", "", ""),
                 "sender": None,
                 "component": None,
                 "sensor": None,
@@ -391,6 +392,7 @@ class UsbActor(DeviceBaseActor):
                 for sensor in component:
                     for measurand in sensor:
                         self._get_recent_value(
+                            addressor=("localhost", "self", "self"),
                             sender=None,
                             component=list(self.instrument).index(component),
                             sensor=list(component).index(sensor),
@@ -410,6 +412,7 @@ class UsbActor(DeviceBaseActor):
             Thread(
                 target=self._get_recent_value,
                 kwargs={
+                    "addressor": (msg.host, msg.app, msg.user),
                     "sender": sender,
                     "component": msg.component,
                     "sensor": msg.sensor,
@@ -420,7 +423,7 @@ class UsbActor(DeviceBaseActor):
             ThreadType.RECENT_VALUE,
         )
 
-    def _get_recent_value(self, sender, component, sensor, measurand):
+    def _get_recent_value(self, addressor, sender, component, sensor, measurand):
         if sender is None:
             sender = self.registrar
         try:
@@ -448,6 +451,7 @@ class UsbActor(DeviceBaseActor):
                     )
                 answer = RecentValueMsg(
                     status=Status.OK,
+                    addressor=addressor,
                     instr_id=self.instr_id,
                     component_name=reply["component_name"],
                     sensor_name=reply["sensor_name"],

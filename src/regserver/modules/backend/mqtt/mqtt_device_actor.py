@@ -57,6 +57,12 @@ class MqttDeviceActor(DeviceBaseActor):
                 "CMD_ID": None,
                 # store the CMD ID
             },
+            "VALUE": {
+                "Pending": False,
+                # if there is a reply to wait for, then it should be true
+                "Addressor": ("", "", ""),
+                # tuple of (Host, App, User)
+            },
         }
         self.cmd_id = 0
         self.last_message = ""
@@ -183,6 +189,8 @@ class MqttDeviceActor(DeviceBaseActor):
             self.parent.parent_address,
             MqttSubscribeMsg([(self.allowed_sys_topics["VALUE"], self.qos)]),
         )
+        self.state["VALUE"]["Pending"] = True
+        self.state["VALUE"]["Addressor"] = (msg.host, msg.app, msg.user)
         self.send(
             self.parent.parent_address,
             MqttPublishMsg(
@@ -205,12 +213,22 @@ class MqttDeviceActor(DeviceBaseActor):
 
     def on_value(self, payload):
         """Handler for MQTT messages containing measuring values from instrument"""
-        if self.value_lock:
+        value_dict = json.loads(payload)
+        state = self.state.get("VALUE", False)
+        it_is_for_me = bool(
+            state
+            and state.get("Pending", False)
+            and state.get("Addressor", False)
+            and state["Addressor"][0] == value_dict.get("Host", state["Addressor"][0])
+            and state["Addressor"][1] == value_dict.get("App", state["Addressor"][1])
+            and state["Addressor"][2] == value_dict.get("User", state["Addressor"][2])
+        )
+        logger.info("Is it for me? %s, %s", state, value_dict)
+        if self.value_lock and it_is_for_me:
             self.send(
                 self.parent.parent_address,
                 MqttUnsubscribeMsg([self.allowed_sys_topics["VALUE"]]),
             )
-            value_dict = json.loads(payload)
             if value_dict.get("GPS", False):
                 gps = Gps(
                     valid=value_dict["GPS"]["Valid"],
@@ -224,6 +242,11 @@ class MqttDeviceActor(DeviceBaseActor):
             self._handle_recent_value_reply_from_is(
                 RecentValueMsg(
                     status=Status.OK,
+                    addressor=(
+                        value_dict.get("Host", ""),
+                        value_dict.get("App", ""),
+                        value_dict.get("User", ""),
+                    ),
                     instr_id=self.instr_id,
                     component_name=value_dict.get("Component name", ""),
                     sensor_name=value_dict.get("Sensor name", ""),
@@ -238,6 +261,8 @@ class MqttDeviceActor(DeviceBaseActor):
                     gps=gps,
                 )
             )
+            self.state["VALUE"]["Pending"] = False
+            self.state["VALUE"]["Addressor"] = ("", "", "")
 
     def on_reserve(self, payload):
         """Handler for MQTT messages regarding reservation of instruments"""
