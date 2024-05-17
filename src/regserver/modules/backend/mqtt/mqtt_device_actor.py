@@ -241,7 +241,7 @@ class MqttDeviceActor(DeviceBaseActor):
                 gps = None
             self._handle_recent_value_reply_from_is(
                 RecentValueMsg(
-                    status=Status.OK,
+                    status=Status(value_dict.get("Status", 0)),
                     addressor=(
                         value_dict.get("Host", ""),
                         value_dict.get("App", ""),

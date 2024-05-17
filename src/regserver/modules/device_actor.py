@@ -114,7 +114,15 @@ class DeviceBaseActor(BaseActor):
         elif (msg.payload == "timeout_on_value") and self.value_lock:
             self.value_lock = False
             self._handle_recent_value_reply_from_is(
-                answer=RecentValueMsg(status=Status.NOT_FOUND)
+                answer=RecentValueMsg(
+                    status=Status.NOT_FOUND,
+                    addressor=(
+                        self.reserve_device_msg.host,
+                        self.reserve_device_msg.app,
+                        self.reserve_device_msg.user,
+                    ),
+                    instr_id=self.instr_id,
+                )
             )
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
@@ -379,7 +387,15 @@ class DeviceBaseActor(BaseActor):
             self._request_recent_value_at_is(msg, sender)
         else:
             self._handle_recent_value_reply_from_is(
-                answer=RecentValueMsg(status=Status.CRITICAL)
+                answer=RecentValueMsg(
+                    status=Status.CRITICAL,
+                    addressor=(
+                        self.reserve_device_msg.host,
+                        self.reserve_device_msg.app,
+                        self.reserve_device_msg.user,
+                    ),
+                    instr_id=self.instr_id,
+                )
             )
 
     def _request_recent_value_at_is(self, msg, sender):

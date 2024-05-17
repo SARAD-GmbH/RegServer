@@ -430,7 +430,9 @@ class UsbActor(DeviceBaseActor):
         try:
             reply = self.instrument.get_recent_value(component, sensor, measurand)
         except (IndexError, AttributeError):
-            answer = RecentValueMsg(status=Status.INDEX_ERROR)
+            answer = RecentValueMsg(
+                status=Status.INDEX_ERROR, addressor=addressor, instr_id=self.instr_id
+            )
         else:
             logger.debug(
                 "get_recent_value(%d, %d, %d) came back with %s",
@@ -478,7 +480,11 @@ class UsbActor(DeviceBaseActor):
                     gps=gps,
                 )
             else:
-                answer = RecentValueMsg(status=Status.INDEX_ERROR)
+                answer = RecentValueMsg(
+                    status=Status.INDEX_ERROR,
+                    addressor=addressor,
+                    instr_id=self.instr_id,
+                )
         finally:
             self._handle_recent_value_reply_from_is(answer)
 

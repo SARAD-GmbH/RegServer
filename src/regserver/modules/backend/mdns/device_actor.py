@@ -128,7 +128,11 @@ class DeviceActor(DeviceBaseActor):
             if self.success == Status.OK:
                 error_code = self.response.get("Error code", 0)
                 if error_code:
-                    answer = RecentValueMsg(status=Status(error_code))
+                    answer = RecentValueMsg(
+                        status=Status(error_code),
+                        addressor=(params["host"], params["app"], params["user"]),
+                        instr_id=self.instr_id,
+                    )
                 else:
                     if self.response.get("GPS", False):
                         gps = Gps(
@@ -157,7 +161,11 @@ class DeviceActor(DeviceBaseActor):
                         gps=gps,
                     )
             else:
-                answer = RecentValueMsg(status=self.success)
+                answer = RecentValueMsg(
+                    status=self.success,
+                    addressor=(params["host"], params["app"], params["user"]),
+                    instr_id=self.instr_id,
+                )
             self.next_method_kwargs = {"answer": answer}
         elif purpose == Purpose.STATUS:
             self.next_method = self._finish_set_device_status
