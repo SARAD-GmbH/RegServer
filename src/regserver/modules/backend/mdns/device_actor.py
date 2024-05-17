@@ -111,6 +111,9 @@ class DeviceActor(DeviceBaseActor):
                     if ident is None:
                         logger.error("No Identification section available.")
                         self.success = Status.NOT_FOUND
+        self._handle_http_reply(purpose)
+
+    def _handle_http_reply(self, purpose: Purpose):
         if purpose == Purpose.SETUP:
             self.next_method = self._finish_setup_mdns_actor
         elif purpose == Purpose.WAKEUP:
@@ -123,27 +126,35 @@ class DeviceActor(DeviceBaseActor):
             logger.debug("Target responded: %s", self.response)
             self.next_method = self._handle_recent_value_reply_from_is
             if self.success == Status.OK:
-                answer = RecentValueMsg(
-                    status=self.success,
-                    instr_id=self.instr_id,
-                    component_name=self.response["Component name"],
-                    sensor_name=self.response["Sensor name"],
-                    measurand_name=self.response["Measurand name"],
-                    measurand=self.response["Measurand"],
-                    operator=self.response["Operator"],
-                    value=self.response["Value"],
-                    unit=self.response["Unit"],
-                    timestamp=self.response["Timestamp"],
-                    utc_offset=self.response["UTC offset"],
-                    sample_interval=self.response["Sample interval"],
-                    gps=Gps(
-                        valid=self.response["GPS"]["Valid"],
-                        latitude=self.response["GPS"]["Latitude"],
-                        longitude=self.response["GPS"]["Longitude"],
-                        altitude=self.response["GPS"]["Altitude"],
-                        deviation=self.response["GPS"]["Deviation"],
-                    ),
-                )
+                error_code = self.response.get("Error code", 0)
+                if error_code:
+                    answer = RecentValueMsg(status=Status(error_code))
+                else:
+                    if self.response.get("GPS", False):
+                        gps = Gps(
+                            valid=self.response["GPS"]["Valid"],
+                            latitude=self.response["GPS"]["Latitude"],
+                            longitude=self.response["GPS"]["Longitude"],
+                            altitude=self.response["GPS"]["Altitude"],
+                            deviation=self.response["GPS"]["Deviation"],
+                        )
+                    else:
+                        gps = None
+                    answer = RecentValueMsg(
+                        status=self.success,
+                        instr_id=self.instr_id,
+                        component_name=self.response.get("Component name", ""),
+                        sensor_name=self.response.get("Sensor name", ""),
+                        measurand_name=self.response.get("Measurand name", ""),
+                        measurand=self.response.get("Measurand", ""),
+                        operator=self.response.get("Operator", ""),
+                        value=self.response.get("Value", 0),
+                        unit=self.response.get("Unit", ""),
+                        timestamp=self.response.get("Timestamp", 0),
+                        utc_offset=self.response.get("UTC offset", 0),
+                        sample_interval=self.response.get("Sample interval", 0),
+                        gps=gps,
+                    )
             else:
                 answer = RecentValueMsg(status=self.success)
             self.next_method_kwargs = {"answer": answer}
