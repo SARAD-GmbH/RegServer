@@ -72,6 +72,7 @@ class DeviceBaseActor(BaseActor):
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         self.instr_id = short_id(self.my_id)
+        self._subscribe_to_actor_dict_msg()
 
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -202,13 +203,15 @@ class DeviceBaseActor(BaseActor):
                         return
             except KeyError:
                 logger.debug("First reservation since restart of RegServer")
-            if Frontend.REST in frontend_config:
+            address_of_actor_system = self.actor_dict["registrar"]["parent"]
+            sender_is_rest_api = bool(self.sender_api == address_of_actor_system)
+            if (Frontend.REST in frontend_config) and sender_is_rest_api:
                 if not self.child_actors:
-                    logger.debug("Create redirector for %s", self.my_id)
+                    logger.info("Create redirector for %s", self.my_id)
                     self._create_redirector()
                 else:
                     self._send_reservation_status_msg()
-                    logger.debug("_send_reservation_status_msg case F")
+                    logger.info("_send_reservation_status_msg case F")
             else:
                 reservation = {
                     "Active": True,
@@ -221,7 +224,7 @@ class DeviceBaseActor(BaseActor):
                 }
                 self._update_reservation_status(reservation)
                 self._send_reservation_status_msg()
-                logger.debug("_send_reservation_status_msg case C")
+                logger.info("_send_reservation_status_msg case C")
             return
         if success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
             logger.error(
