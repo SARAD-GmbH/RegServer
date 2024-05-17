@@ -424,6 +424,7 @@ class UsbActor(DeviceBaseActor):
         )
 
     def _get_recent_value(self, addressor, sender, component, sensor, measurand):
+        # pylint: disable=too-many-arguments
         if sender is None:
             sender = self.registrar
         try:
@@ -441,6 +442,17 @@ class UsbActor(DeviceBaseActor):
             if reply:
                 if reply.get("gps") is None:
                     gps = Gps(valid=False)
+                elif not reply["gps"].get("valid", False):
+                    if config["LATITUDE"] or config["LONGITUDE"]:
+                        gps = Gps(
+                            valid=True,
+                            latitude=config["LATITUDE"],
+                            longitude=config["LONGITUDE"],
+                            altitude=config["HEIGHT"],
+                            deviation=0,
+                        )
+                    else:
+                        gps = Gps(valid=False)
                 else:
                     gps = Gps(
                         valid=reply["gps"]["valid"],
@@ -467,7 +479,6 @@ class UsbActor(DeviceBaseActor):
                 )
             else:
                 answer = RecentValueMsg(status=Status.INDEX_ERROR)
-            logger.info(answer)
         finally:
             self._handle_recent_value_reply_from_is(answer)
 

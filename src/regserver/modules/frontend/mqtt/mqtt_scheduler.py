@@ -171,10 +171,10 @@ class MqttSchedulerActor(MqttBaseActor):
         """Handler for RecentValueMsg from Device Actor.
 
         This message contains the reply to GetRecentValueMsg."""
-        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if self.pending_control_action == ControlType.VALUE:
             topic = f"{self.group}/{self.is_id}/{msg.instr_id}/value"
-            if msg.gps is None:
+            if (msg.gps is None) or (not msg.gps.valid):
                 gps_dict = None
             else:
                 gps_dict = {
@@ -185,9 +185,9 @@ class MqttSchedulerActor(MqttBaseActor):
                     "Deviation": msg.gps.deviation,
                 }
             payload = {
-                "App": msg.app,
-                "Host": msg.host,
-                "User": msg.user,
+                "Host": msg.addressor[0],
+                "App": msg.addressor[1],
+                "User": msg.addressor[2],
                 "Component name": msg.component_name,
                 "Sensor name": msg.sensor_name,
                 "Measurand name": msg.measurand_name,
@@ -484,7 +484,7 @@ class MqttSchedulerActor(MqttBaseActor):
         received for a specific instrument ID.
 
         """
-        logger.info(
+        logger.debug(
             "[VALUE] client=%s, instr_id=%s, control=%s",
             self.mqttc,
             instr_id,
