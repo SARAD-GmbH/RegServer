@@ -426,7 +426,7 @@ def send_reserve_message(device_id, registrar_actor, request_host, user, app) ->
         try:
             reserve_return = reserve_sys.ask(
                 device_actor,
-                ReserveDeviceMsg(request_host, user, app),
+                ReserveDeviceMsg(request_host, user, app, create_redirector=True),
                 timeout=timedelta(seconds=10),
             )
         except ConnectionResetError as exception:

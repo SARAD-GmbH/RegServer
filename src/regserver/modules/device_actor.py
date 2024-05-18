@@ -211,9 +211,9 @@ class DeviceBaseActor(BaseActor):
                         return
             except KeyError:
                 logger.debug("First reservation since restart of RegServer")
-            address_of_actor_system = self.actor_dict["registrar"]["parent"]
-            sender_is_rest_api = bool(self.sender_api == address_of_actor_system)
-            if (Frontend.REST in frontend_config) and sender_is_rest_api:
+            if (
+                Frontend.REST in frontend_config
+            ) and self.reserve_device_msg.create_redirector:
                 if not self.child_actors:
                     logger.debug("Create redirector for %s", self.my_id)
                     self._create_redirector()

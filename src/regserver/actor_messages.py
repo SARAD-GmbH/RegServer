@@ -529,11 +529,13 @@ class ReserveDeviceMsg:
         host (str): Host requesting the reservation.
         user (str): Name of the user requesting the reservation.
         app (str): Application requesting the reservation
+        create_redirector (bool): True, if the receiving Actor shall create a Redirector Actor
     """
 
     host: str
     user: str
     app: str
+    create_redirector: bool = False
 
 
 @dataclass
