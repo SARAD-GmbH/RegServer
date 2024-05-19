@@ -72,7 +72,6 @@ class DeviceBaseActor(BaseActor):
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         self.instr_id = short_id(self.my_id)
-        self._subscribe_to_actor_dict_msg()
 
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
