@@ -425,6 +425,9 @@ class UsbActor(DeviceBaseActor):
 
     def _get_recent_value(self, addressor, sender, component, sensor, measurand):
         # pylint: disable=too-many-arguments
+        answer = RecentValueMsg(
+            status=Status.CRITICAL, addressor=addressor, instr_id=self.instr_id
+        )
         if sender is None:
             sender = self.registrar
         try:

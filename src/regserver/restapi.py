@@ -493,9 +493,9 @@ class ReserveDevice(Resource):
                 "Error": str(status),
                 device_id: {},
             }
-        return self.reserve_device(registrar_actor, device_id, who)
+        return self.reserve_device(registrar_actor, device_id, who, True)
 
-    def reserve_device(self, registrar_actor, device_id, who):
+    def reserve_device(self, registrar_actor, device_id, who, create_redirector):
         """The actual reserve method. It will be called after checking all
         boundary conditions."""
         logger.info(
@@ -517,6 +517,7 @@ class ReserveDevice(Resource):
                 who["host"],
                 who["user"],
                 who["app"],
+                create_redirector,
             )
         if status in (
             Status.OK,
@@ -986,9 +987,7 @@ class GetValues(Resource):
                 "Error": str(status),
             }
         reserve_state = ReserveDevice().reserve_device(
-            registrar_actor,
-            device_id,
-            arguments,
+            registrar_actor, device_id, arguments, False
         )
         if reserve_state.get("Error code") in [
             Status.OK.value,

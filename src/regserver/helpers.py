@@ -406,7 +406,9 @@ def check_msg(return_message, message_object_type):
     return False
 
 
-def send_reserve_message(device_id, registrar_actor, request_host, user, app) -> Status:
+def send_reserve_message(
+    device_id, registrar_actor, request_host, user, app, create_redirector
+) -> Status:
     """Send a reserve message to the Device Actor associated with device_id
     and give back the status.
 
@@ -426,7 +428,7 @@ def send_reserve_message(device_id, registrar_actor, request_host, user, app) ->
         try:
             reserve_return = reserve_sys.ask(
                 device_actor,
-                ReserveDeviceMsg(request_host, user, app),
+                ReserveDeviceMsg(request_host, user, app, create_redirector),
                 timeout=timedelta(seconds=10),
             )
         except ConnectionResetError as exception:
