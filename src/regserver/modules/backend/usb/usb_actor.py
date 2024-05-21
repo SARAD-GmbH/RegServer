@@ -136,13 +136,6 @@ class UsbActor(DeviceBaseActor):
             return
         self.instrument.route = route
         self.instrument.device_id = self.my_id
-        if usb_backend_config["SET_RTC"]:
-            seconds_to_full_minute = 60 - datetime.now().time().second
-            self.reserve_device_msg = ReserveDeviceMsg(
-                host="localhost", user="self", app="self"
-            )
-            self._handle_reserve_reply_from_is(Status.OK)
-            self.wakeupAfter(timedelta(seconds=seconds_to_full_minute), "set_rtc")
         if family_id == 5:
             sarad_type = "sarad-dacm"
         elif family_id in [1, 2, 4]:
@@ -162,6 +155,13 @@ class UsbActor(DeviceBaseActor):
             "State": 2,
         }
         self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
+        if usb_backend_config["SET_RTC"]:
+            seconds_to_full_minute = 60 - datetime.now().time().second
+            self.reserve_device_msg = ReserveDeviceMsg(
+                host="localhost", user="self", app="self"
+            )
+            self._handle_reserve_reply_from_is(Status.OK)
+            self.wakeupAfter(timedelta(seconds=seconds_to_full_minute), "set_rtc")
         self.instrument.release_instrument()
         logger.debug("Instrument with Id %s detected.", self.my_id)
         return
