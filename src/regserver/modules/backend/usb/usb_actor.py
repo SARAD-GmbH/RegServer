@@ -263,6 +263,8 @@ class UsbActor(DeviceBaseActor):
         has_reservation_section = self.device_status.get("Reservation", False)
         if has_reservation_section:
             is_reserved = self.device_status["Reservation"].get("Active", False)
+        else:
+            is_reserved = False
         if is_reserved:
             dummy_reply = self.dummy_reply(data)
             if dummy_reply:
