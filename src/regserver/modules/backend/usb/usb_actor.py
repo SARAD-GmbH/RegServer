@@ -35,16 +35,6 @@ class Purpose(Enum):
     RESERVE = 3
 
 
-class ThreadType(Enum):
-    """One item for every possible thread."""
-
-    CHECK_CONNECTION = 1
-    TX_BINARY = 2
-    RECENT_VALUE = 3
-    START_MEASURING = 4
-    SET_RTC = 5
-
-
 class UsbActor(DeviceBaseActor):
     """Actor for dealing with direct serial connections via USB or RS-232"""
 
@@ -54,58 +44,18 @@ class UsbActor(DeviceBaseActor):
         super().__init__()
         self.instrument: Union[SaradInst, None] = None
         self.is_connected = True
-        self.check_connection_thread = Thread(
-            target=self._check_connection,
-            daemon=True,
-        )
-        self.get_recent_value_thread = Thread(
-            target=self._get_recent_value,
-            kwargs={
-                "addressor": ("", "", ""),
-                "sender": None,
-                "component": None,
-                "sensor": None,
-                "measurand": None,
-            },
-            daemon=True,
-        )
-        self.setup_thread = Thread(
+        self.inner_thread = Thread(
             target=self._setup,
             kwargs={"family_id": None, "poll": False, "route": None},
             daemon=True,
         )
-        self.start_measuring_thread = Thread(
-            target=self._start_measuring_function, daemon=True
-        )
-        self.tx_binary_thread_proceed = Thread(
-            target=self._tx_binary_proceed,
-            kwargs={"data": None},
-            daemon=True,
-        )
-        self.set_rtc_thread = Thread(
-            target=self._set_rtc_function,
-            daemon=True,
-        )
 
-    def _start_thread(self, thread, thread_type: ThreadType):
-        if (
-            not self.check_connection_thread.is_alive()
-            and not self.get_recent_value_thread.is_alive()
-        ):
-            if thread_type == ThreadType.CHECK_CONNECTION:
-                self.check_connection_thread = thread
-                self.check_connection_thread.start()
-            elif thread_type == ThreadType.RECENT_VALUE:
-                self.get_recent_value_thread = thread
-                self.get_recent_value_thread.start()
-            elif thread_type == ThreadType.START_MEASURING:
-                self.start_measuring_thread = thread
-                self.start_measuring_thread.start()
-            elif thread_type == ThreadType.SET_RTC:
-                self.set_rtc_thread = thread
-                self.set_rtc_thread.start()
+    def _start_thread(self, thread):
+        if not self.inner_thread.is_alive():
+            self.inner_thread = thread
+            self.inner_thread.start()
         else:
-            self.wakeupAfter(timedelta(seconds=0.5), payload=(thread, thread_type))
+            self.wakeupAfter(timedelta(seconds=0.5), payload=thread)
 
     def _check_connection(self, purpose: Purpose = Purpose.WAKEUP):
         logger.debug("Check if %s is still connected", self.my_id)
@@ -129,12 +79,13 @@ class UsbActor(DeviceBaseActor):
         family_id = msg.family["family_id"]
         if msg.poll:
             self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
-        self.setup_thread = Thread(
-            target=self._setup,
-            kwargs={"family_id": family_id, "route": msg.route},
-            daemon=True,
+        self._start_thread(
+            thread=Thread(
+                target=self._setup,
+                kwargs={"family_id": family_id, "route": msg.route},
+                daemon=True,
+            )
         )
-        self.setup_thread.start()
 
     def _setup(self, family_id=None, route=None):
         self.instrument = id_family_mapping.get(family_id)
@@ -188,7 +139,7 @@ class UsbActor(DeviceBaseActor):
             except KeyError:
                 is_reserved = False
             if (not self.on_kill) and (not is_reserved):
-                if not self.check_connection_thread.is_alive():
+                if not self.inner_thread.is_alive():
                     logger.debug("Start check connection thread for %s", self.my_id)
                     self._start_thread(
                         Thread(
@@ -197,12 +148,10 @@ class UsbActor(DeviceBaseActor):
                                 "purpose": Purpose.WAKEUP,
                             },
                             daemon=True,
-                        ),
-                        thread_type=ThreadType.CHECK_CONNECTION,
+                        )
                     )
-        elif isinstance(msg.payload, tuple) and isinstance(msg.payload[0], Thread):
-            logger.debug("Start %s thread", msg.payload[1])
-            self._start_thread(msg.payload[0], msg.payload[1])
+        elif isinstance(msg.payload, tuple) and isinstance(msg.payload, Thread):
+            self._start_thread(msg.payload)
         elif msg.payload == "start_measuring":
             self._start_measuring()
         elif msg.payload == "set_rtc":
@@ -250,13 +199,13 @@ class UsbActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Handler for binary message from App to Instrument."""
         super().receiveMsg_TxBinaryMsg(msg, sender)
-        self.tx_binary_thread_proceed = Thread(
-            target=self._tx_binary_proceed,
-            kwargs={"data": msg.data},
-            daemon=True,
+        self._start_thread(
+            Thread(
+                target=self._tx_binary_proceed,
+                kwargs={"data": msg.data},
+                daemon=True,
+            )
         )
-        if not self.tx_binary_thread_proceed.is_alive():
-            self.tx_binary_thread_proceed.start()
 
     def _tx_binary_proceed(self, data):
         logger.debug(data)
@@ -331,8 +280,7 @@ class UsbActor(DeviceBaseActor):
                         "purpose": Purpose.RESERVE,
                     },
                     daemon=True,
-                ),
-                ThreadType.CHECK_CONNECTION,
+                )
             )
         else:
             self._finish_reserve()
@@ -374,8 +322,7 @@ class UsbActor(DeviceBaseActor):
             Thread(
                 target=self._set_rtc_function,
                 daemon=True,
-            ),
-            ThreadType.SET_RTC,
+            )
         )
 
     def _set_rtc_function(self):
@@ -387,8 +334,7 @@ class UsbActor(DeviceBaseActor):
             Thread(
                 target=self._start_measuring_function,
                 daemon=True,
-            ),
-            ThreadType.START_MEASURING,
+            )
         )
 
     def _start_measuring_function(self):
@@ -443,8 +389,7 @@ class UsbActor(DeviceBaseActor):
                     "measurand": msg.measurand,
                 },
                 daemon=True,
-            ),
-            ThreadType.RECENT_VALUE,
+            )
         )
 
     def _get_recent_value(self, addressor, sender, component, sensor, measurand):
