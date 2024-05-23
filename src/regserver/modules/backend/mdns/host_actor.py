@@ -124,6 +124,11 @@ class HostActor(BaseActor):
                 self.send(self._asys, ActorCreatedMsg(self.myAddress))
                 self._virgin = False
 
+    @overrides
+    def receiveMsg_ChildActorExited(self, msg, sender):
+        super().receiveMsg_ChildActorExited(msg, sender)
+        self._get_host_info()
+
     def receiveMsg_SetupHostActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SetupHostActorMsg initialising the host status information."""
@@ -173,6 +178,7 @@ class HostActor(BaseActor):
                 device_actor,
                 SetupMdnsActorMsg(is_host, api_port, remote_device_id),
             )
+            self._get_host_info()
         else:
             device_actor = self.child_actors[device_id]["actor_address"]
         data["State"] = 2
