@@ -140,6 +140,8 @@ class UsbActor(DeviceBaseActor):
             sarad_type = "sarad-dacm"
         elif family_id in [1, 2, 4]:
             sarad_type = "sarad-1688"
+        else:
+            sarad_type = "unknown"
         device_status = {
             "Identification": {
                 "Name": self.instrument.type_name,
