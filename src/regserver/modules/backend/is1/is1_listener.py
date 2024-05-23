@@ -321,9 +321,9 @@ class Is1Listener(BaseActor):
                         is1_address=address,
                         firmware_version=this_instrument["version"],
                     )
+                self._update_host_info()
             else:
                 logger.error("Error parsing payload received from instrument")
-                return
 
     @overrides
     def receiveMsg_KillMsg(self, msg, sender):
@@ -406,8 +406,8 @@ class Is1Listener(BaseActor):
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
         if not self.on_kill:
-            for actor_id, actor_address in self.child_actors.items():
-                if actor_address == msg.childAddress:
+            for actor_id, child_actor in self.child_actors.items():
+                if child_actor["actor_address"] == msg.childAddress:
                     try:
                         self.is1_addresses.append(
                             self.active_is1_addresses.pop(actor_id)

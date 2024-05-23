@@ -237,9 +237,9 @@ class ClusterActor(BaseActor):
 
     def _update(self):
         """Trigger all Child Actors to update their instruments."""
-        for child_id, value in self.child_actors.items():
+        for child_id, child_actor in self.child_actors.items():
             route = self._route(child_id)
-            child_address = value["actor_address"]
+            child_address = child_actor["actor_address"]
             loop_interval = 0
             if route.port in self.loop_ports:
                 loop_interval = usb_backend_config["LOCAL_RETRY_INTERVAL"]

@@ -221,7 +221,7 @@ class Registrar(BaseActor):
             self.device_statuses[actor_id] = self.device_statuses.get(actor_id, {})
             logger.debug("Subscribe %s to device statuses dict", actor_id)
             self._subscribe_to_device_status_msg(sender)
-            if transport_technology(actor_id) == "local":
+            if transport_technology(actor_id) in ["local", "is1"]:
                 for idx, host in enumerate(self.hosts):
                     if host.host == "127.0.0.1":
                         para = {"state": 2}
@@ -288,10 +288,12 @@ class Registrar(BaseActor):
         if actor_id is None:
             return
         status_dict = self.device_statuses.pop(actor_id, None)
-        if (status_dict is not None) and (transport_technology(actor_id) == "local"):
+        if (status_dict is not None) and (
+            transport_technology(actor_id) in ["local", "is1"]
+        ):
             local_device_connected = False
             for device_id in self.device_statuses:
-                if transport_technology(device_id) == "local":
+                if transport_technology(device_id) in ["local", "is1"]:
                     local_device_connected = True
                     break
             if not local_device_connected:
