@@ -42,6 +42,7 @@ class ThreadType(Enum):
     TX_BINARY = 2
     RECENT_VALUE = 3
     START_MEASURING = 4
+    SET_RTC = 5
 
 
 class UsbActor(DeviceBaseActor):
@@ -81,6 +82,10 @@ class UsbActor(DeviceBaseActor):
             kwargs={"data": None},
             daemon=True,
         )
+        self.set_rtc_thread = Thread(
+            target=self._set_rtc_function,
+            daemon=True,
+        )
 
     def _start_thread(self, thread, thread_type: ThreadType):
         if (
@@ -96,6 +101,9 @@ class UsbActor(DeviceBaseActor):
             elif thread_type == ThreadType.START_MEASURING:
                 self.start_measuring_thread = thread
                 self.start_measuring_thread.start()
+            elif thread_type == ThreadType.SET_RTC:
+                self.set_rtc_thread = thread
+                self.set_rtc_thread.start()
         else:
             self.wakeupAfter(timedelta(seconds=0.5), payload=(thread, thread_type))
 
@@ -198,8 +206,7 @@ class UsbActor(DeviceBaseActor):
         elif msg.payload == "start_measuring":
             self._start_measuring()
         elif msg.payload == "set_rtc":
-            self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
-            self._request_free_at_is()
+            self._set_rtc()
         # elif msg.payload == "get_values":
         #     self._get_recent_value(
         #         sender=None, component=component, sensor=sensor, measurand=measurand
@@ -359,6 +366,19 @@ class UsbActor(DeviceBaseActor):
         else:
             offset = msg.start_time - datetime.now(timezone.utc)
             self.wakeupAfter(offset, payload="start_measuring")
+
+    def _set_rtc(self):
+        self._start_thread(
+            Thread(
+                target=self._set_rtc_function,
+                daemon=True,
+            ),
+            ThreadType.SET_RTC,
+        )
+
+    def _set_rtc_function(self):
+        self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
+        self._request_free_at_is()
 
     def _start_measuring(self):
         self._start_thread(
