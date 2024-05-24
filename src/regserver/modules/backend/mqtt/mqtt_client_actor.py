@@ -520,6 +520,9 @@ class MqttClientActor(MqttBaseActor):
         if self._hosts.get(is_id):
             rescan_lock = self._hosts[is_id].get("rescan_lock")
             shutdown_lock = self._hosts[is_id].get("rescan_lock")
+        else:
+            rescan_lock = False
+            shutdown_lock = False
         if ((key == "rescan_timeout") and rescan_lock) or (
             (key == "shutdown_timeout") and shutdown_lock
         ):

@@ -17,8 +17,8 @@ from datetime import datetime, timedelta, timezone
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, FreeDeviceMsg,
                                       GetDeviceStatusesMsg, GetRecentValueMsg,
-                                      RescanMsg, ReserveDeviceMsg, ShutdownMsg,
-                                      Status, TxBinaryMsg)
+                                      RescanMsg, ReserveDeviceMsg, SetRtcMsg,
+                                      ShutdownMsg, Status, TxBinaryMsg)
 from regserver.config import config
 from regserver.helpers import diff_of_dicts, short_id, transport_technology
 from regserver.logger import logger
@@ -407,6 +407,8 @@ class MqttSchedulerActor(MqttBaseActor):
                 self.process_config(instr_id, control)
             elif control.ctype == ControlType.MONITOR:
                 self.process_monitor(instr_id)
+            elif control.ctype == ControlType.SET_RTC:
+                self.process_set_rtc(instr_id)
 
     def on_cmd(self, _client, _userdata, message):
         """Event handler for all MQTT messages with cmd topic for instruments."""
@@ -521,6 +523,16 @@ class MqttSchedulerActor(MqttBaseActor):
 
         """
         # TODO implement
+
+    def process_set_rtc(self, instr_id):
+        """Sub event handler that will be called from the on_message event
+        handler, when a MQTT control message with a 'set-rtc' request to set
+        the clock on teh instrument was received for a specific instrument ID.
+
+        """
+        device_actor, _device_id = self._device_actor(instr_id)
+        if device_actor is not None:
+            self.send(device_actor, SetRtcMsg(instr_id))
 
     def on_is_meta(self, _client, _userdata, message):
         """Handler for all messages of topic group/+/meta.

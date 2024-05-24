@@ -54,12 +54,14 @@ class TimeoutHTTPAdapter(HTTPAdapter):
 class Purpose(Enum):
     """One item for every possible purpose the HTTP request is be made for."""
 
+    GENERAL = 0
     SETUP = 1
     WAKEUP = 2
     RESERVE = 3
     FREE = 4
     STATUS = 5
     VALUE = 6
+    SET_RTC = 7
 
 
 class DeviceActor(DeviceBaseActor):
@@ -111,6 +113,20 @@ class DeviceActor(DeviceBaseActor):
                     if ident is None:
                         logger.error("No Identification section available.")
                         self.success = Status.NOT_FOUND
+        self._handle_http_reply(purpose, params)
+
+    def _http_post_function(self, endpoint="", params=None, purpose=Purpose.GENERAL):
+        try:
+            resp = self.http.post(endpoint, params=params)
+            self.response = resp.json()
+            self.success = Status.OK
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.error("REST API of IS is not responding. %s", exception)
+            self.success = Status.IS_NOT_FOUND
+        else:
+            if (self.response is None) or (self.response == {}):
+                logger.error("%s not available", self.device_id)
+                self.success = Status.NOT_FOUND
         self._handle_http_reply(purpose, params)
 
     def _handle_http_reply(self, purpose: Purpose, params):
@@ -169,6 +185,8 @@ class DeviceActor(DeviceBaseActor):
             self.next_method_kwargs = {"answer": answer}
         elif purpose == Purpose.STATUS:
             self.next_method = self._finish_set_device_status
+        elif purpose == Purpose.SET_RTC:
+            pass
 
     def _start_thread(self, thread):
         if not self.request_thread.is_alive():
@@ -458,3 +476,16 @@ class DeviceActor(DeviceBaseActor):
             self._publish_status_change()
         else:
             self._kill_myself()
+
+    @overrides
+    def _set_rtc_delayed(self):
+        self._start_thread(
+            Thread(
+                target=self._http_post_function,
+                kwargs={
+                    "endpoint": f"{self.base_url}/instruments/{self.instr_id}/set-rtc",
+                    "purpose": Purpose.SET_RTC,
+                },
+                daemon=True,
+            )
+        )

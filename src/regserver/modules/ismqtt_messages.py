@@ -97,6 +97,7 @@ class ControlType(Enum):
     VALUE = auto()
     MONITOR = auto()
     CONFIG = auto()
+    SET_RTC = auto()
 
 
 @dataclass
@@ -204,6 +205,13 @@ def get_instr_control(json_data, old_reservation) -> Control:
                 cycle=data.get("Cycle", 0), values=data.get("Values", [])
             ),
         )
+    elif req_type == "set-rtc":
+        logger.debug("[SET_RTC] request")
+        result = Control(
+            ctype=ControlType.SET_RTC,
+            data=None,
+        )
+
     else:
         logger.error("Unknown control message received. %s", data)
         result = Control(ControlType.UNKNOWN, nodata)

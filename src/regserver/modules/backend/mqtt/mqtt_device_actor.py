@@ -211,6 +211,22 @@ class MqttDeviceActor(DeviceBaseActor):
             ),
         )
 
+    @overrides
+    def _set_rtc_delayed(self):
+        self.send(
+            self.parent.parent_address,
+            MqttPublishMsg(
+                topic=self.allowed_sys_topics["CTRL"],
+                payload=json.dumps(
+                    {
+                        "Req": "set-rtc",
+                    }
+                ),
+                qos=self.qos,
+                retain=False,
+            ),
+        )
+
     def on_value(self, payload):
         """Handler for MQTT messages containing measuring values from instrument"""
         value_dict = json.loads(payload)
