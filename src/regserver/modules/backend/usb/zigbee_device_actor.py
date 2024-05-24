@@ -8,14 +8,15 @@
 
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from threading import Thread
 
 from overrides import overrides
 from regserver.actor_messages import (FinishSetupUsbActorMsg, FreeDeviceMsg,
-                                      ReservationStatusMsg, ReserveDeviceMsg,
-                                      SetDeviceStatusMsg, Status)
+                                      ReservationStatusMsg, SetDeviceStatusMsg,
+                                      Status)
 from regserver.config import config, usb_backend_config
+from regserver.helpers import get_sarad_type
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.mapping import id_family_mapping  # type: ignore
@@ -44,7 +45,6 @@ class ZigBeeDeviceActor(UsbActor):
     def _setup(self, family_id=None, route=None):
         self.instrument = id_family_mapping.get(family_id)
         if family_id == 5:
-            sarad_type = "sarad-dacm"
             family_dict = dict(self.instrument.family)
             family_dict["serial"] = [
                 d for d in family_dict["serial"] if d["baudrate"] == 9600
@@ -53,8 +53,6 @@ class ZigBeeDeviceActor(UsbActor):
             logger.debug(
                 "With ZigBee we are using only %s", self.instrument.family["serial"]
             )
-        elif family_id in [1, 2, 4]:
-            sarad_type = "sarad-1688"
         self.instrument.COM_TIMEOUT = COM_TIMEOUT
         try:
             self.instrument.route = route
@@ -80,7 +78,7 @@ class ZigBeeDeviceActor(UsbActor):
                     "Serial number": self.instrument.serial_number,
                     "Firmware version": self.instrument.software_version,
                     "Host": "127.0.0.1",
-                    "Protocol": sarad_type,
+                    "Protocol": get_sarad_type(self.instr_id),
                     "IS Id": config["IS_ID"],
                 },
                 "Serial": self.instrument.route.port,

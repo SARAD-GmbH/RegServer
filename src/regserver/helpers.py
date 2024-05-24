@@ -513,3 +513,13 @@ def decode_instr_id(instr_id: str) -> Tuple:
         except AssertionError:
             logger.critical("Error decoding instr_id %s", instr_id)
             return ()
+
+
+def get_sarad_type(instr_id) -> str:
+    """Return the SARAD type from a given instr_id"""
+    family_id = decode_instr_id(instr_id)[0]
+    if family_id == 5:
+        return "sarad-dacm"
+    if family_id in [1, 2]:
+        return "sarad-1688"
+    return "unknown"

@@ -16,7 +16,7 @@ from overrides import overrides
 from regserver.actor_messages import (ActorType, KillMsg, SetDeviceStatusMsg,
                                       SetupUsbActorMsg)
 from regserver.config import config
-from regserver.helpers import decode_instr_id, short_id
+from regserver.helpers import decode_instr_id, get_sarad_type, short_id
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
 from regserver.modules.backend.usb.zigbee_device_actor import (
@@ -54,12 +54,6 @@ class NetUsbActor(UsbActor):
             return
         self.instrument.route = route
         self.instrument.COM_TIMEOUT = COM_TIMEOUT
-        if family_id == 5:
-            sarad_type = "sarad-dacm"
-        elif family_id in [1, 2, 4]:
-            sarad_type = "sarad-1688"
-        else:
-            sarad_type = "unknown"
         device_status = {
             "Identification": {
                 "Name": self.instrument.type_name,
@@ -68,7 +62,7 @@ class NetUsbActor(UsbActor):
                 "Serial number": self.instrument.serial_number,
                 "Firmware version": self.instrument.software_version,
                 "Host": "127.0.0.1",
-                "Protocol": sarad_type,
+                "Protocol": get_sarad_type(self.instr_id),
                 "IS Id": config["IS_ID"],
             },
             "Serial": self.instrument.route.port,
@@ -128,7 +122,7 @@ class NetUsbActor(UsbActor):
         logger.debug("Instruments connected via ZigBee: %s", channels)
         new_channels = {}
         for instr_id, address in channels.items():
-            actor_id = self.get_actor_id(instr_id)
+            actor_id = f"{instr_id}.{get_sarad_type(instr_id)}.zigbee"
             if self.child_actors.get(actor_id, False):
                 old_zb_address = self.child_actors[actor_id][
                     "route_to_instr"
@@ -219,23 +213,6 @@ class NetUsbActor(UsbActor):
         else:
             self.send(sender, KillMsg())
         self.setup_one_child()
-
-    def get_actor_id(self, instr_id):
-        """Generate the actor_id from the channel information gained from
-        NetMonitors Coordinator"""
-        family_id = decode_instr_id(instr_id)[0]
-        if family_id == 5:
-            sarad_type = "sarad-dacm"
-        elif family_id in [1, 2]:
-            sarad_type = "sarad-1688"
-        else:
-            logger.error(
-                "Add Instrument on %s: unknown instrument family (index: %s)",
-                self.my_id,
-                family_id,
-            )
-            sarad_type = "unknown"
-        return f"{instr_id}.{sarad_type}.zigbee"
 
     def receiveMsg_ReservationStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name

@@ -17,6 +17,7 @@ from overrides import overrides  # type: ignore
 from regserver.actor_messages import KillMsg, SetupUsbActorMsg
 from regserver.base_actor import BaseActor
 from regserver.config import usb_backend_config
+from regserver.helpers import get_sarad_type
 from regserver.logger import logger
 from regserver.modules.backend.usb.net_usb_actor import NetUsbActor
 from regserver.modules.backend.usb.usb_actor import UsbActor
@@ -191,17 +192,6 @@ class ComActor(BaseActor):
             logger.error("_create_and_setup_called but instrument is %s", instrument)
             return
         instr_id = instrument.device_id
-        if family == 5:
-            sarad_type = "sarad-dacm"
-        elif family in [1, 2, 4]:
-            sarad_type = "sarad-1688"
-        else:
-            logger.error(
-                "Add Instrument on %s: unknown instrument family (index: %s)",
-                self.my_id,
-                family,
-            )
-            sarad_type = "unknown"
         if (family == 1) and (instrument.type_id in (1, 2, 3)):
             # DOSEman, DOSEman Pro, and MyRIAM are using an IR cradle with USB/ser adapter
             poll_doseman = True
@@ -210,7 +200,7 @@ class ComActor(BaseActor):
                 self._start_polling()
         else:
             poll_doseman = False
-        actor_id = f"{instr_id}.{sarad_type}.local"
+        actor_id = f"{instr_id}.{get_sarad_type(instr_id)}.local"
         logger.debug("Create actor %s on %s", actor_id, self.my_id)
         if family == 4:
             device_actor = self._create_actor(NetUsbActor, actor_id, None)

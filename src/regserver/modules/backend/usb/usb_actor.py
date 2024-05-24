@@ -20,7 +20,7 @@ from regserver.actor_messages import (Gps, RecentValueMsg, RescanMsg,
                                       ReserveDeviceMsg, RxBinaryMsg,
                                       SetDeviceStatusMsg, Status)
 from regserver.config import config, usb_backend_config
-from regserver.helpers import short_id
+from regserver.helpers import get_sarad_type, short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
 from sarad.mapping import id_family_mapping  # type: ignore
@@ -97,12 +97,6 @@ class UsbActor(DeviceBaseActor):
             return
         self.instrument.route = route
         self.instrument.device_id = self.my_id
-        if family_id == 5:
-            sarad_type = "sarad-dacm"
-        elif family_id in [1, 2, 4]:
-            sarad_type = "sarad-1688"
-        else:
-            sarad_type = "unknown"
         device_status = {
             "Identification": {
                 "Name": self.instrument.type_name,
@@ -111,7 +105,7 @@ class UsbActor(DeviceBaseActor):
                 "Serial number": self.instrument.serial_number,
                 "Firmware version": self.instrument.software_version,
                 "Host": "127.0.0.1",
-                "Protocol": sarad_type,
+                "Protocol": get_sarad_type(self.instr_id),
                 "IS Id": config["IS_ID"],
             },
             "Serial": self.instrument.route.port,

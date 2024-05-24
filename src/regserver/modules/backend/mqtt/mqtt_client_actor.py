@@ -16,7 +16,7 @@ from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj, KillMsg,
                                       MqttReceiveMsg, PrepareMqttActorMsg,
                                       SetDeviceStatusMsg, TransportTechnology)
-from regserver.helpers import short_id, transport_technology
+from regserver.helpers import get_sarad_type, short_id, transport_technology
 from regserver.logger import logger
 from regserver.modules.backend.mqtt.mqtt_base_actor import MqttBaseActor
 from regserver.modules.backend.mqtt.mqtt_device_actor import MqttDeviceActor
@@ -157,22 +157,8 @@ class MqttClientActor(MqttBaseActor):
                         return
                     self._update_instr(is_id, instr_id, payload)
                     return
-        try:
-            family = payload["Identification"]["Family"]
-        except IndexError:
-            logger.debug("[add_instr] Family of instrument missed")
-            return
-        if family == 1:
-            sarad_type = "sarad-1688"
-        elif family == 2:
-            sarad_type = "sarad-1688"
-        elif family == 5:
-            sarad_type = "sarad-dacm"
-        else:
-            logger.warning(
-                "[add_instr] unknown instrument family (%s)",
-                family,
-            )
+        sarad_type = get_sarad_type(instr_id)
+        if sarad_type == "unknown":
             return
         if is_id not in self._hosts:
             logger.critical(

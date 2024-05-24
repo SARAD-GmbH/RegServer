@@ -22,7 +22,8 @@ from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                       SetupUsbActorMsg, TransportTechnology)
 from regserver.base_actor import BaseActor
 from regserver.config import config, config_file, is1_backend_config
-from regserver.helpers import check_message, decode_instr_id, make_command_msg
+from regserver.helpers import (check_message, decode_instr_id, get_sarad_type,
+                               make_command_msg)
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.cluster import id_family_mapping  # type: ignore
@@ -355,16 +356,7 @@ class Is1Listener(BaseActor):
     ):
         logger.debug("[_create_and_setup_actor]")
         family_id = decode_instr_id(instr_id)[0]
-        if family_id == 5:
-            sarad_type = "sarad-dacm"
-        elif family_id in [1, 2]:
-            sarad_type = "sarad-1688"
-        else:
-            logger.error(
-                "[Add Instrument]: unknown instrument family (index: %s)",
-                family_id,
-            )
-            sarad_type = "unknown"
+        sarad_type = get_sarad_type(instr_id)
         actor_id = f"{instr_id}.{sarad_type}.is1"
         set_of_instruments = set()
         set_of_instruments.add(actor_id)
