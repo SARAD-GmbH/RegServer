@@ -38,6 +38,8 @@ class Purpose(Enum):
 class UsbActor(DeviceBaseActor):
     """Actor for dealing with direct serial connections via USB or RS-232"""
 
+    RET_TIMEOUT = b"B\x80\x7f\x0c\x0c\x00E"
+
     @overrides
     def __init__(self):
         logger.debug("Initialize a new USB actor.")
@@ -255,8 +257,7 @@ class UsbActor(DeviceBaseActor):
                     stop_time - start_time,
                     reply,
                 )
-                # TODO we should send a binary error message instead!
-                self.send(self.redirector_actor, RxBinaryMsg(reply["raw"]))
+                self.send(self.redirector_actor, RxBinaryMsg(self.RET_TIMEOUT))
                 return
 
     @overrides
