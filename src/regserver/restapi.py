@@ -29,7 +29,8 @@ from regserver.actor_messages import (AddPortToLoopMsg, BaudRateFinishedMsg,
                                       RemovePortFromLoopMsg, RescanFinishedMsg,
                                       RescanMsg, ReturnLocalPortsMsg,
                                       ReturnLoopPortsMsg, ReturnNativePortsMsg,
-                                      ReturnUsbPortsMsg, ShutdownFinishedMsg,
+                                      ReturnUsbPortsMsg, SetRtcFinishedMsg,
+                                      SetRtcMsg, ShutdownFinishedMsg,
                                       ShutdownMsg, StartMeasuringFinishedMsg,
                                       StartMeasuringMsg, Status)
 from regserver.config import actor_config, mqtt_config
@@ -908,6 +909,40 @@ class BaudRate(Resource):
                         logger.debug(exception)
                         reply = None
                 reply_is_corrupted = check_msg(reply, BaudRateFinishedMsg)
+                if reply_is_corrupted:
+                    return reply_is_corrupted
+                return {
+                    "Error code": reply.status.value,
+                    "Error": str(reply.status),
+                }
+        return api.abort(404)
+
+
+@instruments_ns.route("/<string:instr_id>/set-rtc")
+class SetRtc(Resource):
+    # pylint: disable=too-few-public-methods
+    """Set the realtime clock on the given instrument."""
+
+    def post(self, instr_id):
+        """Set the realtime clock on the given instrument."""
+        registrar_actor = get_registrar_actor()
+        if registrar_actor is None:
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return api.abort(404)
+        for device_id in get_device_statuses(registrar_actor):
+            if short_id(device_id) == instr_id:
+                with ActorSystem().private() as rtc_sys:
+                    try:
+                        reply = rtc_sys.ask(
+                            registrar_actor,
+                            SetRtcMsg(instr_id=instr_id),
+                            timeout=timedelta(seconds=60),
+                        )
+                    except ConnectionResetError as exception:
+                        logger.debug(exception)
+                        reply = None
+                reply_is_corrupted = check_msg(reply, SetRtcFinishedMsg)
                 if reply_is_corrupted:
                     return reply_is_corrupted
                 return {

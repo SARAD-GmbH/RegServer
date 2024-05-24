@@ -113,12 +113,7 @@ class UsbActor(DeviceBaseActor):
         }
         self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
         if usb_backend_config["SET_RTC"]:
-            seconds_to_full_minute = 60 - datetime.now().time().second
-            self.reserve_device_msg = ReserveDeviceMsg(
-                host="localhost", user="self", app="self"
-            )
-            self._handle_reserve_reply_from_is(Status.OK)
-            self.wakeupAfter(timedelta(seconds=seconds_to_full_minute), "set_rtc")
+            self._set_rtc_delayed()
         self.instrument.release_instrument()
         logger.debug("Instrument with Id %s detected.", self.my_id)
         return
@@ -299,18 +294,18 @@ class UsbActor(DeviceBaseActor):
         """
         self._handle_free_reply_from_is(Status.OK)
 
-    def receiveMsg_StartMeasuringMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Start measuring at a given time."""
-        if msg.instr_id != self.instr_id:
-            logger.error("%s for %s from %s", msg, self.my_id, sender)
+    @overrides
+    def _set_rtc_delayed(self):
+        self.reserve_device_msg = ReserveDeviceMsg(
+            host="localhost", user="self", app="self"
+        )
+        self._handle_reserve_reply_from_is(Status.OK)
+        sarad_type = get_sarad_type(self.instr_id)
+        if sarad_type == "sarad-1688":
+            seconds_to_full_minute = 60 - datetime.now().time().second
+            self.wakeupAfter(timedelta(seconds=seconds_to_full_minute), "set_rtc")
         else:
-            logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if msg.start_time is None:
-            self._start_measuring()
-        else:
-            offset = msg.start_time - datetime.now(timezone.utc)
-            self.wakeupAfter(offset, payload="start_measuring")
+            self._set_rtc()
 
     def _set_rtc(self):
         self._start_thread(
@@ -324,6 +319,7 @@ class UsbActor(DeviceBaseActor):
         self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
         self._request_free_at_is()
 
+    @overrides
     def _start_measuring(self):
         self._start_thread(
             Thread(

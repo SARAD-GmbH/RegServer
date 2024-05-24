@@ -1014,3 +1014,21 @@ class BaudRateFinishedMsg:
     """Confirmation that the BaudRateMsg was handled properly."""
 
     status: Status
+
+
+@dataclass
+class SetRtcMsg:
+    """Message instructing the Device Actor to set the RTC of the instrument.
+
+    Args:
+        instr_id (str): Id of the instrument
+    """
+
+    instr_id: str
+
+
+@dataclass
+class SetRtcFinishedMsg:
+    """Confirmation that the SetRtcMsg was handled properly."""
+
+    status: Status

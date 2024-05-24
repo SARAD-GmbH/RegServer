@@ -23,6 +23,7 @@ from regserver.actor_messages import (ActorType, Backend, BaudRateFinishedMsg,
                                       HostInfoMsg, KillMsg, MqttConnectMsg,
                                       PrepareMqttActorMsg, RescanFinishedMsg,
                                       RescanMsg, ReturnDeviceActorMsg,
+                                      SetRtcFinishedMsg, SetRtcMsg,
                                       ShutdownFinishedMsg, ShutdownMsg,
                                       StartMeasuringFinishedMsg,
                                       StartMeasuringMsg, Status,
@@ -462,6 +463,19 @@ class Registrar(BaseActor):
                         BaudRateMsg(baud_rate=msg.baud_rate, instr_id=msg.instr_id),
                     )
         self.send(sender, BaudRateFinishedMsg(Status.OK))
+
+    def receiveMsg_SetRtcMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forward the SetRtcMsg to Device Actors."""
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        for actor_id in self.actor_dict:
+            if self.actor_dict[actor_id]["actor_type"] == ActorType.DEVICE:
+                if (msg.instr_id is None) or (short_id(actor_id) == msg.instr_id):
+                    self.send(
+                        self.actor_dict[actor_id]["address"],
+                        SetRtcMsg(instr_id=msg.instr_id),
+                    )
+        self.send(sender, SetRtcFinishedMsg(Status.OK))
 
     def receiveMsg_HostInfoMsg(self, msg, sender):
         # pylint: disable=invalid-name

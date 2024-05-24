@@ -64,12 +64,7 @@ class ZigBeeDeviceActor(UsbActor):
             self.send(self.parent.parent_address, FinishSetupUsbActorMsg(success=False))
         else:
             if usb_backend_config["SET_RTC"]:
-                seconds_to_full_minute = 60 - datetime.now().time().second
-                self.reserve_device_msg = ReserveDeviceMsg(
-                    host="localhost", user="self", app="self"
-                )
-                self._handle_reserve_reply_from_is(Status.OK)
-                self.wakeupAfter(timedelta(seconds=seconds_to_full_minute), "set_rtc")
+                self._set_rtc_delayed()
             device_status = {
                 "Identification": {
                     "Name": self.instrument.type_name,

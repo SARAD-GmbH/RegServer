@@ -485,6 +485,11 @@ class DeviceBaseActor(BaseActor):
                 UpdateDeviceStatusMsg(self.my_id, self.device_status),
             )
 
+    def _start_measuring(self):
+        """Handler to start the monitoring mode on the Device Actor.
+
+        This is only a stub. The method is implemented in the backend Device Actor."""
+
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for TxBinaryMsg from App to Instrument."""
@@ -497,6 +502,33 @@ class DeviceBaseActor(BaseActor):
 
         This is only a stub. The method is implemented in the USB device actor only."""
         logger.info("%s for %s from %s", msg, self.my_id, sender)
+
+    def receiveMsg_StartMeasuringMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Start measuring at a given time."""
+        if msg.instr_id != self.instr_id:
+            logger.error("%s for %s from %s", msg, self.my_id, sender)
+        else:
+            logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if msg.start_time is None:
+            self._start_measuring()
+        else:
+            offset = msg.start_time - datetime.now(timezone.utc)
+            self.wakeupAfter(offset, payload="start_measuring")
+
+    def receiveMsg_SetRtcMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Set the RTC of the instrument given in msg."""
+        if msg.instr_id != self.instr_id:
+            logger.error("%s for %s from %s", msg, self.my_id, sender)
+        else:
+            logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self._set_rtc_delayed()
+
+    def _set_rtc_delayed(self):
+        """Handler to set the RTC of the associated instrument.
+
+        This is only a stub. The method is implemented in the backend Device Actor."""
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
