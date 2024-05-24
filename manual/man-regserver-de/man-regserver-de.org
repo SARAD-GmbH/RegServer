@@ -1754,11 +1754,11 @@ die hier nicht weiter betrachtet werden:
 {
     "State": 2
     "Host": "sarad_is2_2",
-    "Description": "Testserver",
+    "Descr": "Testserver",
     "Place": "Livingroom at home",
     "Lat": 51.03850,
     "Lon": 13.673210,
-    "Height": 172.6
+    "Alt": 172.6
 }
 #+END_SRC
 

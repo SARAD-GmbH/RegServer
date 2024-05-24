@@ -422,7 +422,7 @@ class UsbActor(DeviceBaseActor):
                             valid=True,
                             latitude=config["LATITUDE"],
                             longitude=config["LONGITUDE"],
-                            altitude=config["HEIGHT"],
+                            altitude=config["ALTITUDE"],
                             deviation=0,
                         )
                     else:

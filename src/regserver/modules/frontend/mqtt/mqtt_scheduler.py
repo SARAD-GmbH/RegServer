@@ -65,7 +65,7 @@ class MqttSchedulerActor(MqttBaseActor):
             place=config["PLACE"],
             latitude=config["LATITUDE"],
             longitude=config["LONGITUDE"],
-            height=config["HEIGHT"],
+            altitude=config["ALTITUDE"],
             version=VERSION,
             running_since=datetime.now(timezone.utc).replace(microsecond=0),
         )

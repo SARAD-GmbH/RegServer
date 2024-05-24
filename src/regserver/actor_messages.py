@@ -166,9 +166,9 @@ class HostObj:
         transport_technology: How is the instrument connected to this RegServer?
         description: Free text string describing the host.
         place: Name of the place where the host is situated.
-        lat: Latitude of the place. Positive values are north, negatives are south.
-        lon: Longitude of the place. Positive values are east, negatives are west.
-        height: Height of the place.
+        latitude: Latitude of the place. Positive values are north, negatives are south.
+        longitude: Longitude of the place. Positive values are east, negatives are west.
+        altitude: Altitude of the place.
         state (int): 2 = online, 1 = connected, no instruments, 0 = offline
         version: Software revision of the SARAD Registration Server service
                  running on this host.
@@ -181,9 +181,9 @@ class HostObj:
     transport_technology: TransportTechnology
     description: str
     place: str
-    lat: float
-    lon: float
-    height: int
+    latitude: float
+    longitude: float
+    altitude: int
     state: int
     version: str
     running_since: datetime

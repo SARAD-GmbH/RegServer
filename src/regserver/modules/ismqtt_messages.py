@@ -30,7 +30,7 @@ class InstrumentServerMeta:  # pylint: disable=too-many-instance-attributes
     place: str
     latitude: Decimal
     longitude: Decimal
-    height: Decimal
+    altitude: Decimal
     version: str
     running_since: datetime
 
@@ -117,7 +117,7 @@ def get_is_meta(data: InstrumentServerMeta) -> str:
             "Place": data.place or "No description given",
             "Lat": data.latitude or 0,
             "Lon": data.longitude or 0,
-            "Height": data.height or 0,
+            "Alt": data.altitude or 0,
             "Ver": data.version or "unknown",
             "Since": data.running_since.isoformat(timespec="seconds") or "",
         },

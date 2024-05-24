@@ -91,13 +91,13 @@ host_model = api.model(
         "place": fields.String(
             description="Name of the place where the host is situated"
         ),
-        "lat": fields.Float(
+        "latitude": fields.Float(
             description="Latitude of the place. Positive values are north, negatives are south"
         ),
-        "lon": fields.Float(
+        "longitude": fields.Float(
             description="Longitude of the place. Positive values are east, negatives are west"
         ),
-        "height": fields.Integer(description="Height of the place."),
+        "altitude": fields.Integer(description="Altitude of the place."),
         "version": fields.String(
             description="Software revision of the SARAD Registration Server"
             + "service running on this host."

@@ -33,7 +33,7 @@
 #log_file = "regserver.log"
 
 ## The following parameters `is_id`, `description`, `place`, `latitude`,
-## `longitude`, `height`, `my_ip`, and `my_hostname` are relevant for RegServers
+## `longitude`, `altitude`, `my_ip`, and `my_hostname` are relevant for RegServers
 ## that are connected with SARAD instruments via their USB backend, thus working
 ## as Instrument Servers.
 
@@ -55,7 +55,7 @@
 ### Default: ""
 #place = ""
 
-## `latitude`, `longitude`, and `height` shall contain the geographic coordinates
+## `latitude`, `longitude`, and `altitude` shall contain the geographic coordinates
 ## of the host.
 
 ### Key: latitude
@@ -68,10 +68,10 @@
 ### Default: 0 (deg)
 #longitude = 13.7383917
 
-### Key: height
+### Key: altitude
 ## in meters
 ### Default: 0 (m)
-#height = 102
+#altitude = 102
 
 # `my_ip` is the IPv4 address of the host. `my_hostname` is the unique name of
 # the host within your network. Only change these parameters, if the

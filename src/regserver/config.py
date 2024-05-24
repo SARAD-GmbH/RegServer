@@ -117,7 +117,7 @@ DEFAULT_DESCRIPTION = "SARAD Instrument Server"
 DEFAULT_PLACE = ""
 DEFAULT_LATITUDE = 0
 DEFAULT_LONGITUDE = 0
-DEFAULT_HEIGHT = 0
+DEFAULT_ALTITUDE = 0
 level_dict = {
     "info": logging.INFO,
     "warning": logging.WARNING,
@@ -152,7 +152,7 @@ config = {
     "PLACE": customization.value.get("place", DEFAULT_PLACE),
     "LATITUDE": customization.value.get("latitude", DEFAULT_LATITUDE),
     "LONGITUDE": customization.value.get("longitude", DEFAULT_LONGITUDE),
-    "HEIGHT": customization.value.get("height", DEFAULT_HEIGHT),
+    "ALTITUDE": customization.value.get("altitude", DEFAULT_ALTITUDE),
     "MY_IP": customization.value.get("my_ip", DEFAULT_MY_IP),
     "MY_HOSTNAME": customization.value.get("my_hostname", DEFAULT_MY_HOSTNAME),
 }
