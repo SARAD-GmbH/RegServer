@@ -523,9 +523,9 @@ class DeviceBaseActor(BaseActor):
             logger.error("%s for %s from %s", msg, self.my_id, sender)
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self._set_rtc_delayed()
+        self._set_rtc_delayed(confirm=True)
 
-    def _set_rtc_delayed(self):
+    def _set_rtc_delayed(self, confirm=False):
         """Handler to set the RTC of the associated instrument.
 
         This is only a stub. The method is implemented in the backend Device Actor."""

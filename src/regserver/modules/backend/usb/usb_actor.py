@@ -18,7 +18,8 @@ from hashids import Hashids  # type: ignore
 from overrides import overrides
 from regserver.actor_messages import (Gps, RecentValueMsg, RescanMsg,
                                       ReserveDeviceMsg, RxBinaryMsg,
-                                      SetDeviceStatusMsg, Status)
+                                      SetDeviceStatusMsg, SetRtcFinishedMsg,
+                                      Status)
 from regserver.config import config, usb_backend_config
 from regserver.helpers import get_sarad_type, short_id
 from regserver.logger import logger
@@ -113,7 +114,7 @@ class UsbActor(DeviceBaseActor):
         }
         self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
         if usb_backend_config["SET_RTC"]:
-            self._set_rtc_delayed()
+            self._set_rtc_delayed(confirm=False)
         self.instrument.release_instrument()
         logger.debug("Instrument with Id %s detected.", self.my_id)
         return
@@ -295,7 +296,7 @@ class UsbActor(DeviceBaseActor):
         self._handle_free_reply_from_is(Status.OK)
 
     @overrides
-    def _set_rtc_delayed(self):
+    def _set_rtc_delayed(self, confirm=False):
         self.reserve_device_msg = ReserveDeviceMsg(
             host="localhost", user="self", app="self"
         )
@@ -306,6 +307,8 @@ class UsbActor(DeviceBaseActor):
             self.wakeupAfter(timedelta(seconds=seconds_to_full_minute), "set_rtc")
         else:
             self._set_rtc()
+        if confirm:
+            self.send(self.registrar, SetRtcFinishedMsg(self.instr_id, Status.OK))
 
     def _set_rtc(self):
         self._start_thread(

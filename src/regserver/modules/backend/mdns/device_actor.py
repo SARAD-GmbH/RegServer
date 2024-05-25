@@ -478,7 +478,7 @@ class DeviceActor(DeviceBaseActor):
             self._kill_myself()
 
     @overrides
-    def _set_rtc_delayed(self):
+    def _set_rtc_delayed(self, confirm=False):
         self._start_thread(
             Thread(
                 target=self._http_post_function,

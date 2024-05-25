@@ -52,6 +52,7 @@ class Registrar(BaseActor):
         # a list of actors that are already created but not yet subscribed
         self.pending = []
         self.hosts = []  # List of Host objects seen since start
+        self.rest_api = None  # Address of the Actor System
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -468,6 +469,7 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Forward the SetRtcMsg to Device Actors."""
         logger.info("%s for %s from %s", msg, self.my_id, sender)
+        success = False
         for actor_id in self.actor_dict:
             if self.actor_dict[actor_id]["actor_type"] == ActorType.DEVICE:
                 if (msg.instr_id is None) or (short_id(actor_id) == msg.instr_id):
@@ -475,7 +477,18 @@ class Registrar(BaseActor):
                         self.actor_dict[actor_id]["address"],
                         SetRtcMsg(instr_id=msg.instr_id),
                     )
-        self.send(sender, SetRtcFinishedMsg(Status.OK))
+                success = True
+                break
+        if not success:
+            self.send(sender, SetRtcFinishedMsg(msg.instr_id, Status.NOT_FOUND))
+        else:
+            self.rest_api = sender
+
+    def receiveMsg_SetRtcFinishedMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forward the SetRtcFinishedMsg to REST API."""
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        self.send(self.rest_api, msg)
 
     def receiveMsg_HostInfoMsg(self, msg, sender):
         # pylint: disable=invalid-name

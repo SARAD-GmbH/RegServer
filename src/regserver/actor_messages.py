@@ -1029,6 +1029,12 @@ class SetRtcMsg:
 
 @dataclass
 class SetRtcFinishedMsg:
-    """Confirmation that the SetRtcMsg was handled properly."""
+    """Confirmation that the SetRtcMsg was handled properly.
 
+    Args:
+        instr_id (str): Id of the instrument
+        status (Status): Status of the success of the operation
+    """
+
+    instr_id: str
     status: Status
