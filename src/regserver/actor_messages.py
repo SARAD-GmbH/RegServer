@@ -292,11 +292,6 @@ class SetupMdnsActorMsg:
 
 
 @dataclass
-class FinishSetupMdnsActorMsg:
-    """Internal message of MDNS device Actor"""
-
-
-@dataclass
 class FinishSetupUsbActorMsg:
     """Message from UsbActor indicating that initialization was completed.
 
@@ -305,41 +300,6 @@ class FinishSetupUsbActorMsg:
     """
 
     success: bool
-
-
-@dataclass
-class FinishWakeupMsg:
-    """Internal message of MDNS device Actor"""
-
-
-@dataclass
-class FinishReserveMsg:
-    """Internal message of MDNS device Actor"""
-
-    status: Status
-
-
-@dataclass
-class RefreshReserveMsg:
-    """Internal message of MDNS device Actor"""
-
-
-@dataclass
-class FinishFreeMsg:
-    """Internal message of MDNS device Actor"""
-
-
-@dataclass
-class RefreshFreeMsg:
-    """Internal message of MDNS device Actor"""
-
-
-@dataclass
-class FinishSetDeviceStatusMsg:
-    """Internal message of MDNS device Actor"""
-
-    msg: ActorSystemMessage
-    sender: ActorAddress
 
 
 @dataclass
