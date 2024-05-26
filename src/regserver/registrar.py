@@ -18,15 +18,14 @@ from datetime import timedelta
 
 from overrides import overrides  # type: ignore
 
-from regserver.actor_messages import (ActorType, Backend, BaudRateFinishedMsg,
+from regserver.actor_messages import (ActorType, Backend, BaudRateAckMsg,
                                       BaudRateMsg, Frontend, GetHostInfoMsg,
                                       HostInfoMsg, KillMsg, MqttConnectMsg,
-                                      PrepareMqttActorMsg, RescanFinishedMsg,
+                                      PrepareMqttActorMsg, RescanAckMsg,
                                       RescanMsg, ReturnDeviceActorMsg,
-                                      SetRtcFinishedMsg, SetRtcMsg,
-                                      ShutdownFinishedMsg, ShutdownMsg,
-                                      StartMeasuringFinishedMsg,
-                                      StartMeasuringMsg, Status,
+                                      SetRtcAckMsg, SetRtcMsg, ShutdownAckMsg,
+                                      ShutdownMsg, StartMonitoringAckMsg,
+                                      StartMonitoringMsg, Status,
                                       UpdateActorDictMsg,
                                       UpdateDeviceStatusesMsg)
 from regserver.base_actor import BaseActor
@@ -421,7 +420,7 @@ class Registrar(BaseActor):
                 self.send(
                     self.actor_dict[actor_id]["address"], RescanMsg(host=msg.host)
                 )
-        self.send(sender, RescanFinishedMsg(Status.OK))
+        self.send(sender, RescanAckMsg(Status.OK))
 
     def receiveMsg_ShutdownMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -433,24 +432,24 @@ class Registrar(BaseActor):
                     self.actor_dict[actor_id]["address"],
                     ShutdownMsg(password=msg.password, host=msg.host),
                 )
-        self.send(sender, ShutdownFinishedMsg(Status.OK))
+        self.send(sender, ShutdownAckMsg(Status.OK))
         if (msg.host is None) or (msg.host == "127.0.0.1"):
             system_shutdown()
 
-    def receiveMsg_StartMeasuringMsg(self, msg, sender):
+    def receiveMsg_StartMonitoringMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Forward the StartMeasuringMsg to Device Actors."""
+        """Forward the StartMonitoringMsg to Device Actors."""
         logger.info("%s for %s from %s", msg, self.my_id, sender)
         for actor_id in self.actor_dict:
             if self.actor_dict[actor_id]["actor_type"] == ActorType.DEVICE:
                 if (msg.instr_id is None) or (short_id(actor_id) == msg.instr_id):
                     self.send(
                         self.actor_dict[actor_id]["address"],
-                        StartMeasuringMsg(
+                        StartMonitoringMsg(
                             start_time=msg.start_time, instr_id=msg.instr_id
                         ),
                     )
-        self.send(sender, StartMeasuringFinishedMsg(Status.OK))
+        self.send(sender, StartMonitoringAckMsg(Status.OK))
 
     def receiveMsg_BaudRateMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -463,7 +462,7 @@ class Registrar(BaseActor):
                         self.actor_dict[actor_id]["address"],
                         BaudRateMsg(baud_rate=msg.baud_rate, instr_id=msg.instr_id),
                     )
-        self.send(sender, BaudRateFinishedMsg(Status.OK))
+        self.send(sender, BaudRateAckMsg(Status.OK))
 
     def receiveMsg_SetRtcMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -480,13 +479,13 @@ class Registrar(BaseActor):
                 success = True
                 break
         if not success:
-            self.send(sender, SetRtcFinishedMsg(msg.instr_id, Status.NOT_FOUND))
+            self.send(sender, SetRtcAckMsg(msg.instr_id, Status.NOT_FOUND))
         else:
             self.rest_api = sender
 
-    def receiveMsg_SetRtcFinishedMsg(self, msg, sender):
+    def receiveMsg_SetRtcAckMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Forward the SetRtcFinishedMsg to REST API."""
+        """Forward the SetRtcAckMsg to REST API."""
         logger.info("%s for %s from %s", msg, self.my_id, sender)
         self.send(self.rest_api, msg)
 

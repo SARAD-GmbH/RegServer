@@ -18,8 +18,7 @@ from hashids import Hashids  # type: ignore
 from overrides import overrides
 from regserver.actor_messages import (Gps, RecentValueMsg, RescanMsg,
                                       ReserveDeviceMsg, RxBinaryMsg,
-                                      SetDeviceStatusMsg, SetRtcFinishedMsg,
-                                      Status)
+                                      SetDeviceStatusMsg, SetRtcAckMsg, Status)
 from regserver.config import config, usb_backend_config
 from regserver.helpers import get_sarad_type, short_id
 from regserver.logger import logger
@@ -308,7 +307,7 @@ class UsbActor(DeviceBaseActor):
         else:
             self._set_rtc()
         if confirm:
-            self.send(self.registrar, SetRtcFinishedMsg(self.instr_id, Status.OK))
+            self.send(self.registrar, SetRtcAckMsg(self.instr_id, Status.OK))
 
     def _set_rtc(self):
         self._start_thread(

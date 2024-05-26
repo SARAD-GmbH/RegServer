@@ -503,7 +503,7 @@ class DeviceBaseActor(BaseActor):
         This is only a stub. The method is implemented in the USB device actor only."""
         logger.info("%s for %s from %s", msg, self.my_id, sender)
 
-    def receiveMsg_StartMeasuringMsg(self, msg, sender):
+    def receiveMsg_StartMonitoringMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Start measuring at a given time."""
         if msg.instr_id != self.instr_id:

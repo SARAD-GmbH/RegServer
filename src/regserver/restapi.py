@@ -22,17 +22,17 @@ from thespian.system.messages.status import (  # type: ignore
     Thespian_StatusReq, formatStatus)
 from waitress import serve  # type: ignore
 
-from regserver.actor_messages import (AddPortToLoopMsg, BaudRateFinishedMsg,
+from regserver.actor_messages import (AddPortToLoopMsg, BaudRateAckMsg,
                                       BaudRateMsg, GetLocalPortsMsg,
                                       GetNativePortsMsg, GetRecentValueMsg,
                                       GetUsbPortsMsg, InstrObj, RecentValueMsg,
-                                      RemovePortFromLoopMsg, RescanFinishedMsg,
+                                      RemovePortFromLoopMsg, RescanAckMsg,
                                       RescanMsg, ReturnLocalPortsMsg,
                                       ReturnLoopPortsMsg, ReturnNativePortsMsg,
-                                      ReturnUsbPortsMsg, SetRtcFinishedMsg,
-                                      SetRtcMsg, ShutdownFinishedMsg,
-                                      ShutdownMsg, StartMeasuringFinishedMsg,
-                                      StartMeasuringMsg, Status)
+                                      ReturnUsbPortsMsg, SetRtcAckMsg,
+                                      SetRtcMsg, ShutdownAckMsg, ShutdownMsg,
+                                      StartMonitoringAckMsg,
+                                      StartMonitoringMsg, Status)
 from regserver.config import actor_config, mqtt_config
 from regserver.helpers import (check_msg, get_actor,
                                get_device_status_from_registrar,
@@ -335,7 +335,7 @@ class Shutdown(Resource):
             except ConnectionResetError as exception:
                 logger.debug(exception)
                 reply = None
-        reply_is_corrupted = check_msg(reply, ShutdownFinishedMsg)
+        reply_is_corrupted = check_msg(reply, ShutdownAckMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
         return {
@@ -384,7 +384,7 @@ class Scan(Resource):
             except ConnectionResetError as exception:
                 logger.debug(exception)
                 reply = None
-        reply_is_corrupted = check_msg(reply, RescanFinishedMsg)
+        reply_is_corrupted = check_msg(reply, RescanAckMsg)
         if reply_is_corrupted:
             return reply_is_corrupted
         return {
@@ -697,7 +697,7 @@ class ShutdownHost(Resource):
                     except ConnectionResetError as exception:
                         logger.debug(exception)
                         reply = None
-                reply_is_corrupted = check_msg(reply, ShutdownFinishedMsg)
+                reply_is_corrupted = check_msg(reply, ShutdownAckMsg)
                 if reply_is_corrupted:
                     return reply_is_corrupted
                 return {
@@ -747,7 +747,7 @@ class ScanHost(Resource):
                     except ConnectionResetError as exception:
                         logger.debug(exception)
                         reply = None
-                reply_is_corrupted = check_msg(reply, RescanFinishedMsg)
+                reply_is_corrupted = check_msg(reply, RescanAckMsg)
                 if reply_is_corrupted:
                     return reply_is_corrupted
                 return {
@@ -860,7 +860,7 @@ class StartMeasuring(Resource):
                     try:
                         reply = start_sys.ask(
                             registrar_actor,
-                            StartMeasuringMsg(
+                            StartMonitoringMsg(
                                 start_time=args["start_time"], instr_id=instr_id
                             ),
                             timeout=timedelta(seconds=60),
@@ -868,7 +868,7 @@ class StartMeasuring(Resource):
                     except ConnectionResetError as exception:
                         logger.debug(exception)
                         reply = None
-                reply_is_corrupted = check_msg(reply, StartMeasuringFinishedMsg)
+                reply_is_corrupted = check_msg(reply, StartMonitoringAckMsg)
                 if reply_is_corrupted:
                     return reply_is_corrupted
                 return {
@@ -908,7 +908,7 @@ class BaudRate(Resource):
                     except ConnectionResetError as exception:
                         logger.debug(exception)
                         reply = None
-                reply_is_corrupted = check_msg(reply, BaudRateFinishedMsg)
+                reply_is_corrupted = check_msg(reply, BaudRateAckMsg)
                 if reply_is_corrupted:
                     return reply_is_corrupted
                 return {
@@ -942,7 +942,7 @@ class SetRtc(Resource):
                     except ConnectionResetError as exception:
                         logger.debug(exception)
                         reply = None
-                reply_is_corrupted = check_msg(reply, SetRtcFinishedMsg)
+                reply_is_corrupted = check_msg(reply, SetRtcAckMsg)
                 if reply_is_corrupted:
                     return reply_is_corrupted
                 return {

@@ -604,14 +604,14 @@ class MqttSchedulerActor(MqttBaseActor):
                     return (description["address"], actor_id)
         return (None, "")
 
-    def receiveMsg_RescanFinishedMsg(self, msg, sender):
+    def receiveMsg_RescanAckMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Handler for RescanFinishedMsg from Registrar."""
+        """Handler for RescanAckMsg from Registrar."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._instruments_connected()
 
-    def receiveMsg_ShutdownFinishedMsg(self, msg, sender):
+    def receiveMsg_ShutdownAckMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Handler for ShutdownFinishedMsg from Registrar."""
+        """Handler for ShutdownAckMsg from Registrar."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._instruments_connected()

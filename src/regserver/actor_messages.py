@@ -626,7 +626,7 @@ class RescanMsg:
 
 
 @dataclass
-class RescanFinishedMsg:
+class RescanAckMsg:
     """Confirmation that the RescanMsg was handled properly."""
 
     status: Status
@@ -649,7 +649,7 @@ class ShutdownMsg:
 
 
 @dataclass
-class ShutdownFinishedMsg:
+class ShutdownAckMsg:
     """Confirmation that the ShutdownMsg was handled properly."""
 
     status: Status
@@ -934,7 +934,7 @@ class MqttReceiveMsg:
 
 
 @dataclass
-class StartMeasuringMsg:
+class StartMonitoringMsg:
     """Message instructing the Device Actor to (re-)start the measuring
     at a given time or immediately, respectively.
 
@@ -950,8 +950,8 @@ class StartMeasuringMsg:
 
 
 @dataclass
-class StartMeasuringFinishedMsg:
-    """Confirmation that the StartMeasuringMsg was handled properly."""
+class StartMonitoringAckMsg:
+    """Confirmation that the StartMonitoringMsg was handled properly."""
 
     status: Status
 
@@ -970,7 +970,7 @@ class BaudRateMsg:
 
 
 @dataclass
-class BaudRateFinishedMsg:
+class BaudRateAckMsg:
     """Confirmation that the BaudRateMsg was handled properly."""
 
     status: Status
@@ -988,7 +988,7 @@ class SetRtcMsg:
 
 
 @dataclass
-class SetRtcFinishedMsg:
+class SetRtcAckMsg:
     """Confirmation that the SetRtcMsg was handled properly.
 
     Args:

@@ -23,7 +23,7 @@ from thespian.actors import ActorTypeDispatcher, ChildActorExited
 
 from regserver.actor_messages import (ActorType, DeadChildMsg,
                                       GetDeviceStatusMsg, KeepAliveMsg,
-                                      KillMsg, Parent, RescanFinishedMsg,
+                                      KillMsg, Parent, RescanAckMsg,
                                       ReservationStatusMsg, RxBinaryMsg,
                                       SetDeviceStatusMsg, SetupMdnsActorMsg,
                                       SetupMsg, SetupUsbActorMsg, SubscribeMsg,
@@ -218,7 +218,7 @@ class BaseActor(ActorTypeDispatcher):
                 SetupUsbActorMsg,
                 ReservationStatusMsg,
                 RxBinaryMsg,
-                RescanFinishedMsg,
+                RescanAckMsg,
             ),
         ):
             self.send(self.registrar, UnsubscribeMsg(msg.deadAddress))
