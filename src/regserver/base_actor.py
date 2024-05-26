@@ -18,8 +18,9 @@ Actors created in the actor system
 """
 
 from overrides import overrides  # type: ignore
-from thespian.actors import ActorExitRequest  # type: ignore
-from thespian.actors import ActorTypeDispatcher, ChildActorExited
+from thespian.actors import (Actor, ActorAddress,  # type: ignore
+                             ActorExitRequest, ActorTypeDispatcher,
+                             ChildActorExited)
 
 from regserver.actor_messages import (ActorType, DeadChildMsg,
                                       GetDeviceStatusMsg, KeepAliveMsg,
@@ -61,14 +62,14 @@ class BaseActor(ActorTypeDispatcher):
     @overrides
     def __init__(self):
         super().__init__()
-        self.registrar = None
-        self.parent = None
-        self.my_id = None
+        self.registrar: Actor = Actor()
+        self.parent: Parent = Parent(parent_id="", parent_address=ActorAddress(None))
+        self.my_id: str = ""
         self.actor_type = ActorType.NONE
         self.get_updates = False
-        self.child_actors = {}  # {actor_id: {"actor_address": <actor address>}}
-        self.actor_dict = {}
-        self.on_kill = False
+        self.child_actors: dict = {}  # {actor_id: {"actor_address": <actor address>}}
+        self.actor_dict: dict = {}
+        self.on_kill: bool = False
 
     def receiveMsg_SetupMsg(self, msg, sender):
         # pylint: disable=invalid-name

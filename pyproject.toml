@@ -101,3 +101,6 @@ include = ["**/*.py", "**/*.pyi", "**/pyproject.toml"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.mypy]
+check_untyped_defs = true

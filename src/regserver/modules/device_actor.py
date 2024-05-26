@@ -9,20 +9,31 @@
 
 """
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, Frontend, KillMsg,
                                       RecentValueMsg, ReservationStatusMsg,
-                                      Status, UpdateDeviceStatusMsg)
+                                      ReserveDeviceMsg, Status,
+                                      UpdateDeviceStatusMsg)
 from regserver.base_actor import BaseActor
 from regserver.config import frontend_config
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.redirect_actor import RedirectorActor
+from thespian.actors import Actor  # type: ignore
 
 RESERVE_TIMEOUT = timedelta(seconds=10)  # Timeout for RESERVE or FREE operations
 VALUE_TIMEOUT = timedelta(seconds=10)  # Timeout for VALUE operations
+
+
+@dataclass
+class Lock:
+    """Provides a lock to prevent concurrent calls."""
+
+    value: bool
+    time: datetime = datetime.min
 
 
 class DeviceBaseActor(BaseActor):
@@ -56,17 +67,19 @@ class DeviceBaseActor(BaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self.device_status = {}
-        self.subscribers = {}
-        self.reserve_device_msg = None
-        self.sender_api = None
+        self.device_status: dict = {}
+        self.subscribers: dict = {}
+        self.reserve_device_msg: ReserveDeviceMsg = ReserveDeviceMsg(
+            host="", user="", app="", create_redirector=False
+        )
+        self.sender_api: Actor = Actor()
         self.actor_type = ActorType.DEVICE
         self.redirector_actor = None
         self.return_message = None
-        self.instr_id = None
-        self.reserve_lock = False
-        self.free_lock = False
-        self.value_lock = False
+        self.instr_id: str = ""
+        self.reserve_lock: Lock = Lock(value=False)
+        self.free_lock: Lock = Lock(value=False)
+        self.value_lock: Lock = Lock(value=False)
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -104,14 +117,14 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if isinstance(msg.payload, tuple):
             msg.payload[0](msg.payload[1], msg.payload[2])
-        elif (msg.payload == "timeout_on_reserve") and self.reserve_lock:
-            self.reserve_lock = False
+        elif (msg.payload == "timeout_on_reserve") and self.reserve_lock.value:
+            self.reserve_lock.value = False
             self._handle_reserve_reply_from_is(success=Status.NOT_FOUND)
-        elif (msg.payload == "timeout_on_free") and self.free_lock:
-            self.free_lock = False
+        elif (msg.payload == "timeout_on_free") and self.free_lock.value:
+            self.free_lock.value = False
             self._handle_free_reply_from_is(success=Status.NOT_FOUND)
-        elif (msg.payload == "timeout_on_value") and self.value_lock:
-            self.value_lock = False
+        elif (msg.payload == "timeout_on_value") and self.value_lock.value:
+            self.value_lock.value = False
             self._handle_recent_value_reply_from_is(
                 answer=RecentValueMsg(
                     status=Status.NOT_FOUND,
@@ -128,10 +141,10 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for ReserveDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.free_lock or self.reserve_lock:
-            if self.free_lock:
+        if self.free_lock.value or self.reserve_lock.value:
+            if self.free_lock.value:
                 logger.info("%s FREE action pending", self.my_id)
-                if datetime.now() - self.free_lock > RESERVE_TIMEOUT:
+                if datetime.now() - self.free_lock.time > RESERVE_TIMEOUT:
                     logger.warning(
                         "Pending FREE on %s took longer than %s",
                         self.my_id,
@@ -141,7 +154,7 @@ class DeviceBaseActor(BaseActor):
                     return
             else:
                 logger.info("%s RESERVE action pending", self.my_id)
-                if datetime.now() - self.reserve_lock > RESERVE_TIMEOUT:
+                if datetime.now() - self.reserve_lock.time > RESERVE_TIMEOUT:
                     logger.warning(
                         "Pending RESERVE on %s took longer than %s",
                         self.my_id,
@@ -154,8 +167,9 @@ class DeviceBaseActor(BaseActor):
                     (self.receiveMsg_ReserveDeviceMsg, msg, sender),
                 )
                 return
-        self.reserve_lock = datetime.now()
-        logger.debug("%s: reserve_lock set to %s", self.my_id, self.reserve_lock)
+        self.reserve_lock.value = True
+        self.reserve_lock.time = datetime.now()
+        logger.debug("%s: reserve_lock set to %s", self.my_id, self.reserve_lock.time)
         if self.sender_api is None:
             self.sender_api = sender
         self.reserve_device_msg = msg
@@ -254,16 +268,17 @@ class DeviceBaseActor(BaseActor):
         if is_reserved:
             is_reserved = self.device_status["Reservation"].get("Active", False)
         if not is_reserved:
-            self.free_lock = datetime.now()
+            self.free_lock.value = True
+            self.free_lock.time = datetime.now()
             self.return_message = ReservationStatusMsg(self.instr_id, Status.OK_SKIPPED)
             if self.sender_api is None:
                 self.sender_api = sender
             self._send_reservation_status_msg()
             return
-        if self.free_lock or self.reserve_lock:
-            if self.free_lock:
+        if self.free_lock.value or self.reserve_lock.value:
+            if self.free_lock.value:
                 logger.info("%s FREE action pending", self.my_id)
-                if datetime.now() - self.free_lock > RESERVE_TIMEOUT:
+                if datetime.now() - self.free_lock.time > RESERVE_TIMEOUT:
                     logger.warning(
                         "Pending FREE on %s took longer than %s",
                         self.my_id,
@@ -277,7 +292,7 @@ class DeviceBaseActor(BaseActor):
                 )
                 return
             logger.info("%s RESERVE action pending", self.my_id)
-            if datetime.now() - self.reserve_lock > RESERVE_TIMEOUT:
+            if datetime.now() - self.reserve_lock.time > RESERVE_TIMEOUT:
                 logger.warning(
                     "Pending RESERVE on %s took longer than %s",
                     self.my_id,
@@ -285,7 +300,8 @@ class DeviceBaseActor(BaseActor):
                 )
                 self._kill_myself(resurrect=True)
                 return
-        self.free_lock = datetime.now()
+        self.free_lock.value = True
+        self.free_lock.time = datetime.now()
         logger.debug("%s: free_lock set to %s", self.my_id, self.free_lock)
         if self.sender_api is None:
             self.sender_api = sender
@@ -364,9 +380,9 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         is_reserved = self.device_status.get("Reservation", False)
         if is_reserved:
-            if self.value_lock:
+            if self.value_lock.value:
                 logger.info("%s VALUE action pending", self.my_id)
-                if datetime.now() - self.value_lock > VALUE_TIMEOUT:
+                if datetime.now() - self.value_lock.time > VALUE_TIMEOUT:
                     logger.warning(
                         "Pending VALUE on %s took longer than %s",
                         self.my_id,
@@ -379,7 +395,8 @@ class DeviceBaseActor(BaseActor):
                     (self.receiveMsg_GetRecentValueMsg, msg, sender),
                 )
                 return
-            self.value_lock = datetime.now()
+            self.value_lock.value = True
+            self.value_lock.time = datetime.now()
             logger.debug("%s: value_lock set to %s", self.my_id, self.value_lock)
             if self.sender_api is None:
                 self.sender_api = sender
@@ -411,8 +428,8 @@ class DeviceBaseActor(BaseActor):
         """
         self.send(self.sender_api, answer)
         self.sender_api = None
-        if self.value_lock:
-            self.value_lock = False
+        if self.value_lock.value:
+            self.value_lock.value = False
 
     def _update_reservation_status(self, reservation):
         self.device_status["Reservation"] = reservation
@@ -426,21 +443,21 @@ class DeviceBaseActor(BaseActor):
             self.my_id,
             self.return_message,
             self.sender_api,
-            self.reserve_lock,
-            self.free_lock,
+            self.reserve_lock.value,
+            self.free_lock.value,
         )
         if (
             (self.return_message is not None)
             and (self.sender_api is not None)
-            and (self.reserve_lock or self.free_lock)
+            and (self.reserve_lock.value or self.free_lock.value)
         ):
             self.send(self.sender_api, self.return_message)
             self.return_message = None
             self.sender_api = None
-        if self.reserve_lock:
-            self.reserve_lock = False
-        if self.free_lock:
-            self.free_lock = False
+        if self.reserve_lock.value:
+            self.reserve_lock.value = False
+        if self.free_lock.value:
+            self.free_lock.value = False
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name

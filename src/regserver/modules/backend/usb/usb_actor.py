@@ -9,10 +9,9 @@
 
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from enum import Enum
 from threading import Thread
-from typing import Union
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides
@@ -44,9 +43,9 @@ class UsbActor(DeviceBaseActor):
     def __init__(self):
         logger.debug("Initialize a new USB actor.")
         super().__init__()
-        self.instrument: Union[SaradInst, None] = None
-        self.is_connected = True
-        self.inner_thread = Thread(
+        self.instrument: SaradInst = None
+        self.is_connected: bool = True
+        self.inner_thread: Thread = Thread(
             target=self._setup,
             kwargs={"family_id": None, "poll": False, "route": None},
             daemon=True,
@@ -173,7 +172,7 @@ class UsbActor(DeviceBaseActor):
                 )
                 self.send(self.parent, RescanMsg())
 
-    def dummy_reply(self, data) -> Union[bytes, bool]:
+    def dummy_reply(self, data) -> bytes:
         """Filter TX message and give a dummy reply.
 
         This function was invented in order to prevent messages destined for
@@ -183,7 +182,7 @@ class UsbActor(DeviceBaseActor):
         if data in tx_rx:
             logger.debug("Reply %s with %s", data, tx_rx[data])
             return tx_rx[data]
-        return False
+        return b""
 
     @overrides
     def receiveMsg_TxBinaryMsg(self, msg, sender):

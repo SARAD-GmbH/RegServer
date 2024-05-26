@@ -9,7 +9,7 @@
 
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from enum import Enum
 from threading import Thread
 
@@ -71,13 +71,13 @@ class DeviceActor(DeviceBaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self._is_host = None
-        self._api_port = None
-        self.device_id = None
+        self._is_host = ""
+        self._api_port = 0
+        self.device_id = ""
         self.base_url = ""
         self.occupied = False  # Is device occupied by somebody else?
-        self.http = None
-        self.response = None  # Response from http request
+        self.http = requests.Session()
+        self.response: dict = {}  # Response from http request
         self.success = Status.OK
         self.request_thread = Thread(
             target=self._http_get_function,
@@ -129,7 +129,9 @@ class DeviceActor(DeviceBaseActor):
                 self.success = Status.NOT_FOUND
         self._handle_http_reply(purpose, params)
 
-    def _handle_http_reply(self, purpose: Purpose, params):
+    def _handle_http_reply(
+        self, purpose: Purpose, params
+    ):  # pylint: disable=too-many-branches
         if purpose == Purpose.SETUP:
             self.next_method = self._finish_setup_mdns_actor
         elif purpose == Purpose.WAKEUP:
