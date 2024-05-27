@@ -13,7 +13,7 @@ from time import sleep
 from typing import Union
 
 from hashids import Hashids  # type: ignore
-from overrides import overrides  # type: ignore
+from overrides import overrides
 from regserver.actor_messages import KillMsg, SetupUsbActorMsg
 from regserver.base_actor import BaseActor
 from regserver.config import usb_backend_config
@@ -22,6 +22,7 @@ from regserver.logger import logger
 from regserver.modules.backend.usb.net_usb_actor import NetUsbActor
 from regserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.doseman import DosemanInst  # type: ignore
+from sarad.instrument import Route  # type: ignore
 from sarad.sari import SI, SaradInst, sarad_family  # type: ignore
 from serial import SerialException  # type: ignore
 from serial.tools import list_ports  # type: ignore
@@ -35,10 +36,10 @@ class ComActor(BaseActor):
         super().__init__()
         self.polling_loop_running = False
         self.stop_polling = False
-        self.route = None
-        self.polling_interval = 0
+        self.route = Route()
+        self.polling_interval: float = 0
         self.detect_instr_thread = Thread(target=self._detect_instr, daemon=True)
-        self.guessed_family = None  # id of instrument family
+        self.guessed_family = 0  # id of instrument family
 
     def _guess_family(self):
         family_mapping = [

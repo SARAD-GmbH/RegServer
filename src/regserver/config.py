@@ -528,18 +528,18 @@ else:
                 ),
             },
         }
-    actor_config["KEEPALIVE_INTERVAL"] = int(
+    actor_config["KEEPALIVE_INTERVAL"] = float(
         customization.value["actor"].get(
             "watchdog_interval", DEFAULT_KEEPALIVE_INTERVAL
         )
     )
-    actor_config["WAIT_BEFORE_CHECK"] = int(
+    actor_config["WAIT_BEFORE_CHECK"] = float(
         customization.value["actor"].get("watchdog_wait", DEFAULT_WAIT_BEFORE_CHECK)
     )
     actor_config["CHECK"] = customization.value["actor"].get(
         "watchdog_check", DEFAULT_CHECK
     )
-    actor_config["OUTER_WATCHDOG_INTERVAl"] = int(
+    actor_config["OUTER_WATCHDOG_INTERVAl"] = float(
         customization.value["actor"].get(
             "outer_watchdog_interval", DEFAULT_OUTER_WATCHDOG_INTERVAL
         )

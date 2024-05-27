@@ -33,9 +33,9 @@ class MqttBaseActor(BaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self.mqttc = None
+        self.mqttc: MQTT.Client
         self.is_connected = False
-        self.group = None
+        self.group: str = ""
         self.connect_thread = Thread(
             target=self._connect,
             daemon=True,
@@ -43,7 +43,7 @@ class MqttBaseActor(BaseActor):
         self.next_method = None
         self.qos = mqtt_config["QOS"]
         self.last_pingresp = datetime.now()
-        self.is_id = None
+        self.is_id = ""
 
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
@@ -194,7 +194,7 @@ class MqttBaseActor(BaseActor):
                 logger.info(
                     "Check your network connection and IP address in config_<os>.toml!"
                 )
-                connect_exception = exception
+                connect_exception: OSError | socket.gaierror = exception
             except OSError as exception:  # pylint: disable=broad-except
                 logger.error(
                     "%s on %s. Check port in config_<os>.toml!", exception, self.my_id

@@ -67,7 +67,7 @@ class Registrar(BaseActor):
             self._create_actor(MqttClientActor, "mqtt_client_actor", None)
         if Backend.IS1 in backend_config:
             _is1_listener = self._create_actor(Is1Listener, "is1_listener", None)
-        keepalive_interval = actor_config["KEEPALIVE_INTERVAL"]
+        keepalive_interval: float = actor_config["KEEPALIVE_INTERVAL"]
         if keepalive_interval:
             logger.debug(
                 "Inner watchdog will be activated every %d s.", keepalive_interval

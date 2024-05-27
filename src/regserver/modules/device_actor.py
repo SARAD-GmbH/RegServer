@@ -22,7 +22,7 @@ from regserver.config import frontend_config
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.redirect_actor import RedirectorActor
-from thespian.actors import Actor  # type: ignore
+from thespian.actors import Actor, ActorSystem  # type: ignore
 
 RESERVE_TIMEOUT = timedelta(seconds=10)  # Timeout for RESERVE or FREE operations
 VALUE_TIMEOUT = timedelta(seconds=10)  # Timeout for VALUE operations
@@ -72,7 +72,7 @@ class DeviceBaseActor(BaseActor):
         self.reserve_device_msg: ReserveDeviceMsg = ReserveDeviceMsg(
             host="", user="", app="", create_redirector=False
         )
-        self.sender_api: Actor = Actor()
+        self.sender_api: Actor | ActorSystem | None = None
         self.actor_type = ActorType.DEVICE
         self.redirector_actor = None
         self.return_message = None

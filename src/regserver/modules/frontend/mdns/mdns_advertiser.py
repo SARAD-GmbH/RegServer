@@ -41,9 +41,9 @@ class MdnsAdvertiserActor(BaseActor):
             ip_version=mdns_frontend_config["IP_VERSION"],
             interfaces=[config["MY_IP"], "127.0.0.1"],
         )
-        self.service_name = None
-        self.instr_name = None
-        self.device_id = None
+        self.service_name = ""
+        self.instr_name = ""
+        self.device_id = ""
         self.occupied = False
         self.virgin = True
 

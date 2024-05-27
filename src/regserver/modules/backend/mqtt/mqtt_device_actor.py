@@ -240,7 +240,7 @@ class MqttDeviceActor(DeviceBaseActor):
             and state["Addressor"][2] == value_dict.get("User", state["Addressor"][2])
         )
         logger.info("Is it for me? %s, %s", state, value_dict)
-        if self.value_lock and it_is_for_me:
+        if self.value_lock.value and it_is_for_me:
             self.send(
                 self.parent.parent_address,
                 MqttUnsubscribeMsg([self.allowed_sys_topics["VALUE"]]),

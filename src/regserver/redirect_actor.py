@@ -29,12 +29,11 @@ class RedirectorActor(BaseActor):
     @overrides
     def __init__(self):
         super().__init__()
-        self.my_parent = None
         self._client_socket = None
         self._socket_info = None
-        self.conn = None
-        self._address = (config["MY_IP"], None)
-        self.read_list = None
+        self.conn: socket.socket = socket.socket()
+        self._address = (config["MY_IP"], 0)
+        self.read_list = []
         self.socket_loop_thread = Thread(
             target=self._loop,
         )
@@ -88,8 +87,8 @@ class RedirectorActor(BaseActor):
                     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 except OSError as exception:
                     logger.error("Cannot use port %d. %s", self._address[1], exception)
-                    server_socket = None
-                    self._address = (self._address[0], None)
+                    server_socket = socket.socket()
+                    self._address = (self._address[0], 0)
                     continue
                 try:
                     server_socket.bind(sa)
@@ -99,27 +98,28 @@ class RedirectorActor(BaseActor):
                         "Cannot listen on port %d. %s", self._address[1], exception
                     )
                     server_socket.close()
-                    server_socket = None
-                    self._address = (self._address[0], None)
+                    server_socket = socket.socket()
+                    self._address = (self._address[0], 0)
                     continue
                 break
             if server_socket is not None:
                 break
         logger.debug("Server socket: %s", server_socket)
         self.read_list = [server_socket]
-        if self._address[1] is None:
+        if not self._address[1]:
             logger.critical(
                 "Cannot open socket in the configured port range %s",
                 rest_frontend_config["PORT_RANGE"],
             )
             return_msg = SocketMsg(ip_address="", port=0, status=Status.UNKNOWN_PORT)
-        elif self.my_parent is None:
-            self.my_parent = sender
+        elif not self.parent.parent_id:
+            self.parent.parent_id = msg.parent_id
+            self.parent.parent_address = sender
             return_msg = SocketMsg(
                 ip_address=self._address[0], port=self._address[1], status=Status.OK
             )
         else:
-            logger.debug("my_parent: %s", self.my_parent)
+            logger.debug("my_parent: %s", self.parent)
             return_msg = SocketMsg(
                 ip_address=self._address[0],
                 port=self._address[1],
@@ -153,9 +153,9 @@ class RedirectorActor(BaseActor):
                 "Redirect %s from app, socket %s to device actor %s",
                 data,
                 self._socket_info,
-                self.my_parent,
+                self.parent.parent_id,
             )
-            self.send(self.my_parent, TxBinaryMsg(data))
+            self.send(self.parent.parent_address, TxBinaryMsg(data))
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name

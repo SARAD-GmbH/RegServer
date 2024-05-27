@@ -108,7 +108,8 @@ class ZigBeeDeviceActor(UsbActor):
                     self.select_channel_thread.start()
             elif is_reserved:
                 logger.debug("%s occupied", self.my_id)
-                self.reserve_lock = datetime.now()
+                self.reserve_lock.value = True
+                self.reserve_lock.time = datetime.now()
                 if self.sender_api is None:
                     self.sender_api = sender
                 self.return_message = ReservationStatusMsg(
@@ -171,7 +172,7 @@ class ZigBeeDeviceActor(UsbActor):
             is_reserved = self.device_status["Reservation"].get("Active", False)
         else:
             is_reserved = False
-        if is_reserved or self.reserve_lock:
+        if is_reserved or self.reserve_lock.value:
             self.send(self.parent.parent_address, FreeDeviceMsg())
         if self.zigbee_address:
             if not self.close_channel_thread.is_alive():
