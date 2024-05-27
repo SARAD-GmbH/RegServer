@@ -345,7 +345,7 @@ def main():
         return
     logger.debug("Starting the main loop")
     wait_some_time = False
-    interval = actor_config["OUTER_WATCHDOG_INTERVAl"]
+    interval = actor_config["OUTER_WATCHDOG_INTERVAL"]
     last_trial = datetime.now()
     registrar_is_down = False
     if (Frontend.MQTT not in frontend_config) and GLOBAL_LED:
