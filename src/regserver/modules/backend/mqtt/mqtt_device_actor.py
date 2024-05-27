@@ -11,6 +11,7 @@
 
 import json
 from datetime import datetime, timezone
+from typing import TypedDict
 
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (Gps, MqttPublishMsg, MqttSubscribeMsg,
@@ -19,6 +20,35 @@ from regserver.actor_messages import (Gps, MqttPublishMsg, MqttSubscribeMsg,
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
+
+
+class ReserveDict(TypedDict):
+    # pylint: disable=inherit-non-class, too-few-public-methods
+    """Type declaration for RESERVE dict."""
+    Pending: bool
+    Active: bool
+
+
+class SendDict(TypedDict):
+    # pylint: disable=inherit-non-class, too-few-public-methods
+    """Type declaration for SEND dict."""
+    Pending: bool
+    CMD_ID: int
+
+
+class ValueDict(TypedDict):
+    # pylint: disable=inherit-non-class, too-few-public-methods
+    """Type declaration for VALUE dict."""
+    Pending: bool
+    Addressor: tuple[str, str, str]
+
+
+class StateDict(TypedDict):
+    # pylint: disable=inherit-non-class, too-few-public-methods
+    """Type declaration for MQTT Actor state."""
+    RESERVE: ReserveDict
+    SEND: SendDict
+    VALUE: ValueDict
 
 
 class MqttDeviceActor(DeviceBaseActor):
@@ -44,17 +74,17 @@ class MqttDeviceActor(DeviceBaseActor):
             "MSG": "msg",
             "META": "meta",
         }
-        self.state = {
+        self.state: StateDict = {
             "RESERVE": {
                 "Pending": False,
                 # if there is a reply to wait for, then it should be true
-                "Active": None,
+                "Active": False,
                 # store the reservation status
             },
             "SEND": {
                 "Pending": False,
                 # if there is a reply to wait for, then it should be true
-                "CMD_ID": None,
+                "CMD_ID": 0,
                 # store the CMD ID
             },
             "VALUE": {
@@ -81,8 +111,7 @@ class MqttDeviceActor(DeviceBaseActor):
         logger.debug("To send: %s", data)
         logger.debug("CMD ID is: %s", self.cmd_id)
         self.state["SEND"]["Pending"] = True
-        self.state["SEND"]["CMD_ID"] = bytes([self.cmd_id])
-        logger.debug("CMD ID is: %s", self.state["SEND"]["CMD_ID"])
+        self.state["SEND"]["CMD_ID"] = self.cmd_id
         self.send(
             self.parent.parent_address,
             MqttPublishMsg(
@@ -230,7 +259,7 @@ class MqttDeviceActor(DeviceBaseActor):
     def on_value(self, payload):
         """Handler for MQTT messages containing measuring values from instrument"""
         value_dict = json.loads(payload)
-        state = self.state.get("VALUE", False)
+        state = self.state.get("VALUE", {})
         it_is_for_me = bool(
             state
             and state.get("Pending", False)
@@ -370,7 +399,7 @@ class MqttDeviceActor(DeviceBaseActor):
             return
         if self.state["SEND"]["Pending"]:
             re_cmd_id = payload[0]
-            st_cmd_id = int.from_bytes(self.state["SEND"]["CMD_ID"], "big")
+            st_cmd_id = self.state["SEND"]["CMD_ID"]
             logger.debug("Received CMD ID is %s", re_cmd_id)
             logger.debug("Stored CMD ID is %s", self.state["SEND"]["CMD_ID"])
             if re_cmd_id == st_cmd_id:

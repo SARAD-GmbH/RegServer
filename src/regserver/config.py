@@ -12,7 +12,7 @@ import logging
 import os
 import re
 import socket
-from typing import List, Optional, TypedDict, Union
+from typing import List, TypedDict, Union
 from uuid import getnode as get_mac
 
 import tomlkit
@@ -97,11 +97,11 @@ class ActorConfigDict(TypedDict):
     """Type declaration for actor_config."""
     systemBase: str
     capabilities: dict
-    KEEPALIVE_INTERVAL: Optional[float]
-    WAIT_BEFORE_CHECK: Optional[float]
-    CHECK: Optional[bool]
-    OUTER_WATCHDOG_INTERVAL: Optional[float]
-    OUTER_WATCHDOG_TRIALS: Optional[int]
+    KEEPALIVE_INTERVAL: float
+    WAIT_BEFORE_CHECK: float
+    CHECK: bool
+    OUTER_WATCHDOG_INTERVAL: float
+    OUTER_WATCHDOG_TRIALS: int
 
 
 class MqttFrontendConfigDict(TypedDict):
