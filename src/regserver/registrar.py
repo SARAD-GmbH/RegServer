@@ -476,12 +476,11 @@ class Registrar(BaseActor):
                         self.actor_dict[actor_id]["address"],
                         SetRtcMsg(instr_id=msg.instr_id),
                     )
-                success = True
-                break
+                    success = True
+                    self.rest_api = sender
+                    break
         if not success:
             self.send(sender, SetRtcAckMsg(msg.instr_id, Status.NOT_FOUND))
-        else:
-            self.rest_api = sender
 
     def receiveMsg_SetRtcAckMsg(self, msg, sender):
         # pylint: disable=invalid-name

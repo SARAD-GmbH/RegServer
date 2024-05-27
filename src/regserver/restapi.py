@@ -765,9 +765,11 @@ class Instruments(Resource):
     def _instrument(self, device_id, device_status):
         try:
             instr_id = short_id(device_id)
-            serial_number = device_status["Identification"]["Serial number"]
-            firmware_version = device_status["Identification"]["Firmware version"]
-            instr_host = device_status["Identification"]["Host"]
+            serial_number = device_status["Identification"].get("Serial number", 0)
+            firmware_version = device_status["Identification"].get(
+                "Firmware version", 0
+            )
+            instr_host = device_status["Identification"].get("Host", "unknown")
         except AttributeError:
             return api.abort(404)
         return InstrObj(
@@ -810,9 +812,11 @@ class Instrument(Resource):
     def _instrument(self, device_id, device_status):
         try:
             instr_id = short_id(device_id)
-            serial_number = device_status["Identification"]["Serial number"]
-            firmware_version = device_status["Identification"]["Firmware version"]
-            instr_host = device_status["Identification"]["Host"]
+            serial_number = device_status["Identification"].get("Serial number", 0)
+            firmware_version = device_status["Identification"].get(
+                "Firmware version", 0
+            )
+            instr_host = device_status["Identification"].get("Host", "unknown")
         except AttributeError:
             return api.abort(404)
         return InstrObj(

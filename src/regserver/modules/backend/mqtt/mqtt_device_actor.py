@@ -241,7 +241,7 @@ class MqttDeviceActor(DeviceBaseActor):
         )
 
     @overrides
-    def _set_rtc_delayed(self, confirm=False):
+    def _request_set_rtc_at_is(self, confirm=False):
         self.send(
             self.parent.parent_address,
             MqttPublishMsg(

@@ -122,7 +122,7 @@ class DeviceActor(DeviceBaseActor):
             self.success = Status.OK
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
-            self.success = Status.IS_NOT_FOUND
+            self.success = Status.NOT_FOUND
         else:
             if (self.response is None) or (self.response == {}):
                 logger.error("%s not available", self.device_id)
@@ -188,7 +188,13 @@ class DeviceActor(DeviceBaseActor):
         elif purpose == Purpose.STATUS:
             self.next_method = self._finish_set_device_status
         elif purpose == Purpose.SET_RTC:
-            pass
+            logger.info("Target responded to Set-RTC request: %s", self.response)
+            self.next_method = self._handle_set_rtc_reply_from_is
+            if self.success == Status.OK:
+                error_code = self.response.get("Error code", 98)
+            else:
+                error_code = self.success
+            self.next_method_kwargs = {"status": error_code, "confirm": True}
 
     def _start_thread(self, thread):
         if not self.request_thread.is_alive():
@@ -480,7 +486,7 @@ class DeviceActor(DeviceBaseActor):
             self._kill_myself()
 
     @overrides
-    def _set_rtc_delayed(self, confirm=False):
+    def _request_set_rtc_at_is(self, confirm=False):
         self._start_thread(
             Thread(
                 target=self._http_post_function,
@@ -491,3 +497,4 @@ class DeviceActor(DeviceBaseActor):
                 daemon=True,
             )
         )
+        super()._request_set_rtc_at_is(confirm)

@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, Frontend, KillMsg,
                                       RecentValueMsg, ReservationStatusMsg,
-                                      ReserveDeviceMsg, Status,
+                                      ReserveDeviceMsg, SetRtcAckMsg, Status,
                                       UpdateDeviceStatusMsg)
 from regserver.base_actor import BaseActor
 from regserver.config import frontend_config
@@ -26,6 +26,7 @@ from thespian.actors import Actor, ActorSystem  # type: ignore
 
 RESERVE_TIMEOUT = timedelta(seconds=10)  # Timeout for RESERVE or FREE operations
 VALUE_TIMEOUT = timedelta(seconds=10)  # Timeout for VALUE operations
+SET_RTC_TIMEOUT = timedelta(seconds=10)  # Timeout for setting the instruments RTC
 
 
 @dataclass
@@ -80,6 +81,7 @@ class DeviceBaseActor(BaseActor):
         self.reserve_lock: Lock = Lock(value=False)
         self.free_lock: Lock = Lock(value=False)
         self.value_lock: Lock = Lock(value=False)
+        self.set_rtc_lock: Lock = Lock(value=False)
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -136,6 +138,8 @@ class DeviceBaseActor(BaseActor):
                     instr_id=self.instr_id,
                 )
             )
+        elif (msg.payload == "timeout_on_set_rtc") and self.set_rtc_lock.value:
+            self._handle_set_rtc_reply_from_is(status=Status.NOT_FOUND, confirm=True)
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -416,7 +420,7 @@ class DeviceBaseActor(BaseActor):
 
     def _request_recent_value_at_is(self, msg, sender):
         # pylint: disable=unused-argument
-        """Request the a recent value at the Instrument Server. This function has
+        """Request a recent value at the Instrument Server. This function has
         to be implemented (overridden) in the protocol specific modules.
         """
         self.wakeupAfter(VALUE_TIMEOUT, "timeout_on_value")
@@ -430,6 +434,17 @@ class DeviceBaseActor(BaseActor):
         self.sender_api = None
         if self.value_lock.value:
             self.value_lock.value = False
+
+    def _handle_set_rtc_reply_from_is(self, status: Status, confirm: bool):
+        # pylint: disable=unused-argument
+        """Forward the recent value from the Instrument Server to the REST API.
+        This function has to be called in the protocol specific modules.
+        """
+        if confirm:
+            self.send(self.sender_api, SetRtcAckMsg(self.instr_id, status))
+        self.sender_api = None
+        if self.set_rtc_lock.value:
+            self.set_rtc_lock.value = False
 
     def _update_reservation_status(self, reservation):
         self.device_status["Reservation"] = reservation
@@ -540,12 +555,37 @@ class DeviceBaseActor(BaseActor):
             logger.error("%s for %s from %s", msg, self.my_id, sender)
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self._set_rtc_delayed(confirm=True)
+        is_reserved = self.device_status.get("Reservation", False)
+        if is_reserved:
+            if self.set_rtc_lock.value:
+                logger.info("%s SET RTC action pending", self.my_id)
+                if datetime.now() - self.set_rtc_lock.time > SET_RTC_TIMEOUT:
+                    logger.warning(
+                        "Pending SET RTC on %s took longer than %s",
+                        self.my_id,
+                        SET_RTC_TIMEOUT,
+                    )
+                    self._kill_myself(resurrect=True)
+                    return
+                self.wakeupAfter(
+                    timedelta(milliseconds=500),
+                    (self.receiveMsg_SetRtcMsg, msg, sender),
+                )
+                return
+            self.set_rtc_lock.value = True
+            self.set_rtc_lock.time = datetime.now()
+            logger.debug("%s: set_rtc_lock set to %s", self.my_id, self.set_rtc_lock)
+            self.sender_api = sender
+            self._request_set_rtc_at_is(confirm=True)
+        else:
+            self._handle_set_rtc_reply_from_is(status=Status.CRITICAL, confirm=True)
 
-    def _set_rtc_delayed(self, confirm=False):
-        """Handler to set the RTC of the associated instrument.
-
-        This is only a stub. The method is implemented in the backend Device Actor."""
+    def _request_set_rtc_at_is(self, confirm=False):
+        # pylint: disable=unused-argument
+        """Request setting the RTC of an instrument. This method has
+        to be implemented (overridden) in the backend Device Actor.
+        """
+        self.wakeupAfter(SET_RTC_TIMEOUT, "timeout_on_set_rtc")
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
