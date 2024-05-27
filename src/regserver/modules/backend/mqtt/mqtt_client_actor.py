@@ -15,7 +15,8 @@ from datetime import datetime, timedelta
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj, KillMsg,
                                       MqttReceiveMsg, PrepareMqttActorMsg,
-                                      SetDeviceStatusMsg, TransportTechnology)
+                                      ResurrectMsg, SetDeviceStatusMsg,
+                                      TransportTechnology)
 from regserver.helpers import get_sarad_type, short_id, transport_technology
 from regserver.logger import logger
 from regserver.modules.backend.mqtt.mqtt_base_actor import MqttBaseActor
@@ -116,7 +117,7 @@ class MqttClientActor(MqttBaseActor):
         super().__init__()
         self._hosts = {}
         self.actor_type = ActorType.HOST
-        self.resurrect_msg = False
+        self.resurrect_msg = ResurrectMsg(instr_id="", device_status={})
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -481,14 +482,14 @@ class MqttClientActor(MqttBaseActor):
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
         super().receiveMsg_ChildActorExited(msg, sender)
-        if self.resurrect_msg:
+        if self.resurrect_msg.instr_id:
             self._add_instr(
                 self.is_id,
                 self.resurrect_msg.instr_id,
                 self.resurrect_msg.device_status,
                 resurrect=True,
             )
-            self.resurrect_msg = False
+            self.resurrect_msg.instr_id = ""
 
     def receiveMsg_MqttSubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
