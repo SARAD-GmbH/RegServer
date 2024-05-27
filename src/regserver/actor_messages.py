@@ -12,10 +12,10 @@ commands and data within the actor system
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, IntEnum, unique
-from typing import Any, ByteString, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 from sarad.sari import FamilyDict, Route  # type: ignore
-from thespian.actors import ActorAddress, ActorSystemMessage  # type: ignore
+from thespian.actors import ActorAddress  # type: ignore
 
 from regserver.hostname_functions import compare_hostnames
 
@@ -464,10 +464,10 @@ class TxBinaryMsg:
     """Message sent to an actor to forward data from the app to the SARAD instrument.
 
     Args:
-        data (ByteString): Binary data to be forwarded.
+        data (bytes): Binary data to be forwarded.
     """
 
-    data: ByteString
+    data: bytes
 
 
 @dataclass
@@ -475,10 +475,10 @@ class RxBinaryMsg:
     """Message sent to an actor to forward data from the SARAD instrument to the app.
 
     Args:
-        data (ByteString): Binary data to be forwarded.
+        data (bytes): Binary data to be forwarded.
     """
 
-    data: ByteString
+    data: bytes
 
 
 @dataclass
