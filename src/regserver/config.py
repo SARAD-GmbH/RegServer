@@ -12,7 +12,7 @@ import logging
 import os
 import re
 import socket
-from typing import List, TypedDict, Union
+from typing import List, Optional, TypedDict, Union
 from uuid import getnode as get_mac
 
 import tomlkit
@@ -20,6 +20,23 @@ from platformdirs import PlatformDirs
 from zeroconf import IPVersion
 
 from regserver.actor_messages import Backend, Frontend
+
+
+class RestFrontendConfigDict(TypedDict):
+    # pylint: disable=inherit-non-class, too-few-public-methods
+    """Type declaration for rest_frontend_config."""
+    API_PORT: int
+    PORT_RANGE: range
+
+
+class ModbusRtuFrontendConfigDict(TypedDict):
+    # pylint: disable=inherit-non-class, too-few-public-methods
+    """Type declaration for modbus_rtu_frontend_config."""
+    SLAVE_ADDRESS: int
+    PORT: str
+    BAUDRATE: int
+    PARITY: str
+    DEVICE_ID: str
 
 
 class UsbBackendConfigDict(TypedDict):
@@ -30,7 +47,16 @@ class UsbBackendConfigDict(TypedDict):
     IGNORED_HWIDS: List[str]
     LOCAL_RETRY_INTERVAL: float
     SET_RTC: bool
-    UTC_OFFSET: int
+    UTC_OFFSET: float
+
+
+class Is1BackendConfigDict(TypedDict):
+    # pylint: disable=inherit-non-class, too-few-public-methods
+    """Type declaration for is1_backend_config."""
+    REG_PORT: int
+    SCAN_INTERVAL: float
+    IS1_HOSTS: List[str]
+    IS1_PORT: int
 
 
 class MdnsBackendConfigDict(TypedDict):
@@ -41,6 +67,48 @@ class MdnsBackendConfigDict(TypedDict):
     IP_VERSION: IPVersion
     HOSTS: List[List[Union[str, int]]]
     SCAN_INTERVAL: int
+
+
+class MqttConfigDict(TypedDict):
+    # pylint: disable=inherit-non-class, too-few-public-methods
+    """Type declaration for mqtt_config."""
+    MQTT_CLIENT_ID: str
+    MQTT_BROKER: str
+    GROUP: str
+    PORT: int
+    KEEPALIVE: int
+    QOS: int
+    RETRY_INTERVAL: int
+    TLS_CA_FILE: str
+    TLS_CERT_FILE: str
+    TLS_KEY_FILE: str
+    TLS_USE_TLS: bool
+
+
+class MdnsFrontendConfig(TypedDict):
+    # pylint: disable=inherit-non-class, too-few-public-methods
+    """Type declaration for mdns_frontend_config."""
+    TYPE: str
+    IP_VERSION: IPVersion
+
+
+class ActorConfigDict(TypedDict):
+    # pylint: disable=inherit-non-class, too-few-public-methods
+    """Type declaration for actor_config."""
+    systemBase: str
+    capabilities: dict
+    KEEPALIVE_INTERVAL: Optional[float]
+    WAIT_BEFORE_CHECK: Optional[float]
+    CHECK: Optional[bool]
+    OUTER_WATCHDOG_INTERVAL: Optional[float]
+    OUTER_WATCHDOG_TRIALS: Optional[int]
+
+
+class MqttFrontendConfigDict(TypedDict):
+    # pylint: disable=inherit-non-class, too-few-public-methods
+    """Type declaration for mqtt_frontend_config."""
+    REBOOT_AFTER: float
+    RESTART_INSTEAD_OF_REBOOT: int
 
 
 def get_ip(ipv6=False):
@@ -198,7 +266,7 @@ else:
     DEFAULT_GROUP = "lan"
 
 if customization.value.get("mqtt") is None:
-    mqtt_config = {
+    mqtt_config: MqttConfigDict = {
         "MQTT_CLIENT_ID": unique_id(DEFAULT_MQTT_CLIENT_ID),
         "MQTT_BROKER": DEFAULT_MQTT_BROKER,
         "GROUP": DEFAULT_GROUP,
@@ -268,7 +336,7 @@ DEFAULT_API_PORT = 8008
 DEFAULT_PORT_RANGE = range(50003, 50500)
 
 if customization.value.get("rest_frontend") is None:
-    rest_frontend_config = {
+    rest_frontend_config: RestFrontendConfigDict = {
         "API_PORT": DEFAULT_API_PORT,
         "PORT_RANGE": DEFAULT_PORT_RANGE,
     }
@@ -290,9 +358,9 @@ DEFAULT_SLAVE_ADDRESS = 1
 DEFAULT_PORT = "/dev/serial/by-id/usb-FTDI_Atil_UD-101i_USB__-__RS422_485-if00-port0"
 DEFAULT_BAUDRATE = 9600
 DEFAULT_PARITY = "N"
-DEFAULT_DEVICE_ID = None
+DEFAULT_DEVICE_ID = ""
 if customization.value.get("modbus_rtu_frontend") is None:
-    modbus_rtu_frontend_config = {
+    modbus_rtu_frontend_config: ModbusRtuFrontendConfigDict = {
         "SLAVE_ADDRESS": DEFAULT_SLAVE_ADDRESS,
         "PORT": DEFAULT_PORT,
         "BAUDRATE": DEFAULT_BAUDRATE,
@@ -361,7 +429,7 @@ else:
 
 # mDNS frontend configuration
 if customization.value.get("mdns_frontend") is None:
-    mdns_frontend_config = {
+    mdns_frontend_config: MdnsFrontendConfig = {
         "TYPE": DEFAULT_TYPE,
         "IP_VERSION": DEFAULT_IP_VERSION,
     }
@@ -428,7 +496,7 @@ DEFAULT_IS1_HOSTS: List[str] = []
 DEFAULT_IS1_PORT = 50000
 
 if customization.value.get("is1_backend") is None:
-    is1_backend_config = {
+    is1_backend_config: Is1BackendConfigDict = {
         "REG_PORT": DEFAULT_REG_PORT,
         "SCAN_INTERVAL": DEFAULT_SCAN_INTERVAL,
         "IS1_HOSTS": DEFAULT_IS1_HOSTS,
@@ -466,7 +534,7 @@ DEFAULT_OUTER_WATCHDOG_TRIALS = 1  # number of attempts to check Registrar
 
 if customization.value.get("actor") is None:
     if os.name == "nt":
-        actor_config = {
+        actor_config: ActorConfigDict = {
             "systemBase": DEFAULT_SYSTEM_BASE,
             "capabilities": {
                 "Admin Port": DEFAULT_ADMIN_PORT,
@@ -476,7 +544,7 @@ if customization.value.get("actor") is None:
             "KEEPALIVE_INTERVAL": DEFAULT_KEEPALIVE_INTERVAL,
             "WAIT_BEFORE_CHECK": DEFAULT_WAIT_BEFORE_CHECK,
             "CHECK": DEFAULT_CHECK,
-            "OUTER_WATCHDOG_INTERVAl": DEFAULT_OUTER_WATCHDOG_INTERVAL,
+            "OUTER_WATCHDOG_INTERVAL": DEFAULT_OUTER_WATCHDOG_INTERVAL,
             "OUTER_WATCHDOG_TRIALS": DEFAULT_OUTER_WATCHDOG_TRIALS,
         }
     else:
@@ -490,7 +558,7 @@ if customization.value.get("actor") is None:
             "KEEPALIVE_INTERVAL": DEFAULT_KEEPALIVE_INTERVAL,
             "WAIT_BEFORE_CHECK": DEFAULT_WAIT_BEFORE_CHECK,
             "CHECK": DEFAULT_CHECK,
-            "OUTER_WATCHDOG_INTERVAl": DEFAULT_OUTER_WATCHDOG_INTERVAL,
+            "OUTER_WATCHDOG_INTERVAL": DEFAULT_OUTER_WATCHDOG_INTERVAL,
             "OUTER_WATCHDOG_TRIALS": DEFAULT_OUTER_WATCHDOG_TRIALS,
         }
 else:
@@ -510,6 +578,27 @@ else:
                     "convention_address", DEFAULT_CONVENTION_ADDRESS
                 ),
             },
+            "KEEPALIVE_INTERVAL": float(
+                customization.value["actor"].get(
+                    "watchdog_interval", DEFAULT_KEEPALIVE_INTERVAL
+                )
+            ),
+            "WAIT_BEFORE_CHECK": float(
+                customization.value["actor"].get(
+                    "watchdog_wait", DEFAULT_WAIT_BEFORE_CHECK
+                )
+            ),
+            "CHECK": customization.value["actor"].get("watchdog_check", DEFAULT_CHECK),
+            "OUTER_WATCHDOG_INTERVAL": float(
+                customization.value["actor"].get(
+                    "outer_watchdog_interval", DEFAULT_OUTER_WATCHDOG_INTERVAL
+                )
+            ),
+            "OUTER_WATCHDOG_TRIALS": int(
+                customization.value["actor"].get(
+                    "outer_watchdog_trials", DEFAULT_OUTER_WATCHDOG_TRIALS
+                )
+            ),
         }
     else:
         actor_config = {
@@ -527,35 +616,35 @@ else:
                     "convention_address", DEFAULT_CONVENTION_ADDRESS
                 ),
             },
+            "KEEPALIVE_INTERVAL": float(
+                customization.value["actor"].get(
+                    "watchdog_interval", DEFAULT_KEEPALIVE_INTERVAL
+                )
+            ),
+            "WAIT_BEFORE_CHECK": float(
+                customization.value["actor"].get(
+                    "watchdog_wait", DEFAULT_WAIT_BEFORE_CHECK
+                )
+            ),
+            "CHECK": customization.value["actor"].get("watchdog_check", DEFAULT_CHECK),
+            "OUTER_WATCHDOG_INTERVAL": float(
+                customization.value["actor"].get(
+                    "outer_watchdog_interval", DEFAULT_OUTER_WATCHDOG_INTERVAL
+                )
+            ),
+            "OUTER_WATCHDOG_TRIALS": int(
+                customization.value["actor"].get(
+                    "outer_watchdog_trials", DEFAULT_OUTER_WATCHDOG_TRIALS
+                )
+            ),
         }
-    actor_config["KEEPALIVE_INTERVAL"] = float(
-        customization.value["actor"].get(
-            "watchdog_interval", DEFAULT_KEEPALIVE_INTERVAL
-        )
-    )
-    actor_config["WAIT_BEFORE_CHECK"] = float(
-        customization.value["actor"].get("watchdog_wait", DEFAULT_WAIT_BEFORE_CHECK)
-    )
-    actor_config["CHECK"] = customization.value["actor"].get(
-        "watchdog_check", DEFAULT_CHECK
-    )
-    actor_config["OUTER_WATCHDOG_INTERVAl"] = float(
-        customization.value["actor"].get(
-            "outer_watchdog_interval", DEFAULT_OUTER_WATCHDOG_INTERVAL
-        )
-    )
-    actor_config["OUTER_WATCHDOG_TRIALS"] = int(
-        customization.value["actor"].get(
-            "outer_watchdog_trials", DEFAULT_OUTER_WATCHDOG_TRIALS
-        )
-    )
 
 # Configuration of MQTT frontend
 DEFAULT_REBOOT_AFTER = 60
 DEFAULT_RESTART_INSTEAD_OF_REBOOT = 0
 
 if customization.value.get("mqtt_frontend") is None:
-    mqtt_frontend_config = {
+    mqtt_frontend_config: MqttFrontendConfigDict = {
         "REBOOT_AFTER": DEFAULT_REBOOT_AFTER,
         "RESTART_INSTEAD_OF_REBOOT": DEFAULT_RESTART_INSTEAD_OF_REBOOT,
     }
