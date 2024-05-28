@@ -485,7 +485,7 @@ class Registrar(BaseActor):
     def receiveMsg_SetRtcAckMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Forward the SetRtcAckMsg to REST API."""
-        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.send(self.rest_api, msg)
 
     def receiveMsg_HostInfoMsg(self, msg, sender):

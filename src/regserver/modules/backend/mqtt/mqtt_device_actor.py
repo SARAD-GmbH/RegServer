@@ -227,6 +227,8 @@ class MqttDeviceActor(DeviceBaseActor):
             self.on_msg(msg.payload)
         elif msg.topic == self.allowed_sys_topics["VALUE"]:
             self.on_value(msg.payload)
+        elif msg.topic == self.allowed_sys_topics["ACK"]:
+            self.on_ack(msg.payload)
 
     @overrides
     def _request_recent_value_at_is(self, msg, sender):
@@ -293,7 +295,7 @@ class MqttDeviceActor(DeviceBaseActor):
             and state["Addressor"][1] == value_dict.get("App", state["Addressor"][1])
             and state["Addressor"][2] == value_dict.get("User", state["Addressor"][2])
         )
-        logger.info("Is it for me? %s, %s", state, value_dict)
+        logger.debug("Is it for me? %s, %s", state, value_dict)
         if self.value_lock.value and it_is_for_me:
             self.send(
                 self.parent.parent_address,
@@ -344,7 +346,7 @@ class MqttDeviceActor(DeviceBaseActor):
             and state.get("Pending", False)
             and client_id == ack_dict.get("Client", "")
         )
-        logger.info("Is it for me? %s, %s", state, ack_dict)
+        logger.debug("Is it for me? %s, %s", state, ack_dict)
         if self.ack_lock.value and it_is_for_me:
             self.send(
                 self.parent.parent_address,
