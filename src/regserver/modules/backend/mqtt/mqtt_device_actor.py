@@ -17,6 +17,7 @@ from overrides import overrides  # type: ignore
 from regserver.actor_messages import (Gps, MqttPublishMsg, MqttSubscribeMsg,
                                       MqttUnsubscribeMsg, RecentValueMsg,
                                       ResurrectMsg, RxBinaryMsg, Status)
+from regserver.config import mqtt_config
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
@@ -43,12 +44,20 @@ class ValueDict(TypedDict):
     Addressor: tuple[str, str, str]
 
 
+class AckDict(TypedDict):
+    # pylint: disable=inherit-non-class, too-few-public-methods
+    """Type declaration for ACK dict."""
+    Pending: bool
+    Req: str
+
+
 class StateDict(TypedDict):
     # pylint: disable=inherit-non-class, too-few-public-methods
     """Type declaration for MQTT Actor state."""
     RESERVE: ReserveDict
     SEND: SendDict
     VALUE: ValueDict
+    WAIT_FOR_ACK: AckDict
 
 
 class MqttDeviceActor(DeviceBaseActor):
@@ -65,6 +74,7 @@ class MqttDeviceActor(DeviceBaseActor):
             "CMD": "",
             "MSG": "",
             "META": "",
+            "ACK": "",
         }
         self.allowed_sys_options = {
             "CTRL": "control",
@@ -73,6 +83,7 @@ class MqttDeviceActor(DeviceBaseActor):
             "CMD": "cmd",
             "MSG": "msg",
             "META": "meta",
+            "ACK": "ack",
         }
         self.state: StateDict = {
             "RESERVE": {
@@ -92,6 +103,12 @@ class MqttDeviceActor(DeviceBaseActor):
                 # if there is a reply to wait for, then it should be true
                 "Addressor": ("", "", ""),
                 # tuple of (Host, App, User)
+            },
+            "WAIT_FOR_ACK": {
+                "Pending": False,
+                # if there is a reply to wait for, then it should be true
+                "Req": "",
+                # the type of request as in the request message
             },
         }
         self.cmd_id = 0
@@ -242,6 +259,13 @@ class MqttDeviceActor(DeviceBaseActor):
 
     @overrides
     def _request_set_rtc_at_is(self, confirm=False):
+        super()._request_set_rtc_at_is(confirm)
+        self.send(
+            self.parent.parent_address,
+            MqttSubscribeMsg([(self.allowed_sys_topics["ACK"], self.qos)]),
+        )
+        self.state["WAIT_FOR_ACK"]["Pending"] = True
+        self.state["WAIT_FOR_ACK"]["Req"] = "set-rtc"
         self.send(
             self.parent.parent_address,
             MqttPublishMsg(
@@ -249,6 +273,7 @@ class MqttDeviceActor(DeviceBaseActor):
                 payload=json.dumps(
                     {
                         "Req": "set-rtc",
+                        "Client": mqtt_config["MQTT_CLIENT_ID"],
                     }
                 ),
                 qos=self.qos,
@@ -308,6 +333,38 @@ class MqttDeviceActor(DeviceBaseActor):
             )
             self.state["VALUE"]["Pending"] = False
             self.state["VALUE"]["Addressor"] = ("", "", "")
+
+    def on_ack(self, payload):
+        """Handler for MQTT messages containing an acknowledgement"""
+        ack_dict = json.loads(payload)
+        state = self.state.get("WAIT_FOR_ACK", {})
+        client_id = mqtt_config["MQTT_CLIENT_ID"]
+        it_is_for_me = bool(
+            state
+            and state.get("Pending", False)
+            and client_id == ack_dict.get("Client", "")
+        )
+        logger.info("Is it for me? %s, %s", state, ack_dict)
+        if self.ack_lock.value and it_is_for_me:
+            self.send(
+                self.parent.parent_address,
+                MqttUnsubscribeMsg([self.allowed_sys_topics["ACK"]]),
+            )
+            req = ack_dict.get("Req", "")
+            waiting_for = self.state["WAIT_FOR_ACK"].get("Req", "")
+            if (req == "set-rtc") and (waiting_for == "set-rtc"):
+                self._handle_set_rtc_reply_from_is(
+                    status=Status(ack_dict.get("Status", 98)), confirm=True
+                )
+                self.state["WAIT_FOR_ACK"]["Pending"] = False
+            elif (req == "monitor") and (waiting_for == "monitor"):
+                # TODO
+                self.state["WAIT_FOR_ACK"]["Pending"] = False
+            elif (req == "config") and (waiting_for == "config"):
+                # TODO
+                self.state["WAIT_FOR_ACK"]["Pending"] = False
+            else:
+                logger.error("Invalid ACK message: %s", ack_dict)
 
     def on_reserve(self, payload):
         """Handler for MQTT messages regarding reservation of instruments"""

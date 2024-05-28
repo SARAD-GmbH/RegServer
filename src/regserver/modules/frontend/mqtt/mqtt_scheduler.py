@@ -23,7 +23,7 @@ from regserver.config import config
 from regserver.helpers import diff_of_dicts, short_id, transport_technology
 from regserver.logger import logger
 from regserver.modules.backend.mqtt.mqtt_base_actor import MqttBaseActor
-from regserver.modules.ismqtt_messages import (ControlType,
+from regserver.modules.ismqtt_messages import (Control, ControlType,
                                                InstrumentServerMeta,
                                                Reservation, get_instr_control,
                                                get_instr_reservation,
@@ -69,7 +69,11 @@ class MqttSchedulerActor(MqttBaseActor):
             version=VERSION,
             running_since=datetime.now(timezone.utc).replace(microsecond=0),
         )
-        self.pending_control_action = ControlType.UNKNOWN
+        self.pending_control_action = {
+            "instr_id": "",
+            "control": Control(ctype=ControlType.UNKNOWN, data=None),
+            "ctype": ControlType.UNKNOWN,
+        }
         if os.name != "nt":
             try:
                 self.led = PWMLED(23)
@@ -146,14 +150,17 @@ class MqttSchedulerActor(MqttBaseActor):
                 status=msg.status, timestamp=time.time()
             )
         reservation_object = self.reservations[device_id]
-        if self.pending_control_action in (ControlType.RESERVE, ControlType.FREE):
+        if self.pending_control_action["ctype"] in (
+            ControlType.RESERVE,
+            ControlType.FREE,
+        ):
             logger.debug("Publish reservation state")
             if reservation_object.status in (
                 Status.OK,
                 Status.OK_SKIPPED,
                 Status.OK_UPDATED,
             ):
-                if self.pending_control_action == ControlType.RESERVE:
+                if self.pending_control_action["ctype"] == ControlType.RESERVE:
                     reservation_object = replace(reservation_object, active=True)
                 else:
                     reservation_object = replace(reservation_object, active=False)
@@ -164,7 +171,7 @@ class MqttSchedulerActor(MqttBaseActor):
             self.mqttc.publish(
                 topic=topic, payload=reservation_json, qos=self.qos, retain=False
             )
-            self.pending_control_action = ControlType.UNKNOWN
+            self.pending_control_action["ctype"] = ControlType.UNKNOWN
 
     def receiveMsg_RecentValueMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -172,7 +179,7 @@ class MqttSchedulerActor(MqttBaseActor):
 
         This message contains the reply to GetRecentValueMsg."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.pending_control_action == ControlType.VALUE:
+        if self.pending_control_action["ctype"] == ControlType.VALUE:
             topic = f"{self.group}/{self.is_id}/{msg.instr_id}/value"
             if (msg.gps is None) or (not msg.gps.valid):
                 gps_dict = None
@@ -205,7 +212,7 @@ class MqttSchedulerActor(MqttBaseActor):
             self.mqttc.publish(
                 topic=topic, payload=json.dumps(payload), qos=self.qos, retain=False
             )
-            self.pending_control_action = ControlType.UNKNOWN
+            self.pending_control_action["ctype"] = ControlType.UNKNOWN
 
     def receiveMsg_UpdateDeviceStatusesMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -390,7 +397,11 @@ class MqttSchedulerActor(MqttBaseActor):
             old_control = self.reservations.get(device_id)
             control = get_instr_control(message, old_control)
             logger.debug("Control object: %s", control)
-            self.pending_control_action = control.ctype
+            self.pending_control_action = {
+                "instr_id": instr_id,
+                "control": control,
+                "ctype": control.ctype,
+            }
             if control.ctype == ControlType.RESERVE:
                 self.process_reserve(instr_id, control)
             elif control.ctype == ControlType.FREE:
@@ -609,6 +620,24 @@ class MqttSchedulerActor(MqttBaseActor):
         """Handler for RescanAckMsg from Registrar."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._instruments_connected()
+
+    def receiveMsg_SetRtcAckMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for SetRtcAckMsg from Registrar."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        topic = f"{self.group}/{self.is_id}/{msg.instr_id}/ack"
+        message = {
+            "Req": "set-rtc",
+            "Client": self.pending_control_action["control"].data.client,
+            "Status": msg.status.value,
+        }
+        self.mqttc.publish(
+            topic=topic,
+            payload=json.dumps(message),
+            qos=self.qos,
+            retain=False,
+        )
+        logger.info("Publish %s on %s", message, topic)
 
     def receiveMsg_ShutdownAckMsg(self, msg, sender):
         # pylint: disable=invalid-name

@@ -69,8 +69,8 @@ class Reservation:
 
 
 @dataclass
-class ValueRequest:
-    """Data class for storing instrument reservation information"""
+class ValueReq:
+    """Data class for storing request information for VALUE request"""
 
     component: int
     sensor: int
@@ -81,11 +81,29 @@ class ValueRequest:
 
 
 @dataclass
-class ConfigRequest:
-    """Data class for storing instrument reservation information"""
+class ConfigReq:
+    """Data class for storing request information for CONFIG request"""
 
+    req: str
+    client: str
     cycle: int
     values: List[Tuple[int]]
+
+
+@dataclass
+class MonitorReq:
+    """Data class for storing request information for MONITOR request"""
+
+    req: str
+    client: str
+
+
+@dataclass
+class SetRtcReq:
+    """Data class for storing request information for SET-RTC request"""
+
+    req: str
+    client: str
 
 
 class ControlType(Enum):
@@ -105,7 +123,7 @@ class Control:
     """Data class for storing instrument control messages"""
 
     ctype: ControlType
-    data: Union[Reservation, ValueRequest, ConfigRequest, None]
+    data: Union[Reservation, ValueReq, ConfigReq, MonitorReq, SetRtcReq, None]
 
 
 def get_is_meta(data: InstrumentServerMeta) -> str:
@@ -182,7 +200,7 @@ def get_instr_control(json_data, old_reservation) -> Control:
         logger.debug("[VALUE] request")
         result = Control(
             ctype=ControlType.VALUE,
-            data=ValueRequest(
+            data=ValueReq(
                 component=data.get("Component", 0),
                 sensor=data.get("Sensor", 0),
                 measurand=data.get("Measurand", 0),
@@ -195,21 +213,27 @@ def get_instr_control(json_data, old_reservation) -> Control:
         logger.debug("[MONITOR] request")
         result = Control(
             ctype=ControlType.MONITOR,
-            data=None,
+            data=MonitorReq(req=data.get("Req", ""), client=data.get("Client", "")),
         )
     elif req_type == "config":
         logger.debug("[CONFIG] request")
         result = Control(
             ctype=ControlType.MONITOR,
-            data=ConfigRequest(
-                cycle=data.get("Cycle", 0), values=data.get("Values", [])
+            data=ConfigReq(
+                req=data.get("Req", ""),
+                client=data.get("Client", ""),
+                cycle=data.get("Cycle", 0),
+                values=data.get("Values", []),
             ),
         )
     elif req_type == "set-rtc":
         logger.debug("[SET_RTC] request")
         result = Control(
             ctype=ControlType.SET_RTC,
-            data=None,
+            data=SetRtcReq(
+                req=data.get("Req", ""),
+                client=data.get("Client", ""),
+            ),
         )
 
     else:

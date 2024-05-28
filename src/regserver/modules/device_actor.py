@@ -81,7 +81,7 @@ class DeviceBaseActor(BaseActor):
         self.reserve_lock: Lock = Lock(value=False)
         self.free_lock: Lock = Lock(value=False)
         self.value_lock: Lock = Lock(value=False)
-        self.set_rtc_lock: Lock = Lock(value=False)
+        self.ack_lock: Lock = Lock(value=False)
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -138,7 +138,7 @@ class DeviceBaseActor(BaseActor):
                     instr_id=self.instr_id,
                 )
             )
-        elif (msg.payload == "timeout_on_set_rtc") and self.set_rtc_lock.value:
+        elif (msg.payload == "timeout_on_set_rtc") and self.ack_lock.value:
             self._handle_set_rtc_reply_from_is(status=Status.NOT_FOUND, confirm=True)
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
@@ -268,9 +268,11 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for FreeDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        is_reserved = self.device_status.get("Reservation", False)
-        if is_reserved:
+        has_reservation_section = self.device_status.get("Reservation", False)
+        if has_reservation_section:
             is_reserved = self.device_status["Reservation"].get("Active", False)
+        else:
+            is_reserved = False
         if not is_reserved:
             self.free_lock.value = True
             self.free_lock.time = datetime.now()
@@ -382,7 +384,11 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Get a value from a DACM instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        is_reserved = self.device_status.get("Reservation", False)
+        has_reservation_section = self.device_status.get("Reservation", False)
+        if has_reservation_section:
+            is_reserved = self.device_status["Reservation"].get("Active", False)
+        else:
+            is_reserved = False
         if is_reserved:
             if self.value_lock.value:
                 logger.info("%s VALUE action pending", self.my_id)
@@ -437,14 +443,18 @@ class DeviceBaseActor(BaseActor):
 
     def _handle_set_rtc_reply_from_is(self, status: Status, confirm: bool):
         # pylint: disable=unused-argument
-        """Forward the recent value from the Instrument Server to the REST API.
+        """Forward the acknowledgement received from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
+
+        Args:
+            confirm (bool): True, if the ACK shall be forwarded;
+                            False, if it was called during setup of the UsbActor.
         """
         if confirm:
             self.send(self.sender_api, SetRtcAckMsg(self.instr_id, status))
         self.sender_api = None
-        if self.set_rtc_lock.value:
-            self.set_rtc_lock.value = False
+        if self.ack_lock.value:
+            self.ack_lock.value = False
 
     def _update_reservation_status(self, reservation):
         self.device_status["Reservation"] = reservation
@@ -555,11 +565,19 @@ class DeviceBaseActor(BaseActor):
             logger.error("%s for %s from %s", msg, self.my_id, sender)
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        is_reserved = self.device_status.get("Reservation", False)
+        if self.sender_api is None:
+            self.sender_api = sender
+        has_reservation_section = self.device_status.get("Reservation", False)
+        if has_reservation_section:
+            is_reserved = self.device_status["Reservation"].get("Active", False)
+        else:
+            is_reserved = False
         if is_reserved:
-            if self.set_rtc_lock.value:
+            self._handle_set_rtc_reply_from_is(status=Status.OCCUPIED, confirm=True)
+        else:
+            if self.ack_lock.value:
                 logger.info("%s SET RTC action pending", self.my_id)
-                if datetime.now() - self.set_rtc_lock.time > SET_RTC_TIMEOUT:
+                if datetime.now() - self.ack_lock.time > SET_RTC_TIMEOUT:
                     logger.warning(
                         "Pending SET RTC on %s took longer than %s",
                         self.my_id,
@@ -572,13 +590,10 @@ class DeviceBaseActor(BaseActor):
                     (self.receiveMsg_SetRtcMsg, msg, sender),
                 )
                 return
-            self.set_rtc_lock.value = True
-            self.set_rtc_lock.time = datetime.now()
-            logger.debug("%s: set_rtc_lock set to %s", self.my_id, self.set_rtc_lock)
-            self.sender_api = sender
+            self.ack_lock.value = True
+            self.ack_lock.time = datetime.now()
+            logger.debug("%s: ack_lock set to %s", self.my_id, self.ack_lock)
             self._request_set_rtc_at_is(confirm=True)
-        else:
-            self._handle_set_rtc_reply_from_is(status=Status.CRITICAL, confirm=True)
 
     def _request_set_rtc_at_is(self, confirm=False):
         # pylint: disable=unused-argument
