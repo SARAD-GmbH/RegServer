@@ -166,7 +166,7 @@ Update of the RegServer
 
 ::
 
-  sudo -H PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx upgrade regserver
+  sudo -H PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx reinstall regserver
 
 Accessory to control the LED on SARAD Aranea
 ============================================

@@ -449,8 +449,10 @@ class DeviceBaseActor(BaseActor):
         This function has to be called in the protocol specific modules.
 
         Args:
+            status (Status): Info about the success of operation.
             confirm (bool): True, if the ACK shall be forwarded;
                             False, if it was called during setup of the UsbActor.
+            utc_offset (float): UTC offset (time zone). -13 = unknown
         """
         if confirm:
             self.send(
