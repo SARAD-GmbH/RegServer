@@ -510,7 +510,7 @@ class ReserveDevice(Resource):
             not in ["local", "is1", "mdns", "mqtt", "zigbee"]
         ) or (device_state == {}):
             logger.error("Requested service not supported by actor system.")
-            status = Status.NOT_FOUND
+            status = Status.NOT_SUPPORTED
         else:
             status = send_reserve_message(
                 device_id,
@@ -1008,7 +1008,7 @@ class GetValues(Resource):
             logger.error(
                 "Request only supported for local, mDNS, IS1, MQTT and ZigBee instruments."
             )
-            status = Status.NOT_FOUND
+            status = Status.NOT_SUPPORTED
             notification = (
                 "Only supported for local, mDNS, IS1, MQTT and ZigBee instruments"
             )

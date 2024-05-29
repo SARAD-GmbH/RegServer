@@ -98,9 +98,10 @@ class DeviceActor(DeviceBaseActor):
             self.success = Status.OK
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
+            self.response = {}
             self.success = Status.IS_NOT_FOUND
         else:
-            if (self.response is None) or (self.response == {}):
+            if not self.response:
                 logger.error("%s not available", self.device_id)
                 self.success = Status.NOT_FOUND
             elif purpose in [Purpose.RESERVE, Purpose.SETUP, Purpose.FREE]:
@@ -122,9 +123,10 @@ class DeviceActor(DeviceBaseActor):
             self.success = Status.OK
         except Exception as exception:  # pylint: disable=broad-except
             logger.error("REST API of IS is not responding. %s", exception)
+            self.response = {}
             self.success = Status.NOT_FOUND
         else:
-            if (self.response is None) or (self.response == {}):
+            if not self.response:
                 logger.error("%s not available", self.device_id)
                 self.success = Status.NOT_FOUND
         self._handle_http_reply(purpose, params)
@@ -194,7 +196,7 @@ class DeviceActor(DeviceBaseActor):
                 error_code = self.response.get("Error code", 98)
             else:
                 error_code = self.success
-            self.next_method_kwargs = {"status": error_code, "confirm": True}
+            self.next_method_kwargs = {"status": Status(error_code), "confirm": True}
 
     def _start_thread(self, thread):
         if not self.request_thread.is_alive():
