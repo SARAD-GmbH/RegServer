@@ -928,7 +928,10 @@ class SetRtc(Resource):
     """Set the realtime clock on the given instrument."""
 
     def post(self, instr_id):
-        """Set the realtime clock on the given instrument."""
+        """Set the realtime clock on the given instrument. 'UTC offset' in the
+        response body is giving back the UTC offset (time zone) that was used
+        to set the clock. null = undefined, -13 = unknown (not provided by
+        remote host)"""
         registrar_actor = get_registrar_actor()
         if registrar_actor is None:
             logger.critical("No response from Actor System. -> Emergency shutdown")

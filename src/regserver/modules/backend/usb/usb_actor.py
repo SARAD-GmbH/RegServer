@@ -307,7 +307,7 @@ class UsbActor(DeviceBaseActor):
         else:
             self._set_rtc()
         self._handle_set_rtc_reply_from_is(
-            Status.OK, confirm, utc_offset=self.instrument.utc_offset
+            Status.OK, confirm, utc_offset=usb_backend_config["UTC_OFFSET"]
         )
 
     def _set_rtc(self):
