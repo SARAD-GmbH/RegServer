@@ -441,7 +441,9 @@ class DeviceBaseActor(BaseActor):
         if self.value_lock.value:
             self.value_lock.value = False
 
-    def _handle_set_rtc_reply_from_is(self, status: Status, confirm: bool):
+    def _handle_set_rtc_reply_from_is(
+        self, status: Status, confirm: bool, utc_offset: float = -13
+    ):
         # pylint: disable=unused-argument
         """Forward the acknowledgement received from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
@@ -451,7 +453,10 @@ class DeviceBaseActor(BaseActor):
                             False, if it was called during setup of the UsbActor.
         """
         if confirm:
-            self.send(self.sender_api, SetRtcAckMsg(self.instr_id, status))
+            self.send(
+                self.sender_api,
+                SetRtcAckMsg(self.instr_id, status, utc_offset=utc_offset),
+            )
         self.sender_api = None
         if self.ack_lock.value:
             self.ack_lock.value = False

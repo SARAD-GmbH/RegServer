@@ -356,7 +356,9 @@ class MqttDeviceActor(DeviceBaseActor):
             waiting_for = self.state["WAIT_FOR_ACK"].get("Req", "")
             if (req == "set-rtc") and (waiting_for == "set-rtc"):
                 self._handle_set_rtc_reply_from_is(
-                    status=Status(ack_dict.get("Status", 98)), confirm=True
+                    status=Status(ack_dict.get("Status", 98)),
+                    confirm=True,
+                    utc_offset=ack_dict.get("UTC_offset", -13),
                 )
                 self.state["WAIT_FOR_ACK"]["Pending"] = False
             elif (req == "monitor") and (waiting_for == "monitor"):

@@ -630,6 +630,7 @@ class MqttSchedulerActor(MqttBaseActor):
             "Req": "set-rtc",
             "Client": self.pending_control_action["control"].data.client,
             "Status": msg.status.value,
+            "UTC_offset": msg.utc_offset,
         }
         self.mqttc.publish(
             topic=topic,

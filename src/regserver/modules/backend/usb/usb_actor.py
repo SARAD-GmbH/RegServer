@@ -306,7 +306,9 @@ class UsbActor(DeviceBaseActor):
             self.wakeupAfter(timedelta(seconds=seconds_to_full_minute), "set_rtc")
         else:
             self._set_rtc()
-        self._handle_set_rtc_reply_from_is(Status.OK, confirm)
+        self._handle_set_rtc_reply_from_is(
+            Status.OK, confirm, utc_offset=self.instrument.utc_offset
+        )
 
     def _set_rtc(self):
         self._start_thread(

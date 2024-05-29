@@ -998,7 +998,9 @@ class SetRtcAckMsg:
     Args:
         instr_id (str): Id of the instrument
         status (Status): Status of the success of the operation
+        utc_offset (float): Offset to UTC that was used to set the RTC, -13 = unknown
     """
 
     instr_id: str
     status: Status
+    utc_offset: float = -13

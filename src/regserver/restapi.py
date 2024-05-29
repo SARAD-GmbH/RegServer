@@ -952,6 +952,7 @@ class SetRtc(Resource):
                 return {
                     "Error code": reply.status.value,
                     "Error": str(reply.status),
+                    "UTC offset": reply.utc_offset,
                 }
         return api.abort(404)
 

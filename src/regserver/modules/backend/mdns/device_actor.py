@@ -196,7 +196,11 @@ class DeviceActor(DeviceBaseActor):
                 error_code = self.response.get("Error code", 98)
             else:
                 error_code = self.success
-            self.next_method_kwargs = {"status": Status(error_code), "confirm": True}
+            self.next_method_kwargs = {
+                "status": Status(error_code),
+                "confirm": True,
+                "utc_offset": self.response.get("UTC offset", -13),
+            }
 
     def _start_thread(self, thread):
         if not self.request_thread.is_alive():
