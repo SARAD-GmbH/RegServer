@@ -631,6 +631,7 @@ class MqttSchedulerActor(MqttBaseActor):
             "Client": self.pending_control_action["control"].data.client,
             "Status": msg.status.value,
             "UTC_offset": msg.utc_offset,
+            "Wait": msg.wait,
         }
         self.mqttc.publish(
             topic=topic,
