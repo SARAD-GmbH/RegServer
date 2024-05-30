@@ -931,7 +931,10 @@ class SetRtc(Resource):
         """Set the realtime clock on the given instrument. 'UTC offset' in the
         response body is giving back the UTC offset (time zone) that was used
         to set the clock. null = undefined, -13 = unknown (not provided by
-        remote host)"""
+        remote host). 'Wait' is the time between now and the setup taking
+        effect.
+
+        """
         registrar_actor = get_registrar_actor()
         if registrar_actor is None:
             logger.critical("No response from Actor System. -> Emergency shutdown")
@@ -956,6 +959,7 @@ class SetRtc(Resource):
                     "Error code": reply.status.value,
                     "Error": str(reply.status),
                     "UTC offset": reply.utc_offset,
+                    "Wait": reply.wait,
                 }
         return api.abort(404)
 

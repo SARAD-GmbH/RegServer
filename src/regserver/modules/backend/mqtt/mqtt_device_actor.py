@@ -359,6 +359,7 @@ class MqttDeviceActor(DeviceBaseActor):
                     status=Status(ack_dict.get("Status", 98)),
                     confirm=True,
                     utc_offset=ack_dict.get("UTC_offset", -13),
+                    wait=ack_dict.get("Wait", 0),
                 )
                 self.state["WAIT_FOR_ACK"]["Pending"] = False
             elif (req == "monitor") and (waiting_for == "monitor"):

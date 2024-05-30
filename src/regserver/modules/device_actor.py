@@ -442,7 +442,7 @@ class DeviceBaseActor(BaseActor):
             self.value_lock.value = False
 
     def _handle_set_rtc_reply_from_is(
-        self, status: Status, confirm: bool, utc_offset: float = -13
+        self, status: Status, confirm: bool, utc_offset: float = -13, wait: int = 0
     ):
         # pylint: disable=unused-argument
         """Forward the acknowledgement received from the Instrument Server to the REST API.
@@ -457,7 +457,7 @@ class DeviceBaseActor(BaseActor):
         if confirm:
             self.send(
                 self.sender_api,
-                SetRtcAckMsg(self.instr_id, status, utc_offset=utc_offset),
+                SetRtcAckMsg(self.instr_id, status, utc_offset=utc_offset, wait=wait),
             )
         self.sender_api = None
         if self.ack_lock.value:

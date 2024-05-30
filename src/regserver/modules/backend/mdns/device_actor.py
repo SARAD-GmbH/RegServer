@@ -200,6 +200,7 @@ class DeviceActor(DeviceBaseActor):
                 "status": Status(error_code),
                 "confirm": True,
                 "utc_offset": self.response.get("UTC offset", -13),
+                "wait": self.response.get("Wait", 0),
             }
 
     def _start_thread(self, thread):
