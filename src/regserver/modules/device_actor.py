@@ -119,13 +119,25 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if isinstance(msg.payload, tuple):
             msg.payload[0](msg.payload[1], msg.payload[2])
-        elif (msg.payload == "timeout_on_reserve") and self.reserve_lock.value:
+        elif (
+            (msg.payload == "timeout_on_reserve")
+            and self.reserve_lock.value
+            and (datetime.now() - self.reserve_lock.time > RESERVE_TIMEOUT)
+        ):
             self.reserve_lock.value = False
             self._handle_reserve_reply_from_is(success=Status.NOT_FOUND)
-        elif (msg.payload == "timeout_on_free") and self.free_lock.value:
+        elif (
+            (msg.payload == "timeout_on_free")
+            and self.free_lock.value
+            and (datetime.now() - self.free_lock.time > RESERVE_TIMEOUT)
+        ):
             self.free_lock.value = False
             self._handle_free_reply_from_is(success=Status.NOT_FOUND)
-        elif (msg.payload == "timeout_on_value") and self.value_lock.value:
+        elif (
+            (msg.payload == "timeout_on_value")
+            and self.value_lock.value
+            and (datetime.now() - self.value_lock.time > VALUE_TIMEOUT)
+        ):
             self.value_lock.value = False
             self._handle_recent_value_reply_from_is(
                 answer=RecentValueMsg(
@@ -138,7 +150,11 @@ class DeviceBaseActor(BaseActor):
                     instr_id=self.instr_id,
                 )
             )
-        elif (msg.payload == "timeout_on_set_rtc") and self.ack_lock.value:
+        elif (
+            (msg.payload == "timeout_on_set_rtc")
+            and self.ack_lock.value
+            and (datetime.now() - self.ack_lock.time > SET_RTC_TIMEOUT)
+        ):
             self._handle_set_rtc_reply_from_is(status=Status.NOT_FOUND, confirm=True)
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
