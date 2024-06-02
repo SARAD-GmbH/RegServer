@@ -64,6 +64,7 @@ def check_message(answer: bytes, multiframe: bool):
     number_of_bytes_in_payload
     raw"""
     logger.debug("Checking raw answer: %s", answer)
+    is_control = False
     if answer.startswith(b"B") and answer.endswith(b"E"):
         control_byte = answer[1]
         control_byte_ok = bool((control_byte ^ 0xFF) == answer[2])
@@ -87,7 +88,6 @@ def check_message(answer: bytes, multiframe: bool):
         logger.debug("Invalid B-E frame")
         is_valid = False
     if not is_valid:
-        is_control = False
         payload = b""
         number_of_bytes_in_payload = 0
     # is_rend is True if that this is the last frame of a multiframe reply
