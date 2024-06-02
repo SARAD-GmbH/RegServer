@@ -117,7 +117,7 @@ class MqttClientActor(MqttBaseActor):
         super().__init__()
         self._hosts = {}
         self.actor_type = ActorType.HOST
-        self.resurrect_msg = ResurrectMsg(instr_id="", device_status={})
+        self.resurrect_msg = ResurrectMsg(is_id="")
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -136,7 +136,7 @@ class MqttClientActor(MqttBaseActor):
         self.mqttc.message_callback_add(f"{self.group}/+/+/ack", self.on_instr_ack)
         self.mqttc.message_callback_add(f"{self.group}/+/+/msg", self.on_instr_msg)
 
-    def _add_instr(self, is_id, instr_id, payload: dict, resurrect=False) -> None:
+    def _add_instr(self, is_id, instr_id, payload: dict) -> None:
         # pylint: disable=too-many-return-statements, too-many-branches
         logger.debug("[add_instr] %s", payload)
         if (is_id is None) or (instr_id is None) or (payload is None):
@@ -145,20 +145,19 @@ class MqttClientActor(MqttBaseActor):
                 " are none or the meta message is none."
             )
             return
-        if not resurrect:
-            for old_device_id in self.actor_dict:
-                if (
-                    self.actor_dict[old_device_id]["actor_type"] == ActorType.DEVICE
-                ) and (short_id(old_device_id) == instr_id):
-                    if transport_technology(old_device_id) != "mqtt":
-                        logger.info(
-                            "%s is already represented by %s",
-                            instr_id,
-                            old_device_id,
-                        )
-                        return
-                    self._update_instr(is_id, instr_id, payload)
+        for old_device_id in self.actor_dict:
+            if (self.actor_dict[old_device_id]["actor_type"] == ActorType.DEVICE) and (
+                short_id(old_device_id) == instr_id
+            ):
+                if transport_technology(old_device_id) != "mqtt":
+                    logger.info(
+                        "%s is already represented by %s",
+                        instr_id,
+                        old_device_id,
+                    )
                     return
+                self._update_instr(is_id, instr_id, payload)
+                return
         sarad_type = get_sarad_type(instr_id)
         if sarad_type == "unknown":
             return
@@ -526,14 +525,14 @@ class MqttClientActor(MqttBaseActor):
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
         super().receiveMsg_ChildActorExited(msg, sender)
-        if self.resurrect_msg.instr_id:
-            self._add_instr(
-                self.is_id,
-                self.resurrect_msg.instr_id,
-                self.resurrect_msg.device_status,
-                resurrect=True,
+        if self.resurrect_msg.is_id:
+            self.mqttc.publish(
+                topic=f"{self.group}/{self.resurrect_msg.is_id}/cmd",
+                payload="update",
+                qos=self.qos,
+                retain=False,
             )
-            self.resurrect_msg.instr_id = ""
+            self.resurrect_msg.is_id = ""
 
     def receiveMsg_MqttSubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name

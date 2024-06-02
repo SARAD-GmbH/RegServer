@@ -872,15 +872,16 @@ class HostInfoMsg:
 
 @dataclass
 class ResurrectMsg:
-    """Message causing a parent actor to resurrect a killed Device Actor.
+    """Message causing a parent actor to get an update about connected
+    instruments from the Instrument Server in order to possibly resurrect a
+    killed Device Actor.
 
     Args:
-        instr_id (str): Id of the instrument
-        device_status (dict): Identification and status information about the instrument
+        is_id (str): Id of the Instrument Server
+
     """
 
-    instr_id: str
-    device_status: dict
+    is_id: str
 
 
 @dataclass

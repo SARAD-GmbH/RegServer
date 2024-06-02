@@ -113,6 +113,7 @@ class MqttDeviceActor(DeviceBaseActor):
         }
         self.cmd_id = 0
         self.last_message = ""
+        self.is_id = ""
 
     @overrides
     def receiveMsg_TxBinaryMsg(self, msg, sender):
@@ -181,6 +182,7 @@ class MqttDeviceActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Handler for PrepareMqttActorMsg from MQTT Listener"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.is_id = msg.client_id
         for k in self.allowed_sys_topics:
             self.allowed_sys_topics[k] = (
                 f"{msg.group}/{msg.client_id}/"
@@ -507,14 +509,7 @@ class MqttDeviceActor(DeviceBaseActor):
         except AttributeError as exception:
             logger.error(exception)
         if not self.on_kill and resurrect:
-            # TODO Think about resurrection!
-            self.send(
-                self.parent.parent_address,
-                ResurrectMsg(
-                    instr_id=self.instr_id,
-                    device_status=self.device_status,
-                ),
-            )
+            self.send(self.parent.parent_address, ResurrectMsg(is_id=self.is_id))
         try:
             super()._kill_myself(register=register, resurrect=resurrect)
         except TypeError:
