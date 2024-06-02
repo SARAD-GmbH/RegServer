@@ -263,7 +263,7 @@ class MqttClientActor(MqttBaseActor):
 
     def on_is_meta(self, _client, _userdata, message):
         """Handler for all messages of topic group/+/meta."""
-        logger.info("[on_is_meta] %s, %s", message.topic, message.payload)
+        logger.debug("[on_is_meta] %s, %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
         is_id = topic_parts[1]
         if self._hosts.get(is_id, False):
@@ -279,6 +279,25 @@ class MqttClientActor(MqttBaseActor):
                     "Cannot decode %s at topic %s", message.payload, message.topic
                 )
             return
+        received_since_str = payload.get("Since", "")
+        if received_since_str:
+            try:
+                received_since = datetime.fromisoformat(received_since_str)
+                if is_id in self._hosts:
+                    stored_since_str = self._hosts[is_id].get("Since", "")
+                    if stored_since_str:
+                        stored_since = datetime.fromisoformat(stored_since_str)
+                        if stored_since > received_since:
+                            logger.info(
+                                "Refuse %s, %s in [on_is_meta]",
+                                message.topic,
+                                message.payload,
+                            )
+                            return
+            except ValueError as exception:
+                logger.warning("Exception because of 'Since' entry: %s", exception)
+                logger.info("received_since_str = %s", received_since_str)
+                logger.info("stored_since_str = %s", stored_since_str)
         state = payload.get("State")
         if state in (2, 1):
             logger.debug(
