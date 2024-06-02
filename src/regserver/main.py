@@ -151,6 +151,7 @@ def startup():
 def shutdown(startup_tupel, wait_some_time, registrar_is_down, with_error=True):
     # pylint: disable=too-many-branches
     """Shutdown application"""
+    write_ping_file()
     if startup_tupel:
         mdns_listener = startup_tupel[1]
         if mdns_listener is not None:
