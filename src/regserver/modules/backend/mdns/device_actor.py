@@ -150,7 +150,6 @@ class DeviceActor(DeviceBaseActor):
                 if error_code:
                     answer = RecentValueMsg(
                         status=Status(error_code),
-                        addressor=(params["host"], params["app"], params["user"]),
                         instr_id=self.instr_id,
                     )
                 else:
@@ -166,7 +165,6 @@ class DeviceActor(DeviceBaseActor):
                         gps = None
                     answer = RecentValueMsg(
                         status=self.success,
-                        addressor=(params["host"], params["app"], params["user"]),
                         instr_id=self.instr_id,
                         component_name=self.response.get("Component name", ""),
                         sensor_name=self.response.get("Sensor name", ""),
@@ -183,7 +181,6 @@ class DeviceActor(DeviceBaseActor):
             else:
                 answer = RecentValueMsg(
                     status=self.success,
-                    addressor=(params["host"], params["app"], params["user"]),
                     instr_id=self.instr_id,
                 )
             self.next_method_kwargs = {"answer": answer}

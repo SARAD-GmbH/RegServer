@@ -142,11 +142,6 @@ class DeviceBaseActor(BaseActor):
             self._handle_recent_value_reply_from_is(
                 answer=RecentValueMsg(
                     status=Status.NOT_FOUND,
-                    addressor=(
-                        self.reserve_device_msg.host,
-                        self.reserve_device_msg.app,
-                        self.reserve_device_msg.user,
-                    ),
                     instr_id=self.instr_id,
                 )
             )
@@ -398,14 +393,23 @@ class DeviceBaseActor(BaseActor):
 
     def receiveMsg_GetRecentValueMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Get a value from a DACM instrument."""
+        """Get a value from an instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if self.sender_api is None:
+            self.sender_api = sender
         has_reservation_section = self.device_status.get("Reservation", False)
         if has_reservation_section:
             is_reserved = self.device_status["Reservation"].get("Active", False)
         else:
             is_reserved = False
         if is_reserved:
+            self._handle_recent_value_reply_from_is(
+                answer=RecentValueMsg(
+                    status=Status.OCCUPIED,
+                    instr_id=self.instr_id,
+                )
+            )
+        else:
             if self.value_lock.value:
                 logger.info("%s VALUE action pending", self.my_id)
                 if datetime.now() - self.value_lock.time > VALUE_TIMEOUT:
@@ -427,18 +431,6 @@ class DeviceBaseActor(BaseActor):
             if self.sender_api is None:
                 self.sender_api = sender
             self._request_recent_value_at_is(msg, sender)
-        else:
-            self._handle_recent_value_reply_from_is(
-                answer=RecentValueMsg(
-                    status=Status.CRITICAL,
-                    addressor=(
-                        self.reserve_device_msg.host,
-                        self.reserve_device_msg.app,
-                        self.reserve_device_msg.user,
-                    ),
-                    instr_id=self.instr_id,
-                )
-            )
 
     def _request_recent_value_at_is(self, msg, sender):
         # pylint: disable=unused-argument

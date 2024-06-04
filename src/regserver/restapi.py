@@ -185,27 +185,6 @@ ports_arguments = reqparse.RequestParser()
 ports_arguments.add_argument("port", type=str, required=False)
 values_arguments = reqparse.RequestParser()
 values_arguments.add_argument(
-    "app",
-    type=str,
-    required=True,
-    help="Requires an argument identifying the requesting application.",
-    trim=True,
-)
-values_arguments.add_argument(
-    "user",
-    type=str,
-    required=True,
-    help="Requires an argument identifying the requesting user.",
-    trim=True,
-)
-values_arguments.add_argument(
-    "host",
-    type=str,
-    required=True,
-    help="Requires an argument identifying the requesting host.",
-    trim=True,
-)
-values_arguments.add_argument(
     "component",
     type=int,
     required=True,
@@ -1033,98 +1012,80 @@ class GetValues(Resource):
                 "Error code": status.value,
                 "Error": str(status),
             }
-        reserve_state = ReserveDevice().reserve_device(
-            registrar_actor, device_id, arguments, False
-        )
-        if reserve_state.get("Error code") in [
-            Status.OK.value,
-            Status.OK_SKIPPED.value,
-            Status.OK_UPDATED.value,
-        ]:
-            with ActorSystem().private() as value_sys:
-                try:
-                    value_return = value_sys.ask(
-                        device_actor,
-                        GetRecentValueMsg(
-                            arguments["app"],
-                            arguments["user"],
-                            arguments["host"],
-                            arguments["component"],
-                            arguments["sensor"],
-                            arguments["measurand"],
-                        ),
-                        timeout=TIMEOUT,
-                    )
-                except ConnectionResetError:
-                    status = Status.CRITICAL
-                    logger.critical(
-                        "No response from Actor System. -> Emergency shutdown"
-                    )
-                    system_shutdown()
-                    FreeDevice().get(device_id)
-                    return {
-                        "Error code": status.value,
-                        "Error": str(status),
-                        "Notification": "Registration Server going down for restart.",
-                        "Requester": "Emergency shutdown",
-                    }
-            reply_is_corrupted = check_msg(value_return, RecentValueMsg)
-            if reply_is_corrupted:
-                FreeDevice().get(device_id)
-                return reply_is_corrupted
-            if value_return.status in [Status.INDEX_ERROR, Status.OCCUPIED]:
-                if value_return.status == Status.OCCUPIED:
-                    notification = "The instrument is occupied by somebody else."
-                elif value_return.status == Status.INDEX_ERROR:
-                    notification = "The requested measurand is not available."
-                FreeDevice().get(device_id)
+        with ActorSystem().private() as value_sys:
+            try:
+                value_return = value_sys.ask(
+                    device_actor,
+                    GetRecentValueMsg(
+                        arguments["component"],
+                        arguments["sensor"],
+                        arguments["measurand"],
+                    ),
+                    timeout=TIMEOUT,
+                )
+            except ConnectionResetError:
+                status = Status.CRITICAL
+                logger.critical("No response from Actor System. -> Emergency shutdown")
+                system_shutdown()
                 return {
-                    "Error code": value_return.status.value,
-                    "Error": str(value_return.status),
-                    "Notification": notification,
+                    "Error code": status.value,
+                    "Error": str(status),
+                    "Notification": "Registration Server going down for restart.",
+                    "Requester": "Emergency shutdown",
                 }
-            if value_return.status in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
-                if value_return.status == Status.NOT_FOUND:
-                    notification = "The instrument does not reply."
-                elif value_return.status == Status.IS_NOT_FOUND:
-                    notification = "The instrument server hosting the instrument cannot be reached."
-                FreeDevice().get(device_id)
-                return {
-                    "Error code": value_return.status.value,
-                    "Error": str(value_return.status),
-                    "Notification": notification,
-                }
-
-            FreeDevice().get(device_id)
-            if value_return.gps is None:
-                gps_dict = None
-            else:
-                gps_dict = {
-                    "Valid": value_return.gps.valid,
-                    "Latitude": value_return.gps.latitude,
-                    "Longitude": value_return.gps.longitude,
-                    "Altitude": value_return.gps.altitude,
-                    "Deviation": value_return.gps.deviation,
-                }
+        reply_is_corrupted = check_msg(value_return, RecentValueMsg)
+        if reply_is_corrupted:
+            return reply_is_corrupted
+        if value_return.status in [Status.INDEX_ERROR, Status.OCCUPIED]:
+            if value_return.status == Status.OCCUPIED:
+                notification = "The instrument is occupied by somebody else."
+            elif value_return.status == Status.INDEX_ERROR:
+                notification = "The requested measurand is not available."
             return {
-                "Device Id": device_id,
-                "Component id": arguments["component"],
-                "Component name": value_return.component_name,
-                "Sensor id": arguments["sensor"],
-                "Sensor name": value_return.sensor_name,
-                "Measurand id": arguments["measurand"],
-                "Measurand name": value_return.measurand_name,
-                "Measurand": value_return.measurand,
-                "Operator": value_return.operator,
-                "Value": value_return.value,
-                "Unit": value_return.unit,
-                "Timestamp": value_return.timestamp,
-                "UTC offset": value_return.utc_offset,
-                "Sample interval": value_return.sample_interval,
-                "Fetched": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                "GPS": gps_dict,
+                "Error code": value_return.status.value,
+                "Error": str(value_return.status),
+                "Notification": notification,
             }
-        return reserve_state
+        if value_return.status in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
+            if value_return.status == Status.NOT_FOUND:
+                notification = "The instrument does not reply."
+            elif value_return.status == Status.IS_NOT_FOUND:
+                notification = (
+                    "The instrument server hosting the instrument cannot be reached."
+                )
+            return {
+                "Error code": value_return.status.value,
+                "Error": str(value_return.status),
+                "Notification": notification,
+            }
+        if value_return.gps is None:
+            gps_dict = None
+        else:
+            gps_dict = {
+                "Valid": value_return.gps.valid,
+                "Latitude": value_return.gps.latitude,
+                "Longitude": value_return.gps.longitude,
+                "Altitude": value_return.gps.altitude,
+                "Deviation": value_return.gps.deviation,
+            }
+        return {
+            "Device Id": device_id,
+            "Component id": arguments["component"],
+            "Component name": value_return.component_name,
+            "Sensor id": arguments["sensor"],
+            "Sensor name": value_return.sensor_name,
+            "Measurand id": arguments["measurand"],
+            "Measurand name": value_return.measurand_name,
+            "Measurand": value_return.measurand,
+            "Operator": value_return.operator,
+            "Value": value_return.value,
+            "Unit": value_return.unit,
+            "Timestamp": value_return.timestamp,
+            "UTC offset": value_return.utc_offset,
+            "Sample interval": value_return.sample_interval,
+            "Fetched": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "GPS": gps_dict,
+        }
 
 
 @ports_ns.route("/")

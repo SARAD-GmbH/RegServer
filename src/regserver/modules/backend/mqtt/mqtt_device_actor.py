@@ -41,7 +41,6 @@ class ValueDict(TypedDict):
     # pylint: disable=inherit-non-class, too-few-public-methods
     """Type declaration for VALUE dict."""
     Pending: bool
-    Addressor: tuple[str, str, str]
 
 
 class AckDict(TypedDict):
@@ -101,8 +100,6 @@ class MqttDeviceActor(DeviceBaseActor):
             "VALUE": {
                 "Pending": False,
                 # if there is a reply to wait for, then it should be true
-                "Addressor": ("", "", ""),
-                # tuple of (Host, App, User)
             },
             "WAIT_FOR_ACK": {
                 "Pending": False,
@@ -240,7 +237,6 @@ class MqttDeviceActor(DeviceBaseActor):
             MqttSubscribeMsg([(self.allowed_sys_topics["VALUE"], self.qos)]),
         )
         self.state["VALUE"]["Pending"] = True
-        self.state["VALUE"]["Addressor"] = (msg.host, msg.app, msg.user)
         self.send(
             self.parent.parent_address,
             MqttPublishMsg(
@@ -248,12 +244,10 @@ class MqttDeviceActor(DeviceBaseActor):
                 payload=json.dumps(
                     {
                         "req": "value",
+                        "client": mqtt_config["MQTT_CLIENT_ID"],
                         "component": msg.component,
                         "sensor": msg.sensor,
                         "measurand": msg.measurand,
-                        "app": msg.app,
-                        "host": msg.host,
-                        "user": msg.user,
                     }
                 ),
                 qos=self.qos,
@@ -289,13 +283,11 @@ class MqttDeviceActor(DeviceBaseActor):
         """Handler for MQTT messages containing measuring values from instrument"""
         value_dict = json.loads(payload)
         state = self.state.get("VALUE", {})
+        client_id = mqtt_config["MQTT_CLIENT_ID"]
         it_is_for_me = bool(
             state
             and state.get("Pending", False)
-            and state.get("Addressor", False)
-            and state["Addressor"][0] == value_dict.get("Host", state["Addressor"][0])
-            and state["Addressor"][1] == value_dict.get("App", state["Addressor"][1])
-            and state["Addressor"][2] == value_dict.get("User", state["Addressor"][2])
+            and client_id == value_dict.get("client", "")
         )
         logger.debug("Is it for me? %s, %s", state, value_dict)
         if self.value_lock.value and it_is_for_me:
@@ -316,11 +308,6 @@ class MqttDeviceActor(DeviceBaseActor):
             self._handle_recent_value_reply_from_is(
                 RecentValueMsg(
                     status=Status(value_dict.get("status", 0)),
-                    addressor=(
-                        value_dict.get("Host", ""),
-                        value_dict.get("App", ""),
-                        value_dict.get("User", ""),
-                    ),
                     instr_id=self.instr_id,
                     component_name=value_dict.get("c_name", ""),
                     sensor_name=value_dict.get("s_name", ""),
@@ -336,7 +323,6 @@ class MqttDeviceActor(DeviceBaseActor):
                 )
             )
             self.state["VALUE"]["Pending"] = False
-            self.state["VALUE"]["Addressor"] = ("", "", "")
 
     def on_ack(self, payload):
         """Handler for MQTT messages containing an acknowledgement"""

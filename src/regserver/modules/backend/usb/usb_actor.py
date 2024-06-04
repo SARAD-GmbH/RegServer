@@ -359,7 +359,6 @@ class UsbActor(DeviceBaseActor):
                 for sensor in component:
                     for measurand in sensor:
                         self._get_recent_value(
-                            addressor=("localhost", "self", "self"),
                             sender=None,
                             component=list(self.instrument).index(component),
                             sensor=list(component).index(sensor),
@@ -375,11 +374,15 @@ class UsbActor(DeviceBaseActor):
 
     @overrides
     def _request_recent_value_at_is(self, msg, sender):
+        super()._request_recent_value_at_is(msg, sender)
+        self.reserve_device_msg = ReserveDeviceMsg(
+            host="localhost", user="self", app="value-request"
+        )
+        self._handle_reserve_reply_from_is(Status.OK)
         self._start_thread(
             Thread(
                 target=self._get_recent_value,
                 kwargs={
-                    "addressor": (msg.host, msg.app, msg.user),
                     "sender": sender,
                     "component": msg.component,
                     "sensor": msg.sensor,
@@ -389,19 +392,15 @@ class UsbActor(DeviceBaseActor):
             )
         )
 
-    def _get_recent_value(self, addressor, sender, component, sensor, measurand):
+    def _get_recent_value(self, sender, component, sensor, measurand):
         # pylint: disable=too-many-arguments
-        answer = RecentValueMsg(
-            status=Status.CRITICAL, addressor=addressor, instr_id=self.instr_id
-        )
+        answer = RecentValueMsg(status=Status.CRITICAL, instr_id=self.instr_id)
         if sender is None:
             sender = self.registrar
         try:
             reply = self.instrument.get_recent_value(component, sensor, measurand)
         except (IndexError, AttributeError):
-            answer = RecentValueMsg(
-                status=Status.INDEX_ERROR, addressor=addressor, instr_id=self.instr_id
-            )
+            answer = RecentValueMsg(status=Status.INDEX_ERROR, instr_id=self.instr_id)
         else:
             logger.debug(
                 "get_recent_value(%d, %d, %d) came back with %s",
@@ -434,7 +433,6 @@ class UsbActor(DeviceBaseActor):
                     )
                 answer = RecentValueMsg(
                     status=Status.OK,
-                    addressor=addressor,
                     instr_id=self.instr_id,
                     component_name=reply["component_name"],
                     sensor_name=reply["sensor_name"],
@@ -451,10 +449,10 @@ class UsbActor(DeviceBaseActor):
             else:
                 answer = RecentValueMsg(
                     status=Status.INDEX_ERROR,
-                    addressor=addressor,
                     instr_id=self.instr_id,
                 )
         finally:
+            self._request_free_at_is()
             self._handle_recent_value_reply_from_is(answer)
 
     @overrides

@@ -79,7 +79,11 @@ class ModbusRtu:
                 try:
                     value_return = modbus_sys.ask(
                         device_actor,
-                        GetRecentValueMsg(component_id, sensor_id, measurand_id),
+                        GetRecentValueMsg(
+                            component=component_id,
+                            sensor=sensor_id,
+                            measurand=measurand_id,
+                        ),
                         timeout=timedelta(seconds=10),
                     )
                 except ConnectionResetError:

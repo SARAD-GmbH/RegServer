@@ -193,9 +193,6 @@ class MqttSchedulerActor(MqttBaseActor):
                 }
             payload = {
                 "status": msg.status.value,
-                "Host": msg.addressor[0],
-                "App": msg.addressor[1],
-                "User": msg.addressor[2],
                 "c_name": msg.component_name,
                 "s_name": msg.sensor_name,
                 "m_name": msg.measurand_name,
@@ -509,9 +506,6 @@ class MqttSchedulerActor(MqttBaseActor):
             self.send(
                 device_actor,
                 GetRecentValueMsg(
-                    app=control.data.app,
-                    user=control.data.user,
-                    host=control.data.host,
                     component=control.data.component,
                     sensor=control.data.sensor,
                     measurand=control.data.measurand,
