@@ -247,13 +247,13 @@ class MqttDeviceActor(DeviceBaseActor):
                 topic=self.allowed_sys_topics["CTRL"],
                 payload=json.dumps(
                     {
-                        "Req": "value",
-                        "Component": msg.component,
-                        "Sensor": msg.sensor,
-                        "Measurand": msg.measurand,
-                        "App": msg.app,
-                        "Host": msg.host,
-                        "User": msg.user,
+                        "req": "value",
+                        "component": msg.component,
+                        "sensor": msg.sensor,
+                        "measurand": msg.measurand,
+                        "app": msg.app,
+                        "host": msg.host,
+                        "user": msg.user,
                     }
                 ),
                 qos=self.qos,
@@ -269,15 +269,15 @@ class MqttDeviceActor(DeviceBaseActor):
             MqttSubscribeMsg([(self.allowed_sys_topics["ACK"], self.qos)]),
         )
         self.state["WAIT_FOR_ACK"]["Pending"] = True
-        self.state["WAIT_FOR_ACK"]["Req"] = "set-rtc"
+        self.state["WAIT_FOR_ACK"]["req"] = "set-rtc"
         self.send(
             self.parent.parent_address,
             MqttPublishMsg(
                 topic=self.allowed_sys_topics["CTRL"],
                 payload=json.dumps(
                     {
-                        "Req": "set-rtc",
-                        "Client": mqtt_config["MQTT_CLIENT_ID"],
+                        "req": "set-rtc",
+                        "client": mqtt_config["MQTT_CLIENT_ID"],
                     }
                 ),
                 qos=self.qos,
@@ -303,35 +303,35 @@ class MqttDeviceActor(DeviceBaseActor):
                 self.parent.parent_address,
                 MqttUnsubscribeMsg([self.allowed_sys_topics["VALUE"]]),
             )
-            if value_dict.get("GPS", False):
+            if value_dict.get("gps", False):
                 gps = Gps(
-                    valid=value_dict["GPS"]["Valid"],
-                    latitude=value_dict["GPS"]["Latitude"],
-                    longitude=value_dict["GPS"]["Longitude"],
-                    altitude=value_dict["GPS"]["Altitude"],
-                    deviation=value_dict["GPS"]["Deviation"],
+                    valid=value_dict["gps"]["valid"],
+                    latitude=value_dict["gps"]["lat"],
+                    longitude=value_dict["gps"]["lon"],
+                    altitude=value_dict["gps"]["alt"],
+                    deviation=value_dict["gps"]["dev"],
                 )
             else:
                 gps = None
             self._handle_recent_value_reply_from_is(
                 RecentValueMsg(
-                    status=Status(value_dict.get("Status", 0)),
+                    status=Status(value_dict.get("status", 0)),
                     addressor=(
                         value_dict.get("Host", ""),
                         value_dict.get("App", ""),
                         value_dict.get("User", ""),
                     ),
                     instr_id=self.instr_id,
-                    component_name=value_dict.get("Component name", ""),
-                    sensor_name=value_dict.get("Sensor name", ""),
-                    measurand_name=value_dict.get("Measurand name", ""),
-                    measurand=value_dict.get("Measurand", ""),
-                    operator=value_dict.get("Operator", ""),
-                    value=value_dict.get("Value", 0),
-                    unit=value_dict.get("Unit", ""),
-                    timestamp=value_dict.get("Timestamp", 0),
-                    utc_offset=value_dict.get("UTC offset", 0),
-                    sample_interval=value_dict.get("Sample interval", 0),
+                    component_name=value_dict.get("c_name", ""),
+                    sensor_name=value_dict.get("s_name", ""),
+                    measurand_name=value_dict.get("m_name", ""),
+                    measurand=value_dict.get("measurand", ""),
+                    operator=value_dict.get("operator", ""),
+                    value=value_dict.get("value", 0),
+                    unit=value_dict.get("unit", ""),
+                    timestamp=value_dict.get("time", 0),
+                    utc_offset=value_dict.get("utc_offset", 0),
+                    sample_interval=value_dict.get("interval", 0),
                     gps=gps,
                 )
             )
@@ -346,7 +346,7 @@ class MqttDeviceActor(DeviceBaseActor):
         it_is_for_me = bool(
             state
             and state.get("Pending", False)
-            and client_id == ack_dict.get("Client", "")
+            and client_id == ack_dict.get("client", "")
         )
         logger.debug("Is it for me? %s, %s", state, ack_dict)
         if self.ack_lock.value and it_is_for_me:
@@ -354,14 +354,14 @@ class MqttDeviceActor(DeviceBaseActor):
                 self.parent.parent_address,
                 MqttUnsubscribeMsg([self.allowed_sys_topics["ACK"]]),
             )
-            req = ack_dict.get("Req", "")
-            waiting_for = self.state["WAIT_FOR_ACK"].get("Req", "")
+            req = ack_dict.get("req", "")
+            waiting_for = self.state["WAIT_FOR_ACK"].get("req", "")
             if (req == "set-rtc") and (waiting_for == "set-rtc"):
                 self._handle_set_rtc_reply_from_is(
-                    status=Status(ack_dict.get("Status", 98)),
+                    status=Status(ack_dict.get("status", 98)),
                     confirm=True,
-                    utc_offset=ack_dict.get("UTC_offset", -13),
-                    wait=ack_dict.get("Wait", 0),
+                    utc_offset=ack_dict.get("utc_offset", -13),
+                    wait=ack_dict.get("wait", 0),
                 )
                 self.state["WAIT_FOR_ACK"]["Pending"] = False
             elif (req == "monitor") and (waiting_for == "monitor"):

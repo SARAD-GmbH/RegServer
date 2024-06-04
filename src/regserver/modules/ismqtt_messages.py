@@ -164,9 +164,9 @@ def get_instr_control(json_data, old_reservation) -> Control:
     except (TypeError, json.decoder.JSONDecodeError):
         logger.warning("Cannot decode %s", json_data.payload)
         return Control(ControlType.UNKNOWN, nodata)
-    req_type = data.get("Req", "")
+    req_type = data.get("req", data.get("Req", ""))
     if not req_type:
-        logger.error("No 'Req' in payload.")
+        logger.error("No 'Req' or 'req' in payload.")
         result = Control(ctype=ControlType.UNKNOWN, data=nodata)
     elif req_type == "free":
         logger.debug("[FREE] request")
@@ -201,29 +201,29 @@ def get_instr_control(json_data, old_reservation) -> Control:
         result = Control(
             ctype=ControlType.VALUE,
             data=ValueReq(
-                component=data.get("Component", 0),
-                sensor=data.get("Sensor", 0),
-                measurand=data.get("Measurand", 0),
-                app=data.get("App", "unknown"),
-                host=data.get("Host", "unknown"),
-                user=data.get("User", "unknown"),
+                component=data.get("component", 0),
+                sensor=data.get("sensor", 0),
+                measurand=data.get("measurand", 0),
+                app=data.get("app", "unknown"),
+                host=data.get("host", "unknown"),
+                user=data.get("user", "unknown"),
             ),
         )
     elif req_type == "monitor":
         logger.debug("[MONITOR] request")
         result = Control(
             ctype=ControlType.MONITOR,
-            data=MonitorReq(req=data.get("Req", ""), client=data.get("Client", "")),
+            data=MonitorReq(req=data.get("req", ""), client=data.get("client", "")),
         )
     elif req_type == "config":
         logger.debug("[CONFIG] request")
         result = Control(
             ctype=ControlType.MONITOR,
             data=ConfigReq(
-                req=data.get("Req", ""),
-                client=data.get("Client", ""),
-                cycle=data.get("Cycle", 0),
-                values=data.get("Values", []),
+                req=data.get("req", ""),
+                client=data.get("client", ""),
+                cycle=data.get("cycle", 0),
+                values=data.get("values", []),
             ),
         )
     elif req_type == "set-rtc":
@@ -231,8 +231,8 @@ def get_instr_control(json_data, old_reservation) -> Control:
         result = Control(
             ctype=ControlType.SET_RTC,
             data=SetRtcReq(
-                req=data.get("Req", ""),
-                client=data.get("Client", ""),
+                req=data.get("req", ""),
+                client=data.get("client", ""),
             ),
         )
 

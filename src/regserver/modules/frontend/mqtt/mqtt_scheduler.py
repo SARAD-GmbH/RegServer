@@ -185,28 +185,28 @@ class MqttSchedulerActor(MqttBaseActor):
                 gps_dict = None
             else:
                 gps_dict = {
-                    "Valid": msg.gps.valid,
-                    "Latitude": msg.gps.latitude,
-                    "Longitude": msg.gps.longitude,
-                    "Altitude": msg.gps.altitude,
-                    "Deviation": msg.gps.deviation,
+                    "valid": msg.gps.valid,
+                    "lat": msg.gps.latitude,
+                    "lon": msg.gps.longitude,
+                    "alt": msg.gps.altitude,
+                    "dev": msg.gps.deviation,
                 }
             payload = {
-                "Status": msg.status.value,
+                "status": msg.status.value,
                 "Host": msg.addressor[0],
                 "App": msg.addressor[1],
                 "User": msg.addressor[2],
-                "Component name": msg.component_name,
-                "Sensor name": msg.sensor_name,
-                "Measurand name": msg.measurand_name,
-                "Measurand": msg.measurand,
-                "Operator": msg.operator,
-                "Value": msg.value,
-                "Unit": msg.unit,
-                "Timestamp": msg.timestamp,
-                "UTC offset": msg.utc_offset,
-                "Sample interval": msg.sample_interval,
-                "GPS": gps_dict,
+                "c_name": msg.component_name,
+                "s_name": msg.sensor_name,
+                "m_name": msg.measurand_name,
+                "measurand": msg.measurand,
+                "operator": msg.operator,
+                "value": msg.value,
+                "unit": msg.unit,
+                "time": msg.timestamp,
+                "utc_offset": msg.utc_offset,
+                "interval": msg.sample_interval,
+                "gps": gps_dict,
             }
             logger.debug("Publish %s on %s", payload, topic)
             self.mqttc.publish(
@@ -627,11 +627,11 @@ class MqttSchedulerActor(MqttBaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         topic = f"{self.group}/{self.is_id}/{msg.instr_id}/ack"
         message = {
-            "Req": "set-rtc",
-            "Client": self.pending_control_action["control"].data.client,
-            "Status": msg.status.value,
-            "UTC_offset": msg.utc_offset,
-            "Wait": msg.wait,
+            "req": "set-rtc",
+            "client": self.pending_control_action["control"].data.client,
+            "status": msg.status.value,
+            "utc_offset": msg.utc_offset,
+            "wait": msg.wait,
         }
         self.mqttc.publish(
             topic=topic,
