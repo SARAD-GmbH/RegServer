@@ -47,7 +47,7 @@ class AckDict(TypedDict):
     # pylint: disable=inherit-non-class, too-few-public-methods
     """Type declaration for ACK dict."""
     Pending: bool
-    Req: str
+    req: str
 
 
 class StateDict(TypedDict):
@@ -104,7 +104,7 @@ class MqttDeviceActor(DeviceBaseActor):
             "WAIT_FOR_ACK": {
                 "Pending": False,
                 # if there is a reply to wait for, then it should be true
-                "Req": "",
+                "req": "",
                 # the type of request as in the request message
             },
         }

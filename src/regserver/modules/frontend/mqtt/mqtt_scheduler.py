@@ -193,6 +193,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 }
             payload = {
                 "status": msg.status.value,
+                "client": self.pending_control_action["control"].data.client,
                 "c_name": msg.component_name,
                 "s_name": msg.sensor_name,
                 "m_name": msg.measurand_name,
