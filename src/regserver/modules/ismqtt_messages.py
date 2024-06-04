@@ -72,12 +72,10 @@ class Reservation:
 class ValueReq:
     """Data class for storing request information for VALUE request"""
 
+    client: str
     component: int
     sensor: int
     measurand: int
-    app: str = ""
-    host: str = ""
-    user: str = ""
 
 
 @dataclass
@@ -201,12 +199,10 @@ def get_instr_control(json_data, old_reservation) -> Control:
         result = Control(
             ctype=ControlType.VALUE,
             data=ValueReq(
+                client=data.get("client", ""),
                 component=data.get("component", 0),
                 sensor=data.get("sensor", 0),
                 measurand=data.get("measurand", 0),
-                app=data.get("app", "unknown"),
-                host=data.get("host", "unknown"),
-                user=data.get("user", "unknown"),
             ),
         )
     elif req_type == "monitor":
