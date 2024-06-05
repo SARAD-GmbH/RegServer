@@ -14,7 +14,7 @@ device actors referenced in the dictionary.
 """
 
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 from overrides import overrides  # type: ignore
 
@@ -440,6 +440,7 @@ class Registrar(BaseActor):
         # pylint: disable=invalid-name
         """Forward the StartMonitoringMsg to Device Actors."""
         logger.info("%s for %s from %s", msg, self.my_id, sender)
+        success = False
         for actor_id in self.actor_dict:
             if self.actor_dict[actor_id]["actor_type"] == ActorType.DEVICE:
                 if (msg.instr_id is None) or (short_id(actor_id) == msg.instr_id):
@@ -449,7 +450,24 @@ class Registrar(BaseActor):
                             start_time=msg.start_time, instr_id=msg.instr_id
                         ),
                     )
-        self.send(sender, StartMonitoringAckMsg(Status.OK))
+                    success = True
+                    self.rest_api = sender
+                    break
+        if not success:
+            self.send(
+                sender,
+                StartMonitoringAckMsg(
+                    msg.instr_id,
+                    Status.NOT_FOUND,
+                    msg.start_time - datetime.now(timezone.utc),
+                ),
+            )
+
+    def receiveMsg_StartMonitoringAckMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forward the StartMonitoringAckMsg to REST API."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.send(self.rest_api, msg)
 
     def receiveMsg_BaudRateMsg(self, msg, sender):
         # pylint: disable=invalid-name

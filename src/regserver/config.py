@@ -661,3 +661,6 @@ else:
             )
         ),
     }
+
+# Configuration of Monitoring Mode
+monitoring_config = customization.value.get("monitoring", {})

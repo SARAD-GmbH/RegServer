@@ -15,7 +15,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from flask import Flask, request
-from flask_restx import Api, Resource, fields, reqparse  # type: ignore
+from flask_restx import Api, Resource, fields, inputs, reqparse  # type: ignore
 from thespian.actors import ActorSystem  # type: ignore
 from thespian.actors import Thespian_ActorStatus
 from thespian.system.messages.status import (  # type: ignore
@@ -168,9 +168,10 @@ log_arguments.add_argument(
 start_arguments = reqparse.RequestParser()
 start_arguments.add_argument(
     "start_time",
-    type=str,
+    type=inputs.datetime_from_iso8601,
     required=False,
-    help="Datetime string in ISO format giving the UTC to start the measuring.",
+    help="Datetime string in ISO format giving the time to start the monitoring mode at.\n"
+    + "The string must contain the time zone information.",
 )
 baudrate_arguments = reqparse.RequestParser()
 baudrate_arguments.add_argument(
@@ -819,18 +820,26 @@ class Instrument(Resource):
         return api.abort(404)
 
 
-@instruments_ns.route("/<string:instr_id>/start-measuring")
+@instruments_ns.route("/<string:instr_id>/start-monitoring")
 @instruments_ns.param(
     "start_time",
     "UTC to start the measurement.",
 )
-class StartMeasuring(Resource):
+class StartMonitoring(Resource):
     # pylint: disable=too-few-public-methods
-    """Start the measuring at the given instrument."""
+    """Start the monitoring mode at the given instrument."""
 
     @api.expect(start_arguments, validate=True)
     def post(self, instr_id):
-        """Start the measuring at the given instrument."""
+        """Start the monitoring mode at the given instrument.
+
+        'Offset' in the response body is giving back the time difference
+        between now and the time the monitoring mode will take effect. If this
+        value is negative, the monitoring mode will be started instantly.
+
+        Use the FREE request to terminate the monitoring mode.
+
+        """
         args = start_arguments.parse_args()
         registrar_actor = get_registrar_actor()
         if registrar_actor is None:
@@ -857,6 +866,7 @@ class StartMeasuring(Resource):
                 return {
                     "Error code": reply.status.value,
                     "Error": str(reply.status),
+                    "Offset": reply.offset.total_seconds(),
                 }
         return api.abort(404)
 
@@ -907,11 +917,12 @@ class SetRtc(Resource):
     """Set the realtime clock on the given instrument."""
 
     def post(self, instr_id):
-        """Set the realtime clock on the given instrument. 'UTC offset' in the
-        response body is giving back the UTC offset (time zone) that was used
-        to set the clock. null = undefined, -13 = unknown (not provided by
-        remote host). 'Wait' is the time between now and the setup taking
-        effect.
+        """Set the realtime clock on the given instrument.
+
+        'UTC offset' in the response body is giving back the UTC offset
+        (time zone) that was used to set the clock. null = undefined, -13 =
+        unknown (not provided by remote host). 'Wait' is the time between now
+        and the setup taking effect.
 
         """
         registrar_actor = get_registrar_actor()

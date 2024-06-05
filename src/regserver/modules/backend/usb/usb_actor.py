@@ -9,7 +9,7 @@
 
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from threading import Thread
 
@@ -18,7 +18,7 @@ from overrides import overrides
 from regserver.actor_messages import (Gps, RecentValueMsg, RescanMsg,
                                       ReserveDeviceMsg, RxBinaryMsg,
                                       SetDeviceStatusMsg, Status)
-from regserver.config import config, usb_backend_config
+from regserver.config import config, monitoring_config, usb_backend_config
 from regserver.helpers import get_sarad_type, short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
@@ -111,10 +111,16 @@ class UsbActor(DeviceBaseActor):
             "State": 2,
         }
         self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
-        if usb_backend_config["SET_RTC"]:
-            self._request_set_rtc_at_is(confirm=False)
+        monitoring_config_for_instr = monitoring_config.get(self.instr_id, {})
+        monitoring_shall_be_active = monitoring_config_for_instr.get("active", False)
+        if monitoring_shall_be_active:
+            logger.info("Monitoring mode for %s shall be active", self.instr_id)
+            self._request_start_monitoring_at_is(confirm=False)
+        else:
+            if usb_backend_config["SET_RTC"]:
+                self._request_set_rtc_at_is(confirm=False)
         self.instrument.release_instrument()
-        logger.debug("Instrument with Id %s detected.", self.my_id)
+        logger.debug("Instrument with Id %s detected.", self.instr_id)
         return
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
@@ -142,8 +148,8 @@ class UsbActor(DeviceBaseActor):
                     )
         elif isinstance(msg.payload, tuple) and isinstance(msg.payload, Thread):
             self._start_thread(msg.payload)
-        elif msg.payload == "start_measuring":
-            self._start_measuring()
+        elif msg.payload == "start_monitoring":
+            self._start_monitoring()
         elif msg.payload == "set_rtc":
             self._set_rtc()
         # elif msg.payload == "get_values":
@@ -326,44 +332,61 @@ class UsbActor(DeviceBaseActor):
         self._request_free_at_is()
 
     @overrides
-    def _start_measuring(self):
+    def _request_start_monitoring_at_is(
+        self, start_time=datetime.now(timezone.utc), confirm=False
+    ):
+        super()._request_start_monitoring_at_is(start_time, confirm)
+        self.reserve_device_msg = ReserveDeviceMsg(
+            host="localhost", user="self", app="self"
+        )
+        self._handle_reserve_reply_from_is(Status.OK)
+        if start_time is None:
+            offset = timedelta(0)
+            self._start_monitoring()
+        else:
+            offset = start_time - datetime.now(timezone.utc)
+            self.wakeupAfter(offset, payload="start_monitoring")
+        self._handle_start_monitoring_reply_from_is(
+            Status.OK,
+            confirm=confirm,
+            offset=offset,
+        )
+
+    def _start_monitoring(self):
         self._start_thread(
             Thread(
-                target=self._start_measuring_function,
+                target=self._start_monitoring_function,
                 daemon=True,
             )
         )
 
-    def _start_measuring_function(self):
+    def _start_monitoring_function(self):
+        self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
+        logger.info("Start monitoring mode of %s now", self.my_id)
         cycle_index = 0
-        is_reserved = self.device_status.get("Reservation", False)
-        if is_reserved:
-            is_reserved = self.device_status["Reservation"].get("Active", False)
-        if is_reserved:
-            self.wakeupAfter(timedelta(seconds=1), payload="start_measuring")
-        else:
-            try:
-                success = self.instrument.start_cycle(cycle_index)
-                logger.info(
-                    "Device %s started with cycle_index %d",
-                    self.instrument.device_id,
-                    cycle_index,
-                )
-            except Exception as exception:  # pylint: disable=broad-except
-                logger.error(
-                    "Failed to start cycle on %s. Exception: %s", self.my_id, exception
-                )
-            if not success:
-                logger.error("Start/Stop not supported by %s", self.my_id)
-            for component in self.instrument:
-                for sensor in component:
-                    for measurand in sensor:
-                        self._get_recent_value(
-                            sender=None,
-                            component=list(self.instrument).index(component),
-                            sensor=list(component).index(sensor),
-                            measurand=list(sensor).index(measurand),
-                        )
+        try:
+            success = self.instrument.start_cycle(cycle_index)
+            logger.info(
+                "Device %s started with cycle_index %d",
+                self.instrument.device_id,
+                cycle_index,
+            )
+        except Exception as exception:  # pylint: disable=broad-except
+            logger.error(
+                "Failed to start cycle on %s. Exception: %s", self.my_id, exception
+            )
+        if not success:
+            logger.error("Start/Stop not supported by %s", self.my_id)
+
+        # for component in self.instrument:
+        #     for sensor in component:
+        #         for measurand in sensor:
+        #             self._get_recent_value(
+        #                 sender=None,
+        #                 component=list(self.instrument).index(component),
+        #                 sensor=list(component).index(sensor),
+        #                 measurand=list(sensor).index(measurand),
+        #             )
 
     @overrides
     def receiveMsg_BaudRateMsg(self, msg, sender):

@@ -10,7 +10,7 @@ commands and data within the actor system
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from enum import Enum, IntEnum, unique
 from typing import Any, Dict, List, Tuple, Union
 
@@ -943,14 +943,22 @@ class StartMonitoringMsg:
     """
 
     instr_id: str
-    start_time: Union[datetime, None] = None
+    start_time: datetime = datetime.now(timezone.utc)
 
 
 @dataclass
 class StartMonitoringAckMsg:
-    """Confirmation that the StartMonitoringMsg was handled properly."""
+    """Confirmation that the StartMonitoringMsg was handled properly.
 
+    Args:
+        instr_id (str): Id of the instrument
+        status (Status): Status of the success of the operation
+        offset (timedelta): Time difference between start time and now.
+    """
+
+    instr_id: str
     status: Status
+    offset: timedelta
 
 
 @dataclass
