@@ -94,6 +94,7 @@ class MonitorReq:
 
     req: str
     client: str
+    start_time: datetime
 
 
 @dataclass
@@ -207,9 +208,18 @@ def get_instr_control(json_data, old_reservation) -> Control:
         )
     elif req_type == "monitor":
         logger.debug("[MONITOR] request")
+        time_str = data.get("start_time", "")
+        if time_str:
+            start_time = datetime.fromisoformat(time_str)
+        else:
+            start_time = datetime.now(timezone.utc)
         result = Control(
             ctype=ControlType.MONITOR,
-            data=MonitorReq(req=data.get("req", ""), client=data.get("client", "")),
+            data=MonitorReq(
+                req=data.get("req", ""),
+                client=data.get("client", ""),
+                start_time=start_time,
+            ),
         )
     elif req_type == "config":
         logger.debug("[CONFIG] request")

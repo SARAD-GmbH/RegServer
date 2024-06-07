@@ -10,7 +10,7 @@
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TypedDict
 
 from overrides import overrides  # type: ignore
@@ -279,6 +279,34 @@ class MqttDeviceActor(DeviceBaseActor):
             ),
         )
 
+    @overrides
+    def _request_start_monitoring_at_is(
+        self, start_time=datetime.now(timezone.utc), confirm=False
+    ):
+        super()._request_start_monitoring_at_is(confirm)
+        self.send(
+            self.parent.parent_address,
+            MqttSubscribeMsg([(self.allowed_sys_topics["ACK"], self.qos)]),
+        )
+        self.state["WAIT_FOR_ACK"]["Pending"] = True
+        self.state["WAIT_FOR_ACK"]["req"] = "monitor"
+        self.send(
+            self.parent.parent_address,
+            MqttPublishMsg(
+                topic=self.allowed_sys_topics["CTRL"],
+                payload=json.dumps(
+                    {
+                        "req": "monitor",
+                        "client": mqtt_config["MQTT_CLIENT_ID"],
+                        "start_time": start_time,
+                    },
+                    default=str,
+                ),
+                qos=self.qos,
+                retain=False,
+            ),
+        )
+
     def on_value(self, payload):
         """Handler for MQTT messages containing measuring values from instrument"""
         value_dict = json.loads(payload)
@@ -351,7 +379,11 @@ class MqttDeviceActor(DeviceBaseActor):
                 )
                 self.state["WAIT_FOR_ACK"]["Pending"] = False
             elif (req == "monitor") and (waiting_for == "monitor"):
-                # TODO
+                self._handle_start_monitoring_reply_from_is(
+                    status=Status(ack_dict.get("status", 98)),
+                    confirm=True,
+                    offset=timedelta(seconds=ack_dict.get("offset", 0)),
+                )
                 self.state["WAIT_FOR_ACK"]["Pending"] = False
             elif (req == "config") and (waiting_for == "config"):
                 # TODO
