@@ -33,7 +33,7 @@ from regserver.version import VERSION
 
 if os.name != "nt":
     from gpiozero import PWMLED  # type: ignore
-    from gpiozero.exc import BadPinFactory  # type: ignore
+    from gpiozero.exc import BadPinFactory, GPIOPinInUse  # type: ignore
 
 
 class MqttSchedulerActor(MqttBaseActor):
@@ -79,7 +79,7 @@ class MqttSchedulerActor(MqttBaseActor):
             try:
                 self.led = PWMLED(23)
                 self.led.pulse()
-            except BadPinFactory:
+            except (BadPinFactory, GPIOPinInUse):
                 logger.info(
                     "On a Raspberry Pi, you could see a LED pulsing on GPIO 23."
                 )
