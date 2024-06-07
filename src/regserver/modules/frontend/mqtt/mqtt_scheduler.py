@@ -640,7 +640,7 @@ class MqttSchedulerActor(MqttBaseActor):
         )
         logger.info("Publish %s on %s", message, topic)
 
-    def receiveMsg_StartMonitoringAck(self, msg, sender):
+    def receiveMsg_StartMonitoringAckMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for StartMonitoringAckMsg from UsbActor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
