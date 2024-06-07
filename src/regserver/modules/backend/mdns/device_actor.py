@@ -62,6 +62,7 @@ class Purpose(Enum):
     STATUS = 5
     VALUE = 6
     SET_RTC = 7
+    MONITOR = 8
 
 
 class DeviceActor(DeviceBaseActor):
@@ -198,6 +199,20 @@ class DeviceActor(DeviceBaseActor):
                 "confirm": True,
                 "utc_offset": self.response.get("UTC offset", -13),
                 "wait": self.response.get("Wait", 0),
+            }
+        elif purpose == Purpose.MONITOR:
+            logger.info(
+                "Target responded to Start-Monitoring request: %s", self.response
+            )
+            self.next_method = self._handle_start_monitoring_reply_from_is
+            if self.success == Status.OK:
+                error_code = self.response.get("Error code", 98)
+            else:
+                error_code = self.success
+            self.next_method_kwargs = {
+                "status": Status(error_code),
+                "confirm": True,
+                "offset": timedelta(seconds=self.response.get("Offset", 0)),
             }
 
     def _start_thread(self, thread):
@@ -502,3 +517,18 @@ class DeviceActor(DeviceBaseActor):
             )
         )
         super()._request_set_rtc_at_is(confirm)
+
+    @overrides
+    def _request_start_monitoring_at_is(self, start_time=..., confirm=False):
+        self._start_thread(
+            Thread(
+                target=self._http_post_function,
+                kwargs={
+                    "endpoint": f"{self.base_url}/instruments/{self.instr_id}/start-monitoring",
+                    "params": {"start_time": start_time.isoformat()},
+                    "purpose": Purpose.MONITOR,
+                },
+                daemon=True,
+            )
+        )
+        super()._request_start_monitoring_at_is(start_time, confirm)
