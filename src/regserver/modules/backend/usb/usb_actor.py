@@ -523,7 +523,6 @@ class UsbActor(DeviceBaseActor):
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
-        self.instrument.release_instrument()
         super().receiveMsg_ChildActorExited(msg, sender)
 
     @overrides
