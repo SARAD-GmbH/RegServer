@@ -40,6 +40,14 @@ from regserver.modules.frontend.mdns.mdns_scheduler import MdnsSchedulerActor
 from regserver.modules.frontend.mqtt.mqtt_scheduler import MqttSchedulerActor
 from regserver.shutdown import system_shutdown
 
+ACTOR_DICT = {
+    "mqtt_scheduler": MqttSchedulerActor,
+    "mdns_scheduler": MdnsSchedulerActor,
+    "cluster": ClusterActor,
+    "mqtt_client_actor": MqttClientActor,
+    "is1_listener": Is1Listener,
+}
+
 
 class Registrar(BaseActor):
     """Actor providing a dictionary of devices"""
@@ -66,7 +74,7 @@ class Registrar(BaseActor):
         if Backend.MQTT in backend_config:
             self._create_actor(MqttClientActor, "mqtt_client_actor", None)
         if Backend.IS1 in backend_config:
-            _is1_listener = self._create_actor(Is1Listener, "is1_listener", None)
+            self._create_actor(Is1Listener, "is1_listener", None)
         keepalive_interval: float = actor_config["KEEPALIVE_INTERVAL"]
         if keepalive_interval:
             logger.debug(
@@ -75,6 +83,21 @@ class Registrar(BaseActor):
             self.wakeupAfter(
                 timedelta(seconds=keepalive_interval), payload="keep alive"
             )
+
+    def receiveMsg_ControlFunctionalityMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for a message to switch frontends of backends on or off."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if msg.actor_id in ACTOR_DICT:
+            if msg.on:
+                if msg.actor_id not in self.actor_dict:
+                    self._create_actor(ACTOR_DICT[msg.actor_id], msg.actor_id, None)
+            else:  # msg.on = False
+                if msg.actor_id in self.actor_dict:
+                    self.send(
+                        self.actor_dict[msg.actor_id]["address"],
+                        KillMsg(register=True),
+                    )
 
     def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name

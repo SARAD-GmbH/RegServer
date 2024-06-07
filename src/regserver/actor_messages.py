@@ -1009,3 +1009,18 @@ class SetRtcAckMsg:
     status: Status
     utc_offset: float = -13
     wait: int = 0
+
+
+@dataclass
+class ControlFunctionalityMsg:
+    """Message that can be sent to the Registrar in order to switch single
+    Frontends or Backends on or off.
+
+    Args:
+        actor_id (str): Id of the Actor that shall be started or stopped
+        on (bool): True, if the Actor shall be switched on; False,
+                   if it shall be switched off.
+    """
+
+    actor_id: str
+    on: bool

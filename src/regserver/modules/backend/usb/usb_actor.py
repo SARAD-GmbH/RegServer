@@ -16,7 +16,8 @@ from threading import Thread
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides
-from regserver.actor_messages import (Frontend, Gps, RecentValueMsg, RescanMsg,
+from regserver.actor_messages import (ControlFunctionalityMsg, Frontend, Gps,
+                                      RecentValueMsg, RescanMsg,
                                       ReserveDeviceMsg, RxBinaryMsg,
                                       SetDeviceStatusMsg, Status)
 from regserver.config import (config, frontend_config, monitoring_config,
@@ -374,7 +375,10 @@ class UsbActor(DeviceBaseActor):
         if Frontend.MQTT in frontend_config:
             status = Status.OK
         else:
-            # TODO try to start MQTT frontend
+            self.send(
+                self.registrar,
+                ControlFunctionalityMsg(actor_id="mqtt_scheduler", on=True),
+            )
             status = Status.OK
         offset = max(start_time - datetime.now(timezone.utc), timedelta(0))
         self._handle_start_monitoring_reply_from_is(
@@ -399,6 +403,11 @@ class UsbActor(DeviceBaseActor):
 
     def _stop_monitoring(self):
         self.mon_state.monitoring_active = False
+        if Frontend.MQTT not in frontend_config:
+            self.send(
+                self.registrar,
+                ControlFunctionalityMsg(actor_id="mqtt_scheduler", on=False),
+            )
         # TODO maybe other things?
 
     def _start_monitoring_function(self):
