@@ -34,6 +34,7 @@ class Status(Enum):
     OTHER_APP_USER = 14
     ENDPOINT_NOT_FOUND = 15
     NOT_SUPPORTED = 16
+    MQTT_ERROR = 17
     OK_UPDATED = 20
     SUBSCRIBE = 34
     UNSUBSCRIBE = 35
@@ -55,6 +56,7 @@ class Status(Enum):
             14: "Instrument reserved for other app or other user",
             15: "The end point was not found in the REST API of the remote side.",
             16: "This operation is not supported by the system.",
+            17: "Monitoring mode failed. MQTT failure.",
             20: "OK, updated",
             34: "Error when subscribing to an MQTT topic",
             35: "Error when unsubscribing from an MQTT topic",

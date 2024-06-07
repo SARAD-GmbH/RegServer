@@ -9,16 +9,18 @@
 
 """
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from threading import Thread
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides
-from regserver.actor_messages import (Gps, RecentValueMsg, RescanMsg,
+from regserver.actor_messages import (Frontend, Gps, RecentValueMsg, RescanMsg,
                                       ReserveDeviceMsg, RxBinaryMsg,
                                       SetDeviceStatusMsg, Status)
-from regserver.config import config, monitoring_config, usb_backend_config
+from regserver.config import (config, frontend_config, monitoring_config,
+                              usb_backend_config)
 from regserver.helpers import get_sarad_type, short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
@@ -32,6 +34,20 @@ class Purpose(Enum):
 
     WAKEUP = 2
     RESERVE = 3
+
+
+@dataclass
+class MonitoringState:
+    """Object storing the current state of the monitoring mode.
+
+    Args:
+        monitoring_shall_be_active: True, if the monitoring mode was configured
+                                    to be active.
+        monitoring_active: True, if the monitoring mode currently is active.
+    """
+
+    monitoring_shall_be_active: bool
+    monitoring_active: bool
 
 
 class UsbActor(DeviceBaseActor):
@@ -50,12 +66,16 @@ class UsbActor(DeviceBaseActor):
             kwargs={"family_id": None, "poll": False, "route": None},
             daemon=True,
         )
+        self.mon_state = MonitoringState(
+            monitoring_shall_be_active=False, monitoring_active=False
+        )
 
     def _start_thread(self, thread):
         if not self.inner_thread.is_alive():
             self.inner_thread = thread
             self.inner_thread.start()
         else:
+            logger.debug("Waiting for %s to finish...", self.inner_thread)
             self.wakeupAfter(timedelta(seconds=0.5), payload=thread)
 
     def _check_connection(self, purpose: Purpose = Purpose.WAKEUP):
@@ -112,9 +132,11 @@ class UsbActor(DeviceBaseActor):
         }
         self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
         monitoring_config_for_instr = monitoring_config.get(self.instr_id, {})
-        monitoring_shall_be_active = monitoring_config_for_instr.get("active", False)
-        if monitoring_shall_be_active:
-            logger.info("Monitoring mode for %s shall be active", self.instr_id)
+        self.mon_state.monitoring_shall_be_active = monitoring_config_for_instr.get(
+            "active", False
+        )
+        if self.mon_state.monitoring_shall_be_active:
+            logger.debug("Monitoring mode for %s shall be active", self.instr_id)
             self._request_start_monitoring_at_is(confirm=False)
         else:
             if usb_backend_config["SET_RTC"]:
@@ -146,12 +168,20 @@ class UsbActor(DeviceBaseActor):
                             daemon=True,
                         )
                     )
-        elif isinstance(msg.payload, tuple) and isinstance(msg.payload, Thread):
+        elif isinstance(msg.payload, Thread):
             self._start_thread(msg.payload)
         elif msg.payload == "start_monitoring":
             self._start_monitoring()
         elif msg.payload == "set_rtc":
             self._set_rtc()
+        elif msg.payload == "resume_monitoring":
+            if self.mon_state.monitoring_shall_be_active:
+                if self.mon_state.monitoring_active:
+                    self._stop_monitoring()
+                    logger.info("Suspend monitoring mode at %s", self.my_id)
+                else:
+                    self._request_start_monitoring_at_is()
+                    logger.info("Resume monitoring mode at %s", self.my_id)
         # elif msg.payload == "get_values":
         #     self._get_recent_value(
         #         sender=None, component=component, sensor=sensor, measurand=measurand
@@ -298,6 +328,7 @@ class UsbActor(DeviceBaseActor):
         somebody else to free the instrument.
         """
         self._handle_free_reply_from_is(Status.OK)
+        self.wakeupAfter(timedelta(seconds=1), "resume_monitoring")
 
     @overrides
     def _request_set_rtc_at_is(self, confirm=False):
@@ -337,20 +368,26 @@ class UsbActor(DeviceBaseActor):
     ):
         super()._request_start_monitoring_at_is(start_time, confirm)
         self.reserve_device_msg = ReserveDeviceMsg(
-            host="localhost", user="self", app="self"
+            host="localhost", user="self", app="monitoring"
         )
         self._handle_reserve_reply_from_is(Status.OK)
-        if start_time is None:
-            offset = timedelta(0)
-            self._start_monitoring()
+        if Frontend.MQTT in frontend_config:
+            status = Status.OK
         else:
-            offset = start_time - datetime.now(timezone.utc)
-            self.wakeupAfter(offset, payload="start_monitoring")
+            # TODO try to start MQTT frontend
+            status = Status.OK
+        offset = max(start_time - datetime.now(timezone.utc), timedelta(0))
         self._handle_start_monitoring_reply_from_is(
-            Status.OK,
+            status,
             confirm=confirm,
             offset=offset,
         )
+        if offset > timedelta(0):
+            logger.info("Monitoring Mode will be started in %s", offset)
+            self.wakeupAfter(offset, payload="start_monitoring")
+        else:
+            logger.info("Monitoring Mode will be started now")
+            self._start_monitoring()
 
     def _start_monitoring(self):
         self._start_thread(
@@ -360,10 +397,15 @@ class UsbActor(DeviceBaseActor):
             )
         )
 
+    def _stop_monitoring(self):
+        self.mon_state.monitoring_active = False
+        # TODO maybe other things?
+
     def _start_monitoring_function(self):
         self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
-        logger.info("Start monitoring mode of %s now", self.my_id)
+        logger.debug("Start monitoring mode of %s now", self.my_id)
         cycle_index = 0
+        success = False
         try:
             success = self.instrument.start_cycle(cycle_index)
             logger.info(
@@ -377,6 +419,7 @@ class UsbActor(DeviceBaseActor):
             )
         if not success:
             logger.error("Start/Stop not supported by %s", self.my_id)
+        self.mon_state.monitoring_active = True
 
         # for component in self.instrument:
         #     for sensor in component:

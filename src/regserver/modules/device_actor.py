@@ -362,6 +362,7 @@ class DeviceBaseActor(BaseActor):
                 logger.debug("Instr. was not reserved before.")
                 success = Status.OK_SKIPPED
         self.return_message = ReservationStatusMsg(self.instr_id, success)
+        logger.debug(self.device_status)
         if self.child_actors:
             self._forward_to_children(KillMsg())
         else:
