@@ -534,28 +534,6 @@ class MqttClientActor(MqttBaseActor):
             )
             self.resurrect_msg.is_id = ""
 
-    def receiveMsg_MqttSubscribeMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler for MqttSubscribeMsg from MQTT Device Actor (child)"""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        for subscription in msg.sub_info:
-            self.mqttc.subscribe(subscription[0], subscription[1])
-
-    def receiveMsg_MqttUnsubscribeMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler for MqttUnsubscribeMsg from MQTT Device Actor (child)"""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        for topic in msg.topics:
-            self.mqttc.unsubscribe(topic)
-
-    def receiveMsg_MqttPublishMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler for MqttPublishMsg from MQTT Device Actor (child)"""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.mqttc.publish(
-            topic=msg.topic, payload=msg.payload, qos=msg.qos, retain=msg.retain
-        )
-
     @overrides
     def receiveMsg_WakeupMessage(self, msg, sender):
         super().receiveMsg_WakeupMessage(msg, sender)
