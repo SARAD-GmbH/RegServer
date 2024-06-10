@@ -341,7 +341,12 @@ class MqttSchedulerActor(MqttBaseActor):
     def _remove_instrument(self, device_id):
         # pylint: disable=invalid-name
         """Removes an instrument from the list of available instruments."""
-        self._unsubscribe_from_device_status_msg(self.actor_dict[device_id]["address"])
+        try:
+            self._unsubscribe_from_device_status_msg(
+                self.actor_dict[device_id]["address"]
+            )
+        except KeyError:
+            logger.warning("Cannot unsubscribe %s from DeviceStatusMsg", device_id)
         if self.reservations.pop(device_id, None) is not None:
             logger.info("Remove %s", device_id)
             instr_id = short_id(device_id)
