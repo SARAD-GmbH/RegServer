@@ -15,7 +15,7 @@ from threading import Thread
 
 import requests  # type: ignore
 from overrides import overrides  # type: ignore
-from regserver.actor_messages import (Gps, RecentValueMsg,
+from regserver.actor_messages import (Gps, KillMsg, RecentValueMsg,
                                       ReservationStatusMsg, Status)
 from regserver.config import config
 from regserver.hostname_functions import compare_hostnames
@@ -89,8 +89,6 @@ class DeviceActor(DeviceBaseActor):
             },
             daemon=True,
         )
-        self.next_method = None
-        self.next_method_kwargs = {}
 
     def _http_get_function(self, endpoint="", params=None, purpose=Purpose.SETUP):
         try:
@@ -115,7 +113,7 @@ class DeviceActor(DeviceBaseActor):
                     if ident is None:
                         logger.error("No Identification section available.")
                         self.success = Status.NOT_FOUND
-        self._handle_http_reply(purpose, params)
+        self._handle_http_reply(purpose)
 
     def _http_post_function(self, endpoint="", params=None, purpose=Purpose.GENERAL):
         try:
@@ -130,22 +128,20 @@ class DeviceActor(DeviceBaseActor):
             if not self.response:
                 logger.error("%s not available", self.device_id)
                 self.success = Status.NOT_FOUND
-        self._handle_http_reply(purpose, params)
+        self._handle_http_reply(purpose)
 
-    def _handle_http_reply(
-        self, purpose: Purpose, params
-    ):  # pylint: disable=too-many-branches
+    def _handle_http_reply(self, purpose: Purpose):
+        # pylint: disable=too-many-branches
         if purpose == Purpose.SETUP:
-            self.next_method = self._finish_setup_mdns_actor
+            self._finish_setup_mdns_actor()
         elif purpose == Purpose.WAKEUP:
-            self.next_method = self._finish_wakeup
+            self._finish_wakeup()
         elif purpose == Purpose.RESERVE:
-            self.next_method = self._finish_reserve
+            self._finish_reserve()
         elif purpose == Purpose.FREE:
-            self.next_method = self._finish_free
+            self._finish_free()
         elif purpose == Purpose.VALUE:
             logger.debug("Target responded: %s", self.response)
-            self.next_method = self._handle_recent_value_reply_from_is
             if self.success == Status.OK:
                 error_code = self.response.get("Error code", 0)
                 if error_code:
@@ -184,42 +180,39 @@ class DeviceActor(DeviceBaseActor):
                     status=self.success,
                     instr_id=self.instr_id,
                 )
-            self.next_method_kwargs = {"answer": answer}
+            self._handle_recent_value_reply_from_is(answer)
         elif purpose == Purpose.STATUS:
-            self.next_method = self._finish_set_device_status
+            self._finish_set_device_status()
         elif purpose == Purpose.SET_RTC:
             logger.info("Target responded to Set-RTC request: %s", self.response)
-            self.next_method = self._handle_set_rtc_reply_from_is
             if self.success == Status.OK:
                 error_code = self.response.get("Error code", 98)
             else:
                 error_code = self.success
-            self.next_method_kwargs = {
-                "status": Status(error_code),
-                "confirm": True,
-                "utc_offset": self.response.get("UTC offset", -13),
-                "wait": self.response.get("Wait", 0),
-            }
+            self._handle_set_rtc_reply_from_is(
+                status=Status(error_code),
+                confirm=True,
+                utc_offset=self.response.get("UTC offset", -13),
+                wait=self.response.get("Wait", 0),
+            )
         elif purpose == Purpose.MONITOR:
             logger.info(
                 "Target responded to Start-Monitoring request: %s", self.response
             )
-            self.next_method = self._handle_start_monitoring_reply_from_is
             if self.success == Status.OK:
                 error_code = self.response.get("Error code", 98)
             else:
                 error_code = self.success
-            self.next_method_kwargs = {
-                "status": Status(error_code),
-                "confirm": True,
-                "offset": timedelta(seconds=self.response.get("Offset", 0)),
-            }
+            self._handle_start_monitoring_reply_from_is(
+                status=Status(error_code),
+                confirm=True,
+                offset=timedelta(seconds=self.response.get("Offset", 0)),
+            )
 
     def _start_thread(self, thread):
         if not self.request_thread.is_alive():
             self.request_thread = thread
             self.request_thread.start()
-            self.wakeupAfter(timedelta(seconds=0.5), payload="request")
         else:
             self.wakeupAfter(
                 timedelta(seconds=0.5),
@@ -274,14 +267,7 @@ class DeviceActor(DeviceBaseActor):
     def receiveMsg_WakeupMessage(self, msg, _sender):
         # pylint: disable=invalid-name
         """Handle WakeupMessage for regular updates"""
-        if msg.payload == "request":
-            if self.next_method is None:
-                self.wakeupAfter(timedelta(seconds=0.5), payload=msg.payload)
-            else:
-                self.next_method(**self.next_method_kwargs)
-                self.next_method = None
-                self.next_method_kwargs = {}
-        elif msg.payload == "update":
+        if msg.payload == "update":
             if self.occupied:
                 try:
                     logger.debug(
@@ -356,7 +342,12 @@ class DeviceActor(DeviceBaseActor):
             success = self.success
         if self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
             self._kill_myself()
-        super()._handle_free_reply_from_is(success)
+        self.return_message = ReservationStatusMsg(self.instr_id, success)
+        logger.debug(self.device_status)
+        if self.child_actors:
+            self._forward_to_children(KillMsg())
+        else:
+            self._send_reservation_status_msg()
 
     @overrides
     def _request_reserve_at_is(self):
@@ -430,7 +421,7 @@ class DeviceActor(DeviceBaseActor):
     @overrides
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         super().receiveMsg_SetDeviceStatusMsg(msg, sender)
-        if not (self.reserve_lock or self.free_lock):
+        if not (self.reserve_lock.value or self.free_lock.value):
             self.occupied = False
             if self.device_status:
                 self.device_status["Reservation"] = msg.device_status.get("Reservation")

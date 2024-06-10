@@ -121,7 +121,6 @@ class MdnsListener(ServiceListener):
                 },
                 "Reservation": {
                     "Active": occupied,
-                    "Host": "unknown",
                 },
             }
         }

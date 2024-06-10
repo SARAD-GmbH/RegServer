@@ -335,7 +335,7 @@ class UsbActor(DeviceBaseActor):
     def _request_set_rtc_at_is(self, confirm=False):
         super()._request_set_rtc_at_is(confirm)
         self.reserve_device_msg = ReserveDeviceMsg(
-            host="localhost", user="self", app="self"
+            host="localhost", user="self", app="set-rtc"
         )
         self._handle_reserve_reply_from_is(Status.OK)
         sarad_type = get_sarad_type(self.instr_id)
