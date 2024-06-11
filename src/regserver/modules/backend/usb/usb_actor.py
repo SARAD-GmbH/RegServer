@@ -17,11 +17,11 @@ from threading import Thread
 from hashids import Hashids  # type: ignore
 from overrides import overrides
 from regserver.actor_messages import (ControlFunctionalityMsg, Frontend, Gps,
-                                      RecentValueMsg, RescanMsg,
-                                      ReserveDeviceMsg, RxBinaryMsg,
+                                      MqttPublishMsg, RecentValueMsg,
+                                      RescanMsg, ReserveDeviceMsg, RxBinaryMsg,
                                       SetDeviceStatusMsg, Status)
 from regserver.config import (config, frontend_config, monitoring_config,
-                              usb_backend_config)
+                              mqtt_config, unique_id, usb_backend_config)
 from regserver.helpers import get_sarad_type, short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
@@ -98,6 +98,7 @@ class UsbActor(DeviceBaseActor):
             self.my_id,
             sender,
         )
+        self._subscribe_to_actor_dict_msg()
         family_id = msg.family["family_id"]
         if msg.poll:
             self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
@@ -132,10 +133,8 @@ class UsbActor(DeviceBaseActor):
             "State": 2,
         }
         self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
-        monitoring_config_for_instr = monitoring_config.get(self.instr_id, {})
-        self.mon_state.monitoring_shall_be_active = monitoring_config_for_instr.get(
-            "active", False
-        )
+        monitoring_conf = monitoring_config.get(self.instr_id, {})
+        self.mon_state.monitoring_shall_be_active = monitoring_conf.get("active", False)
         if self.mon_state.monitoring_shall_be_active:
             logger.debug("Monitoring mode for %s shall be active", self.instr_id)
             self._request_start_monitoring_at_is(confirm=False)
@@ -183,10 +182,6 @@ class UsbActor(DeviceBaseActor):
                 else:
                     self._request_start_monitoring_at_is()
                     logger.info("Resume monitoring mode at %s", self.my_id)
-        # elif msg.payload == "get_values":
-        #     self._get_recent_value(
-        #         sender=None, component=component, sensor=sensor, measurand=measurand
-        #     )
 
     def _finish_poll(self):
         """Finalize the handling of WakeupMessage for regular rescan"""
@@ -412,33 +407,79 @@ class UsbActor(DeviceBaseActor):
 
     def _start_monitoring_function(self):
         self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
-        logger.debug("Start monitoring mode of %s now", self.my_id)
-        cycle_index = 0
-        success = False
-        try:
-            success = self.instrument.start_cycle(cycle_index)
-            logger.info(
-                "Device %s started with cycle_index %d",
-                self.instrument.device_id,
-                cycle_index,
-            )
-        except Exception as exception:  # pylint: disable=broad-except
-            logger.error(
-                "Failed to start cycle on %s. Exception: %s", self.my_id, exception
-            )
-        if not success:
-            logger.error("Start/Stop not supported by %s", self.my_id)
+        monitoring_conf = monitoring_config.get(self.instr_id, {})
+        cycle = monitoring_conf.get("cycle", 0)
+        if cycle:
+            success = False
+            try:
+                success = self.instrument.start_cycle(cycle)
+                logger.info(
+                    "Device %s started with cycle %d",
+                    self.instrument.device_id,
+                    cycle,
+                )
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.error(
+                    "Failed to start cycle on %s. Exception: %s", self.my_id, exception
+                )
+            if not success:
+                logger.error("Start/Stop not supported by %s", self.my_id)
+        else:
+            logger.error("Error in config.toml. Cycle not configured.")
+            self.mon_state.monitoring_active = False
+            self._request_free_at_is()
+            return
         self.mon_state.monitoring_active = True
+        logger.info("Monitoring mode started at %s", self.my_id)
+        for value in monitoring_conf.get("values", []):
+            # TODO Publish meta data
+            interval = value.get("interval", 600)
+            self.wakeupAfter(
+                timedelta(seconds=interval),
+                Thread(
+                    target=self._get_recent_value_for_monitoring,
+                    kwargs={
+                        "component": value.get("component", 0),
+                        "sensor": value.get("sensor", 0),
+                        "measurand": value.get("measurand", 0),
+                        "interval": interval,
+                    },
+                    daemon=True,
+                ),
+            )
 
-        # for component in self.instrument:
-        #     for sensor in component:
-        #         for measurand in sensor:
-        #             self._get_recent_value(
-        #                 sender=None,
-        #                 component=list(self.instrument).index(component),
-        #                 sensor=list(component).index(sensor),
-        #                 measurand=list(sensor).index(measurand),
-        #             )
+    def _publish_value(
+        self,
+        answer: RecentValueMsg,
+        component: int,
+        sensor: int,
+        measurand: int,
+    ):
+        """Publish a value via MqttScheduler.
+
+        This is part of the Monitoring Mode functionality.
+
+        """
+
+        qos = mqtt_config["QOS"]
+        group = mqtt_config["GROUP"]
+        client_id = unique_id(config["IS_ID"])
+        topic = f"{group}/{client_id}/{self.instr_id}/{component}/{sensor}/{measurand}/value"
+        if component == 255:
+            if answer.gps and answer.gps.valid:
+                gps = answer.gps
+                valid = 1
+                payload = f"{valid},{gps.latitude},{gps.longitude},{gps.altitude},{gps.deviation}"
+            else:
+                valid = 0
+                payload = f"{valid}"
+        else:
+            payload = f"{answer.operator},{answer.value}"
+        if self.actor_dict.get("mqtt_scheduler", False):
+            self.send(
+                self.actor_dict["mqtt_scheduler"]["address"],
+                MqttPublishMsg(topic=topic, payload=payload, qos=qos, retain=False),
+            )
 
     @overrides
     def receiveMsg_BaudRateMsg(self, msg, sender):
@@ -458,7 +499,6 @@ class UsbActor(DeviceBaseActor):
             Thread(
                 target=self._get_recent_value,
                 kwargs={
-                    "sender": sender,
                     "component": msg.component,
                     "sensor": msg.sensor,
                     "measurand": msg.measurand,
@@ -467,68 +507,86 @@ class UsbActor(DeviceBaseActor):
             )
         )
 
-    def _get_recent_value(self, sender, component, sensor, measurand):
+    def _get_recent_value(self, component, sensor, measurand):
         # pylint: disable=too-many-arguments
-        answer = RecentValueMsg(status=Status.CRITICAL, instr_id=self.instr_id)
-        if sender is None:
-            sender = self.registrar
+        answer = self._get_recent_value_inner(component, sensor, measurand)
+        self._request_free_at_is()
+        self._handle_recent_value_reply_from_is(answer)
+
+    def _get_recent_value_for_monitoring(self, component, sensor, measurand, interval):
+        # pylint: disable=too-many-arguments
+        if self.mon_state.monitoring_active:
+            answer = self._get_recent_value_inner(component, sensor, measurand)
+            self._publish_value(answer, component, sensor, measurand)
+            self.wakeupAfter(
+                timedelta(seconds=interval),
+                Thread(
+                    target=self._get_recent_value_for_monitoring,
+                    kwargs={
+                        "component": component,
+                        "sensor": sensor,
+                        "measurand": measurand,
+                        "interval": interval,
+                    },
+                    daemon=True,
+                ),
+            )
+
+    def _get_recent_value_inner(
+        self, component: int, sensor: int, measurand: int
+    ) -> RecentValueMsg:
         try:
             reply = self.instrument.get_recent_value(component, sensor, measurand)
         except (IndexError, AttributeError):
-            answer = RecentValueMsg(status=Status.INDEX_ERROR, instr_id=self.instr_id)
-        else:
-            logger.debug(
-                "get_recent_value(%d, %d, %d) came back with %s",
-                component,
-                sensor,
-                measurand,
-                reply,
-            )
-            if reply:
-                if reply.get("gps") is None:
-                    gps = Gps(valid=False)
-                elif not reply["gps"].get("valid", False):
-                    if config["LATITUDE"] or config["LONGITUDE"]:
-                        gps = Gps(
-                            valid=True,
-                            latitude=config["LATITUDE"],
-                            longitude=config["LONGITUDE"],
-                            altitude=config["ALTITUDE"],
-                            deviation=0,
-                        )
-                    else:
-                        gps = Gps(valid=False)
-                else:
+            return RecentValueMsg(status=Status.INDEX_ERROR, instr_id=self.instr_id)
+        logger.debug(
+            "get_recent_value(%d, %d, %d) came back with %s",
+            component,
+            sensor,
+            measurand,
+            reply,
+        )
+        if reply:
+            if reply.get("gps") is None:
+                gps = Gps(valid=False)
+            elif not reply["gps"].get("valid", False):
+                if config["LATITUDE"] or config["LONGITUDE"]:
                     gps = Gps(
-                        valid=reply["gps"]["valid"],
-                        latitude=reply["gps"]["latitude"],
-                        longitude=reply["gps"]["longitude"],
-                        altitude=reply["gps"]["altitude"],
-                        deviation=reply["gps"]["deviation"],
+                        valid=True,
+                        latitude=config["LATITUDE"],
+                        longitude=config["LONGITUDE"],
+                        altitude=config["ALTITUDE"],
+                        deviation=0,
                     )
-                answer = RecentValueMsg(
-                    status=Status.OK,
-                    instr_id=self.instr_id,
-                    component_name=reply["component_name"],
-                    sensor_name=reply["sensor_name"],
-                    measurand_name=reply["measurand_name"],
-                    measurand=reply["measurand"],
-                    operator=reply["measurand_operator"],
-                    value=reply["value"],
-                    unit=reply["measurand_unit"],
-                    timestamp=reply["datetime"].timestamp(),
-                    utc_offset=self.instrument.utc_offset,
-                    sample_interval=reply["sample_interval"].total_seconds(),
-                    gps=gps,
-                )
+                else:
+                    gps = Gps(valid=False)
             else:
-                answer = RecentValueMsg(
-                    status=Status.INDEX_ERROR,
-                    instr_id=self.instr_id,
+                gps = Gps(
+                    valid=reply["gps"]["valid"],
+                    latitude=reply["gps"]["latitude"],
+                    longitude=reply["gps"]["longitude"],
+                    altitude=reply["gps"]["altitude"],
+                    deviation=reply["gps"]["deviation"],
                 )
-        finally:
-            self._request_free_at_is()
-            self._handle_recent_value_reply_from_is(answer)
+            return RecentValueMsg(
+                status=Status.OK,
+                instr_id=self.instr_id,
+                component_name=reply["component_name"],
+                sensor_name=reply["sensor_name"],
+                measurand_name=reply["measurand_name"],
+                measurand=reply["measurand"],
+                operator=reply["measurand_operator"],
+                value=reply["value"],
+                unit=reply["measurand_unit"],
+                timestamp=reply["datetime"].timestamp(),
+                utc_offset=self.instrument.utc_offset,
+                sample_interval=reply["sample_interval"].total_seconds(),
+                gps=gps,
+            )
+        return RecentValueMsg(
+            status=Status.INDEX_ERROR,
+            instr_id=self.instr_id,
+        )
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
