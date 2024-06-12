@@ -205,7 +205,7 @@ values_arguments.add_argument(
     required=True,
     help="Index of the measurand. The meaning is provided by the instrument description.\n"
     + "(e. g. 0 - recent, 1 - recent error, 2 - average, 3 - average error)",
-    choices=[0, 1, 2, 3],
+    choices=[0, 1, 2, 3, 4],
     trim=True,
 )
 
@@ -1224,7 +1224,7 @@ class GetLoopPort(Resource):
             }
         cluster_actor = get_actor(registrar_actor, "cluster")
         try:
-            port = request.args.get("port").replace("%2F", "/").strip('"')
+            port = request.args.get("port", "").replace("%2F", "/").strip('"')
         except (IndexError, AttributeError):
             status = Status.ATTRIBUTE_ERROR
         else:
@@ -1270,7 +1270,7 @@ class GetStopPort(Resource):
             }
         cluster_actor = get_actor(registrar_actor, "cluster")
         try:
-            port = request.args.get("port").replace("%2F", "/").strip('"')
+            port = request.args.get("port", "").replace("%2F", "/").strip('"')
         except (IndexError, AttributeError):
             status = Status.ATTRIBUTE_ERROR
         else:
