@@ -401,16 +401,12 @@ class UsbActor(DeviceBaseActor):
 
     def _stop_monitoring(self):
         self.mon_state.monitoring_active = False
+        self._publish_monitoring_stopped()
         if Frontend.MQTT not in frontend_config:
             self.send(
                 self.registrar,
                 ControlFunctionalityMsg(actor_id="mqtt_scheduler", on=False),
             )
-        duration = int(
-            datetime.now(timezone.utc).replace(microsecond=0).timestamp()
-            - self.mon_state.start_timestamp
-        )
-        self._publish_monitoring_stopped(duration)
 
     def _start_monitoring_function(self):
         self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
@@ -546,13 +542,10 @@ class UsbActor(DeviceBaseActor):
                     ),
                 )
 
-    def _publish_monitoring_stopped(self, duration: float):
+    def _publish_monitoring_stopped(self):
         """Publish meta data for the stop of Monitoring Mode via MqttScheduler.
 
         This is part of the Monitoring Mode functionality.
-
-        Args:
-           duration (int): Total time duration of the campaign in seconds.
 
         """
 
@@ -563,7 +556,9 @@ class UsbActor(DeviceBaseActor):
             f"{group}/{client_id}/{self.instr_id}/meta",
             {
                 "start_timestamp": self.mon_state.start_timestamp,
-                "duration": duration,
+                "stop_timestamp": int(
+                    datetime.now(timezone.utc).replace(microsecond=0).timestamp()
+                ),
                 "monitoring_active": self.mon_state.monitoring_active,
             },
         )
