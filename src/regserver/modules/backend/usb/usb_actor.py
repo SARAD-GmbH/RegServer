@@ -9,6 +9,7 @@
 
 """
 
+import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -45,10 +46,12 @@ class MonitoringState:
         monitoring_shall_be_active: True, if the monitoring mode was configured
                                     to be active.
         monitoring_active: True, if the monitoring mode currently is active.
+        start_timestamp (int): Posix timestamp of the start datetime
     """
 
     monitoring_shall_be_active: bool
     monitoring_active: bool
+    start_timestamp: int
 
 
 class UsbActor(DeviceBaseActor):
@@ -68,7 +71,7 @@ class UsbActor(DeviceBaseActor):
             daemon=True,
         )
         self.mon_state = MonitoringState(
-            monitoring_shall_be_active=False, monitoring_active=False
+            monitoring_shall_be_active=False, monitoring_active=False, start_timestamp=0
         )
 
     def _start_thread(self, thread):
@@ -403,7 +406,11 @@ class UsbActor(DeviceBaseActor):
                 self.registrar,
                 ControlFunctionalityMsg(actor_id="mqtt_scheduler", on=False),
             )
-        # TODO maybe other things?
+        duration = int(
+            datetime.now(timezone.utc).replace(microsecond=0).timestamp()
+            - self.mon_state.start_timestamp
+        )
+        self._publish_monitoring_stopped(duration)
 
     def _start_monitoring_function(self):
         self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
@@ -430,9 +437,22 @@ class UsbActor(DeviceBaseActor):
             self._request_free_at_is()
             return
         self.mon_state.monitoring_active = True
+        self.mon_state.start_timestamp = int(
+            datetime.now(timezone.utc).replace(microsecond=0).timestamp()
+        )
         logger.info("Monitoring mode started at %s", self.my_id)
         for value in monitoring_conf.get("values", []):
-            # TODO Publish meta data
+            self._start_thread(
+                Thread(
+                    target=self._get_meta_data,
+                    kwargs={
+                        "component": value.get("component", 0),
+                        "sensor": value.get("sensor", 0),
+                        "measurand": value.get("measurand", 0),
+                    },
+                    daemon=True,
+                )
+            )
             interval = value.get("interval", 600)
             self.wakeupAfter(
                 timedelta(seconds=interval),
@@ -474,12 +494,88 @@ class UsbActor(DeviceBaseActor):
                 valid = 0
                 payload = f"{valid}"
         else:
-            payload = f"{answer.operator},{answer.value}"
+            payload = f"{answer.operator},{answer.value},{int(answer.timestamp)}"
         if self.actor_dict.get("mqtt_scheduler", False):
             self.send(
                 self.actor_dict["mqtt_scheduler"]["address"],
                 MqttPublishMsg(topic=topic, payload=payload, qos=qos, retain=False),
             )
+
+    def _publish_meta(
+        self,
+        answer: RecentValueMsg,
+        component: int,
+        sensor: int,
+        measurand: int,
+    ):
+        """Publish meta data for Monitoring Mode via MqttScheduler.
+
+        This is part of the Monitoring Mode functionality.
+
+        """
+
+        qos = mqtt_config["QOS"]
+        group = mqtt_config["GROUP"]
+        client_id = unique_id(config["IS_ID"])
+        i_tp = (
+            f"{group}/{client_id}/{self.instr_id}/meta",
+            {
+                "start_timestamp": self.mon_state.start_timestamp,
+                "monitoring_active": self.mon_state.monitoring_active,
+            },
+        )
+        c_tp = (
+            f"{group}/{client_id}/{self.instr_id}/{component}/meta",
+            {"component_name": answer.component_name},
+        )
+        s_tp = (
+            f"{group}/{client_id}/{self.instr_id}/{component}/{sensor}/meta",
+            {"sensor_name": answer.sensor_name},
+        )
+        m_tp = (
+            f"{group}/{client_id}/{self.instr_id}/{component}/{sensor}/{ measurand }/meta",
+            {"measurand_name": answer.measurand_name, "unit": answer.unit},
+        )
+        tp_list = [i_tp, c_tp, s_tp, m_tp]
+        if self.actor_dict.get("mqtt_scheduler", False):
+            for topic, payload in tp_list:
+                self.send(
+                    self.actor_dict["mqtt_scheduler"]["address"],
+                    MqttPublishMsg(
+                        topic=topic, payload=json.dumps(payload), qos=qos, retain=False
+                    ),
+                )
+
+    def _publish_monitoring_stopped(self, duration: float):
+        """Publish meta data for the stop of Monitoring Mode via MqttScheduler.
+
+        This is part of the Monitoring Mode functionality.
+
+        Args:
+           duration (int): Total time duration of the campaign in seconds.
+
+        """
+
+        qos = mqtt_config["QOS"]
+        group = mqtt_config["GROUP"]
+        client_id = unique_id(config["IS_ID"])
+        i_tp = (
+            f"{group}/{client_id}/{self.instr_id}/meta",
+            {
+                "start_timestamp": self.mon_state.start_timestamp,
+                "duration": duration,
+                "monitoring_active": self.mon_state.monitoring_active,
+            },
+        )
+        tp_list = [i_tp]
+        if self.actor_dict.get("mqtt_scheduler", False):
+            for topic, payload in tp_list:
+                self.send(
+                    self.actor_dict["mqtt_scheduler"]["address"],
+                    MqttPublishMsg(
+                        topic=topic, payload=json.dumps(payload), qos=qos, retain=False
+                    ),
+                )
 
     @overrides
     def receiveMsg_BaudRateMsg(self, msg, sender):
@@ -508,15 +604,17 @@ class UsbActor(DeviceBaseActor):
         )
 
     def _get_recent_value(self, component, sensor, measurand):
-        # pylint: disable=too-many-arguments
         answer = self._get_recent_value_inner(component, sensor, measurand)
         self._request_free_at_is()
         self._handle_recent_value_reply_from_is(answer)
 
     def _get_recent_value_for_monitoring(self, component, sensor, measurand, interval):
-        # pylint: disable=too-many-arguments
         if self.mon_state.monitoring_active:
             answer = self._get_recent_value_inner(component, sensor, measurand)
+            if answer.status == Status.CRITICAL:
+                logger.error("Connection lost to %s", self.my_id)
+                self._kill_myself()
+                return
             self._publish_value(answer, component, sensor, measurand)
             self.wakeupAfter(
                 timedelta(seconds=interval),
@@ -532,12 +630,21 @@ class UsbActor(DeviceBaseActor):
                 ),
             )
 
+    def _get_meta_data(self, component, sensor, measurand):
+        answer = self._get_recent_value_inner(component, sensor, measurand)
+        if answer.status == Status.CRITICAL:
+            logger.error("Connection lost to %s", self.my_id)
+            self._kill_myself()
+            return
+        self._publish_meta(answer, component, sensor, measurand)
+
     def _get_recent_value_inner(
         self, component: int, sensor: int, measurand: int
     ) -> RecentValueMsg:
         try:
             reply = self.instrument.get_recent_value(component, sensor, measurand)
-        except (IndexError, AttributeError):
+        except (IndexError, AttributeError) as exception:
+            logger.error("Error in _get_recent_value_inner: %s", exception)
             return RecentValueMsg(status=Status.INDEX_ERROR, instr_id=self.instr_id)
         logger.debug(
             "get_recent_value(%d, %d, %d) came back with %s",
@@ -584,7 +691,7 @@ class UsbActor(DeviceBaseActor):
                 gps=gps,
             )
         return RecentValueMsg(
-            status=Status.INDEX_ERROR,
+            status=Status.CRITICAL,
             instr_id=self.instr_id,
         )
 
@@ -594,6 +701,8 @@ class UsbActor(DeviceBaseActor):
 
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
+        if self.mon_state.monitoring_active:
+            self._stop_monitoring()
         try:
             self.instrument.release_instrument()
         except AttributeError:
