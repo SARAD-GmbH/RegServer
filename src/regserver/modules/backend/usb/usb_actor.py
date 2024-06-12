@@ -482,16 +482,20 @@ class UsbActor(DeviceBaseActor):
         group = mqtt_config["GROUP"]
         client_id = unique_id(config["IS_ID"])
         topic = f"{group}/{client_id}/{self.instr_id}/{component}/{sensor}/{measurand}/value"
+        timestamp = int(answer.timestamp)
         if component == 255:
             if answer.gps and answer.gps.valid:
                 gps = answer.gps
                 valid = 1
-                payload = f"{valid},{gps.latitude},{gps.longitude},{gps.altitude},{gps.deviation}"
+                payload = (
+                    f"{valid},{gps.latitude},{gps.longitude},{gps.altitude},"
+                    + f"{gps.deviation},{timestamp}"
+                )
             else:
                 valid = 0
                 payload = f"{valid}"
         else:
-            payload = f"{answer.operator},{answer.value},{int(answer.timestamp)}"
+            payload = f"{answer.operator},{answer.value},{timestamp}"
         if self.actor_dict.get("mqtt_scheduler", False):
             self.send(
                 self.actor_dict["mqtt_scheduler"]["address"],
