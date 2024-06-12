@@ -437,6 +437,7 @@ class UsbActor(DeviceBaseActor):
             datetime.now(timezone.utc).replace(microsecond=0).timestamp()
         )
         logger.info("Monitoring mode started at %s", self.my_id)
+        self._publish_instr_meta()
         for value in monitoring_conf.get("values", []):
             self._start_thread(
                 Thread(
@@ -497,6 +498,29 @@ class UsbActor(DeviceBaseActor):
                 MqttPublishMsg(topic=topic, payload=payload, qos=qos, retain=False),
             )
 
+    def _publish_instr_meta(self):
+        """Publish meta data for Monitoring Mode via MqttScheduler.
+
+        This is part of the Monitoring Mode functionality.
+
+        """
+
+        qos = mqtt_config["QOS"]
+        group = mqtt_config["GROUP"]
+        client_id = unique_id(config["IS_ID"])
+        topic = f"{group}/{client_id}/{self.instr_id}/meta"
+        payload = {
+            "start_timestamp": self.mon_state.start_timestamp,
+            "monitoring_active": self.mon_state.monitoring_active,
+        }
+        if self.actor_dict.get("mqtt_scheduler", False):
+            self.send(
+                self.actor_dict["mqtt_scheduler"]["address"],
+                MqttPublishMsg(
+                    topic=topic, payload=json.dumps(payload), qos=qos, retain=False
+                ),
+            )
+
     def _publish_meta(
         self,
         answer: RecentValueMsg,
@@ -513,34 +537,22 @@ class UsbActor(DeviceBaseActor):
         qos = mqtt_config["QOS"]
         group = mqtt_config["GROUP"]
         client_id = unique_id(config["IS_ID"])
-        i_tp = (
-            f"{group}/{client_id}/{self.instr_id}/meta",
-            {
-                "start_timestamp": self.mon_state.start_timestamp,
-                "monitoring_active": self.mon_state.monitoring_active,
-            },
+        topic = (
+            f"{group}/{client_id}/{self.instr_id}/{component}/{sensor}/{measurand}/meta"
         )
-        c_tp = (
-            f"{group}/{client_id}/{self.instr_id}/{component}/meta",
-            {"component_name": answer.component_name},
-        )
-        s_tp = (
-            f"{group}/{client_id}/{self.instr_id}/{component}/{sensor}/meta",
-            {"sensor_name": answer.sensor_name},
-        )
-        m_tp = (
-            f"{group}/{client_id}/{self.instr_id}/{component}/{sensor}/{ measurand }/meta",
-            {"measurand_name": answer.measurand_name, "unit": answer.unit},
-        )
-        tp_list = [i_tp, c_tp, s_tp, m_tp]
+        payload = {
+            "component_name": answer.component_name,
+            "sensor_name": answer.sensor_name,
+            "measurand_name": answer.measurand_name,
+            "unit": answer.unit,
+        }
         if self.actor_dict.get("mqtt_scheduler", False):
-            for topic, payload in tp_list:
-                self.send(
-                    self.actor_dict["mqtt_scheduler"]["address"],
-                    MqttPublishMsg(
-                        topic=topic, payload=json.dumps(payload), qos=qos, retain=False
-                    ),
-                )
+            self.send(
+                self.actor_dict["mqtt_scheduler"]["address"],
+                MqttPublishMsg(
+                    topic=topic, payload=json.dumps(payload), qos=qos, retain=False
+                ),
+            )
 
     def _publish_monitoring_stopped(self):
         """Publish meta data for the stop of Monitoring Mode via MqttScheduler.
@@ -552,25 +564,21 @@ class UsbActor(DeviceBaseActor):
         qos = mqtt_config["QOS"]
         group = mqtt_config["GROUP"]
         client_id = unique_id(config["IS_ID"])
-        i_tp = (
-            f"{group}/{client_id}/{self.instr_id}/meta",
-            {
-                "start_timestamp": self.mon_state.start_timestamp,
-                "stop_timestamp": int(
-                    datetime.now(timezone.utc).replace(microsecond=0).timestamp()
-                ),
-                "monitoring_active": self.mon_state.monitoring_active,
-            },
-        )
-        tp_list = [i_tp]
+        topic = f"{group}/{client_id}/{self.instr_id}/meta"
+        payload = {
+            "start_timestamp": self.mon_state.start_timestamp,
+            "stop_timestamp": int(
+                datetime.now(timezone.utc).replace(microsecond=0).timestamp()
+            ),
+            "monitoring_active": self.mon_state.monitoring_active,
+        }
         if self.actor_dict.get("mqtt_scheduler", False):
-            for topic, payload in tp_list:
-                self.send(
-                    self.actor_dict["mqtt_scheduler"]["address"],
-                    MqttPublishMsg(
-                        topic=topic, payload=json.dumps(payload), qos=qos, retain=False
-                    ),
-                )
+            self.send(
+                self.actor_dict["mqtt_scheduler"]["address"],
+                MqttPublishMsg(
+                    topic=topic, payload=json.dumps(payload), qos=qos, retain=False
+                ),
+            )
 
     @overrides
     def receiveMsg_BaudRateMsg(self, msg, sender):
