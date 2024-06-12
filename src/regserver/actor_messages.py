@@ -811,7 +811,7 @@ class RecentValueMsg:
         value (float): Value of the measurand
         unit (str): Measuring unit for this value
         timestamp (float): POSIX timestamp of the measuring (end of integration interval)
-        utc_offset (int): Offset of the RTC of the instrument to UTC, None if unknown
+        utc_offset (float): Offset of the RTC of the instrument to UTC, None if unknown
         sample_interval (int): Duration of sample interval in seconds
         gps (Gps): Parameters from builtin GPS receiver
     """
@@ -825,8 +825,8 @@ class RecentValueMsg:
     operator: str = ""
     value: float = 0
     unit: str = ""
-    timestamp: Union[float, None] = None
-    utc_offset: Union[int, None] = None
+    timestamp: float = 0
+    utc_offset: Union[float, None] = None
     sample_interval: int = 0
     gps: Union[Gps, None] = None
 
