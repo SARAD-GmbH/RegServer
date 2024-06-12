@@ -18,9 +18,8 @@ Actors created in the actor system
 """
 
 from overrides import overrides  # type: ignore
-from thespian.actors import (Actor, ActorAddress,  # type: ignore
-                             ActorExitRequest, ActorTypeDispatcher,
-                             ChildActorExited)
+from thespian.actors import (ActorAddress, ActorExitRequest,
+                             ActorTypeDispatcher, ChildActorExited)
 
 from regserver.actor_messages import (ActorType, DeadChildMsg,
                                       GetDeviceStatusMsg, KeepAliveMsg,
@@ -62,7 +61,7 @@ class BaseActor(ActorTypeDispatcher):
     @overrides
     def __init__(self):
         super().__init__()
-        self.registrar: Actor = Actor()
+        self.registrar: ActorAddress = ActorAddress(None)
         self.parent: Parent = Parent(parent_id="", parent_address=ActorAddress(None))
         self.my_id: str = ""
         self.actor_type = ActorType.NONE
