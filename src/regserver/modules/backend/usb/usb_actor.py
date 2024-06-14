@@ -446,23 +446,10 @@ class UsbActor(DeviceBaseActor):
                         "component": value.get("component", 0),
                         "sensor": value.get("sensor", 0),
                         "measurand": value.get("measurand", 0),
+                        "interval": value.get("interval", 0),
                     },
                     daemon=True,
                 )
-            )
-            interval = value.get("interval", 600)
-            self.wakeupAfter(
-                timedelta(seconds=interval),
-                Thread(
-                    target=self._get_recent_value_for_monitoring,
-                    kwargs={
-                        "component": value.get("component", 0),
-                        "sensor": value.get("sensor", 0),
-                        "measurand": value.get("measurand", 0),
-                        "interval": interval,
-                    },
-                    daemon=True,
-                ),
             )
 
     def _publish_value(
@@ -637,13 +624,27 @@ class UsbActor(DeviceBaseActor):
                 ),
             )
 
-    def _get_meta_data(self, component, sensor, measurand):
+    def _get_meta_data(self, component, sensor, measurand, interval):
         answer = self._get_recent_value_inner(component, sensor, measurand)
         if answer.status == Status.CRITICAL:
             logger.error("Connection lost to %s", self.my_id)
             self._kill_myself()
             return
         self._publish_meta(answer, component, sensor, measurand)
+        if interval and self.mon_state.monitoring_active:
+            self.wakeupAfter(
+                timedelta(seconds=interval),
+                Thread(
+                    target=self._get_recent_value_for_monitoring,
+                    kwargs={
+                        "component": component,
+                        "sensor": sensor,
+                        "measurand": measurand,
+                        "interval": interval,
+                    },
+                    daemon=True,
+                ),
+            )
 
     def _get_recent_value_inner(
         self, component: int, sensor: int, measurand: int
