@@ -506,11 +506,12 @@ class ReserveDevice(Resource):
             Status.OK_UPDATED,
             Status.OCCUPIED,
         ):
-            logger.debug("After RESERVE operation")
+            device_status = get_device_status_from_registrar(registrar_actor, device_id)
+            logger.debug("After RESERVE registrar said: %s", device_status)
             return {
                 "Error code": status.value,
                 "Error": str(status),
-                device_id: get_device_status_from_registrar(registrar_actor, device_id),
+                device_id: device_status,
             }
         if status in (
             Status.NOT_FOUND,
@@ -569,11 +570,12 @@ class FreeDevice(Resource):
             Status.OK_UPDATED,
             Status.OCCUPIED,
         ):
-            logger.debug("After FREE operation")
+            device_status = get_device_status_from_registrar(registrar_actor, device_id)
+            logger.debug("After FREE registrar said: %s", device_status)
             return {
                 "Error code": status.value,
                 "Error": str(status),
-                device_id: get_device_status_from_registrar(registrar_actor, device_id),
+                device_id: device_status,
             }
         return {
             "Error code": status.value,

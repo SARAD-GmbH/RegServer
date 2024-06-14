@@ -340,6 +340,9 @@ class DeviceActor(DeviceBaseActor):
             self.occupied = False
         else:
             success = self.success
+        self.device_status["Reservation"] = self.response[self.device_id].get(
+            "Reservation", {}
+        )
         if self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
             self._kill_myself()
         self.return_message = ReservationStatusMsg(self.instr_id, success)
