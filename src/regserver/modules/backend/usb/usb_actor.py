@@ -254,7 +254,7 @@ class UsbActor(DeviceBaseActor):
                 try:
                     start_time = datetime.now()
                     reply = self.instrument.get_message_payload(
-                        data, timeout=self.instrument.COM_TIMEOUT
+                        data, timeout=self.instrument.SER_TIMEOUT
                     )
                     stop_time = datetime.now()
                 except (SerialException, OSError, TypeError) as exception:

@@ -22,7 +22,7 @@ from regserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.mapping import id_family_mapping  # type: ignore
 from serial import SerialException  # type: ignore
 
-COM_TIMEOUT = 10
+SER_TIMEOUT = 10
 
 
 class ZigBeeDeviceActor(UsbActor):
@@ -53,7 +53,7 @@ class ZigBeeDeviceActor(UsbActor):
             logger.debug(
                 "With ZigBee we are using only %s", self.instrument.family["serial"]
             )
-        self.instrument.COM_TIMEOUT = COM_TIMEOUT
+        self.instrument.SER_TIMEOUT = SER_TIMEOUT
         try:
             self.instrument.route = route
         except SerialException as exception:

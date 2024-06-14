@@ -20,13 +20,13 @@ from regserver.helpers import decode_instr_id, get_sarad_type, short_id
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
 from regserver.modules.backend.usb.zigbee_device_actor import (
-    COM_TIMEOUT, ZigBeeDeviceActor)
+    SER_TIMEOUT, ZigBeeDeviceActor)
 from sarad.mapping import id_family_mapping  # type: ignore
 from sarad.sari import sarad_family  # type: ignore
 from serial import SerialException  # type: ignore
 
 # period in seconds to ask coordinator for updated instrument list
-SCAN_INTERVAL = 15  # must be longer than COM_TIMEOUT
+SCAN_INTERVAL = 15  # must be longer than SER_TIMEOUT
 
 
 class NetUsbActor(UsbActor):
@@ -53,7 +53,7 @@ class NetUsbActor(UsbActor):
             self.is_connected = False
             return
         self.instrument.route = route
-        self.instrument.COM_TIMEOUT = COM_TIMEOUT
+        self.instrument.SER_TIMEOUT = SER_TIMEOUT
         device_status = {
             "Identification": {
                 "Name": self.instrument.type_name,
