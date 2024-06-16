@@ -371,17 +371,14 @@ class UsbActor(DeviceBaseActor):
             host="localhost", user="self", app="monitoring"
         )
         self._handle_reserve_reply_from_is(Status.OK)
-        if Frontend.MQTT in frontend_config:
-            status = Status.OK
-        else:
+        if Frontend.MQTT not in frontend_config:
             self.send(
                 self.registrar,
                 ControlFunctionalityMsg(actor_id="mqtt_scheduler", on=True),
             )
-            status = Status.OK
         offset = max(start_time - datetime.now(timezone.utc), timedelta(0))
         self._handle_start_monitoring_reply_from_is(
-            status,
+            status=Status.OK,
             confirm=confirm,
             offset=offset,
         )
