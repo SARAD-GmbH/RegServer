@@ -362,6 +362,34 @@ class UsbActor(DeviceBaseActor):
         self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
         self._request_free_at_is()
 
+    def _check_monitoring_config(self) -> bool:
+        """Check correctness of configuration. Return True, if correct."""
+        config_tuples = []
+        try:
+            monitoring_conf = monitoring_config[self.instr_id]
+            for value in monitoring_conf.get("values", []):
+                config_tuples.append(
+                    (value["component"], value["sensor"], value["measurand"])
+                )
+                _interval = value["interval"]
+        except KeyError as exception:
+            logger.error(
+                "Uncomplete [monitoring] section in 'config.toml': %s", exception
+            )
+            return False
+        instr_tuples = []
+        for component, c_obj in self.instrument.components.items():
+            for sensor, s_obj in c_obj.sensors.items():
+                for measurand in s_obj.measurands:
+                    instr_tuples.append((component, sensor, measurand))
+        for config_tuple in config_tuples:
+            if config_tuple not in instr_tuples:
+                logger.error(
+                    "Config tuple %s not in instr_tuples %s", config_tuple, instr_tuples
+                )
+                return False
+        return True
+
     @overrides
     def _request_start_monitoring_at_is(
         self, start_time=datetime.now(timezone.utc), confirm=False
@@ -376,18 +404,29 @@ class UsbActor(DeviceBaseActor):
                 self.registrar,
                 ControlFunctionalityMsg(actor_id="mqtt_scheduler", on=True),
             )
+        if self._check_monitoring_config():
+            status = Status.OK
+        else:
+            status = Status.INDEX_ERROR
         offset = max(start_time - datetime.now(timezone.utc), timedelta(0))
         self._handle_start_monitoring_reply_from_is(
-            status=Status.OK,
+            status=status,
             confirm=confirm,
             offset=offset,
         )
-        if offset > timedelta(0):
-            logger.info("Monitoring Mode will be started in %s", offset)
-            self.wakeupAfter(offset, payload="start_monitoring")
+        if status == Status.OK:
+            if offset > timedelta(0):
+                logger.info("Monitoring Mode will be started in %s", offset)
+                self.wakeupAfter(offset, payload="start_monitoring")
+            else:
+                logger.info("Monitoring Mode will be started now")
+                self._start_monitoring()
         else:
-            logger.info("Monitoring Mode will be started now")
-            self._start_monitoring()
+            logger.error(
+                "Cannot start monitoring mode because of error in 'config.toml'"
+            )
+            self.mon_state.monitoring_shall_be_active = False
+            self._request_free_at_is()
 
     def _start_monitoring(self):
         self._start_thread(
