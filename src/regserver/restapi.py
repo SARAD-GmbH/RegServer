@@ -843,6 +843,9 @@ class StartMonitoring(Resource):
 
         """
         args = start_arguments.parse_args()
+        start_time = args["start_time"]
+        if start_time is None:
+            start_time = datetime.now(timezone.utc)
         registrar_actor = get_registrar_actor()
         if registrar_actor is None:
             logger.critical("No response from Actor System. -> Emergency shutdown")
@@ -855,7 +858,7 @@ class StartMonitoring(Resource):
                         reply = start_sys.ask(
                             registrar_actor,
                             StartMonitoringMsg(
-                                start_time=args["start_time"], instr_id=instr_id
+                                instr_id=instr_id, start_time=start_time
                             ),
                             timeout=timedelta(seconds=60),
                         )
