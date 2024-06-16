@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum, IntEnum, unique
 from typing import Any, Dict, List, Tuple, Union
 
+from sarad.instrument import Gps
 from sarad.sari import FamilyDict, Route  # type: ignore
 from thespian.actors import ActorAddress  # type: ignore
 
@@ -781,17 +782,6 @@ class GetRecentValueMsg:
     component: int
     sensor: int
     measurand: int
-
-
-@dataclass
-class Gps:
-    """GPS data"""
-
-    valid: bool
-    latitude: float = 0
-    longitude: float = 0
-    altitude: float = 0
-    deviation: float = 0
 
 
 @dataclass

@@ -15,13 +15,14 @@ from threading import Thread
 
 import requests  # type: ignore
 from overrides import overrides  # type: ignore
-from regserver.actor_messages import (Gps, KillMsg, RecentValueMsg,
+from regserver.actor_messages import (KillMsg, RecentValueMsg,
                                       ReservationStatusMsg, Status)
 from regserver.config import config
 from regserver.hostname_functions import compare_hostnames
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
 from requests.adapters import HTTPAdapter  # type: ignore
+from sarad.instrument import Gps
 from urllib3.util.retry import Retry  # type: ignore
 
 CMD_CYCLE_TIMEOUT = 1

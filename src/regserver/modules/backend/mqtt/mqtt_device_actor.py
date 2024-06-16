@@ -14,13 +14,14 @@ from datetime import datetime, timedelta, timezone
 from typing import TypedDict
 
 from overrides import overrides  # type: ignore
-from regserver.actor_messages import (Gps, MqttPublishMsg, MqttSubscribeMsg,
+from regserver.actor_messages import (MqttPublishMsg, MqttSubscribeMsg,
                                       MqttUnsubscribeMsg, RecentValueMsg,
                                       ResurrectMsg, RxBinaryMsg, Status)
 from regserver.config import mqtt_config
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
+from sarad.instrument import Gps
 
 
 class ReserveDict(TypedDict):

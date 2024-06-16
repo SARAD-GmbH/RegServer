@@ -17,7 +17,7 @@ from threading import Thread
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides
-from regserver.actor_messages import (ControlFunctionalityMsg, Frontend, Gps,
+from regserver.actor_messages import (ControlFunctionalityMsg, Frontend,
                                       MqttPublishMsg, RecentValueMsg,
                                       RescanMsg, ReserveDeviceMsg, RxBinaryMsg,
                                       SetDeviceStatusMsg, Status)
@@ -26,6 +26,7 @@ from regserver.config import (config, frontend_config, monitoring_config,
 from regserver.helpers import get_sarad_type, short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
+from sarad.instrument import Gps
 from sarad.mapping import id_family_mapping  # type: ignore
 from sarad.sari import SaradInst  # type: ignore
 from serial import SerialException  # type: ignore
@@ -649,6 +650,42 @@ class UsbActor(DeviceBaseActor):
     def _get_recent_value_inner(
         self, component: int, sensor: int, measurand: int
     ) -> RecentValueMsg:
+        if component == 255:
+            gps = self.instrument.geopos
+            if not gps.valid and not gps.timestamp:
+                logger.info("Initialize instrument position from config.toml")
+                if config["LATITUDE"] or config["LONGITUDE"]:
+                    gps = Gps(
+                        valid=True,
+                        timestamp=int(datetime.now(timezone.utc).timestamp()),
+                        latitude=config["LATITUDE"],
+                        longitude=config["LONGITUDE"],
+                        altitude=config["ALTITUDE"],
+                        deviation=0,
+                    )
+                    self.instrument.geopos = gps
+            c_obj = self.instrument.components[component]
+            s_obj = c_obj.sensors.get(sensor, False)
+            if not s_obj:
+                return RecentValueMsg(status=Status.INDEX_ERROR, instr_id=self.instr_id)
+            m_obj = s_obj.measurands.get(measurand, False)
+            if not m_obj:
+                return RecentValueMsg(status=Status.INDEX_ERROR, instr_id=self.instr_id)
+            return RecentValueMsg(
+                status=Status.OK,
+                instr_id=self.instr_id,
+                component_name=c_obj.name,
+                sensor_name=s_obj.name,
+                measurand_name=m_obj.name,
+                measurand="",
+                operator="",
+                value=0,
+                unit="",
+                timestamp=gps.timestamp,
+                utc_offset=self.instrument.utc_offset,
+                sample_interval=0,
+                gps=gps,
+            )
         try:
             reply = self.instrument.get_recent_value(component, sensor, measurand)
         except (IndexError, AttributeError) as exception:
@@ -662,27 +699,21 @@ class UsbActor(DeviceBaseActor):
             reply,
         )
         if reply:
-            if reply.get("gps") is None:
-                gps = Gps(valid=False)
-            elif not reply["gps"].get("valid", False):
+            if not reply["gps"].valid:
                 if config["LATITUDE"] or config["LONGITUDE"]:
                     gps = Gps(
                         valid=True,
+                        timestamp=reply["datetime"].timestamp(),
                         latitude=config["LATITUDE"],
                         longitude=config["LONGITUDE"],
                         altitude=config["ALTITUDE"],
                         deviation=0,
                     )
+                    self.instrument.geopos = gps
                 else:
                     gps = Gps(valid=False)
             else:
-                gps = Gps(
-                    valid=reply["gps"]["valid"],
-                    latitude=reply["gps"]["latitude"],
-                    longitude=reply["gps"]["longitude"],
-                    altitude=reply["gps"]["altitude"],
-                    deviation=reply["gps"]["deviation"],
-                )
+                gps = reply["gps"]
             return RecentValueMsg(
                 status=Status.OK,
                 instr_id=self.instr_id,
