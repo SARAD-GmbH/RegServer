@@ -417,6 +417,11 @@ class UsbActor(DeviceBaseActor):
             offset=offset,
         )
         if status == Status.OK:
+            monitoring_conf = monitoring_config[self.instr_id]
+            if monitoring_conf.get("active", False):
+                self.mon_state.monitoring_shall_be_active = True
+            else:
+                self.mon_state.monitoring_shall_be_active = False
             if offset > timedelta(0):
                 logger.info("Monitoring Mode will be started in %s", offset)
                 self.wakeupAfter(offset, payload="start_monitoring")
