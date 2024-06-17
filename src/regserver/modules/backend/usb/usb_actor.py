@@ -340,14 +340,16 @@ class UsbActor(DeviceBaseActor):
         sarad_type = get_sarad_type(self.instr_id)
         if sarad_type == "sarad-1688":
             seconds_to_full_minute = 60 - datetime.now().time().second
+            wait = seconds_to_full_minute
             self.wakeupAfter(timedelta(seconds=seconds_to_full_minute), "set_rtc")
         else:
             self._set_rtc()
+            wait = 0
         self._handle_set_rtc_reply_from_is(
             Status.OK,
             confirm,
             utc_offset=usb_backend_config["UTC_OFFSET"],
-            wait=seconds_to_full_minute,
+            wait=wait,
         )
 
     def _set_rtc(self):
