@@ -71,6 +71,7 @@ class RedirectorActor(BaseActor):
     def receiveMsg_SetupMsg(self, msg, sender):
         logger.debug("Setup redirector actor")
         super().receiveMsg_SetupMsg(msg, sender)
+        success = False
         for port in rest_frontend_config["PORT_RANGE"]:
             self._address = (self._address[0], port)
             for res in socket.getaddrinfo(
@@ -93,6 +94,8 @@ class RedirectorActor(BaseActor):
                 try:
                     server_socket.bind(sa)
                     server_socket.listen(1)
+                    success = True
+                    break
                 except OSError as exception:
                     logger.error(
                         "Cannot listen on port %d. %s", self._address[1], exception
@@ -100,13 +103,11 @@ class RedirectorActor(BaseActor):
                     server_socket.close()
                     server_socket = socket.socket()
                     self._address = (self._address[0], 0)
-                    continue
-                break
-            if server_socket is not None:
+            if success:
                 break
         logger.debug("Server socket: %s", server_socket)
         self.read_list = [server_socket]
-        if not self._address[1]:
+        if not success:
             logger.critical(
                 "Cannot open socket in the configured port range %s",
                 rest_frontend_config["PORT_RANGE"],
@@ -123,12 +124,13 @@ class RedirectorActor(BaseActor):
             return_msg = SocketMsg(
                 ip_address=self._address[0],
                 port=self._address[1],
-                status=Status.OK_SKIPPED,
+                status=Status.OK,
             )
-        logger.debug("Setup finished with %s", return_msg)
+        logger.debug("Setup of %s finished with %s", self.my_id, return_msg)
         self.send(sender, return_msg)
-        logger.debug("Start socket loop")
-        self.socket_loop_thread.start()
+        if return_msg.status in (Status.OK, Status.OK_SKIPPED):
+            logger.debug("Start socket loop")
+            self.socket_loop_thread.start()
 
     def _cmd_handler(self):
         """Handle a binary SARAD command received via the socket."""

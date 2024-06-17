@@ -379,12 +379,8 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SocketMsg from Redirector Actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        try:
-            assert msg.status in (Status.OK, Status.OK_SKIPPED)
-        except AssertionError:
-            self.return_message = ReservationStatusMsg(
-                self.instr_id, Status.UNKNOWN_PORT
-            )
+        if msg.status not in (Status.OK, Status.OK_SKIPPED):
+            self.return_message = ReservationStatusMsg(self.instr_id, msg.status)
             self._send_reservation_status_msg()
             logger.debug("_send_reservation_status_msg case E")
             return

@@ -516,6 +516,7 @@ class ReserveDevice(Resource):
         if status in (
             Status.NOT_FOUND,
             Status.IS_NOT_FOUND,
+            Status.UNKNOWN_PORT,
         ):
             return {
                 "Error code": status.value,
