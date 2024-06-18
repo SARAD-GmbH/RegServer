@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from threading import Thread
+from time import sleep
 
 from hashids import Hashids  # type: ignore
 from overrides import overrides
@@ -465,6 +466,7 @@ class UsbActor(DeviceBaseActor):
                     self.instrument.device_id,
                     cycle,
                 )
+                sleep(3)  # DACM needs some time to wakeup from standby
             except Exception as exception:  # pylint: disable=broad-except
                 logger.error(
                     "Failed to start cycle on %s. Exception: %s", self.my_id, exception
@@ -671,7 +673,7 @@ class UsbActor(DeviceBaseActor):
     def _get_meta_data(self, component, sensor, measurand, interval):
         answer = self._get_recent_value_inner(component, sensor, measurand)
         if answer.status == Status.CRITICAL:
-            logger.error("Connection lost to %s", self.my_id)
+            logger.error("Connection lost to %s in _get_meta_data", self.my_id)
             self._kill_myself()
             return
         self._publish_meta(answer, component, sensor, measurand)
