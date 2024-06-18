@@ -19,7 +19,7 @@ from regserver.actor_messages import (ActorType, FreeDeviceMsg,
                                       GetDeviceStatusesMsg, GetRecentValueMsg,
                                       RescanMsg, ReserveDeviceMsg, SetRtcMsg,
                                       ShutdownMsg, StartMonitoringMsg, Status,
-                                      TxBinaryMsg)
+                                      StopMonitoringMsg, TxBinaryMsg)
 from regserver.config import config
 from regserver.helpers import diff_of_dicts, short_id, transport_technology
 from regserver.logger import logger
@@ -421,8 +421,10 @@ class MqttSchedulerActor(MqttBaseActor):
                 self.process_value(instr_id, control)
             elif control.ctype == ControlType.CONFIG:
                 self.process_config(instr_id, control)
-            elif control.ctype == ControlType.MONITOR:
+            elif control.ctype == ControlType.MONITOR_START:
                 self.process_monitor(instr_id, control.data.start_time)
+            elif control.ctype == ControlType.MONITOR_STOP:
+                self.process_monitor_stop(instr_id)
             elif control.ctype == ControlType.SET_RTC:
                 self.process_set_rtc(instr_id)
 
@@ -531,13 +533,23 @@ class MqttSchedulerActor(MqttBaseActor):
 
     def process_monitor(self, instr_id: str, start_time: datetime):
         """Sub event handler that will be called from the on_message event
-        handler, when a MQTT control message with a 'monitor' request to start
+        handler, when a MQTT control message with a 'monitor-start' request to start
         the monitoring mode was received for a specific instrument ID.
 
         """
         device_actor, _device_id = self._device_actor(instr_id)
         if device_actor is not None:
             self.send(device_actor, StartMonitoringMsg(instr_id, start_time=start_time))
+
+    def process_monitor_stop(self, instr_id: str):
+        """Sub event handler that will be called from the on_message event
+        handler, when a MQTT control message with a 'monitor-stop' request to stop
+        the monitoring mode was received for a specific instrument ID.
+
+        """
+        device_actor, _device_id = self._device_actor(instr_id)
+        if device_actor is not None:
+            self.send(device_actor, StopMonitoringMsg(instr_id))
 
     def process_set_rtc(self, instr_id):
         """Sub event handler that will be called from the on_message event
@@ -651,10 +663,28 @@ class MqttSchedulerActor(MqttBaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         topic = f"{self.group}/{self.is_id}/{msg.instr_id}/ack"
         message = {
-            "req": "monitor",
+            "req": "monitor-start",
             "client": self.pending_control_action["control"].data.client,
             "status": msg.status.value,
             "offset": msg.offset.total_seconds(),
+        }
+        self.mqttc.publish(
+            topic=topic,
+            payload=json.dumps(message),
+            qos=self.qos,
+            retain=False,
+        )
+        logger.info("Publish %s on %s", message, topic)
+
+    def receiveMsg_StopMonitoringAckMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for StopMonitoringAckMsg from UsbActor."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        topic = f"{self.group}/{self.is_id}/{msg.instr_id}/ack"
+        message = {
+            "req": "monitor-stop",
+            "client": self.pending_control_action["control"].data.client,
+            "status": msg.status.value,
         }
         self.mqttc.publish(
             topic=topic,

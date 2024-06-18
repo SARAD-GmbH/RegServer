@@ -63,7 +63,8 @@ class Purpose(Enum):
     STATUS = 5
     VALUE = 6
     SET_RTC = 7
-    MONITOR = 8
+    MONITOR_START = 8
+    MONITOR_STOP = 9
 
 
 class DeviceActor(DeviceBaseActor):
@@ -196,7 +197,7 @@ class DeviceActor(DeviceBaseActor):
                 utc_offset=self.response.get("UTC offset", -13),
                 wait=self.response.get("Wait", 0),
             )
-        elif purpose == Purpose.MONITOR:
+        elif purpose == Purpose.MONITOR_START:
             logger.info(
                 "Target responded to Start-Monitoring request: %s", self.response
             )
@@ -209,6 +210,15 @@ class DeviceActor(DeviceBaseActor):
                 confirm=True,
                 offset=timedelta(seconds=self.response.get("Offset", 0)),
             )
+        elif purpose == Purpose.MONITOR_STOP:
+            logger.info(
+                "Target responded to Stop-Monitoring request: %s", self.response
+            )
+            if self.success == Status.OK:
+                error_code = self.response.get("Error code", 98)
+            else:
+                error_code = self.success
+            self._handle_stop_monitoring_reply_from_is(status=Status(error_code))
 
     def _start_thread(self, thread):
         if not self.request_thread.is_alive():
@@ -521,9 +531,23 @@ class DeviceActor(DeviceBaseActor):
                 kwargs={
                     "endpoint": f"{self.base_url}/instruments/{self.instr_id}/start-monitoring",
                     "params": {"start_time": start_time.isoformat()},
-                    "purpose": Purpose.MONITOR,
+                    "purpose": Purpose.MONITOR_START,
                 },
                 daemon=True,
             )
         )
         super()._request_start_monitoring_at_is(start_time, confirm)
+
+    @overrides
+    def _request_stop_monitoring_at_is(self):
+        self._start_thread(
+            Thread(
+                target=self._http_post_function,
+                kwargs={
+                    "endpoint": f"{self.base_url}/instruments/{self.instr_id}/stop-monitoring",
+                    "purpose": Purpose.MONITOR_STOP,
+                },
+                daemon=True,
+            )
+        )
+        super()._request_stop_monitoring_at_is()

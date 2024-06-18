@@ -90,11 +90,19 @@ class ConfigReq:
 
 @dataclass
 class MonitorReq:
-    """Data class for storing request information for MONITOR request"""
+    """Data class for storing request information for MONITOR_START request"""
 
     req: str
     client: str
     start_time: datetime
+
+
+@dataclass
+class MonitorStopReq:
+    """Data class for storing request information for MONITOR_STOP request"""
+
+    req: str
+    client: str
 
 
 @dataclass
@@ -112,7 +120,8 @@ class ControlType(Enum):
     FREE = auto()
     RESERVE = auto()
     VALUE = auto()
-    MONITOR = auto()
+    MONITOR_START = auto()
+    MONITOR_STOP = auto()
     CONFIG = auto()
     SET_RTC = auto()
 
@@ -122,7 +131,9 @@ class Control:
     """Data class for storing instrument control messages"""
 
     ctype: ControlType
-    data: Union[Reservation, ValueReq, ConfigReq, MonitorReq, SetRtcReq, None]
+    data: Union[
+        Reservation, ValueReq, ConfigReq, MonitorReq, MonitorStopReq, SetRtcReq, None
+    ]
 
 
 def get_is_meta(data: InstrumentServerMeta) -> str:
@@ -206,25 +217,34 @@ def get_instr_control(json_data, old_reservation) -> Control:
                 measurand=data.get("measurand", 0),
             ),
         )
-    elif req_type == "monitor":
-        logger.debug("[MONITOR] request")
+    elif req_type == "monitor-start":
+        logger.debug("[MONITOR_START] request")
         time_str = data.get("start_time", "")
         if time_str:
             start_time = datetime.fromisoformat(time_str)
         else:
             start_time = datetime.now(timezone.utc)
         result = Control(
-            ctype=ControlType.MONITOR,
+            ctype=ControlType.MONITOR_START,
             data=MonitorReq(
                 req=data.get("req", ""),
                 client=data.get("client", ""),
                 start_time=start_time,
             ),
         )
+    elif req_type == "monitor-stop":
+        logger.debug("[MONITOR_STOP] request")
+        result = Control(
+            ctype=ControlType.MONITOR_STOP,
+            data=MonitorStopReq(
+                req=data.get("req", ""),
+                client=data.get("client", ""),
+            ),
+        )
     elif req_type == "config":
         logger.debug("[CONFIG] request")
         result = Control(
-            ctype=ControlType.MONITOR,
+            ctype=ControlType.CONFIG,
             data=ConfigReq(
                 req=data.get("req", ""),
                 client=data.get("client", ""),

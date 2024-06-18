@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum, IntEnum, unique
 from typing import Any, Dict, List, Tuple, Union
 
-from sarad.instrument import Gps
+from sarad.instrument import Gps  # type: ignore
 from sarad.sari import FamilyDict, Route  # type: ignore
 from thespian.actors import ActorAddress  # type: ignore
 
@@ -924,14 +924,15 @@ class MqttReceiveMsg:
 
 @dataclass
 class StartMonitoringMsg:
-    """Message instructing the Device Actor to (re-)start the measuring
+    """Message instructing the Device Actor to (re-)start the monitoring mode
     at a given time or immediately, respectively.
 
     Args:
         instr_id (str): Id of the instrument
-        start_time (datetime): Date and time to start the measuring on.
-                               If None, the measuring shall start immediately.
+        start_time (datetime): Date and time to start the monitoring mode on.
+                               If None, it shall start immediately.
                                Always given as UTC.
+
     """
 
     instr_id: str
@@ -951,6 +952,30 @@ class StartMonitoringAckMsg:
     instr_id: str
     status: Status
     offset: timedelta
+
+
+@dataclass
+class StopMonitoringMsg:
+    """Message instructing the Device Actor to stop the monitoring mode.
+
+    Args:
+        instr_id (str): Id of the instrument
+    """
+
+    instr_id: str
+
+
+@dataclass
+class StopMonitoringAckMsg:
+    """Confirmation that the StopMonitoringMsg was handled properly.
+
+    Args:
+        instr_id (str): Id of the instrument
+        status (Status): Status of the success of the operation
+    """
+
+    instr_id: str
+    status: Status
 
 
 @dataclass

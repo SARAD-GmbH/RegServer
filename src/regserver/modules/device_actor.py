@@ -17,6 +17,7 @@ from regserver.actor_messages import (ActorType, Frontend, KillMsg,
                                       RecentValueMsg, ReservationStatusMsg,
                                       ReserveDeviceMsg, SetRtcAckMsg,
                                       StartMonitoringAckMsg, Status,
+                                      StopMonitoringAckMsg,
                                       UpdateDeviceStatusMsg)
 from regserver.base_actor import BaseActor
 from regserver.config import frontend_config
@@ -29,6 +30,7 @@ RESERVE_TIMEOUT = timedelta(seconds=10)  # Timeout for RESERVE or FREE operation
 VALUE_TIMEOUT = timedelta(seconds=10)  # Timeout for VALUE operations
 SET_RTC_TIMEOUT = timedelta(seconds=10)  # Timeout for setting the instruments RTC
 START_MONITORING_TIMEOUT = timedelta(seconds=10)  # Timeout for start of monitoring mode
+STOP_MONITORING_TIMEOUT = timedelta(seconds=10)  # Timeout for stop of monitoring mode
 
 
 @dataclass
@@ -499,6 +501,22 @@ class DeviceBaseActor(BaseActor):
         if self.ack_lock.value:
             self.ack_lock.value = False
 
+    def _handle_stop_monitoring_reply_from_is(self, status: Status):
+        # pylint: disable=unused-argument
+        """Forward the acknowledgement received from the Instrument Server to the REST API.
+        This function has to be called in the protocol specific modules.
+
+        Args:
+            status (Status): Info about the success of operation.
+        """
+        self.send(
+            self.sender_api,
+            StopMonitoringAckMsg(self.instr_id, status),
+        )
+        self.sender_api = None
+        if self.ack_lock.value:
+            self.ack_lock.value = False
+
     def _update_reservation_status(self, reservation):
         self.device_status["Reservation"] = reservation
         logger.debug("Reservation state updated: %s", self.device_status)
@@ -580,6 +598,14 @@ class DeviceBaseActor(BaseActor):
         logger.info("%s requested to start monitoring at %s", self.my_id, start_time)
         self.wakeupAfter(START_MONITORING_TIMEOUT, "timeout_on_start_monitoring")
 
+    def _request_stop_monitoring_at_is(self):
+        # pylint: disable=unused-argument
+        """Handler to terminate the monitoring mode on the Device Actor.
+
+        This is only a stub. The method is implemented in the backend Device Actor."""
+        logger.info("%s requested to stop monitoring", self.my_id)
+        self.wakeupAfter(STOP_MONITORING_TIMEOUT, "timeout_on_stop_monitoring")
+
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for TxBinaryMsg from App to Instrument."""
@@ -595,7 +621,7 @@ class DeviceBaseActor(BaseActor):
 
     def receiveMsg_StartMonitoringMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Start measuring at a given time."""
+        """Start monitoring mode at a given time."""
         if msg.instr_id != self.instr_id:
             logger.error("%s for %s from %s", msg, self.my_id, sender)
         else:
@@ -631,6 +657,43 @@ class DeviceBaseActor(BaseActor):
             self.ack_lock.time = datetime.now()
             logger.debug("%s: ack_lock set to %s", self.my_id, self.ack_lock)
             self._request_start_monitoring_at_is(msg.start_time, confirm=True)
+
+    def receiveMsg_StopMonitoringMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Terminate monitoring mode."""
+        if msg.instr_id != self.instr_id:
+            logger.error("%s for %s from %s", msg, self.my_id, sender)
+        else:
+            logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if self.sender_api is None:
+            self.sender_api = sender
+        has_reservation_section = self.device_status.get("Reservation", False)
+        if has_reservation_section:
+            is_reserved = self.device_status["Reservation"].get("Active", False)
+        else:
+            is_reserved = False
+        if not is_reserved:
+            self._handle_stop_monitoring_reply_from_is(status=Status.OK_SKIPPED)
+        else:
+            if self.ack_lock.value:
+                logger.info("%s STOP MONITORING action pending", self.my_id)
+                if datetime.now() - self.ack_lock.time > STOP_MONITORING_TIMEOUT:
+                    logger.warning(
+                        "Pending STOP MONITORING on %s took longer than %s",
+                        self.my_id,
+                        STOP_MONITORING_TIMEOUT,
+                    )
+                    self._kill_myself(resurrect=True)
+                    return
+                self.wakeupAfter(
+                    timedelta(milliseconds=500),
+                    (self.receiveMsg_StopMonitoringMsg, msg, sender),
+                )
+                return
+            self.ack_lock.value = True
+            self.ack_lock.time = datetime.now()
+            logger.debug("%s: ack_lock set to %s", self.my_id, self.ack_lock)
+            self._request_stop_monitoring_at_is()
 
     def receiveMsg_SetRtcMsg(self, msg, sender):
         # pylint: disable=invalid-name

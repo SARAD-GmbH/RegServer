@@ -10,7 +10,6 @@
 """
 
 import os
-import sys
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -32,7 +31,8 @@ from regserver.actor_messages import (AddPortToLoopMsg, BaudRateAckMsg,
                                       ReturnUsbPortsMsg, SetRtcAckMsg,
                                       SetRtcMsg, ShutdownAckMsg, ShutdownMsg,
                                       StartMonitoringAckMsg,
-                                      StartMonitoringMsg, Status)
+                                      StartMonitoringMsg, Status,
+                                      StopMonitoringAckMsg, StopMonitoringMsg)
 from regserver.config import actor_config, mqtt_config
 from regserver.helpers import (check_msg, get_actor,
                                get_device_status_from_registrar,
@@ -208,18 +208,6 @@ values_arguments.add_argument(
     choices=[0, 1, 2, 3, 4],
     trim=True,
 )
-
-
-class Dummy:
-    """Dummy output to ignore stdout"""
-
-    @staticmethod
-    def write(arg=None, **kwargs):
-        """Does Nothing"""
-
-    @staticmethod
-    def flush(arg=None, **kwargs):
-        """Does Nothing"""
 
 
 @root_ns.route("/ping")
@@ -840,7 +828,8 @@ class StartMonitoring(Resource):
         between now and the time the monitoring mode will take effect. If this
         value is negative, the monitoring mode will be started instantly.
 
-        Use the FREE request to terminate the monitoring mode.
+        Use the FREE request to suspend or the STOP-MONITORING request to
+        terminate the monitoring mode.
 
         """
         args = start_arguments.parse_args()
@@ -873,6 +862,40 @@ class StartMonitoring(Resource):
                     "Error code": reply.status.value,
                     "Error": str(reply.status),
                     "Offset": reply.offset.total_seconds(),
+                }
+        return api.abort(404)
+
+
+@instruments_ns.route("/<string:instr_id>/stop-monitoring")
+class StopMonitoring(Resource):
+    # pylint: disable=too-few-public-methods
+    """Stop the monitoring mode at the given instrument."""
+
+    def post(self, instr_id):
+        """Terminate the monitoring mode at the given instrument."""
+        registrar_actor = get_registrar_actor()
+        if registrar_actor is None:
+            logger.critical("No response from Actor System. -> Emergency shutdown")
+            system_shutdown()
+            return api.abort(404)
+        for device_id in get_device_statuses(registrar_actor):
+            if short_id(device_id) == instr_id:
+                with ActorSystem().private() as stop_sys:
+                    try:
+                        reply = stop_sys.ask(
+                            registrar_actor,
+                            StopMonitoringMsg(instr_id=instr_id),
+                            timeout=timedelta(seconds=60),
+                        )
+                    except ConnectionResetError as exception:
+                        logger.debug(exception)
+                        reply = None
+                reply_is_corrupted = check_msg(reply, StopMonitoringAckMsg)
+                if reply_is_corrupted:
+                    return reply_is_corrupted
+                return {
+                    "Error code": reply.status.value,
+                    "Error": str(reply.status),
                 }
         return api.abort(404)
 
@@ -983,7 +1006,7 @@ class GetValues(Resource):
 
     @api.expect(values_arguments, validate=True)
     def get(self, device_id):
-        # pylint: disable=too-many-return-statements
+        # pylint: disable=too-many-return-statements, too-many-branches
         """Gather a measuring value from a SARAD instrument"""
         registrar_actor = get_registrar_actor()
         if registrar_actor is None:
@@ -1350,11 +1373,7 @@ def run(port=None):
     while not success:
         try:
             logger.info("Starting API at port %d", port)
-            std = sys.stdout
-            sys.stdout = Dummy
-            # self.api.run(host=host, port=port)
             serve(app, listen=f"*:{port}", threads=24, connection_limit=200)
-            sys.stdout = std
             success = True
         except OSError as exception:
             logger.critical(exception)

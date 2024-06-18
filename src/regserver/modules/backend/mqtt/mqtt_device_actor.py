@@ -290,16 +290,41 @@ class MqttDeviceActor(DeviceBaseActor):
             MqttSubscribeMsg([(self.allowed_sys_topics["ACK"], self.qos)]),
         )
         self.state["WAIT_FOR_ACK"]["Pending"] = True
-        self.state["WAIT_FOR_ACK"]["req"] = "monitor"
+        self.state["WAIT_FOR_ACK"]["req"] = "monitor-start"
         self.send(
             self.parent.parent_address,
             MqttPublishMsg(
                 topic=self.allowed_sys_topics["CTRL"],
                 payload=json.dumps(
                     {
-                        "req": "monitor",
+                        "req": "monitor-start",
                         "client": mqtt_config["MQTT_CLIENT_ID"],
                         "start_time": start_time,
+                    },
+                    default=str,
+                ),
+                qos=self.qos,
+                retain=False,
+            ),
+        )
+
+    @overrides
+    def _request_stop_monitoring_at_is(self):
+        super()._request_stop_monitoring_at_is()
+        self.send(
+            self.parent.parent_address,
+            MqttSubscribeMsg([(self.allowed_sys_topics["ACK"], self.qos)]),
+        )
+        self.state["WAIT_FOR_ACK"]["Pending"] = True
+        self.state["WAIT_FOR_ACK"]["req"] = "monitor-stop"
+        self.send(
+            self.parent.parent_address,
+            MqttPublishMsg(
+                topic=self.allowed_sys_topics["CTRL"],
+                payload=json.dumps(
+                    {
+                        "req": "monitor-stop",
+                        "client": mqtt_config["MQTT_CLIENT_ID"],
                     },
                     default=str,
                 ),
@@ -379,11 +404,16 @@ class MqttDeviceActor(DeviceBaseActor):
                     wait=ack_dict.get("wait", 0),
                 )
                 self.state["WAIT_FOR_ACK"]["Pending"] = False
-            elif (req == "monitor") and (waiting_for == "monitor"):
+            elif (req == "monitor-start") and (waiting_for == "monitor-start"):
                 self._handle_start_monitoring_reply_from_is(
                     status=Status(ack_dict.get("status", 98)),
                     confirm=True,
                     offset=timedelta(seconds=ack_dict.get("offset", 0)),
+                )
+                self.state["WAIT_FOR_ACK"]["Pending"] = False
+            elif (req == "monitor-stop") and (waiting_for == "monitor-stop"):
+                self._handle_stop_monitoring_reply_from_is(
+                    status=Status(ack_dict.get("status", 98)),
                 )
                 self.state["WAIT_FOR_ACK"]["Pending"] = False
             elif (req == "config") and (waiting_for == "config"):

@@ -26,6 +26,7 @@ from regserver.actor_messages import (ActorType, Backend, BaudRateAckMsg,
                                       SetRtcAckMsg, SetRtcMsg, ShutdownAckMsg,
                                       ShutdownMsg, StartMonitoringAckMsg,
                                       StartMonitoringMsg, Status,
+                                      StopMonitoringAckMsg, StopMonitoringMsg,
                                       UpdateActorDictMsg,
                                       UpdateDeviceStatusesMsg)
 from regserver.base_actor import BaseActor
@@ -489,6 +490,33 @@ class Registrar(BaseActor):
     def receiveMsg_StartMonitoringAckMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Forward the StartMonitoringAckMsg to REST API."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.send(self.rest_api, msg)
+
+    def receiveMsg_StopMonitoringMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forward the StopMonitoringMsg to Device Actors."""
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        success = False
+        for actor_id in self.actor_dict:
+            if self.actor_dict[actor_id]["actor_type"] == ActorType.DEVICE:
+                if (msg.instr_id is None) or (short_id(actor_id) == msg.instr_id):
+                    self.send(
+                        self.actor_dict[actor_id]["address"],
+                        StopMonitoringMsg(instr_id=msg.instr_id),
+                    )
+                    success = True
+                    self.rest_api = sender
+                    break
+        if not success:
+            self.send(
+                sender,
+                StopMonitoringAckMsg(msg.instr_id, Status.NOT_FOUND),
+            )
+
+    def receiveMsg_StopMonitoringAckMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Forward the StopMonitoringAckMsg to REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.send(self.rest_api, msg)
 

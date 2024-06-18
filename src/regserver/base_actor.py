@@ -18,7 +18,7 @@ Actors created in the actor system
 """
 
 from overrides import overrides  # type: ignore
-from thespian.actors import (ActorAddress, ActorExitRequest,
+from thespian.actors import (ActorAddress, ActorExitRequest,  # type: ignore
                              ActorTypeDispatcher, ChildActorExited)
 
 from regserver.actor_messages import (ActorType, DeadChildMsg,

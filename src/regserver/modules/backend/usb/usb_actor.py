@@ -27,7 +27,7 @@ from regserver.config import (config, frontend_config, monitoring_config,
 from regserver.helpers import get_sarad_type, short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
-from sarad.instrument import Gps
+from sarad.instrument import Gps  # type: ignore
 from sarad.mapping import id_family_mapping  # type: ignore
 from sarad.sari import SaradInst  # type: ignore
 from serial import SerialException  # type: ignore
@@ -435,6 +435,27 @@ class UsbActor(DeviceBaseActor):
             )
             self.mon_state.monitoring_shall_be_active = False
             self._request_free_at_is()
+
+    @overrides
+    def _request_stop_monitoring_at_is(self):
+        super()._request_stop_monitoring_at_is()
+        self.mon_state.monitoring_shall_be_active = False
+        has_reservation_section = self.device_status.get("Reservation", False)
+        if has_reservation_section:
+            is_reserved = self.device_status["Reservation"].get("Active", False)
+        else:
+            is_reserved = False
+        if is_reserved and self.mon_state.monitoring_active:
+            self._request_free_at_is()
+            status = Status.OK
+        else:
+            status = Status.OK_SKIPPED
+        self._handle_stop_monitoring_reply_from_is(status=status)
+        if Frontend.MQTT not in frontend_config:
+            self.send(
+                self.registrar,
+                ControlFunctionalityMsg(actor_id="mqtt_scheduler", on=False),
+            )
 
     def _start_monitoring(self):
         self._start_thread(
