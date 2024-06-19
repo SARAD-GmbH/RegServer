@@ -624,7 +624,11 @@ class DeviceBaseActor(BaseActor):
         """Handler to start the monitoring mode on the Device Actor.
 
         This is only a stub. The method is implemented in the backend Device Actor."""
-        logger.info("%s requested to start monitoring at %s", self.my_id, start_time)
+        logger.info(
+            "%s requested to start monitoring at %s",
+            self.my_id,
+            start_time.isoformat(sep="T", timespec="auto"),
+        )
         self.wakeupAfter(START_MONITORING_TIMEOUT, "timeout_on_start_monitoring")
 
     def _request_stop_monitoring_at_is(self):

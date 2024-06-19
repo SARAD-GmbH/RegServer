@@ -559,6 +559,7 @@ class UsbActor(DeviceBaseActor):
         client_id = unique_id(config["IS_ID"])
         topic = f"{group}/{client_id}/{self.instr_id}/meta"
         payload = {
+            "State": 2,
             "start_timestamp": self.mon_state.start_timestamp,
             "monitoring_active": self.mon_state.monitoring_active,
         }
@@ -615,6 +616,7 @@ class UsbActor(DeviceBaseActor):
         client_id = unique_id(config["IS_ID"])
         topic = f"{group}/{client_id}/{self.instr_id}/meta"
         payload = {
+            "State": 2,
             "start_timestamp": self.mon_state.start_timestamp,
             "stop_timestamp": int(
                 datetime.now(timezone.utc).replace(microsecond=0).timestamp()
