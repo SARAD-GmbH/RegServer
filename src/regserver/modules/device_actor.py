@@ -11,13 +11,14 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import List
 
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, Frontend, KillMsg,
                                       RecentValueMsg, ReservationStatusMsg,
-                                      ReserveDeviceMsg, SetRtcAckMsg,
-                                      StartMonitoringAckMsg, Status,
-                                      StopMonitoringAckMsg,
+                                      ReserveDeviceMsg, RxBinaryMsg,
+                                      SetRtcAckMsg, StartMonitoringAckMsg,
+                                      Status, StopMonitoringAckMsg,
                                       UpdateDeviceStatusMsg)
 from regserver.base_actor import BaseActor
 from regserver.config import frontend_config
@@ -28,6 +29,7 @@ from thespian.actors import Actor, ActorSystem  # type: ignore
 
 RESERVE_TIMEOUT = timedelta(seconds=10)  # Timeout for RESERVE or FREE operations
 VALUE_TIMEOUT = timedelta(seconds=10)  # Timeout for VALUE operations
+BIN_TIMEOUT = timedelta(seconds=10)  # Timeout for cmd/msg operations
 SET_RTC_TIMEOUT = timedelta(seconds=10)  # Timeout for setting the instruments RTC
 START_MONITORING_TIMEOUT = timedelta(seconds=10)  # Timeout for start of monitoring mode
 STOP_MONITORING_TIMEOUT = timedelta(seconds=10)  # Timeout for stop of monitoring mode
@@ -39,6 +41,14 @@ class Lock:
 
     value: bool
     time: datetime = datetime.min
+
+
+@dataclass
+class TimeoutMsg:
+    """Payload of a WakupMsg to check for timeout."""
+
+    type: str = "bin_timeout"
+    counter: int = 0
 
 
 class DeviceBaseActor(BaseActor):
@@ -69,6 +79,8 @@ class DeviceBaseActor(BaseActor):
         process has been initialized.
     """
 
+    RET_TIMEOUT = b"B\x80\x7f\x0c\x0c\x00E"
+
     @overrides
     def __init__(self):
         super().__init__()
@@ -86,6 +98,7 @@ class DeviceBaseActor(BaseActor):
         self.free_lock: Lock = Lock(value=False)
         self.value_lock: Lock = Lock(value=False)
         self.ack_lock: Lock = Lock(value=False)
+        self.bin_locks: List[Lock] = []
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -163,6 +176,21 @@ class DeviceBaseActor(BaseActor):
             self._handle_start_monitoring_reply_from_is(
                 status=Status.NOT_FOUND, confirm=True
             )
+        elif isinstance(msg.payload, TimeoutMsg) and msg.payload.type == "bin_timeout":
+            bin_lock = self.bin_locks[msg.payload.counter]
+            logger.debug(
+                "msg.payload.counter=%d, self.bin_locks=%s",
+                msg.payload.counter,
+                self.bin_locks,
+            )
+            if bin_lock.value and (datetime.now() - bin_lock.time > BIN_TIMEOUT):
+                logger.error(
+                    "Timeout in %s on binary command %d",
+                    self.my_id,
+                    msg.payload.counter,
+                )
+                self.bin_locks = []
+                self._handle_bin_reply_from_is(answer=RxBinaryMsg(self.RET_TIMEOUT))
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -223,6 +251,7 @@ class DeviceBaseActor(BaseActor):
             instr_id=self.instr_id, status=success
         )
         if success in [Status.OK, Status.OK_UPDATED, Status.OK_SKIPPED]:
+            self.bin_locks = []
             try:
                 if self.device_status["Reservation"]["Active"]:
                     if (
@@ -599,18 +628,43 @@ class DeviceBaseActor(BaseActor):
         self.wakeupAfter(START_MONITORING_TIMEOUT, "timeout_on_start_monitoring")
 
     def _request_stop_monitoring_at_is(self):
-        # pylint: disable=unused-argument
         """Handler to terminate the monitoring mode on the Device Actor.
 
         This is only a stub. The method is implemented in the backend Device Actor."""
         logger.info("%s requested to stop monitoring", self.my_id)
         self.wakeupAfter(STOP_MONITORING_TIMEOUT, "timeout_on_stop_monitoring")
 
+    def _request_bin_at_is(self, data):
+        # pylint: disable=unused-argument
+        """Handler to forward a binary cmd message into the direction of the
+        instrument.
+
+        This is only a stub. The method is implemented in the backend Device Actor.
+
+        """
+        logger.debug("cmd: %s", data)
+        self.wakeupAfter(
+            BIN_TIMEOUT,
+            TimeoutMsg(type="bin_timeout", counter=len(self.bin_locks) - 1),
+        )
+
+    def _handle_bin_reply_from_is(self, answer: RxBinaryMsg):
+        # pylint: disable=unused-argument
+        """Forward a binary message from the Instrument Server to the redirector.
+        This function has to be called in the protocol specific modules.
+        """
+        self.send(self.redirector_actor, answer)
+        logger.debug(answer.data)
+        if self.bin_locks and self.bin_locks[-1].value:
+            self.bin_locks[-1].value = False
+
     def receiveMsg_TxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for TxBinaryMsg from App to Instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.redirector_actor = sender
+        self.bin_locks.append(Lock(value=True, time=datetime.now()))
+        self._request_bin_at_is(msg.data)
 
     def receiveMsg_BaudRateMsg(self, msg, sender):
         # pylint: disable=invalid-name

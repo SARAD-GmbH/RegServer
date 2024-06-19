@@ -59,8 +59,6 @@ class MonitoringState:
 class UsbActor(DeviceBaseActor):
     """Actor for dealing with direct serial connections via USB or RS-232"""
 
-    RET_TIMEOUT = b"B\x80\x7f\x0c\x0c\x00E"
-
     @overrides
     def __init__(self):
         logger.debug("Initialize a new USB actor.")
@@ -222,14 +220,11 @@ class UsbActor(DeviceBaseActor):
         return b""
 
     @overrides
-    def receiveMsg_TxBinaryMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler for binary message from App to Instrument."""
-        super().receiveMsg_TxBinaryMsg(msg, sender)
+    def _request_bin_at_is(self, data):
         self._start_thread(
             Thread(
                 target=self._tx_binary_proceed,
-                kwargs={"data": msg.data},
+                kwargs={"data": data},
                 daemon=True,
             )
         )
@@ -244,11 +239,11 @@ class UsbActor(DeviceBaseActor):
         if is_reserved:
             dummy_reply = self.dummy_reply(data)
             if dummy_reply:
-                self.send(self.redirector_actor, RxBinaryMsg(dummy_reply))
+                self._handle_bin_reply_from_is(RxBinaryMsg(dummy_reply))
                 return
             if not self.instrument.check_cmd(data):
                 logger.error("Command %s from app is invalid", data)
-                self.send(self.redirector_actor, RxBinaryMsg(b""))
+                self._handle_bin_reply_from_is(RxBinaryMsg(b""))
                 return
             emergency = False
             read_next = True
@@ -270,9 +265,7 @@ class UsbActor(DeviceBaseActor):
                     return
                 logger.debug("Instrument replied %s", reply)
                 if reply["is_valid"]:
-                    self.send(
-                        self.redirector_actor, RxBinaryMsg(reply["standard_frame"])
-                    )
+                    self._handle_bin_reply_from_is(RxBinaryMsg(reply["standard_frame"]))
                     read_next = not reply["is_last_frame"]
                     data = b""
                     continue
@@ -282,7 +275,7 @@ class UsbActor(DeviceBaseActor):
                     stop_time - start_time,
                     reply,
                 )
-                self.send(self.redirector_actor, RxBinaryMsg(self.RET_TIMEOUT))
+                self._handle_bin_reply_from_is(RxBinaryMsg(self.RET_TIMEOUT))
                 return
 
     @overrides
@@ -446,16 +439,12 @@ class UsbActor(DeviceBaseActor):
         else:
             is_reserved = False
         if is_reserved and self.mon_state.monitoring_active:
+            self._stop_monitoring()
             self._request_free_at_is()
             status = Status.OK
         else:
             status = Status.OK_SKIPPED
         self._handle_stop_monitoring_reply_from_is(status=status)
-        if Frontend.MQTT not in frontend_config:
-            self.send(
-                self.registrar,
-                ControlFunctionalityMsg(actor_id="mqtt_scheduler", on=False),
-            )
 
     def _start_monitoring(self):
         self._start_thread(
@@ -468,7 +457,9 @@ class UsbActor(DeviceBaseActor):
     def _stop_monitoring(self):
         self.mon_state.monitoring_active = False
         self._publish_monitoring_stopped()
-        if Frontend.MQTT not in frontend_config:
+        if (
+            Frontend.MQTT not in frontend_config
+        ) and not self.mon_state.monitoring_shall_be_active:
             self.send(
                 self.registrar,
                 ControlFunctionalityMsg(actor_id="mqtt_scheduler", on=False),

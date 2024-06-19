@@ -872,7 +872,15 @@ class StopMonitoring(Resource):
     """Stop the monitoring mode at the given instrument."""
 
     def post(self, instr_id):
-        """Terminate the monitoring mode at the given instrument."""
+        """Terminate the monitoring mode at the given instrument.
+
+        PLEASE NOTE: This won't stop the measuring cycle itself. It only
+        terminates the regular publishing of measuring values to the MQTT
+        broker. Please use either dVision (for DACM instruments) or Radon
+        Vision (for instruments of the Radon Scout family or RTM 1688-2) to
+        stop the running cycle resp. the measuring campaign.
+
+        """
         registrar_actor = get_registrar_actor()
         if registrar_actor is None:
             logger.critical("No response from Actor System. -> Emergency shutdown")

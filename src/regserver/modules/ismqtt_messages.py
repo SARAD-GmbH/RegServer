@@ -176,7 +176,7 @@ def get_instr_control(json_data, old_reservation) -> Control:
         return Control(ControlType.UNKNOWN, nodata)
     req_type = data.get("req", data.get("Req", ""))
     if not req_type:
-        logger.error("No 'Req' or 'req' in payload.")
+        logger.error("No 'Req' or 'req' in payload %s", data)
         result = Control(ctype=ControlType.UNKNOWN, data=nodata)
     elif req_type == "free":
         logger.debug("[FREE] request")

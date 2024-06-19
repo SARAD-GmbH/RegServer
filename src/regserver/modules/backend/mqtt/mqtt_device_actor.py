@@ -21,7 +21,7 @@ from regserver.config import mqtt_config
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
-from sarad.instrument import Gps
+from sarad.instrument import Gps  # type: ignore
 
 
 class ReserveDict(TypedDict):
@@ -114,11 +114,9 @@ class MqttDeviceActor(DeviceBaseActor):
         self.is_id = ""
 
     @overrides
-    def receiveMsg_TxBinaryMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler for TxBinaryMsg from Redirector Actor."""
-        super().receiveMsg_TxBinaryMsg(msg, sender)
-        data = msg.data
+    def _request_bin_at_is(self, data):
+        """Forward cmd data into the direction of the instrument."""
+        super()._request_bin_at_is(data)
         if (data is None) or (not isinstance(data, bytes)):
             logger.error(
                 "[SEND] no data to send or the data are not bytes",
@@ -522,10 +520,7 @@ class MqttDeviceActor(DeviceBaseActor):
                     payload[1:],
                     self.my_id,
                 )
-                self.send(
-                    self.redirector_actor,
-                    RxBinaryMsg(payload[1:]),
-                )
+                self._handle_bin_reply_from_is(RxBinaryMsg(payload[1:]))
                 return
             logger.warning(
                 (
