@@ -122,12 +122,19 @@ class DeviceBaseActor(BaseActor):
                     self.device_status[section] = msg.device_status[section]
         if msg.device_status.get("State", False):
             self.device_status["State"] = msg.device_status["State"]
-        logger.info(
+        logger.debug(
             "%s created or updated at %s. is_id = %s",
             self.my_id,
             self.device_status["Identification"].get("Host"),
             self.device_status["Identification"].get("IS Id"),
         )
+        if msg.device_status.get("Reservation", False):
+            if msg.device_status["Reservation"].get("Active", False):
+                if not msg.device_status["Reservation"].get("Host", False):
+                    logger.warning(
+                        "Uncomplete reservation information -> Don't publish."
+                    )
+                    return
         self._publish_status_change()
 
     def receiveMsg_WakeupMessage(self, msg, sender):

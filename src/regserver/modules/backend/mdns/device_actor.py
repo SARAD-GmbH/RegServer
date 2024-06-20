@@ -434,8 +434,8 @@ class DeviceActor(DeviceBaseActor):
 
     @overrides
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
-        super().receiveMsg_SetDeviceStatusMsg(msg, sender)
         if not (self.reserve_lock.value or self.free_lock.value):
+            super().receiveMsg_SetDeviceStatusMsg(msg, sender)
             self.occupied = False
             if self.device_status:
                 self.device_status["Reservation"] = msg.device_status.get("Reservation")
