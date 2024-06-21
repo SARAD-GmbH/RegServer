@@ -13,6 +13,7 @@ import os
 import time
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+from threading import Thread
 
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, FreeDeviceMsg,
@@ -91,6 +92,11 @@ class MqttSchedulerActor(MqttBaseActor):
         self.buy_ahead = b""
         self.cached_reply = b""
         self.first_get_next = False
+        self.inner_thread: Thread = Thread(
+            target=None,
+            kwargs={},
+            daemon=True,
+        )
 
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
@@ -443,15 +449,12 @@ class MqttSchedulerActor(MqttBaseActor):
         device_actor, _device_id = self._device_actor(instr_id)
         if device_actor is not None:
             if self._is_get_next(data=cmd, protocol_type=protocol_type):
-                if self.cached_reply:
-                    logger.debug("cached reply available")
-                    reply = bytes([self.cmd_ids[instr_id]]) + self.cached_reply
-                    self.mqttc.publish(
-                        topic=f"{self.group}/{self.is_id}/{instr_id}/msg",
-                        payload=reply,
-                        qos=self.qos,
-                        retain=False,
-                    )
+                self.inner_thread = Thread(
+                    target=self._publish_function,
+                    kwargs={"instr_id": instr_id},
+                    daemon=True,
+                )
+                self._start_thread(self.inner_thread)
                 if not self.buy_ahead:
                     logger.debug("Forward %s to %s", cmd, instr_id)
                     self.send(device_actor, TxBinaryMsg(cmd))
@@ -498,12 +501,16 @@ class MqttSchedulerActor(MqttBaseActor):
                             retain=False,
                         )
                         self.first_get_next = False
+                        device_actor, _device_id = self._device_actor(instr_id)
+                        if device_actor is not None:
+                            self.send(device_actor, TxBinaryMsg(self.buy_ahead))
                     else:
-                        logger.info("Put reply msg.data into cache")
-                        self.cached_reply = msg.data
-                    device_actor, _device_id = self._device_actor(instr_id)
-                    if device_actor is not None:
-                        self.send(device_actor, TxBinaryMsg(self.buy_ahead))
+                        self.inner_thread = Thread(
+                            target=self._fill_cache,
+                            kwargs={"instr_id": instr_id, "data": msg.data},
+                            daemon=True,
+                        )
+                        self._start_thread(self.inner_thread)
                 else:
                     cmd_id = self.cmd_ids[instr_id]
                     reply = bytes([cmd_id]) + msg.data
@@ -758,3 +765,39 @@ class MqttSchedulerActor(MqttBaseActor):
                 logger.info("is ReadDataContinue")
                 return True
         return False
+
+    def _start_thread(self, thread):
+        if not self.inner_thread.is_alive():
+            self.inner_thread = thread
+            self.inner_thread.start()
+        else:
+            logger.debug("Waiting for %s to finish...", self.inner_thread)
+            self.wakeupAfter(timedelta(seconds=0.5), payload=thread)
+
+    def receiveMsg_WakeupMessage(self, msg, _sender):
+        # pylint: disable=invalid-name, disable=too-many-branches
+        """Handler for WakeupMessage"""
+        if isinstance(msg.payload, Thread):
+            self._start_thread(msg.payload)
+
+    def _publish_function(self, instr_id):
+        while not self.cached_reply:
+            time.sleep(0.05)
+        logger.debug("cached reply available")
+        reply = bytes([self.cmd_ids[instr_id]]) + self.cached_reply
+        self.mqttc.publish(
+            topic=f"{self.group}/{self.is_id}/{instr_id}/msg",
+            payload=reply,
+            qos=self.qos,
+            retain=False,
+        )
+        self.cached_reply = b""
+
+    def _fill_cache(self, instr_id, data):
+        while self.cached_reply:
+            time.sleep(0.05)
+        logger.info("Put reply msg.data into cache")
+        self.cached_reply = data
+        device_actor, _device_id = self._device_actor(instr_id)
+        if device_actor is not None:
+            self.send(device_actor, TxBinaryMsg(self.buy_ahead))
