@@ -184,12 +184,20 @@ class DeviceBaseActor(BaseActor):
                 status=Status.NOT_FOUND, confirm=True
             )
         elif isinstance(msg.payload, TimeoutMsg) and msg.payload.type == "bin_timeout":
-            bin_lock = self.bin_locks[msg.payload.counter]
             logger.debug(
                 "msg.payload.counter=%d, self.bin_locks=%s",
                 msg.payload.counter,
                 self.bin_locks,
             )
+            try:
+                bin_lock = self.bin_locks[msg.payload.counter]
+            except IndexError:
+                logger.error(
+                    "No bin_lock with index %d in %s",
+                    msg.payload.counter,
+                    self.bin_locks,
+                )
+                bin_lock = Lock(value=False)
             if bin_lock.value and (datetime.now() - bin_lock.time > BIN_TIMEOUT):
                 logger.error(
                     "Timeout in %s on binary command %d",
@@ -258,7 +266,6 @@ class DeviceBaseActor(BaseActor):
             instr_id=self.instr_id, status=success
         )
         if success in [Status.OK, Status.OK_UPDATED, Status.OK_SKIPPED]:
-            self.bin_locks = []
             try:
                 if self.device_status["Reservation"]["Active"]:
                     if (
@@ -675,6 +682,8 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.redirector_actor = sender
         self.bin_locks.append(Lock(value=True, time=datetime.now()))
+        if len(self.bin_locks) > 256:
+            self.bin_locks.pop(0)
         self._request_bin_at_is(msg.data)
 
     def receiveMsg_BaudRateMsg(self, msg, sender):
