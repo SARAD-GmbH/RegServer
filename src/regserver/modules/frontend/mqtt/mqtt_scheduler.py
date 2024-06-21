@@ -440,7 +440,7 @@ class MqttSchedulerActor(MqttBaseActor):
 
     def on_cmd(self, _client, _userdata, message):
         """Event handler for all MQTT messages with cmd topic for instruments."""
-        logger.info("[on_cmd] %s: %s", message.topic, message.payload)
+        logger.debug("[on_cmd] %s: %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
         instr_id = topic_parts[2]
         protocol_type = get_sarad_type(instr_id)
@@ -460,7 +460,7 @@ class MqttSchedulerActor(MqttBaseActor):
                     self.send(device_actor, TxBinaryMsg(cmd))
                     self.buy_ahead = cmd
                     self.first_get_next = True
-                    logger.info("buy_ahead")
+                    logger.debug("buy_ahead")
             else:
                 logger.debug("Forward %s to %s", cmd, instr_id)
                 self.send(device_actor, TxBinaryMsg(cmd))
@@ -491,7 +491,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 instr_id = short_id(actor_id)
                 if self.buy_ahead:
                     if self.first_get_next:
-                        logger.info("Send reply msg.data to broker")
+                        logger.debug("Send reply msg.data to broker")
                         cmd_id = self.cmd_ids[instr_id]
                         reply = bytes([cmd_id]) + msg.data
                         self.mqttc.publish(
@@ -755,14 +755,13 @@ class MqttSchedulerActor(MqttBaseActor):
 
     def _is_get_next(self, data: bytes, protocol_type: str) -> bool:
         """Check whether bytes contains a GetNext or ReadDataContinue command."""
-        logger.info(data)
         if protocol_type == "sarad-1688":
             if data[3] == 7:
                 logger.debug("is GetNext")
                 return True
         if protocol_type == "sarad-dacm":
             if data[3] == 15:
-                logger.info("is ReadDataContinue")
+                logger.debug("is ReadDataContinue")
                 return True
         return False
 
@@ -774,9 +773,10 @@ class MqttSchedulerActor(MqttBaseActor):
             logger.debug("Waiting for %s to finish...", self.inner_thread)
             self.wakeupAfter(timedelta(seconds=0.5), payload=thread)
 
-    def receiveMsg_WakeupMessage(self, msg, _sender):
-        # pylint: disable=invalid-name, disable=too-many-branches
+    @overrides
+    def receiveMsg_WakeupMessage(self, msg, sender):
         """Handler for WakeupMessage"""
+        super().receiveMsg_WakeupMessage(msg, sender)
         if isinstance(msg.payload, Thread):
             self._start_thread(msg.payload)
 
@@ -796,7 +796,7 @@ class MqttSchedulerActor(MqttBaseActor):
     def _fill_cache(self, instr_id, data):
         while self.cached_reply:
             time.sleep(0.05)
-        logger.info("Put reply msg.data into cache")
+        logger.debug("Put reply msg.data into cache")
         self.cached_reply = data
         device_actor, _device_id = self._device_actor(instr_id)
         if device_actor is not None:
