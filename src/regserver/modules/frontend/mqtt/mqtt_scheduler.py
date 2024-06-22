@@ -107,16 +107,6 @@ class MqttSchedulerActor(MqttBaseActor):
             self.led = False
         self.last_update = datetime(year=1970, month=1, day=1)
         self.cached_replies = {}  # {instr_id: CachedReply}
-        self.inner_thread_a: Thread = Thread(
-            target=self._publish_function,
-            kwargs={"instr_id": "foo"},
-            daemon=True,
-        )
-        self.inner_thread_b: Thread = Thread(
-            target=self._fill_cache,
-            kwargs={"instr_id": "foo", "data": b""},
-            daemon=True,
-        )
 
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
@@ -479,13 +469,11 @@ class MqttSchedulerActor(MqttBaseActor):
                 else:
                     self.cached_replies[instr_id].first_get_next = False
                     logger.debug("subsequent GetNext, start publish thread")
-                    self._start_thread_a(
-                        Thread(
-                            target=self._publish_function,
-                            kwargs={"instr_id": instr_id},
-                            daemon=True,
-                        )
-                    )
+                    Thread(
+                        target=self._publish_function,
+                        kwargs={"instr_id": instr_id},
+                        daemon=True,
+                    ).start()
             else:
                 logger.debug("Forward %s to %s", cmd, instr_id)
                 self.send(device_actor, TxBinaryMsg(cmd))
@@ -535,13 +523,11 @@ class MqttSchedulerActor(MqttBaseActor):
                     )
                 self.cached_replies[instr_id].first_get_next = False
             else:
-                self._start_thread_b(
-                    Thread(
-                        target=self._fill_cache,
-                        kwargs={"instr_id": instr_id, "data": msg.data},
-                        daemon=True,
-                    )
-                )
+                Thread(
+                    target=self._fill_cache,
+                    kwargs={"instr_id": instr_id, "data": msg.data},
+                    daemon=True,
+                ).start()
                 logger.debug("start _fill_cache thread")
         else:
             cmd_id = self.cmd_ids[instr_id]
@@ -797,30 +783,6 @@ class MqttSchedulerActor(MqttBaseActor):
                 logger.debug("is ReadDataContinue")
                 return True
         return False
-
-    def _start_thread_a(self, thread):
-        if not self.inner_thread_a.is_alive():
-            self.inner_thread_a = thread
-            self.inner_thread_a.start()
-        else:
-            logger.info("Waiting for %s to finish...", self.inner_thread_a)
-            self.wakeupAfter(timedelta(seconds=0.1), payload=thread)
-
-    def _start_thread_b(self, thread):
-        if not self.inner_thread_b.is_alive():
-            self.inner_thread_b = thread
-            self.inner_thread_b.start()
-        else:
-            logger.info("Waiting for %s to finish...", self.inner_thread_b)
-            self.wakeupAfter(timedelta(seconds=0.1), payload=thread)
-
-    @overrides
-    def receiveMsg_WakeupMessage(self, msg, sender):
-        """Handler for WakeupMessage"""
-        super().receiveMsg_WakeupMessage(msg, sender)
-        if isinstance(msg.payload, Thread):
-            # TODO dirty! Hoping we never need this.
-            self._start_thread_a(msg.payload)
 
     def _publish_function(self, instr_id):
         while (not self.cached_replies[instr_id].cached_reply) or self.cached_replies[
