@@ -11,8 +11,9 @@ Author
 import json
 import os
 import time
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
+from threading import Thread
 
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, FreeDeviceMsg,
@@ -21,7 +22,8 @@ from regserver.actor_messages import (ActorType, FreeDeviceMsg,
                                       ShutdownMsg, StartMonitoringMsg, Status,
                                       StopMonitoringMsg, TxBinaryMsg)
 from regserver.config import config
-from regserver.helpers import diff_of_dicts, short_id, transport_technology
+from regserver.helpers import (diff_of_dicts, get_sarad_type, short_id,
+                               transport_technology)
 from regserver.logger import logger
 from regserver.modules.backend.mqtt.mqtt_base_actor import MqttBaseActor
 from regserver.modules.ismqtt_messages import (Control, ControlType,
@@ -34,6 +36,23 @@ from regserver.version import VERSION
 if os.name != "nt":
     from gpiozero import PWMLED  # type: ignore
     from gpiozero.exc import BadPinFactory, GPIOPinInUse  # type: ignore
+
+
+@dataclass
+class CachedReply:
+    """Data structure belonging to a cached reply to speed up the download of
+    measuring data.
+
+    Args:
+        buy_ahead: Binary cmd that shall be used for the Buy-Ahead-Cmd to the instrument.
+        first_get_next: True, if the first GetNext cmd in a sequence was received;
+                        False otherwise
+        cached_reply: Binary reply to the Buy-Ahead-Cmd from the instrument.
+    """
+
+    buy_ahead: bytes = b""
+    first_get_next: bool = False
+    cached_reply: bytes = b""
 
 
 class MqttSchedulerActor(MqttBaseActor):
@@ -87,6 +106,7 @@ class MqttSchedulerActor(MqttBaseActor):
         else:
             self.led = False
         self.last_update = datetime(year=1970, month=1, day=1)
+        self.cached_replies = {}  # {instr_id: CachedReply}
 
     @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
@@ -433,12 +453,32 @@ class MqttSchedulerActor(MqttBaseActor):
         logger.debug("[on_cmd] %s: %s", message.topic, message.payload)
         topic_parts = message.topic.split("/")
         instr_id = topic_parts[2]
+        protocol_type = get_sarad_type(instr_id)
         self.cmd_ids[instr_id] = message.payload[0]
+        logger.debug("cmd idx %d", self.cmd_ids[instr_id])
         cmd = message.payload[1:]
         device_actor, _device_id = self._device_actor(instr_id)
         if device_actor is not None:
-            logger.debug("Forward %s to %s", cmd, instr_id)
-            self.send(device_actor, TxBinaryMsg(cmd))
+            if self._is_get_next(data=cmd, protocol_type=protocol_type):
+                if not self.cached_replies[instr_id].buy_ahead:
+                    logger.debug("Forward %s to %s", cmd, instr_id)
+                    self.send(device_actor, TxBinaryMsg(cmd))
+                    self.cached_replies[instr_id].buy_ahead = cmd
+                    self.cached_replies[instr_id].first_get_next = True
+                    logger.debug("first GetNext")
+                else:
+                    self.cached_replies[instr_id].first_get_next = False
+                    logger.debug("subsequent GetNext, start publish thread")
+                    Thread(
+                        target=self._publish_function,
+                        kwargs={"instr_id": instr_id},
+                        daemon=True,
+                    ).start()
+            else:
+                logger.debug("Forward %s to %s", cmd, instr_id)
+                self.send(device_actor, TxBinaryMsg(cmd))
+                self.cached_replies[instr_id].buy_ahead = b""
+                self.cached_replies[instr_id].cached_reply = b""
 
     def on_host_cmd(self, _client, _userdata, message):
         """Event handler for all MQTT messages with cmd topic for the host."""
@@ -462,13 +502,43 @@ class MqttSchedulerActor(MqttBaseActor):
         for actor_id, description in self.actor_dict.items():
             if description["address"] == sender:
                 instr_id = short_id(actor_id)
-                reply = bytes([self.cmd_ids[instr_id]]) + msg.data
+                break
+        if self.cached_replies[instr_id].buy_ahead:
+            if self.cached_replies[instr_id].first_get_next:
+                logger.debug("Send reply msg.data to broker")
+                cmd_id = self.cmd_ids[instr_id]
+                reply = bytes([cmd_id]) + msg.data
+                logger.debug("A) publish reply idx %d", cmd_id)
                 self.mqttc.publish(
                     topic=f"{self.group}/{self.is_id}/{instr_id}/msg",
                     payload=reply,
                     qos=self.qos,
                     retain=False,
                 )
+                device_actor, _device_id = self._device_actor(instr_id)
+                if device_actor is not None:
+                    self.send(
+                        device_actor,
+                        TxBinaryMsg(self.cached_replies[instr_id].buy_ahead),
+                    )
+                self.cached_replies[instr_id].first_get_next = False
+            else:
+                Thread(
+                    target=self._fill_cache,
+                    kwargs={"instr_id": instr_id, "data": msg.data},
+                    daemon=True,
+                ).start()
+                logger.debug("start _fill_cache thread")
+        else:
+            cmd_id = self.cmd_ids[instr_id]
+            reply = bytes([cmd_id]) + msg.data
+            logger.debug("B) publish reply idx %d", cmd_id)
+            self.mqttc.publish(
+                topic=f"{self.group}/{self.is_id}/{instr_id}/msg",
+                payload=reply,
+                qos=self.qos,
+                retain=False,
+            )
 
     def process_reserve(self, instr_id, control):
         """Sub event handler that will be called from the on_message event handler,
@@ -488,6 +558,7 @@ class MqttSchedulerActor(MqttBaseActor):
                     host=control.data.host, user=control.data.user, app=control.data.app
                 ),
             )
+            self.cached_replies[instr_id] = CachedReply()
 
     def process_free(self, instr_id):
         """Sub event handler that will be called from the on_message event
@@ -498,6 +569,7 @@ class MqttSchedulerActor(MqttBaseActor):
         device_actor, _device_id = self._device_actor(instr_id)
         if device_actor is not None:
             self.send(device_actor, FreeDeviceMsg())
+        self.cached_replies[instr_id] = CachedReply()
 
     def process_value(self, instr_id, control):
         """Sub event handler that will be called from the on_message event
@@ -699,3 +771,44 @@ class MqttSchedulerActor(MqttBaseActor):
         """Handler for ShutdownAckMsg from Registrar."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self._instruments_connected()
+
+    def _is_get_next(self, data: bytes, protocol_type: str) -> bool:
+        """Check whether bytes contains a GetNext or ReadDataContinue command."""
+        if protocol_type == "sarad-1688":
+            if data[3] == 7:
+                logger.debug("is GetNext")
+                return True
+        if protocol_type == "sarad-dacm":
+            if data[3] == 15:
+                logger.debug("is ReadDataContinue")
+                return True
+        return False
+
+    def _publish_function(self, instr_id):
+        while (not self.cached_replies[instr_id].cached_reply) or self.cached_replies[
+            instr_id
+        ].first_get_next:
+            pass
+        logger.debug("cached reply available")
+        reply = (
+            bytes([self.cmd_ids[instr_id]]) + self.cached_replies[instr_id].cached_reply
+        )
+        logger.debug("C) publish reply idx %d", self.cmd_ids[instr_id])
+        self.mqttc.publish(
+            topic=f"{self.group}/{self.is_id}/{instr_id}/msg",
+            payload=reply,
+            qos=self.qos,
+            retain=False,
+        )
+        self.cached_replies[instr_id].cached_reply = b""
+
+    def _fill_cache(self, instr_id, data):
+        while self.cached_replies[instr_id].cached_reply:
+            pass
+        logger.debug("Put reply msg.data into cache")
+        self.cached_replies[instr_id].cached_reply = data
+        device_actor, _device_id = self._device_actor(instr_id)
+        if device_actor is not None:
+            self.send(
+                device_actor, TxBinaryMsg(self.cached_replies[instr_id].buy_ahead)
+            )
