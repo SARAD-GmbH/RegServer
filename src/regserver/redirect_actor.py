@@ -85,7 +85,6 @@ class RedirectorActor(BaseActor):
                 af, socktype, proto, _canonname, sa = res
                 try:
                     server_socket = socket.socket(af, socktype, proto)
-                    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 except OSError as exception:
                     logger.error("Cannot use port %d. %s", self._address[1], exception)
                     server_socket = socket.socket()
