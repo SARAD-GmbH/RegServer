@@ -13,7 +13,7 @@ import os
 import time
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
-from threading import Thread
+from threading import Condition, Thread
 
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, FreeDeviceMsg,
@@ -48,11 +48,25 @@ class CachedReply:
         first_get_next: True, if the first GetNext cmd in a sequence was received;
                         False otherwise
         cached_reply: Binary reply to the Buy-Ahead-Cmd from the instrument.
+        fill_cache_thread: Thread object filling the cache.
+        empty_cache_thread: Thread object emptying the cache.
+        cache_empty: Condition object causing the fill_cache_thread to wait.
     """
 
     buy_ahead: bytes = b""
     first_get_next: bool = False
     cached_reply: bytes = b""
+    fill_cache_thread: Thread = Thread(
+        target=None,
+        kwargs={"instr_id": "", "data": b""},
+        daemon=True,
+    )
+    empty_cache_thread: Thread = Thread(
+        target=None,
+        kwargs={"instr_id": ""},
+        daemon=True,
+    )
+    cache_empty = Condition()
 
 
 class MqttSchedulerActor(MqttBaseActor):
@@ -193,6 +207,9 @@ class MqttSchedulerActor(MqttBaseActor):
                 topic=topic, payload=reservation_json, qos=self.qos, retain=False
             )
             self.pending_control_action["ctype"] = ControlType.UNKNOWN
+            with self.cached_replies[msg.instr_id].cache_empty:
+                self.cached_replies[msg.instr_id].cache_reply = b""
+                self.cached_replies[msg.instr_id].cache_empty.notify()
 
     def receiveMsg_RecentValueMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -469,16 +486,19 @@ class MqttSchedulerActor(MqttBaseActor):
                 else:
                     self.cached_replies[instr_id].first_get_next = False
                     logger.debug("subsequent GetNext, start publish thread")
-                    Thread(
+                    self.cached_replies[instr_id].empty_cache_thread = Thread(
                         target=self._publish_function,
                         kwargs={"instr_id": instr_id},
                         daemon=True,
-                    ).start()
+                    )
+                    self.cached_replies[instr_id].empty_cache_thread.start()
             else:
                 logger.debug("Forward %s to %s", cmd, instr_id)
                 self.send(device_actor, TxBinaryMsg(cmd))
                 self.cached_replies[instr_id].buy_ahead = b""
-                self.cached_replies[instr_id].cached_reply = b""
+                with self.cached_replies[instr_id].cache_empty:
+                    self.cached_replies[instr_id].cached_reply = b""
+                    self.cached_replies[instr_id].cache_empty.notify()
 
     def on_host_cmd(self, _client, _userdata, message):
         """Event handler for all MQTT messages with cmd topic for the host."""
@@ -523,11 +543,12 @@ class MqttSchedulerActor(MqttBaseActor):
                     )
                 self.cached_replies[instr_id].first_get_next = False
             else:
-                Thread(
+                self.cached_replies[instr_id].fill_cache_thread = Thread(
                     target=self._fill_cache,
                     kwargs={"instr_id": instr_id, "data": msg.data},
                     daemon=True,
-                ).start()
+                )
+                self.cached_replies[instr_id].fill_cache_thread.start()
                 logger.debug("start _fill_cache thread")
         else:
             cmd_id = self.cmd_ids[instr_id]
@@ -785,27 +806,33 @@ class MqttSchedulerActor(MqttBaseActor):
         return False
 
     def _publish_function(self, instr_id):
-        while (not self.cached_replies[instr_id].cached_reply) or self.cached_replies[
-            instr_id
-        ].first_get_next:
-            pass
+        while self.cached_replies[instr_id].first_get_next:
+            logger.info("Waiting for the second GetNext...")
+            time.sleep(0.5)
+        while not self.cached_replies[instr_id].cached_reply:
+            logger.info("Waiting for the cache filling thread to start...")
+            time.sleep(0.01)
         logger.debug("cached reply available")
         reply = (
             bytes([self.cmd_ids[instr_id]]) + self.cached_replies[instr_id].cached_reply
         )
-        logger.debug("C) publish reply idx %d", self.cmd_ids[instr_id])
+        logger.info("C) publish reply idx %d", self.cmd_ids[instr_id])
         self.mqttc.publish(
             topic=f"{self.group}/{self.is_id}/{instr_id}/msg",
             payload=reply,
             qos=self.qos,
             retain=False,
         )
-        self.cached_replies[instr_id].cached_reply = b""
+        with self.cached_replies[instr_id].cache_empty:
+            self.cached_replies[instr_id].cached_reply = b""
+            self.cached_replies[instr_id].cache_empty.notify()
 
     def _fill_cache(self, instr_id, data):
-        while self.cached_replies[instr_id].cached_reply:
-            pass
-        logger.debug("Put reply msg.data into cache")
+        with self.cached_replies[instr_id].cache_empty:
+            while self.cached_replies[instr_id].cached_reply:
+                logger.info("Waiting for the emptying thread to start...")
+                self.cached_replies[instr_id].cache_empty.wait()
+        logger.info("Put reply msg.data into cache")
         self.cached_replies[instr_id].cached_reply = data
         device_actor, _device_id = self._device_actor(instr_id)
         if device_actor is not None:
