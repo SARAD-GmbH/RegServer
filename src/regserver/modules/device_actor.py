@@ -29,7 +29,7 @@ from thespian.actors import Actor, ActorSystem  # type: ignore
 
 RESERVE_TIMEOUT = timedelta(seconds=10)  # Timeout for RESERVE or FREE operations
 VALUE_TIMEOUT = timedelta(seconds=10)  # Timeout for VALUE operations
-BIN_TIMEOUT = timedelta(seconds=10)  # Timeout for cmd/msg operations
+BIN_TIMEOUT = timedelta(seconds=20)  # Timeout for cmd/msg operations
 SET_RTC_TIMEOUT = timedelta(seconds=10)  # Timeout for setting the instruments RTC
 START_MONITORING_TIMEOUT = timedelta(seconds=10)  # Timeout for start of monitoring mode
 STOP_MONITORING_TIMEOUT = timedelta(seconds=10)  # Timeout for stop of monitoring mode

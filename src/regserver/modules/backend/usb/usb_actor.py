@@ -275,6 +275,11 @@ class UsbActor(DeviceBaseActor):
                     stop_time - start_time,
                     reply,
                 )
+                logger.error(
+                    "Timeout in %s on binary command %s",
+                    self.my_id,
+                    data,
+                )
                 self._handle_bin_reply_from_is(RxBinaryMsg(self.RET_TIMEOUT))
                 return
 
