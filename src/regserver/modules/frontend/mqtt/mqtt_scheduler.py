@@ -817,17 +817,19 @@ class MqttSchedulerActor(MqttBaseActor):
 
     def _publish_function(self, instr_id):
         while self.cached_replies[instr_id].first_get_next:
-            logger.info("Waiting for the second GetNext...")
+            logger.debug("Waiting for the second GetNext...")
             time.sleep(0.5)
         with self.cached_replies[instr_id].cache_filled:
             while not self.cached_replies[instr_id].cached_reply:
-                logger.info("Waiting for the cache filling thread to start...")
+                logger.debug(
+                    "%s waiting for the cache filling thread to start...", instr_id
+                )
                 self.cached_replies[instr_id].cache_filled.wait()
         logger.debug("cached reply available")
         reply = (
             bytes([self.cmd_ids[instr_id]]) + self.cached_replies[instr_id].cached_reply
         )
-        logger.info("C) publish reply idx %d", self.cmd_ids[instr_id])
+        logger.debug("C) publish reply idx %d", self.cmd_ids[instr_id])
         self.mqttc.publish(
             topic=f"{self.group}/{self.is_id}/{instr_id}/msg",
             payload=reply,
@@ -841,14 +843,15 @@ class MqttSchedulerActor(MqttBaseActor):
     def _fill_cache(self, instr_id, data):
         with self.cached_replies[instr_id].cache_empty:
             while self.cached_replies[instr_id].cached_reply:
-                logger.info("Waiting for the emptying thread to start...")
+                logger.debug("%s waiting for the emptying thread to start...", instr_id)
                 self.cached_replies[instr_id].cache_empty.wait()
-        logger.info("Put reply msg.data into cache")
-        self.cached_replies[instr_id].cached_reply = data
-        device_actor, _device_id = self._device_actor(instr_id)
-        if device_actor is not None:
-            self.send(
-                device_actor, TxBinaryMsg(self.cached_replies[instr_id].buy_ahead)
-            )
-        with self.cached_replies[instr_id].cache_filled:
-            self.cached_replies[instr_id].cache_filled.notify()
+        if data:
+            logger.debug("Put reply msg.data into cache")
+            self.cached_replies[instr_id].cached_reply = data
+            device_actor, _device_id = self._device_actor(instr_id)
+            if device_actor is not None:
+                self.send(
+                    device_actor, TxBinaryMsg(self.cached_replies[instr_id].buy_ahead)
+                )
+            with self.cached_replies[instr_id].cache_filled:
+                self.cached_replies[instr_id].cache_filled.notify()
