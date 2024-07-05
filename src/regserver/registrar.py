@@ -17,6 +17,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 from overrides import overrides  # type: ignore
+from sarad.global_helpers import decode_instr_id
 
 from regserver.actor_messages import (ActorType, Backend, BaudRateAckMsg,
                                       BaudRateMsg, Frontend, GetHostInfoMsg,
@@ -32,7 +33,7 @@ from regserver.actor_messages import (ActorType, Backend, BaudRateAckMsg,
 from regserver.base_actor import BaseActor
 from regserver.config import (actor_config, backend_config, config,
                               frontend_config, mqtt_config, unique_id)
-from regserver.helpers import decode_instr_id, short_id, transport_technology
+from regserver.helpers import short_id, transport_technology
 from regserver.logger import logger
 from regserver.modules.backend.is1.is1_listener import Is1Listener
 from regserver.modules.backend.mqtt.mqtt_client_actor import MqttClientActor

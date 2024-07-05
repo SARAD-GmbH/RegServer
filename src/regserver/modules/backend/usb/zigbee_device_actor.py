@@ -16,9 +16,9 @@ from regserver.actor_messages import (FinishSetupUsbActorMsg, FreeDeviceMsg,
                                       ReservationStatusMsg, SetDeviceStatusMsg,
                                       Status)
 from regserver.config import config, usb_backend_config
-from regserver.helpers import get_sarad_type
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
+from sarad.global_helpers import get_sarad_type  # type: ignore
 from sarad.mapping import id_family_mapping  # type: ignore
 from serial import SerialException  # type: ignore
 

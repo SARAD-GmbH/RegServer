@@ -12,16 +12,16 @@ from threading import Thread
 from time import sleep
 from typing import Union
 
-from hashids import Hashids  # type: ignore
 from overrides import overrides
 from regserver.actor_messages import KillMsg, SetupUsbActorMsg
 from regserver.base_actor import BaseActor
 from regserver.config import usb_backend_config
-from regserver.helpers import get_sarad_type
 from regserver.logger import logger
 from regserver.modules.backend.usb.net_usb_actor import NetUsbActor
 from regserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.doseman import DosemanInst  # type: ignore
+from sarad.global_helpers import (encode_instr_id,  # type: ignore
+                                  get_sarad_type)
 from sarad.instrument import Route  # type: ignore
 from sarad.sari import SI, SaradInst, sarad_family  # type: ignore
 from serial import SerialException  # type: ignore
@@ -137,7 +137,6 @@ class ComActor(BaseActor):
             self.polling_loop_running = False
 
     def _get_instrument(self, route) -> Union[SI, None]:
-        hid = Hashids()
         if self.guessed_family in (2, 4, 5):
             instruments_to_test = (SaradInst(family=sarad_family(0)), DosemanInst())
         else:
@@ -160,7 +159,7 @@ class ComActor(BaseActor):
                     test_instrument.serial_number,
                 )
                 if test_instrument.type_id and test_instrument.serial_number:
-                    instr_id = hid.encode(
+                    instr_id = encode_instr_id(
                         test_instrument.family["family_id"],
                         test_instrument.type_id,
                         test_instrument.serial_number,

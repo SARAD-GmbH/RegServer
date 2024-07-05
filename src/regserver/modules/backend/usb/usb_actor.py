@@ -16,7 +16,6 @@ from enum import Enum
 from threading import Thread
 from time import sleep
 
-from hashids import Hashids  # type: ignore
 from overrides import overrides
 from regserver.actor_messages import (ControlFunctionalityMsg, Frontend,
                                       MqttPublishMsg, RecentValueMsg,
@@ -24,9 +23,11 @@ from regserver.actor_messages import (ControlFunctionalityMsg, Frontend,
                                       SetDeviceStatusMsg, Status)
 from regserver.config import (config, frontend_config, monitoring_config,
                               mqtt_config, unique_id, usb_backend_config)
-from regserver.helpers import get_sarad_type, short_id
+from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
+from sarad.global_helpers import (encode_instr_id,  # type: ignore
+                                  get_sarad_type)
 from sarad.instrument import Gps  # type: ignore
 from sarad.mapping import id_family_mapping  # type: ignore
 from sarad.sari import SaradInst  # type: ignore
@@ -192,8 +193,7 @@ class UsbActor(DeviceBaseActor):
             logger.info("Nothing connected -> Killing myself")
             self._kill_myself()
         else:
-            hid = Hashids()
-            instr_id = hid.encode(
+            instr_id = encode_instr_id(
                 self.instrument.family["family_id"],
                 self.instrument.type_id,
                 self.instrument.serial_number,

@@ -17,10 +17,11 @@ from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj, KillMsg,
                                       MqttReceiveMsg, PrepareMqttActorMsg,
                                       ResurrectMsg, SetDeviceStatusMsg,
                                       TransportTechnology)
-from regserver.helpers import get_sarad_type, short_id, transport_technology
+from regserver.helpers import short_id, transport_technology
 from regserver.logger import logger
 from regserver.modules.backend.mqtt.mqtt_base_actor import MqttBaseActor
 from regserver.modules.backend.mqtt.mqtt_device_actor import MqttDeviceActor
+from sarad.global_helpers import get_sarad_type
 
 RESCAN_TIMEOUT = timedelta(seconds=7)  # Timeout for RESCAN or SHUTDOWN operations
 

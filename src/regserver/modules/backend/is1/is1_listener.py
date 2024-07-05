@@ -15,19 +15,18 @@ from threading import Thread
 from typing import List
 
 import tomlkit
-from hashids import Hashids  # type: ignore
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                       Is1Address, SetDeviceStatusMsg,
                                       SetupUsbActorMsg, TransportTechnology)
 from regserver.base_actor import BaseActor
 from regserver.config import config, config_file, is1_backend_config
-from regserver.helpers import (check_message, decode_instr_id, get_sarad_type,
-                               make_command_msg)
+from regserver.helpers import check_message, make_command_msg
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.cluster import id_family_mapping  # type: ignore
-from sarad.global_helpers import sarad_family  # type: ignore
+from sarad.global_helpers import (decode_instr_id, encode_instr_id,
+                                  get_sarad_type, sarad_family)
 from sarad.sari import Route  # type: ignore
 
 
@@ -69,7 +68,7 @@ class Is1Listener(BaseActor):
                 payload[4:6], byteorder="little", signed=False
             )
             family_id = int(payload[6])
-            instr_id = Hashids().encode(family_id, type_id, serial_number)
+            instr_id = encode_instr_id(family_id, type_id, serial_number)
             return {
                 "port": port,
                 "type_id": type_id,

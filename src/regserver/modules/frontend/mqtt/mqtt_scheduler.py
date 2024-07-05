@@ -22,8 +22,7 @@ from regserver.actor_messages import (ActorType, FreeDeviceMsg,
                                       ShutdownMsg, StartMonitoringMsg, Status,
                                       StopMonitoringMsg, TxBinaryMsg)
 from regserver.config import config
-from regserver.helpers import (diff_of_dicts, get_sarad_type, short_id,
-                               transport_technology)
+from regserver.helpers import diff_of_dicts, short_id, transport_technology
 from regserver.logger import logger
 from regserver.modules.backend.mqtt.mqtt_base_actor import MqttBaseActor
 from regserver.modules.ismqtt_messages import (Control, ControlType,
@@ -32,6 +31,7 @@ from regserver.modules.ismqtt_messages import (Control, ControlType,
                                                get_instr_reservation,
                                                get_is_meta)
 from regserver.version import VERSION
+from sarad.global_helpers import get_sarad_type  # type: ignore
 
 if os.name != "nt":
     from gpiozero import PWMLED  # type: ignore

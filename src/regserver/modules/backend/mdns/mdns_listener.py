@@ -17,16 +17,15 @@ import threading
 from regserver.actor_messages import (ActorCreatedMsg, CreateActorMsg, KillMsg,
                                       SetDeviceStatusMsg, SetupHostActorMsg)
 from regserver.config import config, mdns_backend_config
-from regserver.helpers import (decode_instr_id, get_actor, sarad_protocol,
-                               short_id, transport_technology)
+from regserver.helpers import (get_actor, sarad_protocol, short_id,
+                               transport_technology)
 from regserver.hostname_functions import compare_hostnames
 from regserver.logger import logger
 from regserver.modules.backend.mdns.host_actor import HostActor
 from regserver.shutdown import system_shutdown
+from sarad.global_helpers import decode_instr_id  # type: ignore
 from thespian.actors import ActorSystem  # type: ignore
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
-
-# logger.debug("%s -> %s", __package__, __file__)
 
 
 class MdnsListener(ServiceListener):

@@ -12,9 +12,8 @@ import os
 from collections.abc import MutableMapping
 from contextlib import suppress
 from datetime import timedelta
-from typing import List, Tuple
+from typing import List
 
-from hashids import Hashids  # type: ignore
 from thespian.actors import (Actor, ActorSystem,  # type: ignore
                              ActorSystemFailure)
 
@@ -489,37 +488,3 @@ def send_free_message(device_id, registrar_actor) -> Status:
     ]:
         return Status.NOT_FOUND
     return free_return.status
-
-
-def decode_instr_id(instr_id: str) -> Tuple:
-    """Detect what kind of instr_id was presented and decode it accordingly
-    into family_id, type_id and serial_number.
-
-    Args:
-        instr_id: instrument id identifying a SARAD instrument. This may bei
-                  either a hash or a concatenation of three strings.
-    Returns: tuple of family_id, type_id, serial_number
-    """
-    try:
-        instr_id_tuple = Hashids().decode(instr_id)
-        assert instr_id_tuple is not None
-        assert len(instr_id_tuple) == 3
-        return instr_id_tuple
-    except (IndexError, AssertionError):
-        try:
-            instr_id_tuple = tuple(int(x) for x in instr_id.split("-"))
-            assert len(instr_id_tuple) == 3
-            return instr_id_tuple
-        except AssertionError:
-            logger.critical("Error decoding instr_id %s", instr_id)
-            return ()
-
-
-def get_sarad_type(instr_id) -> str:
-    """Return the SARAD type from a given instr_id"""
-    family_id = decode_instr_id(instr_id)[0]
-    if family_id == 5:
-        return "sarad-dacm"
-    if family_id in [1, 2]:
-        return "sarad-1688"
-    return "unknown"
