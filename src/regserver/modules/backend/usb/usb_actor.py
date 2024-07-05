@@ -338,9 +338,15 @@ class UsbActor(DeviceBaseActor):
         self._handle_reserve_reply_from_is(Status.OK)
         sarad_type = get_sarad_type(self.instr_id)
         if sarad_type == "sarad-1688":
-            seconds_to_full_minute = 60 - datetime.now().time().second
-            wait = seconds_to_full_minute
-            self.wakeupAfter(timedelta(seconds=seconds_to_full_minute), "set_rtc")
+            logger.info("Features of %s: %s", self.my_id, self.instrument.features)
+            if self.instrument.features.get("rtc_set_seconds", False):
+                wait = 0
+                self._set_rtc()
+            else:
+                seconds_to_full_minute = 60 - datetime.now().time().second
+                wait = seconds_to_full_minute
+                self.wakeupAfter(timedelta(seconds=seconds_to_full_minute), "set_rtc")
+            logger.info("Wait %d seconds before setting the RTC", wait)
         else:
             self._set_rtc()
             wait = 0
