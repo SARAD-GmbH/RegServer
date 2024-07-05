@@ -512,40 +512,40 @@
 ## monitoring mode.
 [monitoring]
 ## The commented part below contains an example for two instruments.
-## The monitoring mode is activated for the first instrument with id 'nZh3Cw2'.
-#[monitoring.nZh3Cw2]
+## The monitoring mode is activated for the first instrument with id '2-14-76'.
+#[monitoring.2-14-76]
 #cycle = 1800
 #active = true
 
-#[[monitoring.nZh3Cw2.values]]
+#[[monitoring.2-14-76.values]]
 #component = 0
 #sensor = 0
 #measurand = 1
 #interval = 600
 
-#[[monitoring.nZh3Cw2.values]]
+#[[monitoring.2-14-76.values]]
 #component = 0
 #sensor = 1
 #measurand = 0
 #interval = 600
 
-#[[monitoring.nZh3Cw2.values]]
+#[[monitoring.2-14-76.values]]
 #component = 255
 #sensor = 0
 #measurand = 0
 #interval = 600
 
-#[monitoring.mwhLcG6]
+#[monitoring.2-14-888]
 #cycle = 1800
 #active = false
 
-#[[monitoring.mwhLcG6.values]]
+#[[monitoring.2-14-888.values]]
 #component = 0
 #sensor = 0
 #measurand = 1
 #interval = 600
 
-#[[monitoring.mwhLcG6.values]]
+#[[monitoring.2-14-888.values]]
 #component = 0
 #sensor = 1
 #measurand = 0
