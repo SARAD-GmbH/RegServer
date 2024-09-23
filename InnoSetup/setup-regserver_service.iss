@@ -9,8 +9,6 @@
 #define Source "..\dist\regserver-service"
 #define Destination "{commonpf64}\SARAD\RegServer-Service"
 #define Config "{commonappdata}\SARAD\RegServer-Service"
-#define Distribution "\\server\system\distribution"
-#define DriverExeName "CDM212364_Setup.exe"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -68,27 +66,18 @@ Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 Name: "ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
 
 [Files]
-; Source: "{#Distribution}\{#DriverExeName}"; DestDir: "{tmp}"; Flags: deleteafterinstall; Components: Drivers
-Source: "{#Source}\*"; DestDir: "{#Destination}"; Flags: createallsubdirs recursesubdirs promptifolder restartreplace uninsrestartdelete; Components: RS
-Source: "{#Source}\config.example.toml"; DestDir: "{#Config}"; Components: RS
+Source: "{#Source}\*"; DestDir: "{#Destination}"; Flags: createallsubdirs recursesubdirs promptifolder restartreplace uninsrestartdelete
+Source: "{#Source}\config.example.toml"; DestDir: "{#Config}"
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Run]
-Filename: "{#Destination}\setup-rss.bat"; Flags: nowait hidewizard runhidden runascurrentuser; Components: RS
-; Filename: "{tmp}\{#DriverExeName}"; Flags: nowait hidewizard skipifdoesntexist skipifsilent; Description: "{cm:LaunchProgram,{#StringChange(DriverExeName, '&', '&&')}}"; Components: Drivers
-
-[Components]
-; Name: "Drivers"; Description: "FTDI Drivers"; Types: custom full
-Name: "RS"; Description: "SARAD Registration Server"; Types: custom full compact; Flags: fixed
+Filename: "{#Destination}\setup-rss.bat"; Flags: nowait hidewizard runhidden runascurrentuser
 
 [UninstallRun]
-Filename: "{app}\remove-rss.bat"; Flags: skipifdoesntexist runascurrentuser; Components: RS
+Filename: "{app}\remove-rss.bat"; Flags: skipifdoesntexist runascurrentuser
 
 [PostCompile]
 Name: "post-compile.bat"; Flags: abortonerror cmdprompt redirectoutput
 
 [PreCompile]
 Name: "pre-compile.bat"; Flags: abortonerror cmdprompt redirectoutput
-
-; [InstallDelete]
-; Type: files; Name: "{app}\{#DriverExeName}"; Components: Drivers
