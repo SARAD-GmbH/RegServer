@@ -326,6 +326,7 @@ class UsbActor(DeviceBaseActor):
         The USB Actor is already the last in the chain. There is no need to ask
         somebody else to free the instrument.
         """
+        self.instrument.release_instrument()
         self._handle_free_reply_from_is(Status.OK)
         self.wakeupAfter(timedelta(seconds=1), "resume_monitoring")
 
