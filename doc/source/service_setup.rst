@@ -153,6 +153,7 @@ In this example, the target is a Linux computer with hostname "araneaxxxx" and u
 On the target system::
 
   sudo mv regserver.service /etc/systemd/system/
+  sudo mkdir /etc/regserver
   sudo cp config.example.toml /etc/regserver/config.toml
   sudo systemctl enable regserver.service
   sudo systemctl start regserver.service
