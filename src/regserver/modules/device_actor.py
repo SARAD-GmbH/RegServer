@@ -131,9 +131,8 @@ class DeviceBaseActor(BaseActor):
         if msg.device_status.get("Reservation", False):
             if msg.device_status["Reservation"].get("Active", False):
                 if not msg.device_status["Reservation"].get("Host", False):
-                    logger.warning(
-                        "Uncomplete reservation information -> Don't publish."
-                    )
+                    logger.debug("Uncomplete reservation information -> Don't publish.")
+                    logger.debug("This is most probably comming in from ZeroConf.")
                     return
         self._publish_status_change()
 
