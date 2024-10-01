@@ -61,7 +61,7 @@ class RedirectorActor(BaseActor):
                         logger.debug("Connection from %s", self._socket_info)
                     else:
                         self._cmd_handler()
-            except (ValueError, IOError) as exception:
+            except (OSError, ValueError) as exception:
                 logger.error("%s in _loop function of redirector", exception)
         self.read_list[0].close()
         logger.info("Socket at port %d closed.", self._address[1])
@@ -141,7 +141,7 @@ class RedirectorActor(BaseActor):
                 logger.error("Connection reset by SARAD application software.")
                 data = None
                 sleep(0.1)
-            except (ValueError, IOError) as exception:
+            except (OSError, ValueError) as exception:
                 logger.error("%s in _sendall function", exception)
         if data is None:
             logger.critical("Application software seems to be dead.")
@@ -169,7 +169,7 @@ class RedirectorActor(BaseActor):
             except (ConnectionResetError, BrokenPipeError):
                 logger.error("Connection reset by SARAD application software.")
                 sleep(0.1)
-            except (ValueError, IOError) as exception:
+            except (OSError, ValueError) as exception:
                 logger.error("%s in RxBinaryMsg handler", exception)
         logger.critical("Application software seems to be dead.")
         self._kill_myself()

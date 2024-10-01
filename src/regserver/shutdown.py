@@ -50,7 +50,7 @@ def is_flag_set():
               2nd: True if the system shall be terminated with error
     """
     if os.path.isfile(FLAGFILENAME):
-        with open(FLAGFILENAME, "r", encoding="utf8") as flag_file:
+        with open(FLAGFILENAME, encoding="utf8") as flag_file:
             with_error_str = flag_file.read(4)
             if with_error_str == "True":
                 with_error = True

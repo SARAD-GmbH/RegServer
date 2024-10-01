@@ -65,7 +65,7 @@ class MqttBaseActor(BaseActor):
         if (Backend.MQTT in backend_config) and (Frontend.MQTT not in frontend_config):
             logger.info("Checking %s", PING_FILE_NAME)
             try:
-                with open(PING_FILE_NAME, "r", encoding="utf8") as pingfile:
+                with open(PING_FILE_NAME, encoding="utf8") as pingfile:
                     finished_at = datetime.strptime(pingfile.read(), FRMT)
             except FileNotFoundError:
                 logger.warning("No Ping file from last run. -> Clean session")

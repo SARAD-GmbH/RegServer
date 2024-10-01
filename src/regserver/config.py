@@ -172,7 +172,7 @@ if os.name == "nt":
 else:
     tls_folder = config_folder
 try:
-    with open(config_file, "rt", encoding="utf8") as custom_file:
+    with open(config_file, encoding="utf8") as custom_file:
         customization = tomlkit.load(custom_file)
 except OSError:
     customization = tomlkit.document()
@@ -256,7 +256,7 @@ DEFAULT_TLS_KEY_FILE = f"{tls_folder}tls_key_personal.pem"
 DEFAULT_TLS_CERT_FILE = f"{tls_folder}tls_cert_personal.crt"
 tls_present = os.path.isfile(DEFAULT_TLS_CERT_FILE)
 if tls_present:
-    with open(DEFAULT_TLS_CERT_FILE, "r", encoding="utf8") as cert_file:
+    with open(DEFAULT_TLS_CERT_FILE, encoding="utf8") as cert_file:
         matches = re.match(r".+CN=(.+)[_][0-9]{4}.+", cert_file.read(), flags=re.S)
         if matches is not None:
             DEFAULT_GROUP = matches.group(1)

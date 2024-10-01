@@ -246,7 +246,7 @@ class Log(Resource):
         else:
             log_file_name = LOGFILENAME
         if os.path.isfile(log_file_name):
-            with open(log_file_name, "r", encoding="utf8") as log_file:
+            with open(log_file_name, encoding="utf8") as log_file:
                 lines = log_file.readlines()
             resp = [line.rstrip("\n") for line in lines]
             return resp
