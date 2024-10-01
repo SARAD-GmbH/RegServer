@@ -12,7 +12,7 @@ import logging
 import os
 import re
 import socket
-from typing import List, TypedDict, Union
+from typing import TypedDict, Union
 from uuid import getnode as get_mac
 
 import tomlkit
@@ -42,9 +42,9 @@ class ModbusRtuFrontendConfigDict(TypedDict):
 class UsbBackendConfigDict(TypedDict):
     # pylint: disable=inherit-non-class, too-few-public-methods
     """Type declaration for usb_backend_config."""
-    POLL_SERIAL_PORTS: List[str]
-    IGNORED_SERIAL_PORTS: List[str]
-    IGNORED_HWIDS: List[str]
+    POLL_SERIAL_PORTS: list[str]
+    IGNORED_SERIAL_PORTS: list[str]
+    IGNORED_HWIDS: list[str]
     LOCAL_RETRY_INTERVAL: float
     SET_RTC: bool
     UTC_OFFSET: float
@@ -55,7 +55,7 @@ class Is1BackendConfigDict(TypedDict):
     """Type declaration for is1_backend_config."""
     REG_PORT: int
     SCAN_INTERVAL: float
-    IS1_HOSTS: List[str]
+    IS1_HOSTS: list[str]
     IS1_PORT: int
 
 
@@ -65,7 +65,7 @@ class MdnsBackendConfigDict(TypedDict):
     MDNS_TIMEOUT: int
     TYPE: str
     IP_VERSION: IPVersion
-    HOSTS: List[List[Union[str, int]]]
+    HOSTS: list[list[Union[str, int]]]
     SCAN_INTERVAL: int
 
 
@@ -395,7 +395,7 @@ DEFAULT_IP_VERSION = IPVersion.All
 
 # mDNS backend configuration
 DEFAULT_MDNS_TIMEOUT = 3000
-DEFAULT_HOSTS: List[List[Union[str, int]]] = []
+DEFAULT_HOSTS: list[list[Union[str, int]]] = []
 DEFAULT_HOSTS_SCAN_INTERVAL = 60  # in seconds
 
 if customization.value.get("mdns_backend") is None:
@@ -448,8 +448,8 @@ if os.name == "nt":
     DEFAULT_POLL_SERIAL_PORTS = ["COM1"]
 else:
     DEFAULT_POLL_SERIAL_PORTS = ["/dev/ttyS0"]
-DEFAULT_IGNORED_SERIAL_PORTS: List[str] = []
-DEFAULT_IGNORED_HWIDS: List[str] = ["BTHENUM", "2c7c"]
+DEFAULT_IGNORED_SERIAL_PORTS: list[str] = []
+DEFAULT_IGNORED_HWIDS: list[str] = ["BTHENUM", "2c7c"]
 DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
 DEFAULT_SET_RTC = False
 DEFAULT_UTC_OFFSET = 0
@@ -492,7 +492,7 @@ rs485_backend_config = customization.value.get("rs485_backend", {})
 # IS1 backend configuration
 DEFAULT_REG_PORT = 50002
 DEFAULT_SCAN_INTERVAL = 60
-DEFAULT_IS1_HOSTS: List[str] = []
+DEFAULT_IS1_HOSTS: list[str] = []
 DEFAULT_IS1_PORT = 50000
 
 if customization.value.get("is1_backend") is None:

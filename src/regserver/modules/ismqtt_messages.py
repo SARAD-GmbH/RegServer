@@ -13,7 +13,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum, auto
-from typing import List, Tuple, Union
+from typing import Union
 
 from regserver.actor_messages import Status
 from regserver.logger import logger
@@ -85,7 +85,7 @@ class ConfigReq:
     req: str
     client: str
     cycle: int
-    values: List[Tuple[int]]
+    values: list[tuple[int]]
 
 
 @dataclass

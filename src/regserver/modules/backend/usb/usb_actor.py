@@ -400,9 +400,7 @@ class UsbActor(DeviceBaseActor):
         return True
 
     @overrides
-    def _request_start_monitoring_at_is(
-        self, start_time=datetime.now(timezone.utc), confirm=False
-    ):
+    def _request_start_monitoring_at_is(self, start_time=None, confirm=False):
         super()._request_start_monitoring_at_is(start_time, confirm)
         self.reserve_device_msg = ReserveDeviceMsg(
             host="localhost", user="self", app="monitoring"

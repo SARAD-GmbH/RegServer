@@ -12,7 +12,6 @@ import socket
 import time
 from datetime import datetime, timedelta
 from threading import Thread
-from typing import List
 
 import tomlkit
 from overrides import overrides  # type: ignore
@@ -110,7 +109,7 @@ class Is1Listener(BaseActor):
         return "Unknown"
 
     @staticmethod
-    def _deduplicate(list_of_objects: List[Is1Address]):
+    def _deduplicate(list_of_objects: list[Is1Address]):
         return list(set(list_of_objects))
 
     @overrides

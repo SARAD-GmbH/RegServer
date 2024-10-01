@@ -11,7 +11,6 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import List
 
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, Frontend, KillMsg,
@@ -98,7 +97,7 @@ class DeviceBaseActor(BaseActor):
         self.free_lock: Lock = Lock(value=False)
         self.value_lock: Lock = Lock(value=False)
         self.ack_lock: Lock = Lock(value=False)
-        self.bin_locks: List[Lock] = []
+        self.bin_locks: list[Lock] = []
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -630,13 +629,13 @@ class DeviceBaseActor(BaseActor):
                 UpdateDeviceStatusMsg(self.my_id, self.device_status),
             )
 
-    def _request_start_monitoring_at_is(
-        self, start_time=datetime.now(timezone.utc), confirm=False
-    ):
+    def _request_start_monitoring_at_is(self, start_time=None, confirm=False):
         # pylint: disable=unused-argument
         """Handler to start the monitoring mode on the Device Actor.
 
         This is only a stub. The method is implemented in the backend Device Actor."""
+        if start_time is None:
+            start_time = datetime.now(timezone.utc)
         logger.info(
             "%s requested to start monitoring at %s",
             self.my_id,

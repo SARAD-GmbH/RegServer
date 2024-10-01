@@ -12,7 +12,6 @@ import os
 from collections.abc import MutableMapping
 from contextlib import suppress
 from datetime import timedelta
-from typing import List
 
 from thespian.actors import (Actor, ActorSystem,  # type: ignore
                              ActorSystemFailure)
@@ -29,7 +28,7 @@ from regserver.logger import logger
 from regserver.shutdown import system_shutdown
 
 
-def make_command_msg(cmd_data: List[bytes]) -> bytes:
+def make_command_msg(cmd_data: list[bytes]) -> bytes:
     """Encode the message to be sent to the SARAD instrument.
     Arguments are the one byte long command
     and the data bytes to be sent."""
@@ -161,7 +160,7 @@ def find(pattern, path):
         path (str): path that should be walked through to find the file
 
     Returns:
-        List(str): List of full paths of the files found
+        list(str): List of full paths of the files found
     """
     result = []
     for root, _dirs, files in os.walk(path):

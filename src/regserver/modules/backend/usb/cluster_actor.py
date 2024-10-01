@@ -12,7 +12,6 @@ Covers as well USB ports as native RS-232 ports, addressed RS-485 as ZigBee.
 
 import os
 from datetime import datetime, timezone
-from typing import List, Set
 
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj, KillMsg,
@@ -72,7 +71,7 @@ class ClusterActor(BaseActor):
         self.ignore_ports = {
             self._normalize(port) for port in usb_backend_config["IGNORED_SERIAL_PORTS"]
         }
-        self.loop_ports: Set[str] = self.poll_ports.difference(self.ignore_ports)
+        self.loop_ports: set[str] = self.poll_ports.difference(self.ignore_ports)
         self.rs485_ports = rs485_backend_config
         super().__init__()
         self.actor_type = ActorType.HOST
@@ -128,7 +127,7 @@ class ClusterActor(BaseActor):
             return os.path.realpath(serial)
         return serial
 
-    def active_ports(self) -> Set[str]:
+    def active_ports(self) -> set[str]:
         """SARAD instruments can be connected:
         1. by RS232 on a native RS232 interface at the computer
         2. via their built in FT232R USB-serial converter
@@ -138,7 +137,7 @@ class ClusterActor(BaseActor):
         active_ports = comports()
         logger.debug("RS-232 or UART ports: %s", [port.device for port in active_ports])
         toxic_ports = []
-        ignored_hwids: List[str] = usb_backend_config["IGNORED_HWIDS"]
+        ignored_hwids: list[str] = usb_backend_config["IGNORED_HWIDS"]
         for hwid_filter in ignored_hwids:
             toxic_ports.extend(grep(hwid_filter))
         for port in toxic_ports:

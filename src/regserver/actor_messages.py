@@ -12,7 +12,7 @@ commands and data within the actor system
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum, IntEnum, unique
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Union
 
 from sarad.instrument import Gps  # type: ignore
 from sarad.sari import FamilyDict, Route  # type: ignore
@@ -329,7 +329,7 @@ class SetDeviceStatusMsg:
         device_status (dict): Dictionary with status information of the instrument.
     """
 
-    device_status: Dict[str, object]
+    device_status: dict[str, object]
 
 
 @dataclass
@@ -342,7 +342,7 @@ class SubscribeMsg:
         parent (ActorAddress): Address of the parent actor.
         actor_type (ActorType): Used to identify whether this is a Device or Host Actor.
         get_updates (bool): True if the actor shall receive updates
-                            of the Actor Dictionary from the Registrar actor.
+                            of the Actor dictionary from the Registrar actor.
         keep_alive (bool): True indicates that this is a follow-up SubscribeMsg.
                            False if this is the initial SubscribeMsg.
     """
@@ -407,7 +407,7 @@ class DeadChildMsg:
 
 @dataclass
 class SubscribeToActorDictMsg:
-    """Message to subscribe an actor to the Actor Dictionary maintained in the
+    """Message to subscribe an actor to the Actor dictionary maintained in the
     Registrar actor.
 
     Args:
@@ -419,7 +419,7 @@ class SubscribeToActorDictMsg:
 
 @dataclass
 class UnSubscribeFromActorDictMsg:
-    """Message to unsubscribe an actor from the Actor Dictionary maintained in the
+    """Message to unsubscribe an actor from the Actor dictionary maintained in the
     Registrar actor.
 
     Args:
@@ -431,7 +431,7 @@ class UnSubscribeFromActorDictMsg:
 
 @dataclass
 class UpdateActorDictMsg:
-    """Message containing the updated Actor Dictionary from Registrar Actor.
+    """Message containing the updated Actor dictionary from Registrar Actor.
     {actor_id: {"is_alive": bool,
                 "address": actor address,
                 "parent": actor_address,
@@ -441,15 +441,15 @@ class UpdateActorDictMsg:
     }
 
     Args:
-        actor_dict (dict): Actor Dictionary.
+        actor_dict (dict): Actor dictionary.
     """
 
-    actor_dict: Dict[str, Any]
+    actor_dict: dict[str, Any]
 
 
 @dataclass
 class GetActorDictMsg:
-    """Request to get the Actor Dictionary from Registrar Actor once."""
+    """Request to get the Actor dictionary from Registrar Actor once."""
 
 
 @dataclass
@@ -567,7 +567,7 @@ class UpdateDeviceStatusMsg:
     """
 
     device_id: str
-    device_status: Dict[str, str]
+    device_status: dict[str, str]
 
 
 @dataclass
@@ -584,7 +584,7 @@ class UpdateDeviceStatusesMsg:
         device_statuses (dict): Dictionary with status information of all instruments.
     """
 
-    device_statuses: Dict[str, Dict[str, str]]
+    device_statuses: dict[str, dict[str, str]]
 
 
 @dataclass
@@ -667,7 +667,7 @@ class AddPortToLoopMsg:
     """Request to set a serial interface or a list of serial interfaces
     to the list of interfaces for polling."""
 
-    ports: Union[str, List[str]]
+    ports: Union[str, list[str]]
 
 
 @dataclass
@@ -675,14 +675,14 @@ class RemovePortFromLoopMsg:
     """Request to remove a serial interface or a list of serial interfaces
     from the list of interfaces for polling."""
 
-    ports: Union[str, List[str]]
+    ports: Union[str, list[str]]
 
 
 @dataclass
 class ReturnLoopPortsMsg:
     """Returns the list of serial interfaces included in polling."""
 
-    ports: List[str]
+    ports: list[str]
 
 
 @dataclass
@@ -694,7 +694,7 @@ class GetLocalPortsMsg:
 class ReturnLocalPortsMsg:
     """Returns the list of local serial interfaces."""
 
-    ports: List[Dict[str, str]]
+    ports: list[dict[str, str]]
 
 
 @dataclass
@@ -706,7 +706,7 @@ class GetUsbPortsMsg:
 class ReturnUsbPortsMsg:
     """Returns the list of serial USB interfaces."""
 
-    ports: List[str]
+    ports: list[str]
 
 
 @dataclass
@@ -718,7 +718,7 @@ class GetNativePortsMsg:
 class ReturnNativePortsMsg:
     """Returns the list of local RS-232 interfaces."""
 
-    ports: List[str]
+    ports: list[str]
 
 
 @dataclass
@@ -848,10 +848,10 @@ class HostInfoMsg:
     The MQTT Listener sends HostInfoMsg to the Registrar on every host update.
 
     Args:
-        hosts (List[HostObj]): List of Host objects
+        hosts (list[HostObj]): List of Host objects
     """
 
-    hosts: List[HostObj]
+    hosts: list[HostObj]
 
 
 @dataclass
@@ -890,11 +890,11 @@ class MqttSubscribeMsg:
     """Message instructing the singleton MQTT Client Actor to subscribe to a topic.
 
     Args:
-        sub_info (List[Tupel[str, int]]): List of tupels of (topic, qos)
+        sub_info (list[tuple[str, int]]): List of tuples of (topic, qos)
         to subscribe to.
     """
 
-    sub_info: List[Tuple[str, int]]
+    sub_info: list[tuple[str, int]]
 
 
 @dataclass
@@ -902,10 +902,10 @@ class MqttUnsubscribeMsg:
     """Message instructing the singleton MQTT Client Actor to unsubscribe from a topic.
 
     Args:
-        topics (List[str]): List of topics.
+        topics (list[str]): List of topics.
     """
 
-    topics: List[str]
+    topics: list[str]
 
 
 @dataclass

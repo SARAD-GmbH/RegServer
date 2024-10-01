@@ -279,9 +279,7 @@ class MqttDeviceActor(DeviceBaseActor):
         )
 
     @overrides
-    def _request_start_monitoring_at_is(
-        self, start_time=datetime.now(timezone.utc), confirm=False
-    ):
+    def _request_start_monitoring_at_is(self, start_time=None, confirm=False):
         super()._request_start_monitoring_at_is(start_time=start_time, confirm=confirm)
         self.send(
             self.parent.parent_address,
