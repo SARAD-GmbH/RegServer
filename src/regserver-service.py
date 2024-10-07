@@ -42,7 +42,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         # say we accept them all.
         rc = win32serviceutil.ServiceFramework.GetAcceptedControls(self)
         rc |= (
-            win32service.SERVICE_ACCEPT_PRESHUTDOWN
+            win32service.SERVICE_ACCEPT_SHUTDOWN
             | win32service.SERVICE_ACCEPT_POWEREVENT
         )
         return rc
@@ -52,13 +52,13 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
     def SvcOtherEx(self, control, event_type, data):
         # This is only showing a few of the extra events - see the MSDN
         # docs for "HandlerEx callback" for more info.
-        if control == win32service.SERVICE_ACCEPT_PRESHUTDOWN:
-            msg = f"Preshutdown event: code={control}, type={event_type}, data={data}"
+        if control == win32service.SERVICE_ACCEPT_SHUTDOWN:
+            msg = f"Shutdown event: code={control}, type={event_type}, data={data}"
             self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
             win32event.SetEvent(self.hWaitStop)
             system_shutdown(with_error=False)
         elif control == win32service.SERVICE_CONTROL_POWEREVENT:
-            msg = f"Power event: setting {data}"
+            msg = f"Power event: code={control}, type={event_type}, data={data}"
         else:
             msg = f"Other event: code={control}, type={event_type}, data={data}"
 
