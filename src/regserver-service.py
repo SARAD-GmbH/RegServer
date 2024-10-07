@@ -12,7 +12,9 @@ import socket
 import sys
 
 import servicemanager
+import win32con
 import win32event
+import win32gui
 import win32service
 import win32serviceutil
 
@@ -36,15 +38,17 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         win32serviceutil.ServiceFramework.__init__(self, args)
         self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
         socket.setdefaulttimeout(60)
+        # register for a device notification - we pass our service handle
+        # instead of a window handle.
+        self.hdn = win32gui.RegisterDeviceNotification(
+            self.ssh, filter, win32con.DEVICE_NOTIFY_SERVICE_HANDLE
+        )
 
     # Override the base class so we can accept additional events.
     def GetAcceptedControls(self):
         # say we accept them all.
         rc = win32serviceutil.ServiceFramework.GetAcceptedControls(self)
-        rc |= (
-            win32service.SERVICE_ACCEPT_SHUTDOWN
-            | win32service.SERVICE_ACCEPT_POWEREVENT
-        )
+        rc = rc | win32service.SERVICE_ACCEPT_PRESHUTDOWN
         return rc
 
     # All extra events are sent via SvcOtherEx (SvcOther remains as a
@@ -52,13 +56,11 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
     def SvcOtherEx(self, control, event_type, data):
         # This is only showing a few of the extra events - see the MSDN
         # docs for "HandlerEx callback" for more info.
-        if control == win32service.SERVICE_ACCEPT_SHUTDOWN:
-            msg = f"Shutdown event: code={control}, type={event_type}, data={data}"
+        if control == win32service.SERVICE_ACCEPT_PRESHUTDOWN:
+            msg = f"Preshutdown event: code={control}, type={event_type}, data={data}"
             self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
             win32event.SetEvent(self.hWaitStop)
             system_shutdown(with_error=False)
-        elif control == win32service.SERVICE_CONTROL_POWEREVENT:
-            msg = f"Power event: code={control}, type={event_type}, data={data}"
         else:
             msg = f"Other event: code={control}, type={event_type}, data={data}"
 
