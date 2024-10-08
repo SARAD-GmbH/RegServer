@@ -12,9 +12,7 @@ import socket
 import sys
 
 import servicemanager
-import win32con
 import win32event
-import win32gui
 import win32service
 import win32serviceutil
 
@@ -36,47 +34,47 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
 
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
-        self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
+        self.stop_event = win32event.CreateEvent(None, 0, 0, None)
         socket.setdefaulttimeout(60)
-        # register for a device notification - we pass our service handle
-        # instead of a window handle.
-        self.hdn = win32gui.RegisterDeviceNotification(
-            self.ssh, filter, win32con.DEVICE_NOTIFY_SERVICE_HANDLE
-        )
 
     # Override the base class so we can accept additional events.
     def GetAcceptedControls(self):
         # say we accept them all.
         rc = win32serviceutil.ServiceFramework.GetAcceptedControls(self)
-        rc = rc | win32service.SERVICE_ACCEPT_PRESHUTDOWN
+        rc = (
+            rc
+            | win32service.SERVICE_ACCEPT_PRESHUTDOWN
+            | win32service.SERVICE_ACCEPT_SHUTDOWN
+            | win32service.SERVICE_ACCEPT_POWEREVENT
+        )
         return rc
+
+    def service_shutdown(self, with_error):
+        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
+        win32event.SetEvent(self.stop_event)
+        system_shutdown(with_error=with_error)
 
     # All extra events are sent via SvcOtherEx (SvcOther remains as a
     # function taking only the first args for backwards compat)
     def SvcOtherEx(self, control, event_type, data):
         # This is only showing a few of the extra events - see the MSDN
         # docs for "HandlerEx callback" for more info.
-        if control == win32service.SERVICE_ACCEPT_PRESHUTDOWN:
-            msg = f"Preshutdown event: code={control}, type={event_type}, data={data}"
-            self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
-            win32event.SetEvent(self.hWaitStop)
-            system_shutdown(with_error=False)
+        if control == win32service.SERVICE_CONTROL_PRESHUTDOWN:
+            servicemanager.LogInfoMsg(f"Preshutdown event: Trying to shutdown service")
+            self.service_shutdown(False)
+        elif control == win32service.SERVICE_CONTROL_POWEREVENT:
+            servicemanager.LogInfoMsg(f"Power event: code={control}, type={event_type}, data={data}")
+            if event_type in (6, 7):
+                servicemanager.LogInfoMsg("Resumed: Shutting down service for restart")
+                self.service_shutdown(True)
         else:
-            msg = f"Other event: code={control}, type={event_type}, data={data}"
-
-        servicemanager.LogMsg(
-            servicemanager.EVENTLOG_INFORMATION_TYPE,
-            0xF000,  #  generic message
-            (msg, ""),
-        )
+            servicemanager.LogInfoMsg(f"Other event: code={control}, type={event_type}, data={data}")
 
     def SvcStop(self):
         """Function that will be performed on 'service stop'.
 
         Removes the flag file to cause the main loop to stop."""
-        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
-        win32event.SetEvent(self.hWaitStop)
-        system_shutdown(with_error=False)
+        self.service_shutdown(False)
 
     def SvcDoRun(self):
         """Function that will be performed on 'service start'.
