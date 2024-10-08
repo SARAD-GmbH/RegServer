@@ -60,15 +60,19 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         # This is only showing a few of the extra events - see the MSDN
         # docs for "HandlerEx callback" for more info.
         if control == win32service.SERVICE_CONTROL_PRESHUTDOWN:
-            servicemanager.LogInfoMsg(f"Preshutdown event: Trying to shutdown service")
+            servicemanager.LogInfoMsg("Preshutdown event: Trying to shutdown service")
             self.service_shutdown(False)
         elif control == win32service.SERVICE_CONTROL_POWEREVENT:
-            servicemanager.LogInfoMsg(f"Power event: code={control}, type={event_type}, data={data}")
+            servicemanager.LogInfoMsg(
+                f"Power event: code={control}, type={event_type}, data={data}"
+            )
             if event_type in (6, 7):
                 servicemanager.LogInfoMsg("Resumed: Shutting down service for restart")
                 self.service_shutdown(True)
         else:
-            servicemanager.LogInfoMsg(f"Other event: code={control}, type={event_type}, data={data}")
+            servicemanager.LogInfoMsg(
+                f"Other event: code={control}, type={event_type}, data={data}"
+            )
 
     def SvcStop(self):
         """Function that will be performed on 'service stop'.
