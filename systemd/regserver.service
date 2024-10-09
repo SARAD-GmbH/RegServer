@@ -5,6 +5,7 @@ Wants=time-sync.target
 
 [Service]
 ExecStart=/usr/local/bin/sarad_registration_server
+ExecStop=/usr/local/bin/sarad_registration_server stop
 Restart=always
 RestartSec=3
 TimeoutStopSec=7
