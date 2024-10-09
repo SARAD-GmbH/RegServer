@@ -167,10 +167,7 @@ dirs = PlatformDirs(APP_NAME, APP_VENDOR)
 if os.name == "nt":
     home = os.environ.get("LOCALAPPDATA")
 else:
-    home = (
-        os.environ.get("HOME")
-        or f"{dirs.site_cache_dir}{os.path.sep}{APP_NAME}{os.path.sep}"
-    )
+    home = os.environ.get("HOME") or f"{dirs.site_cache_dir}{os.path.sep}{APP_NAME}"
     os.makedirs(home, exist_ok=True)
 config_folder = f"{dirs.site_config_dir}{os.path.sep}"
 config_file = f"{config_folder}config.toml"
