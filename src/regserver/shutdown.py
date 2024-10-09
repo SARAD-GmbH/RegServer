@@ -6,6 +6,7 @@ Created
 Authors
     Michael Strey <strey@sarad.de>
 """
+
 import os
 import re
 import signal
@@ -21,8 +22,9 @@ def set_file_flag(running, with_error=False):
     Instrument Server should be stopped.
 
     Args:
-        running (bool): If False, the file will be created and the system shall be shutdown.
-        with_error (bool): If True, the system shall be shutdown with error
+        running (bool): If False, the file will be created and the system shall be
+                        shut down.
+        with_error (bool): If True, the system shall be shut down with error
                            in order to restart the service automatically.
 
     Returns:
