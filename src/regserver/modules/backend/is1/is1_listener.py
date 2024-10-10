@@ -356,8 +356,6 @@ class Is1Listener(BaseActor):
         family_id = decode_instr_id(instr_id)[0]
         sarad_type = get_sarad_type(instr_id)
         actor_id = f"{instr_id}.{sarad_type}.is1"
-        set_of_instruments = set()
-        set_of_instruments.add(actor_id)
         if actor_id not in self.child_actors:
             logger.debug("Create actor %s", actor_id)
             family = id_family_mapping.get(family_id).family
