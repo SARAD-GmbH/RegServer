@@ -131,7 +131,6 @@ class UsbActor(DeviceBaseActor):
                 "Firmware version": self.instrument.software_version,
                 "Host": "127.0.0.1",
                 "Protocol": get_sarad_type(self.instr_id),
-                "IS Id": config["IS_ID"],
             },
             "Serial": self.instrument.route.port,
             "State": 2,

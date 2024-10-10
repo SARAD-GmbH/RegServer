@@ -20,7 +20,7 @@ from regserver.actor_messages import (ActorType, Frontend, KillMsg,
                                       Status, StopMonitoringAckMsg,
                                       UpdateDeviceStatusMsg)
 from regserver.base_actor import BaseActor
-from regserver.config import frontend_config
+from regserver.config import config, frontend_config
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.redirect_actor import RedirectorActor
@@ -615,10 +615,14 @@ class DeviceBaseActor(BaseActor):
 
     def _publish_status_change(self):
         """Publish a changed device status to all subscribers."""
+        device_status = self.device_status
+        device_status["Identification"]["IS Id"] = self.device_status[
+            "Identification"
+        ].get("IS Id", config["IS_ID"])
         for actor_address in self.subscribers.values():
             self.send(
                 actor_address,
-                UpdateDeviceStatusMsg(self.my_id, self.device_status),
+                UpdateDeviceStatusMsg(self.my_id, device_status),
             )
 
     def _publish_status(self, new_subscribers: list):
