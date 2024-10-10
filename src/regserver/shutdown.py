@@ -56,7 +56,7 @@ def is_flag_set():
             with_error_str = flag_file.read(4)
             if with_error_str == "True":
                 with_error = True
-            elif with_error_str == "Fals":
+            elif with_error_str == "Fals":  # sic! We read only 4 characters.
                 with_error = False
             else:
                 logger.error("Stop file corrupted: %s", with_error_str)
