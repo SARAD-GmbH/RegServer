@@ -209,7 +209,7 @@ def kill_residual_processes(end_with_error=True):
     if end_with_error:
         logger.info("Trying to kill residual processes. Fingers crossed!")
     if os.name == "posix":
-        process_regex = "python.+sarad_registration_server"
+        process_regex = "sarad_registrat"
     elif os.name == "nt":
         process_regex = "regserver-service.exe"
     else:
