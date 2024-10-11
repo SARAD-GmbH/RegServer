@@ -616,26 +616,28 @@ class DeviceBaseActor(BaseActor):
     def _publish_status_change(self):
         """Publish a changed device status to all subscribers."""
         device_status = self.device_status
-        device_status["Identification"]["IS Id"] = self.device_status[
-            "Identification"
-        ].get("IS Id", config["IS_ID"])
-        for actor_address in self.subscribers.values():
-            self.send(
-                actor_address,
-                UpdateDeviceStatusMsg(self.my_id, device_status),
-            )
+        if device_status.get("Identification", False):
+            device_status["Identification"]["IS Id"] = self.device_status[
+                "Identification"
+            ].get("IS Id", config["IS_ID"])
+            for actor_address in self.subscribers.values():
+                self.send(
+                    actor_address,
+                    UpdateDeviceStatusMsg(self.my_id, device_status),
+                )
 
     def _publish_status(self, new_subscribers: list):
         """Publish a device status to all new_subscribers."""
         device_status = self.device_status
-        device_status["Identification"]["IS Id"] = self.device_status[
-            "Identification"
-        ].get("IS Id", config["IS_ID"])
-        for actor_address in new_subscribers:
-            self.send(
-                actor_address,
-                UpdateDeviceStatusMsg(self.my_id, device_status),
-            )
+        if device_status.get("Identification", False):
+            device_status["Identification"]["IS Id"] = self.device_status[
+                "Identification"
+            ].get("IS Id", config["IS_ID"])
+            for actor_address in new_subscribers:
+                self.send(
+                    actor_address,
+                    UpdateDeviceStatusMsg(self.my_id, device_status),
+                )
 
     def _request_start_monitoring_at_is(self, start_time=None, confirm=False):
         # pylint: disable=unused-argument

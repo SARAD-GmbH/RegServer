@@ -62,7 +62,7 @@ class MqttBaseActor(BaseActor):
 
         Returns:
             True, if MQTT client shall be started as clean session"""
-        if (Backend.MQTT in backend_config) and (Frontend.MQTT not in frontend_config):
+        if (Backend.MQTT in backend_config) or (Frontend.MQTT in frontend_config):
             logger.info("Checking %s", PING_FILE_NAME)
             try:
                 with open(PING_FILE_NAME, encoding="utf8") as pingfile:

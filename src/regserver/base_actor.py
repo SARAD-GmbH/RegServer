@@ -18,15 +18,16 @@ Actors created in the actor system
 """
 
 from overrides import overrides  # type: ignore
-from thespian.actors import (ActorAddress, ActorExitRequest,  # type: ignore
-                             ActorTypeDispatcher, ChildActorExited)
+from thespian.actors import ActorExitRequest  # type: ignore
+from thespian.actors import ActorAddress, ActorTypeDispatcher, ChildActorExited
 
 from regserver.actor_messages import (ActorType, DeadChildMsg,
                                       GetDeviceStatusMsg, KeepAliveMsg,
-                                      KillMsg, Parent, RescanAckMsg,
-                                      ReservationStatusMsg, RxBinaryMsg,
-                                      SetDeviceStatusMsg, SetupMdnsActorMsg,
-                                      SetupMsg, SetupUsbActorMsg, SubscribeMsg,
+                                      KillMsg, MqttReceiveMsg, Parent,
+                                      RescanAckMsg, ReservationStatusMsg,
+                                      RxBinaryMsg, SetDeviceStatusMsg,
+                                      SetupMdnsActorMsg, SetupMsg,
+                                      SetupUsbActorMsg, SubscribeMsg,
                                       SubscribeToActorDictMsg,
                                       SubscribeToDeviceStatusMsg,
                                       UnSubscribeFromActorDictMsg,
@@ -222,7 +223,7 @@ class BaseActor(ActorTypeDispatcher):
             ),
         ):
             self.send(self.registrar, UnsubscribeMsg(msg.deadAddress))
-        elif isinstance(msg.deadMessage, KeepAliveMsg):
+        elif isinstance(msg.deadMessage, KeepAliveMsg, MqttReceiveMsg):
             self.send(
                 msg.deadMessage.parent.parent_address,
                 DeadChildMsg(msg.deadMessage.child),
