@@ -10,6 +10,7 @@
 """
 
 import os
+import re
 import select
 import shutil
 import sys
@@ -222,6 +223,53 @@ def kill_residual_processes(end_with_error=True):
             logger.info("Consider using 'ps ax' to investigate!")
         if os.name == "nt":
             logger.info("Inspect Task Manager to investigate!")
+
+
+def wait_for_termination():
+    """Wait until all RegServer processes are terminated. OS independent."""
+    if os.name == "posix":
+        process_regex = "sarad_registrat"
+    elif os.name == "nt":
+        process_regex = "regserver-service.exe"
+    else:
+        return
+    still_alive = True
+    while still_alive:
+        if os.name == "posix":
+            try:
+                my_pid = os.getpid()
+                logger.info("My pid is %s", my_pid)
+                still_alive = bool(
+                    os.popen(
+                        "ps ax | grep -E -i "
+                        + process_regex
+                        + " | grep -v -E 'grep|pdm'"
+                    )
+                )
+            except Exception:  # pylint: disable=broad-except
+                still_alive = False
+        elif os.name == "nt":
+            try:
+                my_pid = os.getpid()
+                pids = []
+                index = 0
+                for line in (
+                    os.popen("wmic process get description, processid")
+                    .read()
+                    .split("\n\n")
+                ):
+                    fields = re.split(r"\s{2,}", line)
+                    if index and (fields != [""]):  # omit header and bottom lines
+                        process = fields[0]
+                        pid = int(fields[1])
+                        if (pid != my_pid) and (process == "process_regex"):
+                            pids.append(pid)
+                    index = index + 1
+                still_alive = bool(pids)
+            except Exception:  # pylint: disable=broad-except
+                still_alive = False
+        if still_alive:
+            time.sleep(0.5)
 
 
 def outer_watchdog(registrar_address, number_of_trials=0) -> bool:

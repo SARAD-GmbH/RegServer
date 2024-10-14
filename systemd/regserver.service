@@ -8,7 +8,7 @@ ExecStart=/usr/local/bin/sarad_registration_server
 ExecStop=/usr/local/bin/sarad_registration_server stop
 Restart=always
 RestartSec=3
-TimeoutStopSec=7
+TimeoutStopSec=12
 KillMode=mixed
 
 [Install]
