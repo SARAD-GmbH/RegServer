@@ -204,6 +204,7 @@ class DeviceBaseActor(BaseActor):
                 )
                 self.bin_locks = []
                 self._handle_bin_reply_from_is(answer=RxBinaryMsg(self.RET_TIMEOUT))
+                self._kill_myself()
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name

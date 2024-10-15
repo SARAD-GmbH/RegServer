@@ -286,6 +286,8 @@ class HostActor(BaseActor):
             )
             self.host = updated_host
             self.send(self.registrar, HostInfoMsg([self.host]))
+            if not self.child_actors:
+                self._scan()
         self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
     def _scan(self):
