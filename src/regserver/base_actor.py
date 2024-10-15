@@ -223,7 +223,7 @@ class BaseActor(ActorTypeDispatcher):
             ),
         ):
             self.send(self.registrar, UnsubscribeMsg(msg.deadAddress))
-        elif isinstance(msg.deadMessage, KeepAliveMsg, MqttReceiveMsg):
+        elif isinstance(msg.deadMessage, (KeepAliveMsg, MqttReceiveMsg)):
             self.send(
                 msg.deadMessage.parent.parent_address,
                 DeadChildMsg(msg.deadMessage.child),
