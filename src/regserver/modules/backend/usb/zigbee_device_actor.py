@@ -53,7 +53,8 @@ class ZigBeeDeviceActor(UsbActor):
             logger.debug(
                 "With ZigBee we are using only %s", self.instrument.family["serial"]
             )
-        self.instrument.SER_TIMEOUT = SER_TIMEOUT
+        self.instrument._ser_timeout = SER_TIMEOUT  # pylint: disable=protected-access
+        self.instrument.ext_ser_timeout = SER_TIMEOUT
         try:
             self.instrument.route = route
         except SerialException as exception:

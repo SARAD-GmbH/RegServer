@@ -55,7 +55,8 @@ class NetUsbActor(UsbActor):
             self.is_connected = False
             return
         self.instrument.route = route
-        self.instrument.SER_TIMEOUT = SER_TIMEOUT
+        self.instrument._ser_timeout = SER_TIMEOUT  # pylint: disable=protected-access
+        self.instrument.ext_ser_timeout = SER_TIMEOUT
         device_status = {
             "Identification": {
                 "Name": self.instrument.type_name,
