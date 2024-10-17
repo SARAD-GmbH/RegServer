@@ -195,6 +195,7 @@ def shutdown(startup_tupel, wait_some_time, registrar_is_down, with_error=True):
                 logger.error("KillMsg to Registrar returned with %s", response)
         try:
             ActorSystem().shutdown()
+            time.sleep(3)
         except OSError as exception:
             logger.critical(exception)
     kill_residual_processes(end_with_error=with_error)
@@ -238,7 +239,9 @@ def wait_for_termination():
         if os.name == "posix":
             try:
                 my_pid = os.getpid()
-                logger.info("My pid is %s", my_pid)
+                logger.info(
+                    "Waiting for termination of all other processes than %s", my_pid
+                )
                 still_alive = bool(
                     os.popen(
                         "ps ax | grep -E -i "
@@ -388,6 +391,7 @@ def main():
             return
     elif start_stop == "stop":
         system_shutdown(with_error=False)
+        wait_for_termination()
         return
     else:
         print("Usage: <program> start|stop")
