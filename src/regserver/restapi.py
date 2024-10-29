@@ -33,7 +33,7 @@ from regserver.actor_messages import (AddPortToLoopMsg, BaudRateAckMsg,
                                       StartMonitoringAckMsg,
                                       StartMonitoringMsg, Status,
                                       StopMonitoringAckMsg, StopMonitoringMsg)
-from regserver.config import actor_config, mqtt_config
+from regserver.config import actor_config, config, mqtt_config
 from regserver.helpers import (check_msg, get_actor,
                                get_device_status_from_registrar,
                                get_device_statuses, get_hosts,
@@ -160,9 +160,9 @@ log_arguments.add_argument(
     "age",
     type=int,
     required=False,
-    help="Requires 'age' to be either 0 for current or 1 for last log.",
+    help=f"Requires 'age' to be a value between 0 and {config['NR_OF_LOG_FILES'] - 1}.",
     default=0,
-    choices=[0, 1],
+    choices=list(range(config["NR_OF_LOG_FILES"])),
     trim=True,
 )
 start_arguments = reqparse.RequestParser()
@@ -241,8 +241,9 @@ class Log(Resource):
         """Show the content of the log file"""
         logger.debug("Log request received")
         attribute_age = log_arguments.parse_args()
-        if attribute_age["age"]:
-            log_file_name = f"{LOGFILENAME}.1"
+        age = attribute_age["age"]
+        if age:
+            log_file_name = f"{LOGFILENAME}.{age}"
         else:
             log_file_name = LOGFILENAME
         if os.path.isfile(log_file_name):
