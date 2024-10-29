@@ -331,6 +331,7 @@ class Registrar(BaseActor):
                         break
 
         removed_actor = self.actor_dict.pop(actor_id, None)
+        logger.info("%s removed from actor_dict", actor_id)
         if removed_actor is not None:
             self._send_updates(self.actor_dict)
 

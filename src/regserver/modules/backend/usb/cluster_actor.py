@@ -196,7 +196,7 @@ class ClusterActor(BaseActor):
         self.send(sender, ReturnNativePortsMsg(ports))
 
     def _create_and_setup_actor(self, route, loop_interval):
-        logger.debug("[_create_and_setup_actor]")
+        logger.debug("[_create_and_setup_actor] for route %s", route)
         com_actor = self._create_actor(ComActor, self._route_id(route), None)
         self.send(com_actor, SetupComActorMsg(route, loop_interval))
 
