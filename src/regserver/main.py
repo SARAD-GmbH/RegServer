@@ -10,10 +10,8 @@
 """
 
 import os
-import re
 import select
 import shutil
-import sys
 import threading
 import time
 from datetime import datetime, timedelta
@@ -233,55 +231,6 @@ def kill_residual_processes(end_with_error=True):
         logger.info("Thread still alive after killing: %s", thread.name)
 
 
-def wait_for_termination():
-    """Wait until all RegServer processes are terminated. OS independent."""
-    if os.name == "posix":
-        process_regex = "sarad_registrat"
-    elif os.name == "nt":
-        process_regex = "regserver-service.exe"
-    else:
-        return
-    still_alive = True
-    while still_alive:
-        if os.name == "posix":
-            try:
-                my_pid = os.getpid()
-                logger.info(
-                    "Waiting for termination of all other processes than %s", my_pid
-                )
-                still_alive = bool(
-                    os.popen(
-                        "ps ax | grep -E -i "
-                        + process_regex
-                        + " | grep -v -E 'grep|pdm'"
-                    )
-                )
-            except Exception:  # pylint: disable=broad-except
-                still_alive = False
-        elif os.name == "nt":
-            try:
-                my_pid = os.getpid()
-                pids = []
-                index = 0
-                for line in (
-                    os.popen("wmic process get description, processid")
-                    .read()
-                    .split("\n\n")
-                ):
-                    fields = re.split(r"\s{2,}", line)
-                    if index and (fields != [""]):  # omit header and bottom lines
-                        process = fields[0]
-                        pid = int(fields[1])
-                        if (pid != my_pid) and (process == "process_regex"):
-                            pids.append(pid)
-                    index = index + 1
-                still_alive = bool(pids)
-            except Exception:  # pylint: disable=broad-except
-                still_alive = False
-        if still_alive:
-            time.sleep(0.5)
-
-
 def outer_watchdog(registrar_address, number_of_trials=0) -> bool:
     """Checks the existance of the Registrar Actor.
 
@@ -389,25 +338,13 @@ def main():
     """Main function of the Registration Server"""
     init_log_file()
     threading.excepthook = custom_hook
-    if len(sys.argv) < 2:
-        start_stop = "start"
-    else:
-        start_stop = sys.argv[1]
-    if start_stop == "start":
-        # maybe there are processes left from last run
-        kill_residual_processes(end_with_error=False)
-        set_file_flag(True)
-        startup_tupel = startup()
-        if not startup_tupel:
-            time.sleep(30)
-            shutdown((), False, True, with_error=True)
-            return
-    elif start_stop == "stop":
-        system_shutdown(with_error=False)
-        wait_for_termination()
-        return
-    else:
-        print("Usage: <program> start|stop")
+    # maybe there are processes left from last run
+    kill_residual_processes(end_with_error=False)
+    set_file_flag(True)
+    startup_tupel = startup()
+    if not startup_tupel:
+        time.sleep(30)
+        shutdown((), False, True, with_error=True)
         return
     logger.debug("Starting the main loop")
     wait_some_time = False
