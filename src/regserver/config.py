@@ -208,6 +208,7 @@ if os.name == "nt":
 else:
     DEFAULT_LOG_FOLDER = "/var/log/"
 DEFAULT_LOG_FILE = "regserver.log"
+DEFAULT_NR_OF_LOG_FILES = 10
 try:
     DEFAULT_IS_ID = socket.gethostname()
 except Exception:  # pylint: disable=broad-except
@@ -219,6 +220,9 @@ config = {
     "LEVEL": DEBUG_LEVEL,
     "LOG_FOLDER": customization.value.get("log_folder", DEFAULT_LOG_FOLDER),
     "LOG_FILE": customization.value.get("log_file", DEFAULT_LOG_FILE),
+    "NR_OF_LOG_FILES": customization.value.get(
+        "nr_of_log_files", DEFAULT_NR_OF_LOG_FILES
+    ),
     "IS_ID": customization.value.get("is_id", DEFAULT_IS_ID),
     "DESCRIPTION": customization.value.get("description", DEFAULT_DESCRIPTION),
     "PLACE": customization.value.get("place", DEFAULT_PLACE),

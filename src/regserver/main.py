@@ -24,8 +24,9 @@ from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
 
 from regserver.actor_messages import Backend, Frontend, KillMsg, SetupMsg
 from regserver.config import (FRMT, PING_FILE_NAME, actor_config,
-                              backend_config, config_file, frontend_config,
-                              mdns_backend_config, rest_frontend_config)
+                              backend_config, config, config_file,
+                              frontend_config, mdns_backend_config,
+                              rest_frontend_config)
 from regserver.logdef import LOGFILENAME, logcfg
 from regserver.logger import logger
 from regserver.modules.backend.mdns.mdns_listener import MdnsListener
@@ -367,13 +368,13 @@ def write_ping_file():
             pingfile.write(datetime.utcnow().strftime(FRMT))
 
 
-def main():
-    # pylint: disable=too-many-branches
-    """Main function of the Registration Server"""
-    try:
+def init_log_file():
+    """Store the old log file and start a new one"""
+    for i in sorted(range(1, config["NR_OF_LOG_FILES"]), reverse=True):
+        if os.path.exists(f"{LOGFILENAME}.{i}"):
+            shutil.copy2(f"{LOGFILENAME}.{i}", f"{LOGFILENAME}.{i + 1}")
+    if os.path.exists(LOGFILENAME):
         shutil.copy2(LOGFILENAME, f"{LOGFILENAME}.1")
-    except Exception:  # pylint: disable=broad-except
-        logger.warning("There is no old log file %s to copy.", LOGFILENAME)
     try:
         with open(LOGFILENAME, "w", encoding="utf8") as _:
             logger.info("SARAD Registration Server %s", VERSION)
@@ -381,6 +382,12 @@ def main():
             logger.info("Log entries go to %s", LOGFILENAME)
     except Exception:  # pylint: disable=broad-except
         logger.error("Initialization of log file failed.")
+
+
+def main():
+    # pylint: disable=too-many-branches
+    """Main function of the Registration Server"""
+    init_log_file()
     threading.excepthook = custom_hook
     if len(sys.argv) < 2:
         start_stop = "start"

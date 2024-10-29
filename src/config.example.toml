@@ -32,6 +32,11 @@
 ### Default: "regserver.log"
 #log_file = "regserver.log"
 
+### Key: nr_of_log_files
+## The number of log files that shall be stored.
+### Default: 10
+#nr_of_log_files = 10
+
 ## The following parameters `is_id`, `description`, `place`, `latitude`,
 ## `longitude`, `altitude`, `my_ip`, and `my_hostname` are relevant for RegServers
 ## that are connected with SARAD instruments via their USB backend, thus working
