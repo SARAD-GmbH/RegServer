@@ -36,6 +36,7 @@ class RedirectorActor(BaseActor):
         self.read_list = []
         self.socket_loop_thread = Thread(
             target=self._loop,
+            daemon=True,
         )
 
     def receiveMsg_WakeupMessage(self, msg, _sender):

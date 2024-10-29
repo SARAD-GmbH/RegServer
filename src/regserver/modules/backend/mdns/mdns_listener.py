@@ -148,7 +148,7 @@ class MdnsListener(ServiceListener):
                 ip_version=mdns_backend_config["IP_VERSION"],
                 interfaces=[config["MY_IP"], "127.0.0.1"],
             )
-            _ = ServiceBrowser(self.zeroconf, service_type, self)
+            self.browser = ServiceBrowser(self.zeroconf, service_type, self)
         self.hosts = mdns_backend_config.get("HOSTS", [])
         if self.hosts:
             for host in self.hosts:
@@ -271,3 +271,5 @@ class MdnsListener(ServiceListener):
     def shutdown(self) -> None:
         """Cleanup"""
         self.zeroconf.close()
+        self.browser.cancel()
+        logger.info("Zeroconf listener closed")

@@ -144,6 +144,9 @@ class ComActor(BaseActor):
         instr_id = None
         for test_instrument in instruments_to_test:
             try:
+                logger.debug(
+                    "Try %s on route %s", test_instrument.family["family_name"], route
+                )
                 test_instrument.route = route
                 if not test_instrument.valid_family:
                     logger.debug(

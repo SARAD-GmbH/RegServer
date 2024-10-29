@@ -125,6 +125,7 @@ def startup():
     if Frontend.REST in frontend_config:
         api_thread = threading.Thread(
             target=run,
+            name="api_thread",
             args=(rest_frontend_config["API_PORT"],),
             daemon=True,
         )
@@ -139,6 +140,7 @@ def startup():
         usb_listener = UsbListener(registrar_actor)
         usb_listener_thread = threading.Thread(
             target=usb_listener.run,
+            name="usb_listener_thread",
             daemon=True,
         )
         usb_listener_thread.start()
@@ -198,6 +200,8 @@ def shutdown(startup_tupel, wait_some_time, registrar_is_down, with_error=True):
             time.sleep(3)
         except OSError as exception:
             logger.critical(exception)
+    for thread in threading.enumerate():
+        logger.debug("Thread still alive: %s", thread.name)
     kill_residual_processes(end_with_error=with_error)
     if with_error:
         raise SystemExit("Exit with error for automatic restart.")
@@ -224,6 +228,8 @@ def kill_residual_processes(end_with_error=True):
             logger.info("Consider using 'ps ax' to investigate!")
         if os.name == "nt":
             logger.info("Inspect Task Manager to investigate!")
+    for thread in threading.enumerate():
+        logger.info("Thread still alive after killing: %s", thread.name)
 
 
 def wait_for_termination():
@@ -402,8 +408,11 @@ def main():
     last_trial = datetime.now()
     registrar_is_down = False
     if (Frontend.MQTT not in frontend_config) and GLOBAL_LED:
-        check_network_thread = threading.Thread(target=check_network, daemon=True)
+        check_network_thread = threading.Thread(
+            target=check_network, name="check_network_thread", daemon=True
+        )
         check_network_thread.start()
+        logger.info("Check_network thread started")
     while is_flag_set()[0]:
         before = datetime.now()
         if (before - last_trial).total_seconds() > interval:
