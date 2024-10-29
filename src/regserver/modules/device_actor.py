@@ -78,7 +78,7 @@ class DeviceBaseActor(BaseActor):
         process has been initialized.
     """
 
-    RET_TIMEOUT = b"B\x80\x7f\xd0\xf0\x00E"
+    RET_TIMEOUT = b"B\x80\x7f\xf0\xf0\x00E"
 
     @overrides
     def __init__(self):
