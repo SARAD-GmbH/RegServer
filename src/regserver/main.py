@@ -15,6 +15,7 @@ import shutil
 import threading
 import time
 from datetime import datetime, timedelta
+from multiprocessing import Process
 
 from serial.serialutil import SerialException  # type: ignore
 from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
@@ -122,13 +123,14 @@ def startup():
     usb_listener = None
     mdns_backend = None
     if Frontend.REST in frontend_config:
-        api_thread = threading.Thread(
+        api_process = Process(
             target=run,
-            name="api_thread",
+            name="api_process",
             args=(rest_frontend_config["API_PORT"],),
             daemon=True,
         )
-        api_thread.start()
+        api_process.start()
+        # api_process.join()
     if Frontend.MODBUS_RTU in frontend_config:
         try:
             modbus_rtu = ModbusRtu(registrar_actor)
@@ -147,7 +149,7 @@ def startup():
         mdns_backend = MdnsListener(
             registrar_actor, service_type=mdns_backend_config["TYPE"]
         )
-    return (registrar_actor, mdns_backend, usb_listener, modbus_rtu)
+    return (registrar_actor, mdns_backend, usb_listener, modbus_rtu, api_process)
 
 
 def shutdown(startup_tupel, wait_some_time, registrar_is_down, with_error=True):
@@ -157,29 +159,36 @@ def shutdown(startup_tupel, wait_some_time, registrar_is_down, with_error=True):
     if startup_tupel:
         mdns_listener = startup_tupel[1]
         if mdns_listener is not None:
-            logger.debug("Shutdown MdnsListener")
+            logger.info("Shutdown MdnsListener")
             try:
                 mdns_listener.shutdown()
             except Exception as exception:  # pylint: disable=broad-except
                 logger.critical(exception)
         usb_listener = startup_tupel[2]
         if usb_listener is not None:
-            logger.debug("Terminate UsbListener")
+            logger.info("Terminate UsbListener")
             try:
                 usb_listener.stop()
             except Exception as exception:  # pylint: disable=broad-except
                 logger.critical(exception)
         modbus_rtu = startup_tupel[3]
         if modbus_rtu is not None:
-            logger.debug("Terminate ModbusRtu")
+            logger.info("Terminate ModbusRtu")
             try:
                 modbus_rtu.stop()
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.critical(exception)
+        rest_api = startup_tupel[4]
+        if rest_api is not None:
+            logger.info("Terminate REST-API")
+            try:
+                rest_api.kill()
             except Exception as exception:  # pylint: disable=broad-except
                 logger.critical(exception)
         if wait_some_time:
             logger.debug("Wait for 10 sec before shutting down RegServer.")
             time.sleep(10)
-        logger.debug("Terminate the actor system")
+        logger.info("Terminate the actor system")
         if registrar_is_down:
             logger.debug("Registrar actor already died from emergency shutdown")
         else:

@@ -78,13 +78,15 @@ def wait_for_termination():
         if os.name == "posix":
             try:
                 my_pid = os.getpid()
-                still_alive = bool(
-                    os.popen(
-                        "ps ax | grep -E -i "
-                        + process_regex
-                        + " | grep -v -E 'grep|pdm'"
-                    )
-                )
+                pids = []
+                for line in os.popen(
+                    "ps ax | grep -E -i " + process_regex + " | grep -v -E 'grep|pdm'"
+                ):
+                    fields = line.split()
+                    pid = int(fields[0])
+                    if pid != my_pid:
+                        pids.append(pid)
+                still_alive = bool(pids)
             except Exception:  # pylint: disable=broad-except
                 still_alive = False
         elif os.name == "nt":
