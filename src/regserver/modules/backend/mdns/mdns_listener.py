@@ -141,37 +141,35 @@ class MdnsListener(ServiceListener):
         Initialize a mdns Listener for a specific device group
         """
         self.registrar = registrar_actor
-        self.hosts_whitelist = mdns_backend_config.get("HOSTS_WHITELIST", [])
-        self.hosts_blacklist = mdns_backend_config.get("HOSTS_BLACKLIST", [])
-        if self.hosts_whitelist:
-            for host in self.hosts_whitelist:
-                hostname = host[0]
-                logger.debug("Ask Registrar to create Host Actor %s", hostname)
-                with ActorSystem().private() as add_host:
-                    try:
-                        reply = add_host.ask(
-                            self.registrar, CreateActorMsg(HostActor, hostname)
-                        )
-                    except ConnectionResetError as exception:
-                        logger.debug(exception)
-                        reply = None
-                if not isinstance(reply, ActorCreatedMsg):
-                    logger.critical("Got %s instead of ActorCreateMsg", reply)
-                    logger.critical("-> Stop and shutdown system")
-                    system_shutdown()
-                elif reply.actor_address is None:
-                    return
-                else:
-                    host_actor = reply.actor_address
-                    ActorSystem().tell(
-                        host_actor,
-                        SetupHostActorMsg(
-                            host=hostname,
-                            port=host[1],
-                            scan_interval=mdns_backend_config["SCAN_INTERVAL"],
-                        ),
+        hosts_whitelist = mdns_backend_config.get("HOSTS_WHITELIST", [])
+        for host in hosts_whitelist:
+            hostname = host[0]
+            logger.debug("Ask Registrar to create Host Actor %s", hostname)
+            with ActorSystem().private() as add_host:
+                try:
+                    reply = add_host.ask(
+                        self.registrar, CreateActorMsg(HostActor, hostname)
                     )
-        else:
+                except ConnectionResetError as exception:
+                    logger.debug(exception)
+                    reply = None
+            if not isinstance(reply, ActorCreatedMsg):
+                logger.critical("Got %s instead of ActorCreateMsg", reply)
+                logger.critical("-> Stop and shutdown system")
+                system_shutdown()
+            elif reply.actor_address is None:
+                return
+            else:
+                host_actor = reply.actor_address
+                ActorSystem().tell(
+                    host_actor,
+                    SetupHostActorMsg(
+                        host=hostname,
+                        port=host[1],
+                        scan_interval=mdns_backend_config["SCAN_INTERVAL"],
+                    ),
+                )
+        if not hosts_whitelist:
             self.zeroconf = Zeroconf(
                 ip_version=mdns_backend_config["IP_VERSION"],
                 interfaces=[config["MY_IP"], "127.0.0.1"],
@@ -190,7 +188,12 @@ class MdnsListener(ServiceListener):
         my_hostname = config["MY_HOSTNAME"]
         logger.debug("Host to add: %s", hostname)
         logger.debug("My hostname: %s", my_hostname)
-        if (host_actor is None) and (not compare_hostnames(my_hostname, hostname)):
+        hosts_blacklist = mdns_backend_config.get("HOSTS_BLACKLIST", [])
+        if (
+            (host_actor is None)
+            and (not compare_hostnames(my_hostname, hostname))
+            and (not hostname in hosts_blacklist)
+        ):
             logger.debug("Ask Registrar to create Host Actor %s", hostname)
             with ActorSystem().private() as create_host:
                 try:
