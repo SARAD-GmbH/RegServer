@@ -14,6 +14,8 @@ hiddenimports = [
     "thespian.system.multiprocUDPBase",
     "thespian.system.multiprocQueueBase",
     "win32timezone",
+    "zeroconf._utils.ipaddress",
+    "zeroconf._handlers.answers",
 ]
 tmp_ret = collect_all("sarad")
 datas += tmp_ret[0]

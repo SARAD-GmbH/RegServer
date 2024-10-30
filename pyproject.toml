@@ -25,7 +25,7 @@ dependencies = [
     "gpiozero; sys_platform == \"linux\"",
     "systemd-python; sys_platform == \"linux\"",
     "tomlkit",
-    "zeroconf==0.118.0",
+    "zeroconf",
     "sarad @ git+https://github.com/SARAD-GmbH/sarad.git@master",
     "platformdirs>=4.2.0",
 ]
