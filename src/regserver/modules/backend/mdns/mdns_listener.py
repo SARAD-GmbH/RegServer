@@ -143,15 +143,10 @@ class MdnsListener(ServiceListener):
         """
         self.registrar = registrar_actor
         self.lock = threading.Lock()
-        with self.lock:
-            self.zeroconf = Zeroconf(
-                ip_version=mdns_backend_config["IP_VERSION"],
-                interfaces=[config["MY_IP"], "127.0.0.1"],
-            )
-            self.browser = ServiceBrowser(self.zeroconf, service_type, self)
-        self.hosts = mdns_backend_config.get("HOSTS", [])
-        if self.hosts:
-            for host in self.hosts:
+        self.hosts_whitelist = mdns_backend_config.get("HOSTS_WHITELIST", [])
+        self.hosts_blacklist = mdns_backend_config.get("HOSTS_BLACKLIST", [])
+        if self.hosts_whitelist:
+            for host in self.hosts_whitelist:
                 hostname = host[0]
                 logger.debug("Ask Registrar to create Host Actor %s", hostname)
                 with ActorSystem().private() as add_host:
@@ -178,6 +173,13 @@ class MdnsListener(ServiceListener):
                             scan_interval=mdns_backend_config["SCAN_INTERVAL"],
                         ),
                     )
+        else:
+            with self.lock:
+                self.zeroconf = Zeroconf(
+                    ip_version=mdns_backend_config["IP_VERSION"],
+                    interfaces=[config["MY_IP"], "127.0.0.1"],
+                )
+                self.browser = ServiceBrowser(self.zeroconf, service_type, self)
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
@@ -193,7 +195,7 @@ class MdnsListener(ServiceListener):
             logger.debug("Host to add: %s", hostname)
             logger.debug("My hostname: %s", my_hostname)
             known_hostnames = set()
-            for host in self.hosts:
+            for host in self.hosts_whitelist:
                 known_hostnames.add(host[0])
             if (host_actor is None) and (not compare_hostnames(my_hostname, hostname)):
                 logger.debug("Ask Registrar to create Host Actor %s", hostname)
@@ -215,7 +217,7 @@ class MdnsListener(ServiceListener):
                     host_actor = reply.actor_address
             data = self.convert_properties(zc, type_, name)
             if (data is not None) and (host_actor is not None):
-                if hostname in self.hosts:
+                if hostname in self.hosts_whitelist:
                     scan_interval = mdns_backend_config["SCAN_INTERVAL"]
                 else:
                     scan_interval = 0

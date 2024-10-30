@@ -419,18 +419,26 @@
 ### Default: "all"
 #ip_version = "all"
 
-### Key: hosts
-## `hosts` may contain a list of hosts running RegServers with mDNS frontend. It
-## has the form
-## [[host1, 8008], [host2, 8080]]
+### Key: hosts_whitelist
+## `hosts_whitelist` may contain a list of host names running RegServers with mDNS frontend.
+## It has the form [[host1, 8008], [host2, 8080]].
 ## The first element of an entry contains the hostname, the second the belonging port number
 ## of the REST APIs on this host (usually 8008).
 ##
-## Usually it will not be necessary to maintain such a list since its the sense
-## of mDNS to identify hosts automatically. But under special circumstances,
-## where multicast doesn't work this list might be the lifesaver.
+## If the list is not empty, the software component listening for ZeroConf
+## multicast messages will be deactivated. The whitelisted hosts well be polled
+## on their REST-API.
 ### Default: []
-#hosts = []
+#hosts_whitelist = []
+
+### Key: hosts_blacklist
+## `hosts_blacklist` may contain a list of hosts that shall be excluded.
+## ZeroConf services announced from those hosts will be ignored.
+## The list has the form [host1, host2].
+## If a hostname appears as well in the whitelist as in the blacklist, the
+## whitelist will surpass the blacklist.
+### Default: []
+#hosts_blacklist = []
 
 ### Key: scan_interval
 ## `scan_interval` defines the frequency, how often the hosts given in `hosts`

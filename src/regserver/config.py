@@ -12,7 +12,7 @@ import logging
 import os
 import re
 import socket
-from typing import TypedDict, Union
+from typing import TypedDict
 from uuid import getnode as get_mac
 
 import tomlkit
@@ -65,7 +65,8 @@ class MdnsBackendConfigDict(TypedDict):
     MDNS_TIMEOUT: int
     TYPE: str
     IP_VERSION: IPVersion
-    HOSTS: list[list[Union[str, int]]]
+    HOSTS_WHITELIST: list[tuple[str, int]]
+    HOSTS_BLACKLIST: list[str]
     SCAN_INTERVAL: int
 
 
@@ -403,7 +404,8 @@ DEFAULT_IP_VERSION = IPVersion.All
 
 # mDNS backend configuration
 DEFAULT_MDNS_TIMEOUT = 3000
-DEFAULT_HOSTS: list[list[Union[str, int]]] = []
+DEFAULT_HOSTS_WHITELIST: list[tuple[str, int]] = []
+DEFAULT_HOSTS_BLACKLIST: list[str] = []
 DEFAULT_HOSTS_SCAN_INTERVAL = 60  # in seconds
 
 if customization.value.get("mdns_backend") is None:
@@ -411,7 +413,8 @@ if customization.value.get("mdns_backend") is None:
         "MDNS_TIMEOUT": DEFAULT_MDNS_TIMEOUT,
         "TYPE": DEFAULT_TYPE,
         "IP_VERSION": DEFAULT_IP_VERSION,
-        "HOSTS": DEFAULT_HOSTS,
+        "HOSTS_WHITELIST": DEFAULT_HOSTS_WHITELIST,
+        "HOSTS_BLACKLIST": DEFAULT_HOSTS_BLACKLIST,
         "SCAN_INTERVAL": DEFAULT_HOSTS_SCAN_INTERVAL,
     }
 else:
@@ -427,7 +430,12 @@ else:
         ),
         "TYPE": customization.value["mdns_backend"].get("type", DEFAULT_TYPE),
         "IP_VERSION": IP_VERSION,
-        "HOSTS": customization.value["mdns_backend"].get("hosts", DEFAULT_HOSTS),
+        "HOSTS_WHITELIST": customization.value["mdns_backend"].get(
+            "hosts_whitelist", DEFAULT_HOSTS_WHITELIST
+        ),
+        "HOSTS_BLACKLIST": customization.value["mdns_backend"].get(
+            "hosts_blacklist", DEFAULT_HOSTS_BLACKLIST
+        ),
         "SCAN_INTERVAL": int(
             customization.value["mdns_backend"].get(
                 "scan_interval", DEFAULT_HOSTS_SCAN_INTERVAL
