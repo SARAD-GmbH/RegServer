@@ -191,7 +191,7 @@ class Main:
                 self.modbus_rtu.stop()
             except Exception as exception:  # pylint: disable=broad-except
                 logger.critical(exception)
-        if self.api_process is not None:
+        if (self.api_process is not None) and (os.name == "posix"):
             logger.info("Terminate REST-API")
             try:
                 self.api_process.kill()
