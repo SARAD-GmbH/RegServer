@@ -16,6 +16,7 @@ try:
 except ImportError:
     print("Wrong operating system.")
     raise
+from threading import Thread
 from time import sleep
 
 from overrides import overrides  # type: ignore
@@ -103,7 +104,8 @@ class UsbListener(BaseListener):
     def run(self, stop_event):
         """Start listening for new devices"""
         logger.info("[Start] Windows USB Listener")
-        win32gui.PumpMessages()
+        pump_thread = Thread(target=win32gui.PumpMessages, name="pump_thread")
+        pump_thread.start()
         while not stop_event.isSet():
             sleep(0.5)
         self.stop()
