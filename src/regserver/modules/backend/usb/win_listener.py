@@ -16,6 +16,8 @@ try:
 except ImportError:
     print("Wrong operating system.")
     raise
+from time import sleep
+
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import InstrAddedMsg, InstrRemovedMsg
 from regserver.logger import logger
@@ -75,7 +77,8 @@ class UsbListener(BaseListener):
     @overrides
     def __init__(self, registrar_actor):
         super().__init__(registrar_actor)
-        self.hwnd = None
+        self.hwnd = self._create_listener()
+        logger.debug("Created listener window with hwnd=%s", self.hwnd)
 
     def _create_listener(self):
         win_class = win32gui.WNDCLASS()
@@ -97,17 +100,28 @@ class UsbListener(BaseListener):
             None,
         )
 
-    def run(self):
+    def run(self, stop_event):
         """Start listening for new devices"""
-        self.hwnd = self._create_listener()
-        logger.debug("Created listener window with hwnd=%s", self.hwnd)
         logger.info("[Start] Windows USB Listener")
         win32gui.PumpMessages()
+        while not stop_event.isSet():
+            sleep(0.5)
+        self.stop()
 
     def stop(self):
         """Stop listening."""
-        win32gui.PostQuitMessage(self.hwnd)
-        logger.debug("Stop listening for USB devices.")
+        # win32gui.PostQuitMessage(self.hwnd)
+        win32gui.PostMessage(self.hwnd, win32con.WM_CLOSE, 0, 0)
+        logger.info("Ask window nicely to close and wait for 10 s")
+        sleep(10)
+        try:
+            logger.warning("The window is still existing. Trying to terminate.")
+            win32api.TerminateProcess(self.hwnd, 0)
+            win32api.CloseHandle(self.hwnd)
+        except Exception as exception:  # pylint: disable=broad-exception-caught
+            logger.error("Trying to kill the WinListener: %s", exception)
+        logger.info("Stop listening for USB devices.")
+        return 0
 
     def _on_message(self, _hwnd: int, msg: int, wparam: int, _lparam: int):
         if msg == win32con.WM_DEVICECHANGE:
@@ -116,7 +130,8 @@ class UsbListener(BaseListener):
             if event in ("DBT_DEVICEARRIVAL", "DBT_DEVICEREMOVECOMPLETE"):
                 if event in "DBT_DEVICEARRIVAL":
                     ActorSystem().tell(self.cluster_actor, InstrAddedMsg())
-                    return
+                    return 0
                 if event in "DBT_DEVICEREMOVECOMPLETE":
                     ActorSystem().tell(self.cluster_actor, InstrRemovedMsg())
-            return
+            return 0
+        return 0
