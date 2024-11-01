@@ -8,7 +8,9 @@
     | Michael Strey <strey@sarad.de>
 
 """
+
 import hashlib
+from time import sleep
 
 import pyudev  # type: ignore
 from overrides import overrides  # type: ignore
@@ -43,10 +45,13 @@ class UsbListener(BaseListener):
             monitor, self.usb_device_event
         )
 
-    def run(self):
+    def run(self, stop_event):
         """Start listening and keep listening until SIGTERM or SIGINT or stop()"""
         self._usb_stick_observer.start()
         logger.info("Start listening for USB devices.")
+        while not stop_event.isSet():
+            sleep(0.5)
+        self.stop()
 
     def stop(self):
         """Stop listening."""

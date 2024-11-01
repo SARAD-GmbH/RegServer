@@ -15,7 +15,7 @@ import sys
 import time
 
 from regserver.config import actor_config, home
-from regserver.main import main as start
+from regserver.main import Main
 
 FLAGFILENAME = f"{home}{os.path.sep}stop.file"
 
@@ -129,7 +129,7 @@ def main():
         wait_for_termination()
         return
     if start_stop == "start":
-        start()
+        Main().main()
     else:
         print("Usage: <program> start|stop")
 
