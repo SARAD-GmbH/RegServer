@@ -119,13 +119,20 @@ class Main:
         self.mdns_backend = None
         self.stop_event = threading.Event()
         if Frontend.REST in frontend_config:
-            self.api_process = Process(
-                target=run,
-                name="api_process",
-                args=(rest_frontend_config["API_PORT"],),
-            )
+            if os.name == "posix":
+                self.api_process = Process(
+                    target=run,
+                    name="api_process",
+                    args=(rest_frontend_config["API_PORT"],),
+                )
+            else:
+                self.api_process = threading.Thread(
+                    target=run,
+                    name="api_thread",
+                    args=(rest_frontend_config["API_PORT"],),
+                    daemon=True,
+                )
             self.api_process.start()
-            # self.api_process.join()
         if Frontend.MODBUS_RTU in frontend_config:
             try:
                 self.modbus_rtu = ModbusRtu(self.registrar_actor)
