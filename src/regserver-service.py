@@ -15,7 +15,6 @@ import servicemanager
 import win32event
 import win32service
 import win32serviceutil
-from overrides import overrides
 
 import regserver.main
 from regserver.shutdown import system_shutdown
@@ -38,7 +37,6 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         self.stop_event = win32event.CreateEvent(None, 0, 0, None)
         socket.setdefaulttimeout(60)
 
-    @overrides
     def GetAcceptedControls(self):
         """Override the base class so we can accept additional events.
 
@@ -60,7 +58,6 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         win32event.SetEvent(self.stop_event)
         system_shutdown(with_error=with_error)
 
-    @overrides
     def SvcOtherEx(self, control, event_type, data):
         """All extra events are sent via SvcOtherEx (SvcOther remains as a
         function taking only the first args for backwards compat) This is only
@@ -83,14 +80,12 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
                 f"Other event: code={control}, type={event_type}, data={data}"
             )
 
-    @overrides
     def SvcStop(self):
         """Function that will be performed on 'service stop'.
 
         Removes the flag file to cause the main loop to stop."""
         self.service_shutdown(False)
 
-    @overrides
     def SvcDoRun(self):
         """Function that will be performed on 'service start'.
 
