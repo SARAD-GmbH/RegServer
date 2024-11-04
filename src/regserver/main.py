@@ -149,9 +149,8 @@ class Main:
             )
             self.usb_listener_thread.start()
         if Backend.MDNS in backend_config:
-            self.mdns_backend = MdnsListener(
-                self.registrar_actor, service_type=mdns_backend_config["TYPE"]
-            )
+            self.mdns_backend = MdnsListener(self.registrar_actor)
+            self.mdns_backend.start(mdns_backend_config["TYPE"])
         logger.info("The RegServer is up and running now.")
 
     def handle_aranea_led(self):

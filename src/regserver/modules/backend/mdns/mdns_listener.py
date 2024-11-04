@@ -136,13 +136,15 @@ class MdnsListener(ServiceListener):
         host_actor = get_actor(self.registrar, hostname)
         return host_actor, hostname
 
-    def __init__(self, registrar_actor, service_type):
+    def __init__(self, registrar_actor):
         """
         Initialize a mdns Listener for a specific device group
         """
         self.registrar = registrar_actor
-        hosts_whitelist = mdns_backend_config.get("HOSTS_WHITELIST", [])
-        for host in hosts_whitelist:
+        self.zeroconf = None
+        self.browser = None
+        self.hosts_whitelist = mdns_backend_config.get("HOSTS_WHITELIST", [])
+        for host in self.hosts_whitelist:
             hostname = host[0]
             logger.debug("Ask Registrar to create Host Actor %s", hostname)
             with ActorSystem().private() as add_host:
@@ -169,7 +171,10 @@ class MdnsListener(ServiceListener):
                         scan_interval=mdns_backend_config["SCAN_INTERVAL"],
                     ),
                 )
-        if not hosts_whitelist:
+
+    def start(self, service_type):
+        """Start the ZeroConf listener thread"""
+        if not self.hosts_whitelist:
             self.zeroconf = Zeroconf(
                 ip_version=mdns_backend_config["IP_VERSION"],
                 interfaces=[config["MY_IP"], "127.0.0.1"],
@@ -261,6 +266,8 @@ class MdnsListener(ServiceListener):
 
     def shutdown(self) -> None:
         """Cleanup"""
-        self.zeroconf.close()
-        self.browser.cancel()
+        if self.zeroconf is not None:
+            self.zeroconf.close()
+        if self.browser is not None:
+            self.browser.cancel()
         logger.info("Zeroconf listener closed")
