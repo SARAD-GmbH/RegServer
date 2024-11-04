@@ -15,6 +15,7 @@ import servicemanager
 import win32event
 import win32service
 import win32serviceutil
+from overrides import overrides
 
 import regserver.main
 from regserver.shutdown import system_shutdown
@@ -37,9 +38,13 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         self.stop_event = win32event.CreateEvent(None, 0, 0, None)
         socket.setdefaulttimeout(60)
 
-    # Override the base class so we can accept additional events.
+    @overrides
     def GetAcceptedControls(self):
-        # say we accept them all.
+        """Override the base class so we can accept additional events.
+
+        say we accept them all.
+
+        """
         rc = win32serviceutil.ServiceFramework.GetAcceptedControls(self)
         rc = (
             rc
@@ -50,15 +55,19 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         return rc
 
     def service_shutdown(self, with_error):
+        """Shutdown of the Windows service"""
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.stop_event)
         system_shutdown(with_error=with_error)
 
-    # All extra events are sent via SvcOtherEx (SvcOther remains as a
-    # function taking only the first args for backwards compat)
+    @overrides
     def SvcOtherEx(self, control, event_type, data):
-        # This is only showing a few of the extra events - see the MSDN
-        # docs for "HandlerEx callback" for more info.
+        """All extra events are sent via SvcOtherEx (SvcOther remains as a
+        function taking only the first args for backwards compat) This is only
+        showing a few of the extra events - see the MSDN docs for "HandlerEx
+        callback" for more info.
+
+        """
         if control == win32service.SERVICE_CONTROL_PRESHUTDOWN:
             servicemanager.LogInfoMsg("Preshutdown event: Trying to shutdown service")
             self.service_shutdown(False)
@@ -74,12 +83,14 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
                 f"Other event: code={control}, type={event_type}, data={data}"
             )
 
+    @overrides
     def SvcStop(self):
         """Function that will be performed on 'service stop'.
 
         Removes the flag file to cause the main loop to stop."""
         self.service_shutdown(False)
 
+    @overrides
     def SvcDoRun(self):
         """Function that will be performed on 'service start'.
 
@@ -89,10 +100,11 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
             servicemanager.PYS_SERVICE_STARTED,
             (self._svc_name_, ""),
         )
-        regserver.main.main()
+        regserver.main.Main().main()
 
 
 def main():
+    """Main function of the SARAD Registration Server Service for Windows"""
     # Pyinstaller fix
     multiprocessing.freeze_support()
     if len(sys.argv) == 1:
