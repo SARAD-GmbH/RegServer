@@ -145,6 +145,7 @@ class Main:
                 target=usb_listener.run,
                 name="usb_listener_thread",
                 args=(self.stop_event,),
+                daemon=True,
             )
             self.usb_listener_thread.start()
         if Backend.MDNS in backend_config:
@@ -179,6 +180,7 @@ class Main:
         """Shutdown application"""
         self.write_ping_file()
         self.stop_event.set()
+        self.usb_listener_thread.join()
         if self.mdns_backend is not None:
             logger.info("Shutdown MdnsListener")
             try:
@@ -220,7 +222,7 @@ class Main:
         except OSError as exception:
             logger.critical(exception)
         for thread in threading.enumerate():
-            logger.info("Thread still alive: %s", thread.name)
+            logger.debug("Thread still alive: %s", thread.name)
         self.kill_residual_processes(end_with_error=with_error)
         if with_error:
             raise SystemExit("Exit with error for automatic restart.")

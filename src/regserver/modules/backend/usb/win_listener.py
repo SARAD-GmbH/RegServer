@@ -78,8 +78,7 @@ class UsbListener(BaseListener):
     @overrides
     def __init__(self, registrar_actor):
         super().__init__(registrar_actor)
-        self.hwnd = self._create_listener()
-        logger.debug("Created listener window with hwnd=%s", self.hwnd)
+        self.hwnd = None
 
     def _create_listener(self):
         win_class = win32gui.WNDCLASS()
@@ -103,25 +102,25 @@ class UsbListener(BaseListener):
 
     def run(self, stop_event):
         """Start listening for new devices"""
+        self.hwnd = self._create_listener()
+        logger.debug("Created listener window with hwnd=%s", self.hwnd)
         logger.info("[Start] Windows USB Listener")
-        pump_thread = Thread(target=win32gui.PumpMessages, name="pump_thread")
-        pump_thread.start()
         while not stop_event.isSet():
+            win32gui.PumpWaitingMessages()
             sleep(0.5)
         self.stop()
 
     def stop(self):
         """Stop listening."""
-        # win32gui.PostQuitMessage(self.hwnd)
+        win32gui.PostQuitMessage(self.hwnd)
         win32gui.PostMessage(self.hwnd, win32con.WM_CLOSE, 0, 0)
-        logger.info("Ask window nicely to close and wait for 10 s")
+        logger.debug("Ask window nicely to close and wait for 10 s")
         sleep(10)
         try:
-            logger.warning("The window is still existing. Trying to terminate.")
             win32api.TerminateProcess(self.hwnd, 0)
             win32api.CloseHandle(self.hwnd)
         except Exception as exception:  # pylint: disable=broad-exception-caught
-            logger.error("Trying to kill the WinListener: %s", exception)
+            logger.debug("Trying to kill the WinListener: %s", exception)
         logger.info("Stop listening for USB devices.")
         return 0
 
