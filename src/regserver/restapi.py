@@ -10,7 +10,6 @@
 """
 
 import os
-import time
 from datetime import datetime, timedelta, timezone
 
 from flask import Flask, request
@@ -19,7 +18,6 @@ from thespian.actors import ActorSystem  # type: ignore
 from thespian.actors import Thespian_ActorStatus
 from thespian.system.messages.status import (  # type: ignore
     Thespian_StatusReq, formatStatus)
-from waitress import serve  # type: ignore
 
 from regserver.actor_messages import (AddPortToLoopMsg, BaudRateAckMsg,
                                       BaudRateMsg, GetLocalPortsMsg,
@@ -33,7 +31,7 @@ from regserver.actor_messages import (AddPortToLoopMsg, BaudRateAckMsg,
                                       StartMonitoringAckMsg,
                                       StartMonitoringMsg, Status,
                                       StopMonitoringAckMsg, StopMonitoringMsg)
-from regserver.config import actor_config, config, mqtt_config
+from regserver.config import actor_config, config
 from regserver.helpers import (check_msg, get_actor,
                                get_device_status_from_registrar,
                                get_device_statuses, get_hosts,
@@ -44,8 +42,6 @@ from regserver.logdef import LOGFILENAME
 from regserver.logger import logger  # type: ignore
 from regserver.shutdown import system_shutdown
 from regserver.version import VERSION
-
-# logger.debug("%s -> %s", __package__, __file__)
 
 STARTTIME = datetime.now(timezone.utc).replace(microsecond=0)
 PASSWORD = "Diev5Pw."
@@ -1373,17 +1369,3 @@ class GetStatus(Resource):
         formatStatus(reply, tofd=Temp())
         status = Status.OK
         return {"Error code": status.value, "Error": str(status)}
-
-
-def run(port=None):
-    """Start the API"""
-    success = False
-    retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
-    while not success:
-        try:
-            logger.info("Starting API at port %d", port)
-            serve(app, listen=f"*:{port}", threads=24, connection_limit=200)
-            success = True
-        except OSError as exception:
-            logger.critical(exception)
-            time.sleep(retry_interval)

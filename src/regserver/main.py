@@ -20,18 +20,19 @@ from time import sleep
 from serial.serialutil import SerialException  # type: ignore
 from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
+from waitress import serve  # type: ignore
 
 from regserver.actor_messages import Backend, Frontend, KillMsg, SetupMsg
 from regserver.config import (FRMT, PING_FILE_NAME, actor_config,
                               backend_config, config, config_file,
                               frontend_config, mdns_backend_config,
-                              rest_frontend_config)
+                              mqtt_config, rest_frontend_config)
 from regserver.logdef import LOGFILENAME, logcfg
 from regserver.logger import logger
 from regserver.modules.backend.mdns.mdns_listener import MdnsListener
 from regserver.modules.frontend.modbus.modbus_rtu import ModbusRtu
 from regserver.registrar import Registrar
-from regserver.restapi import run
+from regserver.restapi import app
 from regserver.shutdown import (is_flag_set, kill_processes, set_file_flag,
                                 system_shutdown)
 from regserver.version import VERSION
@@ -121,15 +122,13 @@ class Main:
         if Frontend.REST in frontend_config:
             if os.name == "posix":
                 self.api_process = Process(
-                    target=run,
+                    target=self.start_webserver,
                     name="api_process",
-                    args=(rest_frontend_config["API_PORT"],),
                 )
             else:
                 self.api_process = threading.Thread(
-                    target=run,
+                    target=self.start_webserver,
                     name="api_thread",
-                    args=(rest_frontend_config["API_PORT"],),
                     daemon=True,
                 )
             self.api_process.start()
@@ -152,6 +151,23 @@ class Main:
             self.mdns_backend = MdnsListener(self.registrar_actor)
             self.mdns_backend.start(mdns_backend_config["TYPE"])
         logger.info("The RegServer is up and running now.")
+
+    def start_webserver(self):
+        """Start the Waitress webserver for the REST API
+
+        This function will never come back and must be started in a separate
+        process.
+
+        """
+        retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
+        port = rest_frontend_config["API_PORT"]
+        while True:
+            try:
+                logger.info("Starting API at port %d", port)
+                serve(app, listen=f"*:{port}", threads=24, connection_limit=200)
+            except OSError as exception:
+                logger.critical(exception)
+                sleep(retry_interval)
 
     def handle_aranea_led(self):
         """Take care to switch the green LED, if there is one"""
@@ -220,8 +236,6 @@ class Main:
             sleep(3)
         except OSError as exception:
             logger.critical(exception)
-        for thread in threading.enumerate():
-            logger.debug("Thread still alive: %s", thread.name)
         self.kill_residual_processes(end_with_error=with_error)
         if with_error:
             raise SystemExit("Exit with error for automatic restart.")
@@ -231,6 +245,9 @@ class Main:
 
     def kill_residual_processes(self, end_with_error=True):
         """Kill RegServer processes. OS independent."""
+        for thread in threading.enumerate():
+            if thread.name != "MainThread":
+                logger.warning("Thread still alive before killing: %s", thread.name)
         if end_with_error:
             logger.info("Trying to kill residual processes. Fingers crossed!")
         if os.name == "posix":
@@ -248,7 +265,8 @@ class Main:
             if os.name == "nt":
                 logger.info("Inspect Task Manager to investigate!")
         for thread in threading.enumerate():
-            logger.info("Thread still alive after killing: %s", thread.name)
+            if thread.name != "MainThread":
+                logger.warning("Thread still alive after killing: %s", thread.name)
 
     def outer_watchdog(self, number_of_trials=0) -> bool:
         """Checks the existance of the Registrar Actor.
