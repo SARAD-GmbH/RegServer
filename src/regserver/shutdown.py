@@ -33,13 +33,18 @@ def set_file_flag(running, with_error=False):
     if running:
         try:
             os.remove(FLAGFILENAME)
-            logger.info("Remove %s", FLAGFILENAME)
+            if with_error:
+                logger.info("Remove %s", FLAGFILENAME)
         except FileNotFoundError:
-            logger.info("%s not found", FLAGFILENAME)
+            if with_error:
+                logger.info("%s not found", FLAGFILENAME)
+            else:
+                pass
     elif not os.path.exists(FLAGFILENAME):
         with open(FLAGFILENAME, "w", encoding="utf8") as flag_file:
             flag_file.write(str(with_error))
-        logger.info("Write %s, with_error = %s", FLAGFILENAME, with_error)
+        if with_error:
+            logger.info("Write %s, with_error = %s", FLAGFILENAME, with_error)
 
 
 def is_flag_set():
@@ -75,7 +80,6 @@ def system_shutdown(with_error=True):
     Args:
        with_error (bool): True indicates that the programm shall be terminated with error
     """
-    logger.debug("Switch off watchdogs")
     actor_config["OUTER_WATCHDOG_TRIALS"] = 0
     actor_config["KEEPALIVE_INTERVAL"] = 0
     set_file_flag(running=False, with_error=with_error)
