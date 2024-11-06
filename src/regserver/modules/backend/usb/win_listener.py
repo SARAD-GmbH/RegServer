@@ -114,8 +114,8 @@ class UsbListener(BaseListener):
         """Stop listening."""
         win32gui.PostQuitMessage(self.hwnd)
         win32gui.PostMessage(self.hwnd, win32con.WM_CLOSE, 0, 0)
-        logger.debug("Ask window nicely to close and wait for 10 s")
-        sleep(10)
+        logger.debug("Ask window nicely to close and wait for 3 s")
+        sleep(3)
         try:
             win32api.TerminateProcess(self.hwnd, 0)
             win32api.CloseHandle(self.hwnd)
