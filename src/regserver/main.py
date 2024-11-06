@@ -350,10 +350,9 @@ class Main:
 
     def write_ping_file(self):
         """Write the current datetime into a file"""
-        if (Backend.MQTT in backend_config) and (Frontend.MQTT not in frontend_config):
-            with open(PING_FILE_NAME, "w", encoding="utf8") as pingfile:
-                logger.debug("Write datetime to %s", PING_FILE_NAME)
-                pingfile.write(datetime.utcnow().strftime(FRMT))
+        with open(PING_FILE_NAME, "w", encoding="utf8") as pingfile:
+            logger.debug("Write datetime to %s", PING_FILE_NAME)
+            pingfile.write(datetime.utcnow().strftime(FRMT))
 
     def init_log_file(self):
         """Store the old log file and start a new one"""
