@@ -386,7 +386,7 @@ class Is1Listener(BaseActor):
         self.active_is1_addresses[actor_id] = is1_address
         try:
             self.is1_addresses.remove(is1_address)
-        except (KeyError, ValueError):
+        except (KeyError, ValueError, TypeError):
             logger.error("%s not in self.is1_addresses", is1_address)
         logger.debug("List of active IS1: %s", self.active_is1_addresses)
         logger.debug("List of IS1 for next scan: %s", self.is1_addresses)
@@ -403,7 +403,7 @@ class Is1Listener(BaseActor):
                         self.is1_addresses = self._deduplicate(self.is1_addresses)
                         logger.debug("Addresses for next scan: %s", self.is1_addresses)
                         self._update_host_info()
-                    except (KeyError, ValueError):
+                    except (KeyError, ValueError, TypeError):
                         logger.error(
                             "%s not in self.active_is1_addresses.", msg.is1_address
                         )

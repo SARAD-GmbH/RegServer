@@ -374,7 +374,7 @@ class MqttClientActor(MqttBaseActor):
                     instr_id,
                     is_id,
                 )
-            except KeyError:
+            except (KeyError, TypeError):
                 logger.warning(
                     "[on_instr_meta] Disconnect of unknown instr. %s from IS %s",
                     instr_id,

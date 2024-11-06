@@ -291,7 +291,7 @@ class DeviceBaseActor(BaseActor):
                         self._send_reservation_status_msg()
                         logger.debug("_send_reservation_status_msg case A")
                         return
-            except KeyError:
+            except (KeyError, TypeError):
                 logger.debug("First reservation since restart of RegServer")
             if (
                 Frontend.REST in frontend_config
@@ -402,7 +402,7 @@ class DeviceBaseActor(BaseActor):
                     ).isoformat(timespec="seconds")
                 else:
                     success = Status.OK_SKIPPED
-            except KeyError:
+            except (KeyError, TypeError):
                 logger.debug("Instr. was not reserved before.")
                 success = Status.OK_SKIPPED
         self.return_message = ReservationStatusMsg(self.instr_id, success)

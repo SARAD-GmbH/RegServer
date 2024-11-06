@@ -145,7 +145,7 @@ class Registrar(BaseActor):
         """Confirm that the actor is still alive."""
         try:
             self.actor_dict[actor_id]["is_alive"] = True
-        except KeyError:
+        except (KeyError, TypeError):
             logger.error(
                 "Great confusion. %s passed away during handling of KeepAliveMsg.",
                 actor_id,

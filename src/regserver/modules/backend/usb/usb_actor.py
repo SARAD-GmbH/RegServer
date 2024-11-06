@@ -157,7 +157,7 @@ class UsbActor(DeviceBaseActor):
             self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
             try:
                 is_reserved = self.device_status["Reservation"]["Active"]
-            except KeyError:
+            except (KeyError, TypeError):
                 is_reserved = False
             if (not self.on_kill) and (not is_reserved):
                 if not self.inner_thread.is_alive():
@@ -191,7 +191,7 @@ class UsbActor(DeviceBaseActor):
         if not self.is_connected and not self.on_kill:
             logger.info("Nothing connected -> Killing myself")
             self._kill_myself()
-        else:
+        elif self.instrument.family.get("family_id", False):
             instr_id = encode_instr_id(
                 self.instrument.family["family_id"],
                 self.instrument.type_id,
@@ -294,7 +294,7 @@ class UsbActor(DeviceBaseActor):
         """
         try:
             is_reserved = self.device_status["Reservation"]["Active"]
-        except KeyError:
+        except (KeyError, TypeError):
             is_reserved = False
         if not is_reserved:
             self._start_thread(
@@ -381,7 +381,7 @@ class UsbActor(DeviceBaseActor):
                     (value["component"], value["sensor"], value["measurand"])
                 )
                 _interval = value["interval"]
-        except KeyError as exception:
+        except (KeyError, TypeError) as exception:
             logger.error(
                 "Uncomplete [monitoring] section in 'config.toml': %s", exception
             )

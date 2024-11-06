@@ -273,7 +273,7 @@ class MqttSchedulerActor(MqttBaseActor):
                     qos=self.qos,
                     retain=False,
                 )
-            except KeyError as exception:
+            except (KeyError, TypeError) as exception:
                 logger.warning("No host information for %s: %s", device_id, exception)
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
@@ -386,7 +386,7 @@ class MqttSchedulerActor(MqttBaseActor):
             self._unsubscribe_from_device_status_msg(
                 self.actor_dict[device_id]["address"]
             )
-        except KeyError:
+        except (KeyError, TypeError):
             logger.warning("Cannot unsubscribe %s from DeviceStatusMsg", device_id)
         if self.reservations.pop(device_id, None) is not None:
             logger.info("Remove %s", device_id)
@@ -684,7 +684,7 @@ class MqttSchedulerActor(MqttBaseActor):
             return
         try:
             hostname = payload["Identification"]["Host"]
-        except KeyError:
+        except (KeyError, TypeError):
             return
         if (is_id != self.is_id) and (hostname == self.is_meta.host):
             logger.info("Remove retained message at %s", message.topic)
