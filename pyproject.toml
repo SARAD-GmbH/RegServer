@@ -45,7 +45,7 @@ classifiers = [
 ]
 
 [project.scripts]
-sarad_registration_server = "regserver.main:main"
+sarad_registration_server = "regserver.main:Main().main"
 
 [build-system]
 requires = ["pdm-backend"]
