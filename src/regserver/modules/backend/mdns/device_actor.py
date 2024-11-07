@@ -286,7 +286,7 @@ class DeviceActor(DeviceBaseActor):
                         self.device_status["Reservation"]["Host"],
                         self.device_id,
                     )
-                except KeyError:
+                except (KeyError, TypeError):
                     logger.error(
                         "%s occupied, but we don't know by whom", self.device_id
                     )

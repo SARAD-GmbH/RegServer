@@ -10,11 +10,14 @@
 """
 
 import os
+import re
 import select
 import shutil
+import signal
+import sys
 import threading
 from datetime import datetime, timedelta
-from multiprocessing import Process
+from multiprocessing import Process, freeze_support
 from time import sleep
 
 from serial.serialutil import SerialException  # type: ignore
@@ -25,7 +28,7 @@ from waitress import serve  # type: ignore
 from regserver.actor_messages import Backend, Frontend, KillMsg, SetupMsg
 from regserver.config import (FRMT, PING_FILE_NAME, actor_config,
                               backend_config, config, config_file,
-                              frontend_config, mdns_backend_config,
+                              frontend_config, home, mdns_backend_config,
                               mqtt_config, rest_frontend_config)
 from regserver.logdef import LOGFILENAME, logcfg
 from regserver.logger import logger
@@ -47,6 +50,7 @@ else:
     from regserver.modules.backend.usb.win_listener import UsbListener
 
 RETRY_DELAY = 2  # in seconds
+FLAGFILENAME = f"{home}{os.path.sep}stop.file"
 
 
 class Main:
@@ -402,3 +406,84 @@ class Main:
             registrar_is_down,
             with_error=is_flag_set()[1],
         )
+
+
+def signal_handler(_sig, _frame):
+    """On Ctrl+C: stop MQTT loop
+
+    The signal handler removes the flag file. This will cause the main MQTT
+    loop to stop and call the cleanup function."""
+    system_shutdown(with_error=False)
+
+
+def wait_for_termination():
+    """Wait until all RegServer processes are terminated. OS independent."""
+    if os.name == "posix":
+        process_regex = "sarad_registrat"
+    elif os.name == "nt":
+        process_regex = "regserver-service.exe"
+    else:
+        return
+    still_alive = True
+    while still_alive:
+        if os.name == "posix":
+            try:
+                my_pid = os.getpid()
+                pids = []
+                for line in os.popen(
+                    "ps ax | grep -E -i " + process_regex + " | grep -v -E 'grep|pdm'"
+                ):
+                    fields = line.split()
+                    pid = int(fields[0])
+                    if pid != my_pid:
+                        pids.append(pid)
+                still_alive = bool(pids)
+            except Exception:  # pylint: disable=broad-except
+                still_alive = False
+        elif os.name == "nt":
+            try:
+                my_pid = os.getpid()
+                pids = []
+                index = 0
+                for line in (
+                    os.popen("wmic process get description, processid")
+                    .read()
+                    .split("\n\n")
+                ):
+                    fields = re.split(r"\s{2,}", line)
+                    if index and (fields != [""]):  # omit header and bottom lines
+                        process = fields[0]
+                        pid = int(fields[1])
+                        if (pid != my_pid) and (process == "process_regex"):
+                            pids.append(pid)
+                    index = index + 1
+                still_alive = bool(pids)
+            except Exception:  # pylint: disable=broad-except
+                still_alive = False
+        if still_alive:
+            sleep(0.5)
+
+
+def main():
+    """Starting the RegServer"""
+    # Pyinstaller fix
+    freeze_support()
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    if len(sys.argv) < 2:
+        start_stop = "start"
+    else:
+        start_stop = sys.argv[1]
+    if start_stop == "stop":
+        system_shutdown(with_error=False)
+        wait_for_termination()
+        return
+    if start_stop == "start":
+        Main().main()
+    else:
+        print("Usage: <program> start|stop")
+
+
+if __name__ == "__main__":
+    main()

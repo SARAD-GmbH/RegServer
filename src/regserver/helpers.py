@@ -244,7 +244,7 @@ def get_actor(registrar_actor, actor_id: str):
         return None
     try:
         return actor_dict[actor_id]["address"]
-    except KeyError:
+    except (KeyError, TypeError):
         logger.debug("%s not in %s", actor_id, actor_dict)
         return None
 

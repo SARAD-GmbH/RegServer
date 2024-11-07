@@ -544,7 +544,7 @@ class MqttDeviceActor(DeviceBaseActor):
                 "%s is still reserved by my host -> sending Free request", self.my_id
             )
             self._request_free_at_is()
-        except KeyError:
+        except (KeyError, TypeError):
             pass
         try:
             self._send_reservation_status_msg()
