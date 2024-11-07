@@ -197,7 +197,7 @@ class MdnsListener(ServiceListener):
         if (
             (host_actor is None)
             and (not compare_hostnames(my_hostname, hostname))
-            and (not hostname in hosts_blacklist)
+            and (hostname not in hosts_blacklist)
         ):
             logger.debug("Ask Registrar to create Host Actor %s", hostname)
             with ActorSystem().private() as create_host:
