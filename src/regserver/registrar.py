@@ -329,7 +329,14 @@ class Registrar(BaseActor):
                         host = replace(host, **para)
                         self.hosts[idx] = host
                         break
-
+        if self.actor_dict[actor_id].get("actor_type") == ActorType.HOST:
+            index = None
+            for host in self.hosts:
+                if host.host == actor_id:
+                    index = self.hosts.index(host)
+                    break
+            if index is not None:
+                self.hosts[index].state = 0
         removed_actor = self.actor_dict.pop(actor_id, None)
         logger.info("%s removed from actor_dict", actor_id)
         if removed_actor is not None:
@@ -569,6 +576,7 @@ class Registrar(BaseActor):
                 if new_host.host == known_host.host:
                     known = True
                     if new_host not in self.hosts:
+                        # update host information
                         index = self.hosts.index(known_host)
                         self.hosts.pop(index)
                         self.hosts.insert(index, new_host)
