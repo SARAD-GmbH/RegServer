@@ -500,8 +500,8 @@
 ### Key: watchdog_wait
 ## `watchdog_wait` in seconds defines the time the Registrar shall wait for a
 ## reply of the Actor.
-### Default: 2 (s)
-#watchdog_wait = 2
+### Default: 10 (s)
+#watchdog_wait = 10
 
 ### Key: watchdog_check
 ## If true, each Actor has to re-register at the Registrar.
