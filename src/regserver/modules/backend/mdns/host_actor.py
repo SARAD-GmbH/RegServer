@@ -127,7 +127,9 @@ class HostActor(BaseActor):
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
         super().receiveMsg_ChildActorExited(msg, sender)
-        self._get_host_info()
+        if not self.child_actors:
+            self.host.state = self.host.state and 1
+            self.send(self.registrar, HostInfoMsg([self.host]))
 
     def receiveMsg_SetupHostActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -269,10 +271,6 @@ class HostActor(BaseActor):
                 logger.debug("REST API of IS is not responding. %s", exception2)
                 success = Status.IS_NOT_FOUND
                 logger.error("%s in _ping_function of %s", success, self.my_id)
-                if self.scan_interval:
-                    self._forward_to_children(KillMsg())
-                else:
-                    self._kill_myself()
         if ping_dict:
             updated_host = replace(
                 self.host,
@@ -288,6 +286,11 @@ class HostActor(BaseActor):
             self.send(self.registrar, HostInfoMsg([self.host]))
             if not self.child_actors:
                 self._scan()
+        else:
+            self.host.state = 0
+            self._forward_to_children(KillMsg())
+            logger.info("Update host info in _ping_function()")
+            self.send(self.registrar, HostInfoMsg([self.host]))
         self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
     def _scan(self):
@@ -381,10 +384,6 @@ class HostActor(BaseActor):
                 logger.debug("REST API of IS is not responding. %s", exception)
                 success = Status.IS_NOT_FOUND
                 logger.error("%s in _no_host_info of %s", success, self.my_id)
-                if self.scan_interval:
-                    self._forward_to_children(KillMsg())
-                else:
-                    self._kill_myself()
         if ping_dict:
             self.host = replace(
                 self.host,
@@ -396,6 +395,11 @@ class HostActor(BaseActor):
                     ),
                 ),
             )
+        else:
+            self.host.state = 0
+            self._forward_to_children(KillMsg())
+            logger.info("Update host info in _no_host_info()")
+            self.send(self.registrar, HostInfoMsg([self.host]))
 
     def _replace_host_info(self, host_info: dict):
         if self.child_actors:

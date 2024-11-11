@@ -266,8 +266,8 @@ class MdnsListener(ServiceListener):
 
     def shutdown(self) -> None:
         """Cleanup"""
-        if self.zeroconf is not None:
-            self.zeroconf.close()
         if self.browser is not None:
             self.browser.cancel()
+        if self.zeroconf is not None:
+            self.zeroconf.close()
         logger.info("Zeroconf listener closed")

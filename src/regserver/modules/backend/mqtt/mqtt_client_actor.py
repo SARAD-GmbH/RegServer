@@ -244,6 +244,12 @@ class MqttClientActor(MqttBaseActor):
         return
 
     def _rm_host(self, is_id, state) -> None:
+        """Remove the host, if it's offline.
+
+        - kill all Device Actors belonging to this host
+        - notify the registrar about the offline status of this host
+        - remove the host from self._hosts
+        """
         logger.debug("[_rm_host] %s", is_id)
         self.mqttc.unsubscribe(f"{self.group}/{is_id}/+/meta")
         instr_to_remove = []
@@ -477,6 +483,13 @@ class MqttClientActor(MqttBaseActor):
         # pylint: disable=too-many-arguments
         super().on_connect(client, userdata, flags, reason_code, properties)
         self.mqttc.subscribe(f"{self.group}/+/meta", 2)
+
+    @overrides
+    def on_disconnect(self, client, userdata, flags, reason_code, properties):
+        # pylint: disable=too-many-arguments
+        super().on_disconnect(client, userdata, flags, reason_code, properties)
+        for is_id in self._hosts:
+            self._rm_host(is_id, state=10)
 
     def receiveMsg_RescanMsg(self, msg, sender):
         # pylint: disable=invalid-name
