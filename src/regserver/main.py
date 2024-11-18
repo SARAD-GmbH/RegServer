@@ -73,6 +73,8 @@ class Main:
         # maybe there are processes left from last run
         self.kill_residual_processes(end_with_error=False)
         set_file_flag(True)
+        self.stop_event = threading.Event()
+        self.stop_event.clear()
         self.led = None
         self.handle_aranea_led()
         try:
@@ -122,7 +124,6 @@ class Main:
         self.modbus_rtu = None
         usb_listener = None
         self.mdns_backend = None
-        self.stop_event = threading.Event()
         if Frontend.REST in frontend_config:
             if os.name == "posix":
                 self.api_process = Process(
@@ -342,6 +343,7 @@ class Main:
             j.get_previous()
             p = select.poll()  # pylint: disable=invalid-name
             p.register(j, j.get_events())
+            self.led.on()
             while p.poll() and not stop_event.isSet():
                 if j.process() != journal.APPEND:
                     sleep(0.5)
