@@ -124,6 +124,7 @@ class Main:
         self.modbus_rtu = None
         usb_listener = None
         self.mdns_backend = None
+        self.api_process = None
         if Frontend.REST in frontend_config:
             if os.name == "posix":
                 self.api_process = Process(
