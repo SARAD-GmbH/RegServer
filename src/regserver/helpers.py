@@ -186,16 +186,6 @@ def get_key(val, my_dict):
     return None
 
 
-def get_registrar_actor():
-    """Function to return the registrar_actor of the Actor system"""
-    try:
-        return ActorSystem().createActor(Actor, globalName="registrar")
-    except (ActorSystemFailure, RuntimeError):
-        logger.critical("No response from Actor System. -> Emergency shutdown")
-        system_shutdown()
-        return None
-
-
 def get_actor_dict(registrar_actor):
     """Get the actor_dict from the Registrar.
 

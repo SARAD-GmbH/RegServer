@@ -35,7 +35,7 @@ from regserver.logger import logger
 from regserver.modules.backend.mdns.mdns_listener import MdnsListener
 from regserver.modules.frontend.modbus.modbus_rtu import ModbusRtu
 from regserver.registrar import Registrar
-from regserver.restapi import app
+from regserver.restapi import app, set_registrar
 from regserver.shutdown import (is_flag_set, kill_processes, set_file_flag,
                                 system_shutdown)
 from regserver.version import VERSION
@@ -115,6 +115,7 @@ class Main:
                 logger.critical(inner_exception)
                 return
         self.registrar_actor = system.createActor(Registrar, globalName="registrar")
+        set_registrar(self.registrar_actor)
         system.tell(
             self.registrar_actor,
             SetupMsg("registrar", "actor_system", None, None),
