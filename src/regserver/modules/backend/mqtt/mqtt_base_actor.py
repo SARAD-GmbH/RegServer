@@ -239,7 +239,7 @@ class MqttBaseActor(BaseActor):
         self.mqttc.loop_start()
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
-        # pylint: disable=[unused-argument, too-many-arguments]
+        # pylint: disable=[unused-argument, too-many-positional-arguments, too-many-arguments]
         """Will be carried out when the client connected to the MQTT broker."""
         if reason_code == "Success":
             self.is_connected = True
@@ -253,7 +253,7 @@ class MqttBaseActor(BaseActor):
             )
 
     def on_disconnect(self, client, userdata, flags, reason_code, properties):
-        # pylint: disable=[unused-argument, too-many-arguments]
+        # pylint: disable=[unused-argument, too-many-positional-arguments, too-many-arguments]
         """Will be carried out when the client disconnected from the MQTT broker."""
         logger.info("%s disconnected from MQTT broker", self.my_id)
         if reason_code == 0:
