@@ -488,7 +488,8 @@ class MqttClientActor(MqttBaseActor):
     def on_disconnect(self, client, userdata, flags, reason_code, properties):
         # pylint: disable=too-many-arguments
         super().on_disconnect(client, userdata, flags, reason_code, properties)
-        for is_id in self._hosts:
+        hosts = self._hosts
+        for is_id in hosts:
             self._rm_host(is_id, state=10)
 
     def receiveMsg_RescanMsg(self, msg, sender):
