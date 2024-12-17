@@ -24,10 +24,10 @@ from thespian.actors import ActorAddress, ActorTypeDispatcher, ChildActorExited
 from regserver.actor_messages import (ActorType, DeadChildMsg,
                                       GetDeviceStatusMsg, KeepAliveMsg,
                                       KillMsg, MqttReceiveMsg, Parent,
-                                      RescanAckMsg, ReservationStatusMsg,
-                                      RxBinaryMsg, SetDeviceStatusMsg,
-                                      SetupMdnsActorMsg, SetupMsg,
-                                      SetupUsbActorMsg, SubscribeMsg,
+                                      PrepareMqttActorMsg, RescanAckMsg,
+                                      ReservationStatusMsg, RxBinaryMsg,
+                                      SetDeviceStatusMsg, SetupMdnsActorMsg,
+                                      SetupMsg, SetupUsbActorMsg, SubscribeMsg,
                                       SubscribeToActorDictMsg,
                                       SubscribeToDeviceStatusMsg,
                                       UnSubscribeFromActorDictMsg,
@@ -220,10 +220,12 @@ class BaseActor(ActorTypeDispatcher):
                 ReservationStatusMsg,
                 RxBinaryMsg,
                 RescanAckMsg,
+                MqttReceiveMsg,
+                PrepareMqttActorMsg,
             ),
         ):
             self.send(self.registrar, UnsubscribeMsg(msg.deadAddress))
-        elif isinstance(msg.deadMessage, (KeepAliveMsg, MqttReceiveMsg)):
+        elif isinstance(msg.deadMessage, (KeepAliveMsg)):
             self.send(
                 msg.deadMessage.parent.parent_address,
                 DeadChildMsg(msg.deadMessage.child),

@@ -164,7 +164,7 @@ class HostActor(BaseActor):
             if (short_id(old_device_id) == short_id(device_id)) and (
                 device_id != old_device_id
             ):
-                logger.info(
+                logger.debug(
                     "%s is already represented by %s",
                     short_id(device_id),
                     old_device_id,
@@ -214,7 +214,7 @@ class HostActor(BaseActor):
     def receiveMsg_ShutdownMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for ShutdownMsg causing a shutdown for restart at the remote host"""
-        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.shutdown_password = msg.password
         if (msg.host is None) or (msg.host == self.host.host):
             if not self.shutdown_thread.is_alive():
@@ -270,7 +270,7 @@ class HostActor(BaseActor):
             except Exception as exception2:  # pylint: disable=broad-except
                 logger.debug("REST API of IS is not responding. %s", exception2)
                 success = Status.IS_NOT_FOUND
-                logger.error("%s in _ping_function of %s", success, self.my_id)
+                logger.debug("%s in _ping_function of %s", success, self.my_id)
         if ping_dict:
             updated_host = replace(
                 self.host,
@@ -289,7 +289,7 @@ class HostActor(BaseActor):
         else:
             self.host.state = 0
             self._forward_to_children(KillMsg())
-            logger.info("Update host info in _ping_function()")
+            logger.debug("Update host info in _ping_function()")
             self.send(self.registrar, HostInfoMsg([self.host]))
         self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
 
@@ -358,7 +358,7 @@ class HostActor(BaseActor):
             self._no_host_info(host_state)
         else:
             if (host_info is None) or (host_info == {}):
-                logger.warning("No host information available on %s.", self.host.host)
+                logger.debug("No host information available on %s.", self.host.host)
                 self._no_host_info(host_state)
             else:
                 self._replace_host_info(host_info)
@@ -383,7 +383,7 @@ class HostActor(BaseActor):
             except Exception as exception:  # pylint: disable=broad-except
                 logger.debug("REST API of IS is not responding. %s", exception)
                 success = Status.IS_NOT_FOUND
-                logger.error("%s in _no_host_info of %s", success, self.my_id)
+                logger.warning("%s in _no_host_info of %s", success, self.my_id)
         if ping_dict:
             self.host = replace(
                 self.host,
@@ -398,7 +398,7 @@ class HostActor(BaseActor):
         else:
             self.host.state = 0
             self._forward_to_children(KillMsg())
-            logger.info("Update host info in _no_host_info()")
+            logger.debug("Update host info in _no_host_info()")
             self.send(self.registrar, HostInfoMsg([self.host]))
 
     def _replace_host_info(self, host_info: dict):

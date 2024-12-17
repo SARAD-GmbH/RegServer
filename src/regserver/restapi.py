@@ -35,9 +35,8 @@ from regserver.config import actor_config, config
 from regserver.helpers import (check_msg, get_actor,
                                get_device_status_from_registrar,
                                get_device_statuses, get_hosts,
-                               get_registrar_actor, send_free_message,
-                               send_reserve_message, short_id,
-                               transport_technology)
+                               send_free_message, send_reserve_message,
+                               short_id, transport_technology)
 from regserver.logdef import LOGFILENAME
 from regserver.logger import logger  # type: ignore
 from regserver.shutdown import system_shutdown
@@ -205,6 +204,15 @@ values_arguments.add_argument(
     trim=True,
 )
 
+REGISTRAR_ACTOR = None
+
+
+def set_registrar(registrar):
+    """Set Registrar Actor"""
+    global REGISTRAR_ACTOR  # pylint: disable=global-statement
+    REGISTRAR_ACTOR = registrar
+    logger.info("Registrar actor = %s", REGISTRAR_ACTOR)
+
 
 @root_ns.route("/ping")
 class Ping(Resource):
@@ -279,11 +287,8 @@ class Shutdown(Resource):
             "Shutdown by user intervention from %s",
             remote_addr,
         )
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
@@ -293,7 +298,7 @@ class Shutdown(Resource):
         with ActorSystem().private() as restart_sys:
             try:
                 reply = restart_sys.ask(
-                    registrar_actor,
+                    REGISTRAR_ACTOR,
                     ShutdownMsg(password=args["password"], host=None),
                     timeout=timedelta(seconds=60),
                 )
@@ -330,11 +335,8 @@ class Scan(Resource):
         Calling this method from here will forward the Scan command
         to the local host and to all remote hosts! This might affect other users.
         """
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
@@ -344,7 +346,7 @@ class Scan(Resource):
         with ActorSystem().private() as scan_sys:
             try:
                 reply = scan_sys.ask(
-                    registrar_actor, RescanMsg(), timeout=timedelta(seconds=60)
+                    REGISTRAR_ACTOR, RescanMsg(), timeout=timedelta(seconds=60)
                 )
             except ConnectionResetError as exception:
                 logger.debug(exception)
@@ -368,18 +370,15 @@ class List(Resource):
 
     def get(self):
         """List available SARAD instruments"""
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        return get_device_statuses(registrar_actor)
+        return get_device_statuses(REGISTRAR_ACTOR)
 
 
 @api.deprecated
@@ -395,18 +394,15 @@ class ListDevice(Resource):
     def get(self, device_id):
         """Get indentifying information for a single available instrument."""
         logger.debug("ListDevice %s", device_id)
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        return {device_id: get_device_status_from_registrar(registrar_actor, device_id)}
+        return {device_id: get_device_status_from_registrar(REGISTRAR_ACTOR, device_id)}
 
 
 @api.deprecated
@@ -431,11 +427,8 @@ class ReserveDevice(Resource):
         """Reserve an available instrument so that nobody else can use it."""
         # Collect information about who sent the request.
         logger.debug("ReserveDevice %s", device_id)
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Registrar Actor. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
@@ -459,9 +452,9 @@ class ReserveDevice(Resource):
                 "Error": str(status),
                 device_id: {},
             }
-        return self.reserve_device(registrar_actor, device_id, who, True)
+        return self.reserve_device(device_id, who, True)
 
-    def reserve_device(self, registrar_actor, device_id, who, create_redirector):
+    def reserve_device(self, device_id, who, create_redirector):
         """The actual reserve method. It will be called after checking all
         boundary conditions."""
         logger.info(
@@ -469,7 +462,7 @@ class ReserveDevice(Resource):
             device_id,
             who,
         )
-        device_state = get_device_status_from_registrar(registrar_actor, device_id)
+        device_state = get_device_status_from_registrar(REGISTRAR_ACTOR, device_id)
         if (
             transport_technology(device_id)
             not in ["local", "is1", "mdns", "mqtt", "zigbee"]
@@ -479,7 +472,7 @@ class ReserveDevice(Resource):
         else:
             status = send_reserve_message(
                 device_id,
-                registrar_actor,
+                REGISTRAR_ACTOR,
                 who["host"],
                 who["user"],
                 who["app"],
@@ -491,7 +484,7 @@ class ReserveDevice(Resource):
             Status.OK_UPDATED,
             Status.OCCUPIED,
         ):
-            device_status = get_device_status_from_registrar(registrar_actor, device_id)
+            device_status = get_device_status_from_registrar(REGISTRAR_ACTOR, device_id)
             logger.debug("After RESERVE registrar said: %s", device_status)
             return {
                 "Error code": status.value,
@@ -532,18 +525,15 @@ class FreeDevice(Resource):
     def get(self, device_id):
         """Free/release a device that was reserved before"""
         logger.debug("FreeDevice %s", device_id)
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
         else:
-            is_status = send_free_message(device_id, registrar_actor)
+            is_status = send_free_message(device_id, REGISTRAR_ACTOR)
             if is_status == Status.CRITICAL:
                 status = Status.IS_NOT_FOUND
             else:
                 status = is_status
         if status == Status.CRITICAL:
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
@@ -556,7 +546,7 @@ class FreeDevice(Resource):
             Status.OK_UPDATED,
             Status.OCCUPIED,
         ):
-            device_status = get_device_status_from_registrar(registrar_actor, device_id)
+            device_status = get_device_status_from_registrar(REGISTRAR_ACTOR, device_id)
             logger.debug("After FREE registrar said: %s", device_status)
             return {
                 "Error code": status.value,
@@ -578,18 +568,15 @@ class Hosts(Resource):
     @api.marshal_list_with(host_model)
     def get(self):
         """List available hosts"""
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        return get_hosts(registrar_actor)
+        return get_hosts(REGISTRAR_ACTOR)
 
 
 @hosts_ns.route("/<string:host>")
@@ -605,12 +592,9 @@ class Host(Resource):
     @api.marshal_with(host_model)
     def get(self, host):
         """Get information about one host"""
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
+        if REGISTRAR_ACTOR is None:
             return api.abort(404)
-        for host_object in get_hosts(registrar_actor):
+        for host_object in get_hosts(REGISTRAR_ACTOR):
             if host_object.host == host:
                 return host_object
         return api.abort(404)
@@ -642,23 +626,20 @@ class ShutdownHost(Resource):
             "Shutdown by user intervention from %s",
             remote_addr,
         )
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        for host_object in get_hosts(registrar_actor):
+        for host_object in get_hosts(REGISTRAR_ACTOR):
             if host_object.host == host:
                 with ActorSystem().private() as restart_sys:
                     try:
                         reply = restart_sys.ask(
-                            registrar_actor,
+                            REGISTRAR_ACTOR,
                             ShutdownMsg(password=args["password"], host=host),
                             timeout=timedelta(seconds=60),
                         )
@@ -692,23 +673,20 @@ class ScanHost(Resource):
         instruments by their USB connection or, if configured, by polling. This
         function was implemented as fallback.
         """
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        for host_object in get_hosts(registrar_actor):
+        for host_object in get_hosts(REGISTRAR_ACTOR):
             if host_object.host == host:
                 with ActorSystem().private() as scan_sys:
                     try:
                         reply = scan_sys.ask(
-                            registrar_actor,
+                            REGISTRAR_ACTOR,
                             RescanMsg(host),
                             timeout=timedelta(seconds=60),
                         )
@@ -750,11 +728,8 @@ class Instruments(Resource):
     @api.marshal_list_with(instrument)
     def get(self):
         """List available SARAD instruments"""
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
@@ -762,7 +737,7 @@ class Instruments(Resource):
                 "Requester": "Emergency shutdown",
             }
         response = []
-        for device_id, device_status in get_device_statuses(registrar_actor).items():
+        for device_id, device_status in get_device_statuses(REGISTRAR_ACTOR).items():
             response.append(self._instrument(device_id, device_status))
         return response
 
@@ -797,12 +772,9 @@ class Instrument(Resource):
     @api.marshal_with(instrument)
     def get(self, instr_id):
         """Get information about one instrument"""
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
+        if REGISTRAR_ACTOR is None:
             return api.abort(404)
-        for device_id, device_status in get_device_statuses(registrar_actor).items():
+        for device_id, device_status in get_device_statuses(REGISTRAR_ACTOR).items():
             if short_id(device_id) == instr_id:
                 return self._instrument(device_id, device_status)
         return api.abort(404)
@@ -833,17 +805,14 @@ class StartMonitoring(Resource):
         start_time = args["start_time"]
         if start_time is None:
             start_time = datetime.now(timezone.utc)
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
+        if REGISTRAR_ACTOR is None:
             return api.abort(404)
-        for device_id in get_device_statuses(registrar_actor):
+        for device_id in get_device_statuses(REGISTRAR_ACTOR):
             if short_id(device_id) == instr_id:
                 with ActorSystem().private() as start_sys:
                     try:
                         reply = start_sys.ask(
-                            registrar_actor,
+                            REGISTRAR_ACTOR,
                             StartMonitoringMsg(
                                 instr_id=instr_id, start_time=start_time
                             ),
@@ -878,17 +847,14 @@ class StopMonitoring(Resource):
         stop the running cycle resp. the measuring campaign.
 
         """
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
+        if REGISTRAR_ACTOR is None:
             return api.abort(404)
-        for device_id in get_device_statuses(registrar_actor):
+        for device_id in get_device_statuses(REGISTRAR_ACTOR):
             if short_id(device_id) == instr_id:
                 with ActorSystem().private() as stop_sys:
                     try:
                         reply = stop_sys.ask(
-                            registrar_actor,
+                            REGISTRAR_ACTOR,
                             StopMonitoringMsg(instr_id=instr_id),
                             timeout=timedelta(seconds=60),
                         )
@@ -918,17 +884,14 @@ class BaudRate(Resource):
     def put(self, instr_id):
         """Change the baud rate at the given instrument."""
         args = baudrate_arguments.parse_args()
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
+        if REGISTRAR_ACTOR is None:
             return api.abort(404)
-        for device_id in get_device_statuses(registrar_actor):
+        for device_id in get_device_statuses(REGISTRAR_ACTOR):
             if short_id(device_id) == instr_id:
                 with ActorSystem().private() as start_sys:
                     try:
                         reply = start_sys.ask(
-                            registrar_actor,
+                            REGISTRAR_ACTOR,
                             BaudRateMsg(baud_rate=args["rate"], instr_id=instr_id),
                             timeout=timedelta(seconds=60),
                         )
@@ -959,17 +922,14 @@ class SetRtc(Resource):
         and the setup taking effect.
 
         """
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
+        if REGISTRAR_ACTOR is None:
             return api.abort(404)
-        for device_id in get_device_statuses(registrar_actor):
+        for device_id in get_device_statuses(REGISTRAR_ACTOR):
             if short_id(device_id) == instr_id:
                 with ActorSystem().private() as rtc_sys:
                     try:
                         reply = rtc_sys.ask(
-                            registrar_actor,
+                            REGISTRAR_ACTOR,
                             SetRtcMsg(instr_id=instr_id),
                             timeout=timedelta(seconds=60),
                         )
@@ -1013,11 +973,8 @@ class GetValues(Resource):
     def get(self, device_id):
         # pylint: disable=too-many-return-statements, too-many-branches
         """Gather a measuring value from a SARAD instrument"""
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
@@ -1032,7 +989,7 @@ class GetValues(Resource):
             arguments["measurand"],
             device_id,
         )
-        device_state = get_device_status_from_registrar(registrar_actor, device_id)
+        device_state = get_device_status_from_registrar(REGISTRAR_ACTOR, device_id)
         if (device_state == {}) or (
             transport_technology(device_id)
             not in ["local", "zigbee", "mdns", "is1", "mqtt"]
@@ -1050,7 +1007,7 @@ class GetValues(Resource):
                 "Notification": notification,
             }
         # send GetRecentValueMsg to device actor
-        device_actor = get_actor(registrar_actor, device_id)
+        device_actor = get_actor(REGISTRAR_ACTOR, device_id)
         if device_actor is None:
             status = Status.NOT_FOUND
             return {
@@ -1140,18 +1097,15 @@ class GetLocalPorts(Resource):
 
     def get(self):
         """Lists local serial ports"""
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        cluster_actor = get_actor(registrar_actor, "cluster")
+        cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
         with ActorSystem().private() as get_local_ports:
             try:
                 reply = get_local_ports.ask(
@@ -1172,18 +1126,15 @@ class GetUsbPorts(Resource):
 
     def get(self):
         """List local USB devices with virtual serial ports"""
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        cluster_actor = get_actor(registrar_actor, "cluster")
+        cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
         with ActorSystem().private() as get_usb_ports:
             try:
                 reply = get_usb_ports.ask(
@@ -1204,18 +1155,15 @@ class GetNativePorts(Resource):
 
     def get(self):
         """List local RS-232 ports"""
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        cluster_actor = get_actor(registrar_actor, "cluster")
+        cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
         with ActorSystem().private() as get_native_ports:
             try:
                 reply = get_native_ports.ask(
@@ -1245,18 +1193,15 @@ class GetLoopPort(Resource):
 
         For Linux devices, replace slash in string by %2F.
         """
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        cluster_actor = get_actor(registrar_actor, "cluster")
+        cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
         try:
             port = request.args.get("port", "").replace("%2F", "/").strip('"')
         except (IndexError, AttributeError):
@@ -1291,18 +1236,15 @@ class GetStopPort(Resource):
 
         For Linux devices, replace slash in string by %2F.
         """
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        cluster_actor = get_actor(registrar_actor, "cluster")
+        cluster_actor = get_actor(REGISTRAR_ACTOR, "cluster")
         try:
             port = request.args.get("port", "").replace("%2F", "/").strip('"')
         except (IndexError, AttributeError):
@@ -1335,18 +1277,15 @@ class GetStatus(Resource):
 
     def get(self, actor_id):
         """Ask Actor System to output Actor status to debug log"""
-        registrar_actor = get_registrar_actor()
-        if registrar_actor is None:
+        if REGISTRAR_ACTOR is None:
             status = Status.CRITICAL
-            logger.critical("No response from Actor System. -> Emergency shutdown")
-            system_shutdown()
             return {
                 "Error code": status.value,
                 "Error": str(status),
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        actor_address = get_actor(registrar_actor, actor_id)
+        actor_address = get_actor(REGISTRAR_ACTOR, actor_id)
         with ActorSystem().private() as get_status:
             try:
                 reply = get_status.ask(

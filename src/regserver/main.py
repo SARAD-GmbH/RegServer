@@ -35,7 +35,7 @@ from regserver.logger import logger
 from regserver.modules.backend.mdns.mdns_listener import MdnsListener
 from regserver.modules.frontend.modbus.modbus_rtu import ModbusRtu
 from regserver.registrar import Registrar
-from regserver.restapi import app
+from regserver.restapi import app, set_registrar
 from regserver.shutdown import (is_flag_set, kill_processes, set_file_flag,
                                 system_shutdown)
 from regserver.version import VERSION
@@ -73,6 +73,8 @@ class Main:
         # maybe there are processes left from last run
         self.kill_residual_processes(end_with_error=False)
         set_file_flag(True)
+        self.stop_event = threading.Event()
+        self.stop_event.clear()
         self.led = None
         self.handle_aranea_led()
         try:
@@ -113,6 +115,7 @@ class Main:
                 logger.critical(inner_exception)
                 return
         self.registrar_actor = system.createActor(Registrar, globalName="registrar")
+        set_registrar(self.registrar_actor)
         system.tell(
             self.registrar_actor,
             SetupMsg("registrar", "actor_system", None, None),
@@ -122,7 +125,7 @@ class Main:
         self.modbus_rtu = None
         usb_listener = None
         self.mdns_backend = None
-        self.stop_event = threading.Event()
+        self.api_process = None
         if Frontend.REST in frontend_config:
             if os.name == "posix":
                 self.api_process = Process(
@@ -342,6 +345,7 @@ class Main:
             j.get_previous()
             p = select.poll()  # pylint: disable=invalid-name
             p.register(j, j.get_events())
+            self.led.on()
             while p.poll() and not stop_event.isSet():
                 if j.process() != journal.APPEND:
                     sleep(0.5)
@@ -470,6 +474,10 @@ def main():
     freeze_support()
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
+
+    # Set environment variable in order to set the IP address for Actor communication
+    # The communication shall be limited to localhost.
+    os.environ["THESPIAN_BASE_IPADDR"] = "127.0.0.1"
 
     if len(sys.argv) < 2:
         start_stop = "start"

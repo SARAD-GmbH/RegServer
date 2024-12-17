@@ -480,15 +480,16 @@ class MqttClientActor(MqttBaseActor):
 
     @overrides
     def on_connect(self, client, userdata, flags, reason_code, properties):
-        # pylint: disable=too-many-arguments
+        # pylint: disable=[too-many-arguments, too-many-positional-arguments]
         super().on_connect(client, userdata, flags, reason_code, properties)
         self.mqttc.subscribe(f"{self.group}/+/meta", 2)
 
     @overrides
     def on_disconnect(self, client, userdata, flags, reason_code, properties):
-        # pylint: disable=too-many-arguments
+        # pylint: disable=[too-many-arguments, too-many-positional-arguments]
         super().on_disconnect(client, userdata, flags, reason_code, properties)
-        for is_id in self._hosts:
+        hosts = dict(self._hosts)
+        for is_id in hosts:
             self._rm_host(is_id, state=10)
 
     def receiveMsg_RescanMsg(self, msg, sender):
