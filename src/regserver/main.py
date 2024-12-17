@@ -475,10 +475,6 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # Set environment variable in order to set the IP address for Actor communication
-    # The communication shall be limited to localhost.
-    os.environ["THESPIAN_BASE_IPADDR"] = "127.0.0.1"
-
     if len(sys.argv) < 2:
         start_stop = "start"
     else:

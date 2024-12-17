@@ -4,6 +4,7 @@ After=time-sync.target
 Wants=time-sync.target
 
 [Service]
+Environment="THESPIAN_BASE_IPADDR=127.0.0.1"
 ExecStart=/usr/local/bin/sarad_registration_server
 ExecStop=/usr/local/bin/sarad_registration_server stop
 Restart=always
