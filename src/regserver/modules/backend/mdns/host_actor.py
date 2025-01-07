@@ -317,7 +317,7 @@ class HostActor(BaseActor):
             self._forward_to_children(KillMsg())
         else:
             if (device_list is None) or (device_list == {}):
-                logger.warning(
+                logger.debug(
                     "Instrument list on remote host %s is empty.", self.host.host
                 )
             else:

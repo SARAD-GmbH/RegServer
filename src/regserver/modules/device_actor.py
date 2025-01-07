@@ -844,8 +844,8 @@ class DeviceBaseActor(BaseActor):
             logger.error("%s on %s", exception, self.my_id)
         try:
             super()._kill_myself(register=register, resurrect=resurrect)
-        except TypeError:
-            pass
+        except TypeError as exception:
+            logger.warning("TypeError in _kill_myself on %s: %s", self.my_id, exception)
 
     @overrides
     def receiveMsg_ActorExitRequest(self, msg, sender):

@@ -99,7 +99,7 @@ class MdnsAdvertiserActor(BaseActor):
         super()._kill_myself(register=register, resurrect=resurrect)
 
     def __start_advertising(self):
-        logger.info("Start advertising %s", self.service_name)
+        logger.debug("Start advertising %s", self.service_name)
         properties = {
             "VENDOR": "SARAD GmbH",
             "MODEL_ENC": self.instr_name,
@@ -127,7 +127,7 @@ class MdnsAdvertiserActor(BaseActor):
         self.__update_service()
 
     def __update_service(self):
-        logger.info("Update %s: occupied = %s", self.service.name, self.occupied)
+        logger.debug("Update %s: occupied = %s", self.service.name, self.occupied)
         properties = {
             "VENDOR": "SARAD GmbH",
             "MODEL_ENC": self.instr_name,

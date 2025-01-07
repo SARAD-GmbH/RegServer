@@ -46,7 +46,7 @@ class RedirectorActor(BaseActor):
             self._loop()
 
     def _loop(self):
-        logger.info("Redirector thread in %s initialized", self.my_id)
+        logger.debug("Redirector thread in %s initialized", self.my_id)
         while not self.on_kill:
             try:
                 # Listen to socket and redirect any message from the socket to the device actor
@@ -65,8 +65,7 @@ class RedirectorActor(BaseActor):
             except (OSError, ValueError) as exception:
                 logger.error("%s in _loop function of redirector", exception)
         self.read_list[0].close()
-        logger.info("Socket at port %d closed.", self._address[1])
-        logger.info("Finish socket_loop_thread")
+        logger.debug("Socket at port %d closed.", self._address[1])
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):

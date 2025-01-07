@@ -280,6 +280,7 @@ class Registrar(BaseActor):
             "get_updates": msg.get_updates,
             "is_alive": True,
         }
+        logger.info("%s added to actor_dict", msg.actor_id)
         if msg.actor_id == "mqtt_scheduler":
             self.send(
                 sender,

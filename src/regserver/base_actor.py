@@ -104,7 +104,13 @@ class BaseActor(ActorTypeDispatcher):
     def receiveMsg_KillMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
         """Handle the KillMsg for this actor"""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.info(
+            "%s for %s from %s. self.on_kill is %s",
+            msg,
+            self.my_id,
+            sender,
+            self.on_kill,
+        )
         self._kill_myself(register=msg.register)
 
     def _kill_myself(self, register=True, resurrect=False):

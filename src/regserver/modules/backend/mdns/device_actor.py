@@ -273,6 +273,11 @@ class DeviceActor(DeviceBaseActor):
         if self.success == Status.OK:
             self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
         elif self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
+            logger.info(
+                "_kill_myself called from _finish_setup_mdns_actor. %s, self.on_kill is %s",
+                self.success,
+                self.on_kill,
+            )
             self._kill_myself()
 
     def receiveMsg_WakeupMessage(self, msg, _sender):
@@ -312,8 +317,10 @@ class DeviceActor(DeviceBaseActor):
             if device_desc:
                 reservation = device_desc.get("Reservation", False)
             else:
-                logger.debug(
-                    "%s disappeard whilst still being reserved", self.device_id
+                logger.info(
+                    "_kill_myself called from _finish_wakeup. %s, self.on_kill is %s",
+                    self.success,
+                    self.on_kill,
                 )
                 self._kill_myself()
                 return
@@ -328,6 +335,11 @@ class DeviceActor(DeviceBaseActor):
                 self.occupied = False
             self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
         elif self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
+            logger.info(
+                "_kill_myself called from _finish_wakeup. %s, self.on_kill is %s",
+                self.success,
+                self.on_kill,
+            )
             self._kill_myself()
 
     @overrides
@@ -355,6 +367,11 @@ class DeviceActor(DeviceBaseActor):
             "Reservation", {}
         )
         if self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
+            logger.info(
+                "_kill_myself called from _finish_free. %s, self.on_kill is %s",
+                self.success,
+                self.on_kill,
+            )
             self._kill_myself()
         self.return_message = ReservationStatusMsg(self.instr_id, success)
         logger.debug(self.device_status)
@@ -467,7 +484,11 @@ class DeviceActor(DeviceBaseActor):
             else:
                 error = True
             if error:
-                logger.debug("%s disappeard", self.device_id)
+                logger.info(
+                    "_kill_myself called from _finish_set_device_status. %s, self.on_kill is %s",
+                    self.success,
+                    self.on_kill,
+                )
                 self._kill_myself()
                 return
             ident = self.device_status["Identification"]
@@ -507,6 +528,11 @@ class DeviceActor(DeviceBaseActor):
                     self.device_status.pop("Reservation", None)
             self._publish_status_change()
         else:
+            logger.info(
+                "_kill_myself called from _finish_set_device_status. %s, self.on_kill is %s",
+                self.success,
+                self.on_kill,
+            )
             self._kill_myself()
 
     @overrides
