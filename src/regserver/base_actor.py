@@ -128,19 +128,7 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name, unused-argument
         """Handler for KeepAliveMsg from the Registrar"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self._keep_alive_handler(msg.report)
-
-    def _keep_alive_handler(self, report):
-        if self.child_actors and not self.on_kill:
-            for child_id, child_actor in self.child_actors.items():
-                keep_alive_msg = KeepAliveMsg(
-                    parent=Parent(self.my_id, self.myAddress),
-                    child=child_id,
-                    report=report,
-                )
-                logger.debug("Forward %s to %s", keep_alive_msg, child_id)
-                self.send(child_actor["actor_address"], keep_alive_msg)
-        if report:
+        if msg.report:
             self._subscribe(True)
 
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):

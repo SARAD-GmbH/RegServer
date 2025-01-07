@@ -21,11 +21,12 @@ from sarad.global_helpers import decode_instr_id
 
 from regserver.actor_messages import (ActorType, Backend, BaudRateAckMsg,
                                       BaudRateMsg, Frontend, GetHostInfoMsg,
-                                      HostInfoMsg, KillMsg, MqttConnectMsg,
-                                      PrepareMqttActorMsg, RescanAckMsg,
-                                      RescanMsg, ReturnDeviceActorMsg,
-                                      SetRtcAckMsg, SetRtcMsg, ShutdownAckMsg,
-                                      ShutdownMsg, StartMonitoringAckMsg,
+                                      HostInfoMsg, KeepAliveMsg, KillMsg,
+                                      MqttConnectMsg, PrepareMqttActorMsg,
+                                      RescanAckMsg, RescanMsg,
+                                      ReturnDeviceActorMsg, SetRtcAckMsg,
+                                      SetRtcMsg, ShutdownAckMsg, ShutdownMsg,
+                                      StartMonitoringAckMsg,
                                       StartMonitoringMsg, Status,
                                       StopMonitoringAckMsg, StopMonitoringMsg,
                                       UpdateActorDictMsg,
@@ -120,7 +121,10 @@ class Registrar(BaseActor):
                     timedelta(seconds=actor_config["KEEPALIVE_INTERVAL"]),
                     payload="keep alive",
                 )
-            self._keep_alive_handler(CHECK)
+            for actor_id in self.actor_dict:
+                self.send(
+                    self.actor_dict[actor_id]["address"], KeepAliveMsg(report=CHECK)
+                )
         elif msg.payload == "check":
             success = True
             for actor_id in self.actor_dict:
