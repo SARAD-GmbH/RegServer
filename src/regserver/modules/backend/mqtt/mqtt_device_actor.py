@@ -535,6 +535,11 @@ class MqttDeviceActor(DeviceBaseActor):
             payload,
             self.my_id,
         )
+        self.send(
+            self.parent.parent_address,
+            MqttUnsubscribeMsg([self.allowed_sys_topics["MSG"]]),
+        )
+        logger.info("%s unsubscribed from MSG topic", self.my_id)
 
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
