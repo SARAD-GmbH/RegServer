@@ -263,7 +263,12 @@ class HostActor(BaseActor):
             resp = self.http.post(f"{self.base_url}/ping")
             ping_dict = resp.json()
         except Exception as exception1:  # pylint: disable=broad-except
-            logger.warning("%s/ping is not responding. %s", self.base_url, exception1)
+            logger.warning(
+                "%s/ping to %s is not responding. %s",
+                self.base_url,
+                self.my_id,
+                exception1,
+            )
             try:
                 resp = self.http.get(f"{self.base_url}/ping")
                 ping_dict = resp.json()
