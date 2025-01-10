@@ -916,22 +916,22 @@ files = [
 
 [[package]]
 name = "ruff"
-version = "0.8.4"
+version = "0.8.6"
 requires_python = ">=3.7"
 summary = "An extremely fast Python linter and code formatter, written in Rust."
 groups = ["lint"]
 files = [
-    {file = "ruff-0.8.4-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e5fe710ab6061592521f902fca7ebcb9fabd27bc7c57c764298b1c1f15fff720"},
-    {file = "ruff-0.8.4.tar.gz", hash = "sha256:0d5f89f254836799af1615798caa5f80b7f935d7a670fad66c5007928e57ace8"},
+    {file = "ruff-0.8.6-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7ae4478b1471fc0c44ed52a6fb787e641a2ac58b1c1f91763bafbc2faddc5117"},
+    {file = "ruff-0.8.6.tar.gz", hash = "sha256:dcad24b81b62650b0eb8814f576fc65cfee8674772a6e24c9b747911801eeaa5"},
 ]
 
 [[package]]
 name = "sarad"
-version = "1.0.13"
+version = "1.0.14"
 requires_python = ">=3.9"
 git = "https://github.com/SARAD-GmbH/sarad.git"
 ref = "master"
-revision = "eeaca8fc09aeabadae8b168cf0a061158bc18a84"
+revision = "5dbd5b4f3bece8374b8d71e15923ac6d102e969b"
 summary = "Library and sample application to collect data from SARAD instruments."
 groups = ["default"]
 dependencies = [
@@ -1302,8 +1302,8 @@ files = [
 
 [[package]]
 name = "zeroconf"
-version = "0.136.2"
-requires_python = "<4.0,>=3.8"
+version = "0.137.2"
+requires_python = "<4.0,>=3.9"
 summary = "A pure python implementation of multicast DNS service discovery"
 groups = ["default"]
 dependencies = [
@@ -1311,11 +1311,11 @@ dependencies = [
     "ifaddr>=0.1.7",
 ]
 files = [
-    {file = "zeroconf-0.136.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0c8a8d99828c14e45122f856d05bd66d19cd70ba5c9930aaee71f1ec6e28561c"},
-    {file = "zeroconf-0.136.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:569a6f13c78710913744fe5ae7bfdaa1e9c7e64e7199881fb536e8ed6f6ce5b9"},
-    {file = "zeroconf-0.136.2-pp310-pypy310_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a4aaf4088a20800858797a9e03f38d698382ad2f54d2e9133b66dff5bc8a82c5"},
-    {file = "zeroconf-0.136.2-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6a3e52be2847aa0106ce66ceab93b3377a31b3baf74a627405d4c49c36e02b9c"},
-    {file = "zeroconf-0.136.2.tar.gz", hash = "sha256:37d223febad4569f0d14563eb8e80a9742be35d0419847b45d84c37fc4224bb4"},
+    {file = "zeroconf-0.137.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1feb9d4ecfa483fbcc9cec5bf890304a702dcb06ea05961cf3abfb40305ef854"},
+    {file = "zeroconf-0.137.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d04c52c57a5a47dfdcd4d15f0cff24abdd1ef2800dbe739501457e93394e3796"},
+    {file = "zeroconf-0.137.2-pp310-pypy310_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e1d75555dbcbddf75a11bfad5e685945f6ce9bd20ee23533d3c2f555fbc374b4"},
+    {file = "zeroconf-0.137.2-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:72676dae43af851bbf25359ee996871665f25824b97082854ba838b5d894cd2f"},
+    {file = "zeroconf-0.137.2.tar.gz", hash = "sha256:50fd3f537138e4c0b46703acb57cc23e31cb44d620b9b499f2d43987ed6554b7"},
 ]
 
 [[package]]
