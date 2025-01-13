@@ -10,6 +10,7 @@
 """
 
 import os
+import platform
 import re
 import select
 import shutil
@@ -41,8 +42,9 @@ from regserver.shutdown import (is_flag_set, kill_processes, set_file_flag,
 from regserver.version import VERSION
 
 if os.name == "posix":
-    from gpiozero import LED  # type: ignore
-    from gpiozero.exc import BadPinFactory  # type: ignore
+    if platform.machine() == "aarch64":
+        from gpiozero import LED  # type: ignore
+        from gpiozero.exc import BadPinFactory  # type: ignore
     from systemd import journal
 
     from regserver.modules.backend.usb.unix_listener import UsbListener
@@ -178,7 +180,7 @@ class Main:
 
     def handle_aranea_led(self):
         """Take care to switch the green LED, if there is one"""
-        if os.name == "posix":
+        if os.name == "posix" and platform.machine() == "aarch64":
             try:
                 self.led = LED(23)
             except BadPinFactory:

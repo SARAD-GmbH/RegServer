@@ -10,6 +10,7 @@ Author
 
 import json
 import os
+import platform
 import time
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
@@ -33,7 +34,7 @@ from regserver.modules.ismqtt_messages import (Control, ControlType,
 from regserver.version import VERSION
 from sarad.global_helpers import get_sarad_type  # type: ignore
 
-if os.name != "nt":
+if platform.machine() == "aarch64":
     from gpiozero import PWMLED  # type: ignore
     from gpiozero.exc import BadPinFactory, GPIOPinInUse  # type: ignore
 
@@ -110,7 +111,7 @@ class MqttSchedulerActor(MqttBaseActor):
             "control": Control(ctype=ControlType.UNKNOWN, data=None),
             "ctype": ControlType.UNKNOWN,
         }
-        if os.name != "nt":
+        if platform.machine() == "aarch64":
             try:
                 self.led = PWMLED(23)
                 self.led.pulse()
