@@ -22,7 +22,7 @@ dependencies = [
     "flask-restx",
     "rpi-gpio; platform_machine == 'aarch64'",
     "gpiozero; platform_machine == 'aarch64'",
-    "pyGPIO @ git+https://github.com/chwe17/pyGPIO.git ; platform_machine == 'armv7l'",
+    #"pyGPIO @ git+https://github.com/chwe17/pyGPIO.git ; platform_machine == 'armv7l'",
     "pywin32; sys_platform == 'win32'",
     "systemd-python; sys_platform == 'linux'",
     "tomlkit",
