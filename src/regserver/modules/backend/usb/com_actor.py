@@ -45,7 +45,7 @@ class ComActor(BaseActor):
         family_mapping = [
             (r"(?i)irda", 1),
             (r"(?i)monitor", 5),
-            (r"(?i)scout|(?i)smart", 2),
+            (r"(?i)scout|smart", 2),
             (r"(?i)ft232", 4),
         ]
         for mapping in family_mapping:
