@@ -146,6 +146,7 @@ class ClusterActor(BaseActor):
         set_of_ports = set()
         for port in active_ports:
             set_of_ports.add(port.device)
+        set_of_ports = set_of_ports.union(self.loop_ports)
         result = set()
         for port in set_of_ports:
             if port not in self.ignore_ports:
