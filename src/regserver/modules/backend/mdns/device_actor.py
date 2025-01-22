@@ -363,9 +363,13 @@ class DeviceActor(DeviceBaseActor):
             self.occupied = False
         else:
             success = self.success
-        self.device_status["Reservation"] = self.response[self.device_id].get(
-            "Reservation", {}
-        )
+        try:
+            self.device_status["Reservation"] = self.response[self.device_id][
+                "Reservation"
+            ]
+        except Exception as exception:
+            logger.info("Exception in _finish_free: %s", exception)
+            self.device_status["Reservation"] = {}
         if self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
             logger.info(
                 "_kill_myself called from _finish_free. %s, self.on_kill is %s",
@@ -412,9 +416,13 @@ class DeviceActor(DeviceBaseActor):
         else:
             self.occupied = False
         if success in (Status.OK, Status.OCCUPIED):
-            self.device_status["Reservation"] = self.response[self.device_id].get(
-                "Reservation", {}
-            )
+            try:
+                self.device_status["Reservation"] = self.response[self.device_id][
+                    "Reservation"
+                ]
+            except Exception as exception:
+                logger.info("Exception in _finish_reserve: %s", exception)
+                self.device_status["Reservation"] = {}
         self.return_message = ReservationStatusMsg(
             instr_id=self.instr_id, status=success
         )

@@ -203,7 +203,6 @@ class DeviceBaseActor(BaseActor):
                     msg.payload.counter,
                 )
                 self.bin_locks = []
-                self._handle_bin_reply_from_is(answer=RxBinaryMsg(self.RET_TIMEOUT))
                 self._kill_myself()
 
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
@@ -837,6 +836,12 @@ class DeviceBaseActor(BaseActor):
 
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
+        if self.device_status.get("Reservation", False):
+            if (
+                self.device_status["Reservation"].get("Active", False)
+                and self.child_actors
+            ):
+                self._handle_bin_reply_from_is(answer=RxBinaryMsg(self.RET_TIMEOUT))
         self.device_status["State"] = 1
         try:
             self._send_reservation_status_msg()
