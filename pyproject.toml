@@ -26,7 +26,7 @@ dependencies = [
     "pywin32; sys_platform == 'win32'",
     "systemd-python; sys_platform == 'linux'",
     "tomlkit",
-    "zeroconf",
+    "zeroconf==0.139.0",
     "sarad @ git+https://github.com/SARAD-GmbH/sarad.git@master",
     "platformdirs>=4.2.0",
 ]
