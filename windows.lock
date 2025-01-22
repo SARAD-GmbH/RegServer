@@ -5,7 +5,7 @@
 groups = ["default", "dev", "lint"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:6a255de24d3049baaf4582aa8ec54ec971c30a9ef3267c4952290d40382e7377"
+content_hash = "sha256:d756b48f92f8f0596c1bb87ee6a84d3fee4dce9df6e1a10f2d8ad9794ee85a08"
 
 [[metadata.targets]]
 requires_python = ">=3.9,<3.14"
@@ -464,14 +464,14 @@ files = [
 
 [[package]]
 name = "more-itertools"
-version = "10.5.0"
-requires_python = ">=3.8"
+version = "10.6.0"
+requires_python = ">=3.9"
 summary = "More routines for operating on iterables, beyond itertools"
 groups = ["dev"]
 marker = "platform_machine != \"ppc64le\" and platform_machine != \"s390x\""
 files = [
-    {file = "more-itertools-10.5.0.tar.gz", hash = "sha256:5482bfef7849c25dc3c6dd53a6173ae4795da2a41a80faea6700d9f5846c5da6"},
-    {file = "more_itertools-10.5.0-py3-none-any.whl", hash = "sha256:037b0d3203ce90cca8ab1defbbdac29d5f993fc20131f3664dc8d6acfa872aef"},
+    {file = "more-itertools-10.6.0.tar.gz", hash = "sha256:2cd7fad1009c31cc9fb6a035108509e6547547a7a738374f10bd49a09eb3ee3b"},
+    {file = "more_itertools-10.6.0-py3-none-any.whl", hash = "sha256:6eb054cb4b6db1473f6e15fcc676a08e4732548acd47c708f0e179c2c7c01e89"},
 ]
 
 [[package]]
@@ -839,11 +839,11 @@ files = [
 
 [[package]]
 name = "sarad"
-version = "1.0.14"
+version = "1.0.15"
 requires_python = ">=3.9"
 git = "https://github.com/SARAD-GmbH/sarad.git"
 ref = "master"
-revision = "5dbd5b4f3bece8374b8d71e15923ac6d102e969b"
+revision = "a911b8a4058dca8317bf75e4afb9d4cfefeca09b"
 summary = "Library and sample application to collect data from SARAD instruments."
 groups = ["default"]
 dependencies = [

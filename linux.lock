@@ -5,7 +5,7 @@
 groups = ["default", "dev", "lint"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:d756b48f92f8f0596c1bb87ee6a84d3fee4dce9df6e1a10f2d8ad9794ee85a08"
+content_hash = "sha256:13dc9c84ed1ab6f3fb2b0b368dda965f897edc5c6019cbdca631c085c2dcb08f"
 
 [[metadata.targets]]
 requires_python = ">=3.9,<3.14"
@@ -902,11 +902,11 @@ files = [
 
 [[package]]
 name = "sarad"
-version = "1.0.14"
+version = "1.0.15"
 requires_python = ">=3.9"
 git = "https://github.com/SARAD-GmbH/sarad.git"
 ref = "master"
-revision = "5dbd5b4f3bece8374b8d71e15923ac6d102e969b"
+revision = "a911b8a4058dca8317bf75e4afb9d4cfefeca09b"
 summary = "Library and sample application to collect data from SARAD instruments."
 groups = ["default"]
 dependencies = [
