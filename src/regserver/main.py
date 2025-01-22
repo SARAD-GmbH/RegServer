@@ -42,10 +42,13 @@ from regserver.shutdown import (is_flag_set, kill_processes, set_file_flag,
 from regserver.version import VERSION
 
 if os.name == "posix":
+    from systemd import journal
+
     if platform.machine() == "aarch64":
         from gpiozero import LED  # type: ignore
         from gpiozero.exc import BadPinFactory  # type: ignore
-    from systemd import journal
+    elif platform.machine() == "armv7l":
+        from pyGPIO.wrapper.gpioout import LED
 
     from regserver.modules.backend.usb.unix_listener import UsbListener
 else:
@@ -356,7 +359,7 @@ class Main:
                     if "CONNECTED_" in entry["MESSAGE"]:
                         self.led.on()
                     elif "DISCONNECTED" in entry["MESSAGE"]:
-                        self.led.blink()
+                        self.led.blink(1, 1)
 
     def write_ping_file(self):
         """Write the current datetime into a file"""

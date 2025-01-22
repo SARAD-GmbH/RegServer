@@ -9,7 +9,6 @@ Author
 """
 
 import json
-import os
 import platform
 import time
 from dataclasses import dataclass, replace
@@ -35,8 +34,9 @@ from regserver.version import VERSION
 from sarad.global_helpers import get_sarad_type  # type: ignore
 
 if platform.machine() == "aarch64":
-    from gpiozero import PWMLED  # type: ignore
-    from gpiozero.exc import BadPinFactory, GPIOPinInUse  # type: ignore
+    from gpiozero import LED  # type: ignore
+elif platform.machine() == "armv7l":
+    from pyGPIO.wrapper.gpioout import LED
 
 
 @dataclass
@@ -111,17 +111,15 @@ class MqttSchedulerActor(MqttBaseActor):
             "control": Control(ctype=ControlType.UNKNOWN, data=None),
             "ctype": ControlType.UNKNOWN,
         }
-        if platform.machine() == "aarch64":
+        self.led = False
+        if platform.machine() in ["aarch64", "armv7l"]:
             try:
-                self.led = PWMLED(23)
-                self.led.pulse()
-            except (BadPinFactory, GPIOPinInUse):
-                logger.info(
-                    "On a Raspberry Pi, you could see a LED pulsing on GPIO 23."
+                self.led = LED(23)
+                self.led.blink(1, 0.3)
+            except Exception:  # pylint: disable=broad-exception-caught
+                logger.error(
+                    "On a Raspberry Pi or Orange Pi Zero, you could see a LED blinking on GPIO 23."
                 )
-                self.led = False
-        else:
-            self.led = False
         self.last_update = datetime(year=1970, month=1, day=1)
         self.cached_replies = {}  # {instr_id: CachedReply}
 
@@ -154,7 +152,7 @@ class MqttSchedulerActor(MqttBaseActor):
         # pylint: disable=too-many-arguments
         super().on_disconnect(client, userdata, flags, reason_code, properties)
         if self.led:
-            self.led.pulse()
+            self.led.blink(1, 0.3)
 
     @overrides
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
@@ -369,7 +367,7 @@ class MqttSchedulerActor(MqttBaseActor):
         else:
             new_state = 1
             if self.led:
-                self.led.pulse()
+                self.led.blink(1, 0.3)
         payload = get_is_meta(replace(self.is_meta, state=new_state))
         if old_state != new_state:
             self.mqttc.publish(
