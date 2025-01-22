@@ -141,8 +141,8 @@ class HostActor(BaseActor):
         self.base_url = f"http://{msg.host}:{msg.port}"
         self.port = msg.port
         if self.scan_interval:
-            logger.info("Scan %s every %d seconds", self.base_url, self.scan_interval)
-            self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")
+            logger.debug("Scan %s every %d seconds", self.base_url, self.scan_interval)
+            self.wakeupAfter(timedelta(seconds=1), payload="scan")
 
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
