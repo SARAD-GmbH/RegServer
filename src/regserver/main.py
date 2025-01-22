@@ -44,13 +44,12 @@ from regserver.version import VERSION
 if os.name == "posix":
     from systemd import journal
 
+    from regserver.modules.backend.usb.unix_listener import UsbListener
+
     if platform.machine() == "aarch64":
         from gpiozero import LED  # type: ignore
-        from gpiozero.exc import BadPinFactory  # type: ignore
     elif platform.machine() == "armv7l":
         from pyGPIO.wrapper.gpioout import LED
-
-    from regserver.modules.backend.usb.unix_listener import UsbListener
 else:
     from regserver.modules.backend.usb.win_listener import UsbListener
 
@@ -183,10 +182,11 @@ class Main:
 
     def handle_aranea_led(self):
         """Take care to switch the green LED, if there is one"""
-        if os.name == "posix" and platform.machine() == "aarch64":
+        self.led = False
+        if os.name == "posix" and platform.machine() in ["aarch64", "armv7l"]:
             try:
                 self.led = LED(23)
-            except BadPinFactory:
+            except Exception:  # pylint: disable=broad-exception-caught
                 self.led = False
             else:
                 if Frontend.MQTT in frontend_config:
@@ -199,8 +199,6 @@ class Main:
                     )
                     check_network_thread.start()
                     logger.info("Check_network thread started")
-        else:
-            self.led = False
 
     def shutdown(self, wait_some_time, registrar_is_down, with_error=True):
         # pylint: disable=too-many-branches
