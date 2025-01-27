@@ -426,7 +426,7 @@
 ## of the REST APIs on this host (usually 8008).
 ##
 ## If the list is not empty, the software component listening for ZeroConf
-## multicast messages will be deactivated. The whitelisted hosts well be polled
+## multicast messages will be deactivated. The whitelisted hosts will be polled
 ## on their REST-API.
 ### Default: []
 #hosts_whitelist = []

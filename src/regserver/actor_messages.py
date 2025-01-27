@@ -376,19 +376,15 @@ class Parent:
 
 @dataclass
 class KeepAliveMsg:
-    """Message sent to an actor from its parent actor in order to check
+    """Message sent to an actor from the Registrar Actor in order to check
     whether the actor is still existing.
 
     The Actor shall send a SubscribeMsg to the Registrar, if `report` is True.
 
     Args:
-        parent (Parent): Actor Id and address of the parent Actor sending the KeepAliveMsg.
-        child (str): Actor Id of the child Actor the KeepAliveMsg is addressed to.
         report (bool): True, if the child shall send a SubscribeMsg to Registrar.
     """
 
-    parent: Parent
-    child: str
     report: bool
 
 

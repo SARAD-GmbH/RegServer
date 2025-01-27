@@ -20,16 +20,17 @@ dependencies = [
     "waitress",
     "modbus-tk",
     "flask-restx",
-    "rpi-gpio; sys_platform == \"linux\"",
-    "pywin32; sys_platform == \"win32\"",
-    "gpiozero; sys_platform == \"linux\"",
-    "systemd-python; sys_platform == \"linux\"",
+    "rpi-gpio; platform_machine == 'aarch64'",
+    "gpiozero; platform_machine == 'aarch64'",
+    "pyGPIO @ git+https://github.com/SARAD-GmbH/pyGPIO.git ; platform_machine == 'armv7l'",
+    "pywin32; sys_platform == 'win32'",
+    "systemd-python; sys_platform == 'linux'",
     "tomlkit",
-    "zeroconf",
+    "zeroconf==0.139.0",
     "sarad @ git+https://github.com/SARAD-GmbH/sarad.git@master",
     "platformdirs>=4.2.0",
 ]
-requires-python = "<3.11, >=3.9"
+requires-python = "<3.14, >=3.9"
 readme = "README.md"
 license = {text = "LGPL-3.0-or-later"}
 classifiers = [
@@ -37,8 +38,9 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Stable",
     "Environment :: Console",
     "Programming Language :: Python :: 3",
     "Topic :: Communications",
@@ -53,6 +55,8 @@ build-backend = "pdm.backend"
 
 [tool.pdm]
 distribution = true
+ignore_package_warnings = ["sphinx", "sphinx-autodoc-typehints", "sphinxcontrib-plantuml",
+                           "sphinx-autoapi", "sphinx_rtd_theme", "cryptography"]
 
 [[tool.pdm.source]]
 name = "pypi"
@@ -65,11 +69,11 @@ dev = [
     "wheel",
     "pytest",
     "pyinstaller",
-    "sphinx; sys_platform == \"linux\"",
-    "sphinx-autodoc-typehints; sys_platform == \"linux\"",
-    "sphinxcontrib-plantuml; sys_platform == \"linux\"",
-    "sphinx-autoapi; sys_platform == \"linux\"",
-    "sphinx_rtd_theme; sys_platform == \"linux\"",
+    "sphinx; sys_platform == 'linux'",
+    "sphinx-autodoc-typehints; sys_platform == 'linux'",
+    "sphinxcontrib-plantuml; sys_platform == 'linux'",
+    "sphinx-autoapi; sys_platform == 'linux'",
+    "sphinx_rtd_theme; sys_platform == 'linux'",
     # "-e git+https://github.com/SARAD-GmbH/sarad.git@master#egg=sarad",
 ]
 lint = [

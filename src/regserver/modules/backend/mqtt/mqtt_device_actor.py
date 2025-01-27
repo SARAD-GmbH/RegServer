@@ -522,7 +522,7 @@ class MqttDeviceActor(DeviceBaseActor):
                 return
             logger.warning(
                 (
-                    "MQTT actor receives a binary reply %s with an unexpected "
+                    "MQTT actor received a binary reply %s with an unexpected "
                     "CMD ID %s from instrument %s"
                 ),
                 payload,
@@ -531,10 +531,15 @@ class MqttDeviceActor(DeviceBaseActor):
             )
             return
         logger.warning(
-            "MQTT actor receives an unknown binary reply %s from instrument %s",
+            "MQTT actor received an unknown binary reply %s from instrument %s",
             payload,
             self.my_id,
         )
+        self.send(
+            self.parent.parent_address,
+            MqttUnsubscribeMsg([self.allowed_sys_topics["MSG"]]),
+        )
+        logger.info("%s unsubscribed from MSG topic", self.my_id)
 
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
@@ -554,5 +559,5 @@ class MqttDeviceActor(DeviceBaseActor):
             self.send(self.parent.parent_address, ResurrectMsg(is_id=self.is_id))
         try:
             super()._kill_myself(register=register, resurrect=resurrect)
-        except TypeError:
-            pass
+        except TypeError as exception:
+            logger.warning("TypeError in _kill_myself on %s: %s", self.my_id, exception)

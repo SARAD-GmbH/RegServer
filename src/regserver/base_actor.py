@@ -104,7 +104,13 @@ class BaseActor(ActorTypeDispatcher):
     def receiveMsg_KillMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
         """Handle the KillMsg for this actor"""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        logger.info(
+            "%s for %s from %s. self.on_kill is %s",
+            msg,
+            self.my_id,
+            sender,
+            self.on_kill,
+        )
         self._kill_myself(register=msg.register)
 
     def _kill_myself(self, register=True, resurrect=False):
@@ -128,19 +134,7 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name, unused-argument
         """Handler for KeepAliveMsg from the Registrar"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self._keep_alive_handler(msg.report)
-
-    def _keep_alive_handler(self, report):
-        if self.child_actors and not self.on_kill:
-            for child_id, child_actor in self.child_actors.items():
-                keep_alive_msg = KeepAliveMsg(
-                    parent=Parent(self.my_id, self.myAddress),
-                    child=child_id,
-                    report=report,
-                )
-                logger.debug("Forward %s to %s", keep_alive_msg, child_id)
-                self.send(child_actor["actor_address"], keep_alive_msg)
-        if report:
+        if msg.report:
             self._subscribe(True)
 
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):

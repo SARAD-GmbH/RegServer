@@ -27,9 +27,8 @@ Watchdog
 --------
 
 In regular intervals the *Registrar* checks the integrity of the actor system.
-Therefor it sends a ``KeepAliveMsg`` to all of its child actors. If an actor has
-children, it has to forward the ``KeepAliveMsg`` to all of them. After receiving
-the ``KeepAliveMsg``, the actor has to respond with a ``SubscribeMsg`` to the
+Therefor it sends a ``KeepAliveMsg`` to all Actors in its ``actor_dict``.
+After receiving the ``KeepAliveMsg``, the actor has to respond with a ``SubscribeMsg`` to the
 *Registrar*. When receiving the reply, the Registrar sets the ``is_alive`` flag
 for the respective actor.
 
@@ -59,7 +58,6 @@ Actors created in the actor system
 - have to unsubscribe at the *Registrar* on their ``ActorExitRequest()`` handler
 - have to keep a list of the actor addresses of their child actors
 - have to respond with a ``SubscribeMsg`` to the *Registrar* after receiving a ``KeepAliveMsg``
-- have to forward a ``KeepAliveMsg`` to their child actors
 - when receiving a ``KillMsg``: forward the message to all child actors
 
 This basic functionality of every actor is implemented in the *BaseActor* object
@@ -74,7 +72,7 @@ Functions of the Registrar Actor
 - on ``UnsubscribeMsg``: remove actors from the Actor Dictionary
 - mark actors that have subscribed to get updates of the Actor Dictionary
 - on every change of the Actor Dictionary, send this dict to all marked subscribers
-- send ``KeepAliveMsg`` to all child actors on a regular basis
+- send ``KeepAliveMsg`` to all registered Actors on a regular basis
 - create the Cluster Actor
 
 Additionally for Instrument Server MQTT:

@@ -74,13 +74,17 @@ class MdnsListener(ServiceListener):
         if properties is not None:
             model = properties.get(b"MODEL_ENC")
             if model is None:
-                logger.error("model in Zeroconf message is None")
-                return None
-        model = model.decode("utf-8")
+                logger.warning("model in Zeroconf message is None")
+                model = ""
+            else:
+                model = model.decode("utf-8")
+        else:
+            logger.error("Service info contains no properties")
+            return None
         occupied = bool(properties.get(b"OCCUPIED").decode("utf-8") == "True")
         serial_short = properties.get(b"SERIAL_SHORT")
         if serial_short is None:
-            logger.error("_serial_short is None")
+            logger.error("serial_short is None")
             return None
         instr_id = serial_short.decode("utf-8").split(".")[0]
         sarad_protocol_ = serial_short.decode("utf-8").split(".")[1]
@@ -104,7 +108,7 @@ class MdnsListener(ServiceListener):
         return {
             self.device_id(name): {
                 "Identification": {
-                    "Name": properties[b"MODEL_ENC"].decode("utf-8"),
+                    "Name": model,
                     "Family": ids[0],
                     "Type": ids[1],
                     "Serial number": ids[2],

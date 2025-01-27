@@ -141,8 +141,8 @@ class HostActor(BaseActor):
         self.base_url = f"http://{msg.host}:{msg.port}"
         self.port = msg.port
         if self.scan_interval:
-            logger.info("Scan %s every %d seconds", self.base_url, self.scan_interval)
-            self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")
+            logger.debug("Scan %s every %d seconds", self.base_url, self.scan_interval)
+            self.wakeupAfter(timedelta(seconds=1), payload="scan")
 
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -263,7 +263,12 @@ class HostActor(BaseActor):
             resp = self.http.post(f"{self.base_url}/ping")
             ping_dict = resp.json()
         except Exception as exception1:  # pylint: disable=broad-except
-            logger.warning("%s/ping is not responding. %s", self.base_url, exception1)
+            logger.warning(
+                "%s/ping to %s is not responding. %s",
+                self.base_url,
+                self.my_id,
+                exception1,
+            )
             try:
                 resp = self.http.get(f"{self.base_url}/ping")
                 ping_dict = resp.json()
@@ -317,7 +322,7 @@ class HostActor(BaseActor):
             self._forward_to_children(KillMsg())
         else:
             if (device_list is None) or (device_list == {}):
-                logger.warning(
+                logger.debug(
                     "Instrument list on remote host %s is empty.", self.host.host
                 )
             else:
