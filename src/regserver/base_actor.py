@@ -220,10 +220,6 @@ class BaseActor(ActorTypeDispatcher):
         ):
             self.send(self.registrar, UnsubscribeMsg(msg.deadAddress))
         elif isinstance(msg.deadMessage, (KeepAliveMsg)):
-            self.send(
-                msg.deadMessage.parent.parent_address,
-                DeadChildMsg(msg.deadMessage.child),
-            )
             logger.warning("%s for %s from %s", msg, self.my_id, sender)
         else:
             logger.critical("%s for %s from %s", msg, self.my_id, sender)
