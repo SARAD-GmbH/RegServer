@@ -72,7 +72,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
             servicemanager.LogInfoMsg(
                 f"Power event: code={control}, type={event_type}, data={data}"
             )
-            if event_type in (6, 7):
+            if event_type in (6, 7):  # PBT_APMRESUMECRITICAL, PBT_APMRESUMESUSPEND
                 servicemanager.LogInfoMsg("Resumed: Shutting down service for restart")
                 self.service_shutdown(True)
         else:

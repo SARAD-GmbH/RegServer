@@ -404,7 +404,9 @@ class Main:
                 system_shutdown()
             sleep(1)
             after = datetime.now()
-            if (after - before).total_seconds() > 10:
+            # The following 4 lines are a backup solution for the case that the Windows
+            # event handling in regserver-service.py fails.
+            if (after - before).total_seconds() > 60:
                 logger.info("Wakeup from suspension.")
                 wait_some_time = True
                 system_shutdown()
