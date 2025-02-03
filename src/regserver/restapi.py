@@ -360,13 +360,11 @@ class Scan(Resource):
         }
 
 
-@api.deprecated
+# @api.deprecated
 @list_ns.route("/")
 class List(Resource):
     # pylint: disable=too-few-public-methods
-    """Endpoint for getting the list of active devices.
-
-    This endpoint is deprecated and only for backward compatibility."""
+    """Endpoint for getting the list of active devices."""
 
     def get(self):
         """List available SARAD instruments"""
@@ -381,7 +379,7 @@ class List(Resource):
         return get_device_statuses(REGISTRAR_ACTOR)
 
 
-@api.deprecated
+# @api.deprecated
 @list_ns.route("/<string:device_id>")
 @list_ns.param(
     "device_id",
@@ -405,7 +403,7 @@ class ListDevice(Resource):
         return {device_id: get_device_status_from_registrar(REGISTRAR_ACTOR, device_id)}
 
 
-@api.deprecated
+# @api.deprecated
 @list_ns.route("/<string:device_id>/reserve")
 @list_ns.param(
     "device_id",
@@ -512,7 +510,7 @@ class ReserveDevice(Resource):
         }
 
 
-@api.deprecated
+# @api.deprecated
 @list_ns.route("/<string:device_id>/free")
 @list_ns.param(
     "device_id",
