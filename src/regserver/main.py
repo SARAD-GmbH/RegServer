@@ -54,7 +54,6 @@ else:
     from regserver.modules.backend.usb.win_listener import UsbListener
 
 RETRY_DELAY = 2  # in seconds
-FLAGFILENAME = f"{home}{os.path.sep}stop.file"
 
 
 class Main:
@@ -203,7 +202,6 @@ class Main:
     def shutdown(self, wait_some_time, registrar_is_down, with_error=True):
         # pylint: disable=too-many-branches
         """Shutdown application"""
-        self.write_ping_file()
         self.stop_event.set()
         self.usb_listener_thread.join()
         if self.mdns_backend is not None:
@@ -247,10 +245,12 @@ class Main:
         except OSError as exception:
             logger.critical(exception)
         self.kill_residual_processes(end_with_error=with_error)
-        if with_error:
-            raise SystemExit("Exit with error for automatic restart.")
         if self.led and not self.led.closed:
             self.led.close()
+        self.write_ping_file()
+        if with_error:
+            logger.info("RegServer will exit with error to be restarted automatically")
+            raise SystemExit("Exit with error for automatic restart.")
         logger.info("RegServer ended gracefully")
 
     def kill_residual_processes(self, end_with_error=True):
@@ -362,8 +362,8 @@ class Main:
     def write_ping_file(self):
         """Write the current datetime into a file"""
         with open(PING_FILE_NAME, "w", encoding="utf8") as pingfile:
-            logger.debug("Write datetime to %s", PING_FILE_NAME)
             pingfile.write(datetime.utcnow().strftime(FRMT))
+        logger.debug("Wrote datetime to %s", PING_FILE_NAME)
 
     def init_log_file(self):
         """Store the old log file and start a new one"""
@@ -417,10 +417,10 @@ class Main:
 
 
 def signal_handler(_sig, _frame):
-    """On Ctrl+C: stop MQTT loop
+    """On Ctrl+C: stop main loop
 
-    The signal handler removes the flag file. This will cause the main MQTT
-    loop to stop and call the cleanup function."""
+    The signal handler removes the flag file. This will cause the main
+    loop to stop and call the `shutdown()` method of `Main()`."""
     system_shutdown(with_error=False)
 
 
