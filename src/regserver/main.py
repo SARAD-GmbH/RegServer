@@ -394,7 +394,6 @@ class Main:
                     number_of_trials=actor_config["OUTER_WATCHDOG_TRIALS"],
                 )
                 last_trial = before
-                self.write_ping_file()
             else:
                 registrar_is_down = False
             if registrar_is_down:
