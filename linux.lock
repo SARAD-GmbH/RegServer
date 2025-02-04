@@ -5,7 +5,7 @@
 groups = ["default", "dev", "lint"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:13dc9c84ed1ab6f3fb2b0b368dda965f897edc5c6019cbdca631c085c2dcb08f"
+content_hash = "sha256:c204fdaa8c2c7f6f4ea77076de29f197f720970e6f2cc6db34fbd839b8af53d7"
 
 [[metadata.targets]]
 requires_python = ">=3.9,<3.14"
@@ -1154,11 +1154,11 @@ files = [
 
 [[package]]
 name = "thespian"
-version = "3.10.5"
+version = "4.0.0"
 summary = "Python Actor concurrency library"
 groups = ["default"]
 files = [
-    {file = "thespian-3.10.5.zip", hash = "sha256:17adad8afbc4779a01f34a6595c63fceccfd21f10556b85a261338eb99b5d306"},
+    {file = "thespian-4.0.0.zip", hash = "sha256:f7692b5a09170a61fb41ad10fb4718d8a2b02a30de2582c0f08d03b529a84688"},
 ]
 
 [[package]]
