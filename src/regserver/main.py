@@ -29,7 +29,7 @@ from waitress import serve  # type: ignore
 from regserver.actor_messages import Backend, Frontend, KillMsg, SetupMsg
 from regserver.config import (FRMT, PING_FILE_NAME, actor_config,
                               backend_config, config, config_file,
-                              frontend_config, home, mdns_backend_config,
+                              frontend_config, mdns_backend_config,
                               mqtt_config, rest_frontend_config)
 from regserver.logdef import LOGFILENAME, logcfg
 from regserver.logger import logger

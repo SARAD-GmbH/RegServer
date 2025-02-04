@@ -12,6 +12,7 @@ services (SARAD devices) in the local network.
 
 import ipaddress
 import socket
+from datetime import timedelta
 
 from regserver.actor_messages import (ActorCreatedMsg, CreateActorMsg, KillMsg,
                                       SetDeviceStatusMsg, SetupHostActorMsg)
@@ -148,6 +149,7 @@ class MdnsListener(ServiceListener):
         """
         Initialize a mdns Listener for a specific device group
         """
+        logger.info("Init mDNS listener")
         self.registrar = registrar_actor
         self.zeroconf = None
         self.browser = None
@@ -158,13 +160,16 @@ class MdnsListener(ServiceListener):
             with ActorSystem().private() as add_host:
                 try:
                     reply = add_host.ask(
-                        self.registrar, CreateActorMsg(HostActor, hostname)
+                        self.registrar,
+                        CreateActorMsg(HostActor, hostname),
+                        timeout=timedelta(seconds=5),
                     )
                 except ConnectionResetError as exception:
                     logger.debug(exception)
                     reply = None
             if not isinstance(reply, ActorCreatedMsg):
                 logger.critical("Got %s instead of ActorCreateMsg", reply)
+                logger.critical("Check `hosts_whitelist` in `config.toml`!")
                 logger.critical("-> Stop and shutdown system")
                 system_shutdown()
             elif reply.actor_address is None:
