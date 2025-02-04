@@ -216,7 +216,9 @@ class MdnsListener(ServiceListener):
             with ActorSystem().private() as create_host:
                 try:
                     reply = create_host.ask(
-                        self.registrar, CreateActorMsg(HostActor, hostname)
+                        self.registrar,
+                        CreateActorMsg(HostActor, hostname),
+                        timeout=timedelta(seconds=5),
                     )
                 except ConnectionResetError as exception:
                     logger.debug(exception)
