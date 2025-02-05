@@ -26,7 +26,7 @@ from sarad.instrument import Gps
 from urllib3.util.retry import Retry  # type: ignore
 
 CMD_CYCLE_TIMEOUT = 1
-DEFAULT_TIMEOUT = 8  # seconds
+DEFAULT_TIMEOUT = 15  # seconds
 RETRY = 0  # number of retries for HTTP requests
 UPDATE_INTERVAL = 3  # in seconds
 
