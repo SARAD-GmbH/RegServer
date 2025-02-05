@@ -417,7 +417,7 @@ def send_reserve_message(
             reserve_return = reserve_sys.ask(
                 device_actor,
                 ReserveDeviceMsg(request_host, user, app, create_redirector),
-                timeout=timedelta(seconds=10),
+                timeout=timedelta(seconds=15),
             )
         except ConnectionResetError as exception:
             logger.error(exception)
