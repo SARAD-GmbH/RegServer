@@ -336,7 +336,10 @@ class Main:
         """Custom exception hook to handle exceptions that occured within threads."""
         logger.critical("Thread %s failed with %s", args.thread, args.exc_value)
         logger.critical("Traceback: %s", args.exc_traceback)
-        system_shutdown(with_error=True)
+        if args.exc_type == OSError and ("zeroconf" in args.thread):
+            logger.info("I'm ignoring this error. Fingers crossed!")
+        else:
+            system_shutdown(with_error=True)
 
     def check_network(self, stop_event):
         """Check the Journal for new entries of NetworkManager."""
