@@ -162,7 +162,7 @@ class MdnsListener(ServiceListener):
                     reply = add_host.ask(
                         self.registrar,
                         CreateActorMsg(HostActor, hostname),
-                        timeout=timedelta(seconds=10),
+                        timeout=timedelta(seconds=20),
                     )
                 except ConnectionResetError as exception:
                     logger.debug(exception)
@@ -218,7 +218,7 @@ class MdnsListener(ServiceListener):
                     reply = create_host.ask(
                         self.registrar,
                         CreateActorMsg(HostActor, hostname),
-                        timeout=timedelta(seconds=10),
+                        timeout=timedelta(seconds=20),
                     )
                 except ConnectionResetError as exception:
                     logger.debug(exception)
