@@ -243,7 +243,7 @@
 ## Time in minutes after disconnect causing a reboot. 0 = never. The computer
 ## hosting the Regserver shall perform a reboot after this time. This is a
 ## precaution to reset the complete system including maybe the LTE modem.
-### Default: 60 (s)
+### Default: 60 (min)
 #reboot_after = 60
 
 ### Key: restart_instead_of_reboot
@@ -252,7 +252,7 @@
 ## active MQTT frontend. Typically we don't want a desktop computer to reboot
 ## without user intervention.
 ### Default: 0
-#estart_instead_of_reboot = 0
+#restart_instead_of_reboot = 0
 
 
 ## The `modbus_rtu_frontend` section allows to modify the parameters of the
