@@ -1,4 +1,4 @@
-""" Version of SARAD Registration Server
+"""Version of SARAD Registration Server
 
 :Created:
     2023-01-25
@@ -7,4 +7,4 @@
     | Michael Strey <strey@sarad.de>
 """
 
-VERSION = "v2.4.6"
+VERSION = "v2.4.7"
