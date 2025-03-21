@@ -352,10 +352,16 @@ class UsbActor(DeviceBaseActor):
         else:
             self._set_rtc()
             wait = 0
+        if usb_backend_config["UTC_OFFSET"] > 13:
+            utc_offset = (
+                datetime.now(timezone.utc).astimezone().utcoffset().seconds / 3600
+            )
+        else:
+            utc_offset = usb_backend_config["UTC_OFFSET"]
         self._handle_set_rtc_reply_from_is(
             Status.OK,
             confirm,
-            utc_offset=usb_backend_config["UTC_OFFSET"],
+            utc_offset=utc_offset,
             wait=wait,
         )
 

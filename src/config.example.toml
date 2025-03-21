@@ -353,6 +353,8 @@
 
 ### Key: utc_offset
 ## `utc_offset` defines the offset of the RTC setting to UTC in hours.
+## If `utc_offset` > 13, the local computer time will be used to set the RTC.
+## This setting is *not* recommended.
 ## For monitoring systems we recommend using 0, i.e. the RTC running on UTC.
 ### Default: 0
 #utc_offset = 0

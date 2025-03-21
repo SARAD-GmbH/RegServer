@@ -7,7 +7,6 @@ authors = [
 ]
 dependencies = [
     "pyudev",
-    #"thespian==3.10.5",
     "thespian",
     "flask",
     "pyserial",
