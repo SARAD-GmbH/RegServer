@@ -281,6 +281,8 @@ class MqttDeviceActor(DeviceBaseActor):
     @overrides
     def _request_start_monitoring_at_is(self, start_time=None, confirm=False):
         super()._request_start_monitoring_at_is(start_time=start_time, confirm=confirm)
+        if not start_time:
+            start_time = datetime.now(timezone.utc)
         self.send(
             self.parent.parent_address,
             MqttSubscribeMsg([(self.allowed_sys_topics["ACK"], self.qos)]),
