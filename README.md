@@ -81,7 +81,7 @@ made with SPHINX (refer to https://www.sphinx-doc.org/en/master/). Run `pdm make
 html` in this directory to make the documentation from the source files.
 
 #### In the SARAD intranet ####
-Refer to http://http://intranet.hq.sarad.de/spc-sarad_network.pdf for the specification.
+Refer to http://intranet.hq.sarad.de/spc-sarad_network.pdf for the specification.
 
 http://intranet.hq.sarad.de/regserver/html/index.html contains
 a compiled HTML version of the documentation.
