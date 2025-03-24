@@ -1,4 +1,4 @@
-""" Main executable when running as Registration Server
+"""Main executable when running as Registration Server
 
 :Created:
     2020-09-30
@@ -247,7 +247,8 @@ class Main:
         self.kill_residual_processes(end_with_error=with_error)
         if self.led and not self.led.closed:
             self.led.close()
-        self.write_ping_file()
+        if not wait_some_time:
+            self.write_ping_file()
         if with_error:
             logger.info("RegServer will exit with error to be restarted automatically")
             raise SystemExit("Exit with error for automatic restart.")
