@@ -49,11 +49,13 @@ class MonitoringState:
         monitoring_shall_be_active: True, if the monitoring mode was configured
                                     to be active.
         monitoring_active: True, if the monitoring mode currently is active.
+        suspended: True, if the monitoring mode is currently suspended.
         start_timestamp (int): Posix timestamp of the start datetime
     """
 
     monitoring_shall_be_active: bool
     monitoring_active: bool
+    suspended: bool
     start_timestamp: int
 
 
@@ -72,7 +74,10 @@ class UsbActor(DeviceBaseActor):
             daemon=True,
         )
         self.mon_state = MonitoringState(
-            monitoring_shall_be_active=False, monitoring_active=False, start_timestamp=0
+            monitoring_shall_be_active=False,
+            monitoring_active=False,
+            suspended=False,
+            start_timestamp=0,
         )
 
     def _start_thread(self, thread):
@@ -182,6 +187,7 @@ class UsbActor(DeviceBaseActor):
                 if self.mon_state.monitoring_active:
                     self._stop_monitoring()
                     logger.info("Suspend monitoring mode at %s", self.my_id)
+                    self.mon_state.suspended = True
                 else:
                     self._request_start_monitoring_at_is()
                     logger.info("Resume monitoring mode at %s", self.my_id)
@@ -485,30 +491,33 @@ class UsbActor(DeviceBaseActor):
             )
 
     def _start_monitoring_function(self):
-        self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
         monitoring_conf = monitoring_config.get(self.instr_id, {})
-        cycle = monitoring_conf.get("cycle", 0)
-        if cycle:
-            success = False
-            try:
-                success = self.instrument.start_cycle(cycle)
-                logger.info(
-                    "Device %s started with cycle %d",
-                    self.instrument.device_id,
-                    cycle,
-                )
-                sleep(3)  # DACM needs some time to wakeup from standby
-            except Exception as exception:  # pylint: disable=broad-except
-                logger.error(
-                    "Failed to start cycle on %s. Exception: %s", self.my_id, exception
-                )
-            if not success:
-                logger.error("Start/Stop not supported by %s", self.my_id)
-        else:
-            logger.error("Error in config.toml. Cycle not configured.")
-            self.mon_state.monitoring_active = False
-            self._request_free_at_is()
-            return
+        if not self.mon_state.suspended:
+            self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
+            cycle = monitoring_conf.get("cycle", 0)
+            if cycle:
+                success = False
+                try:
+                    success = self.instrument.start_cycle(cycle)
+                    logger.info(
+                        "Device %s started with cycle %d",
+                        self.instrument.device_id,
+                        cycle,
+                    )
+                    sleep(3)  # DACM needs some time to wakeup from standby
+                except Exception as exception:  # pylint: disable=broad-except
+                    logger.error(
+                        "Failed to start cycle on %s. Exception: %s",
+                        self.my_id,
+                        exception,
+                    )
+                if not success:
+                    logger.error("Start/Stop not supported by %s", self.my_id)
+            else:
+                logger.error("Error in config.toml. Cycle not configured.")
+                self.mon_state.monitoring_active = False
+                self._request_free_at_is()
+                return
         self.mon_state.monitoring_active = True
         self.mon_state.start_timestamp = int(
             datetime.now(timezone.utc).replace(microsecond=0).timestamp()
