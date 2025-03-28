@@ -124,6 +124,13 @@ class MqttSchedulerActor(MqttBaseActor):
         self.cached_replies = {}  # {instr_id: CachedReply}
 
     @overrides
+    def clean_session(self) -> bool:
+        """We always want a persistent session, since in the frontend we don't
+        have the problem of message storms like in the MQTT backend. That's why
+        we do not check the ping file."""
+        return False
+
+    @overrides
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
         # callbacks for host
