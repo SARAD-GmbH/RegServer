@@ -10,6 +10,7 @@ Authors
 import os
 import re
 import signal
+from datetime import datetime
 
 from regserver.config import actor_config, home
 from regserver.logger import logger
@@ -139,3 +140,10 @@ def kill_processes(regex):
             return exception
     else:
         return None
+
+
+def write_ping_file(ping_file_name, time_format):
+    """Write the current datetime into a file"""
+    with open(ping_file_name, "w", encoding="utf8") as pingfile:
+        pingfile.write(datetime.utcnow().strftime(time_format))
+    logger.debug("Wrote datetime to %s", ping_file_name)

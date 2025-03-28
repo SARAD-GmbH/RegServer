@@ -38,7 +38,7 @@ from regserver.modules.frontend.modbus.modbus_rtu import ModbusRtu
 from regserver.registrar import Registrar
 from regserver.restapi import app, set_registrar
 from regserver.shutdown import (is_flag_set, kill_processes, set_file_flag,
-                                system_shutdown)
+                                system_shutdown, write_ping_file)
 from regserver.version import VERSION
 
 if os.name == "posix":
@@ -248,7 +248,7 @@ class Main:
         if self.led and not self.led.closed:
             self.led.close()
         if not wait_some_time:
-            self.write_ping_file()
+            write_ping_file(PING_FILE_NAME, FRMT)
         if with_error:
             logger.info("RegServer will exit with error to be restarted automatically")
             raise SystemExit("Exit with error for automatic restart.")
@@ -362,12 +362,6 @@ class Main:
                         self.led.on()
                     elif "DISCONNECTED" in entry["MESSAGE"]:
                         self.led.blink(1, 1)
-
-    def write_ping_file(self):
-        """Write the current datetime into a file"""
-        with open(PING_FILE_NAME, "w", encoding="utf8") as pingfile:
-            pingfile.write(datetime.utcnow().strftime(FRMT))
-        logger.debug("Wrote datetime to %s", PING_FILE_NAME)
 
     def init_log_file(self):
         """Store the old log file and start a new one"""

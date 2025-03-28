@@ -23,7 +23,7 @@ from regserver.config import (FRMT, PING_FILE_NAME, backend_config,
                               frontend_config, mqtt_config,
                               mqtt_frontend_config)
 from regserver.logger import logger
-from regserver.shutdown import is_flag_set, system_shutdown
+from regserver.shutdown import is_flag_set, system_shutdown, write_ping_file
 
 
 class MqttBaseActor(BaseActor):
@@ -266,6 +266,7 @@ class MqttBaseActor(BaseActor):
             )
             # There is no need to do anything.
             # With loop_start() in place, re-connections will be handled automatically.
+        write_ping_file(PING_FILE_NAME, FRMT)
         self.is_connected = False
 
     def on_message(self, _client, _userdata, message):
