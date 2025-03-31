@@ -268,19 +268,7 @@ class MqttSchedulerActor(MqttBaseActor):
         for every instrument in a meta topic."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for device_id, status_dict in msg.device_statuses.items():
-            if transport_technology(device_id) in ("mqtt", "mdns"):
-                continue
-            topic = f"{self.group}/{self.is_id}/{short_id(device_id)}/meta"
-            try:
-                status_dict["Identification"]["Host"] = self.is_meta.host
-                self.mqttc.publish(
-                    topic=topic,
-                    payload=json.dumps(status_dict),
-                    qos=self.qos,
-                    retain=False,
-                )
-            except (KeyError, TypeError) as exception:
-                logger.warning("No host information for %s: %s", device_id, exception)
+            self._update_device_status(device_id, status_dict)
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name, too-many-locals
@@ -289,28 +277,29 @@ class MqttSchedulerActor(MqttBaseActor):
         Adds a new instrument to the list of available instruments
         or updates the reservation state."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if transport_technology(msg.device_id) in ("mqtt", "mdns"):
+        self._update_device_status(msg.device_id, msg.device_status)
+
+    def _update_device_status(self, device_id, device_status):
+        if transport_technology(device_id) in ("mqtt", "mdns"):
             return
-        instr_id = short_id(msg.device_id)
-        device_id = msg.device_id
-        device_status = msg.device_status
+        instr_id = short_id(device_id)
         new_instrument_connected = False
         if not device_status.get("State", 2) < 2:
             reservation = device_status.get("Reservation")
+            self.mqttc.subscribe(f"{self.group}/{self.is_id}/{instr_id}/control", 2)
+            self.mqttc.subscribe(f"{self.group}/{self.is_id}/{instr_id}/cmd", 2)
+            identification = device_status["Identification"]
+            identification["Host"] = self.is_meta.host
+            message = {"State": 2, "Identification": identification}
+            self.mqttc.publish(
+                topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
+                payload=json.dumps(message),
+                qos=self.qos,
+                retain=False,
+            )
             if device_id not in self.reservations:
-                logger.debug("Publish %s as new instrument.", instr_id)
+                logger.info("Add %s as new instrument.", instr_id)
                 new_instrument_connected = True
-                self.mqttc.subscribe(f"{self.group}/{self.is_id}/{instr_id}/control", 2)
-                self.mqttc.subscribe(f"{self.group}/{self.is_id}/{instr_id}/cmd", 2)
-                identification = device_status["Identification"]
-                identification["Host"] = self.is_meta.host
-                message = {"State": 2, "Identification": identification}
-                self.mqttc.publish(
-                    topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
-                    payload=json.dumps(message),
-                    qos=self.qos,
-                    retain=False,
-                )
                 if reservation is None:
                     logger.debug("%s has never been reserved.", instr_id)
                     self.reservations[device_id] = Reservation(
@@ -388,12 +377,6 @@ class MqttSchedulerActor(MqttBaseActor):
     def _remove_instrument(self, device_id):
         # pylint: disable=invalid-name
         """Removes an instrument from the list of available instruments."""
-        try:
-            self._unsubscribe_from_device_status_msg(
-                self.actor_dict[device_id]["address"]
-            )
-        except (KeyError, TypeError):
-            logger.warning("Cannot unsubscribe %s from DeviceStatusMsg", device_id)
         if self.reservations.pop(device_id, None) is not None:
             logger.info("Remove %s", device_id)
             instr_id = short_id(device_id)
@@ -438,6 +421,9 @@ class MqttSchedulerActor(MqttBaseActor):
         self.mqttc.subscribe(f"{self.group}/{self.is_id}/+/meta", 2)
         self.mqttc.subscribe(f"{self.group}/{self.is_id}/cmd", 2)
         self._subscribe_to_actor_dict_msg()
+        if not flags.session_present:
+            logger.error("Clean session. Restore subscriptions of known instruments.")
+            self._update_reservations()
 
     def on_control(self, _client, _userdata, message):
         """Event handler for all MQTT messages with control topic."""
@@ -521,10 +507,13 @@ class MqttSchedulerActor(MqttBaseActor):
         elif message.payload.decode("utf-8") == "shutdown":
             self.send(self.registrar, ShutdownMsg(password="", host="127.0.0.1"))
         elif message.payload.decode("utf-8") == "update":
-            if (datetime.now() - self.last_update) > timedelta(seconds=1):
-                logger.debug("Send updated meta information of instruments")
-                self.send(self.registrar, GetDeviceStatusesMsg())
-                self.last_update = datetime.now()
+            self._update_reservations()
+
+    def _update_reservations(self):
+        if (datetime.now() - self.last_update) > timedelta(seconds=1):
+            logger.debug("Get updated meta information of instruments from Registrar")
+            self.send(self.registrar, GetDeviceStatusesMsg())
+            self.last_update = datetime.now()
 
     def receiveMsg_RxBinaryMsg(self, msg, sender):
         # pylint: disable=invalid-name
