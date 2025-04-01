@@ -1,4 +1,4 @@
-"""Actor representing an instrument server host in mDNS backend
+"""Actor representing an instrument server host in the LAN backend
 
 :Created:
     2022-10-14

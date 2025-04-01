@@ -9,9 +9,10 @@ services (SARAD devices) in the local network.
     | Michael Strey <strey@sarad.de>
 
 """
+
 import threading
 
-from registrationserver import mdns_backend_config
+from registrationserver import lan_backend_config
 from registrationserver.helpers import get_ip
 from registrationserver.logger import logger
 from zeroconf import IPVersion, ServiceBrowser, ServiceListener, Zeroconf
@@ -57,4 +58,4 @@ class MdnsListener(ServiceListener):
 
 
 if __name__ == "__main__":
-    listener = MdnsListener(_type=mdns_backend_config["TYPE"])
+    listener = MdnsListener(_type=lan_backend_config["TYPE"])

@@ -18,7 +18,7 @@ import socket
 from overrides import overrides  # type: ignore
 from regserver.base_actor import BaseActor
 from regserver.config import (config, get_hostname, get_ip,
-                              mdns_frontend_config, rest_frontend_config)
+                              lan_frontend_config, rest_frontend_config)
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.shutdown import system_shutdown
@@ -38,7 +38,7 @@ class MdnsAdvertiserActor(BaseActor):
         self.address = config["MY_IP"]
         self.service = None
         self.zeroconf = Zeroconf(
-            ip_version=mdns_frontend_config["IP_VERSION"],
+            ip_version=lan_frontend_config["IP_VERSION"],
             interfaces=[config["MY_IP"], "127.0.0.1"],
         )
         self.service_name = ""
@@ -107,7 +107,7 @@ class MdnsAdvertiserActor(BaseActor):
             "DEVICE_ID": self.device_id,
             "OCCUPIED": self.occupied,
         }
-        service_type = mdns_frontend_config["TYPE"]
+        service_type = lan_frontend_config["TYPE"]
         self.service = ServiceInfo(
             service_type,
             f"{self.service_name}.{service_type}",
@@ -135,7 +135,7 @@ class MdnsAdvertiserActor(BaseActor):
             "DEVICE_ID": self.device_id,
             "OCCUPIED": self.occupied,
         }
-        service_type = mdns_frontend_config["TYPE"]
+        service_type = lan_frontend_config["TYPE"]
         self.service = ServiceInfo(
             service_type,
             f"{self.service_name}.{service_type}",

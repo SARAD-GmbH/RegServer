@@ -59,9 +59,9 @@ class Is1BackendConfigDict(TypedDict):
     IS1_PORT: int
 
 
-class MdnsBackendConfigDict(TypedDict):
+class LanBackendConfigDict(TypedDict):
     # pylint: disable=inherit-non-class, too-few-public-methods
-    """Type declaration for mdns_backend_config."""
+    """Type declaration for lan_backend_config."""
     MDNS_TIMEOUT: int
     TYPE: str
     IP_VERSION: IPVersion
@@ -86,9 +86,9 @@ class MqttConfigDict(TypedDict):
     TLS_USE_TLS: bool
 
 
-class MdnsFrontendConfig(TypedDict):
+class LanFrontendConfig(TypedDict):
     # pylint: disable=inherit-non-class, too-few-public-methods
-    """Type declaration for mdns_frontend_config."""
+    """Type declaration for lan_frontend_config."""
     TYPE: str
     IP_VERSION: IPVersion
 
@@ -236,7 +236,7 @@ config = {
 
 # Frontend configuration
 frontend_config = set()
-DEFAULT_FRONTENDS = {Frontend.REST, Frontend.MDNS}
+DEFAULT_FRONTENDS = {Frontend.REST, Frontend.LAN}
 
 if customization.value.get("frontends") is None:
     frontend_config = DEFAULT_FRONTENDS
@@ -245,9 +245,9 @@ else:
         frontend_config.add(Frontend.REST)
     if customization.value["frontends"].get("mqtt", False):
         frontend_config.add(Frontend.MQTT)
-    if customization.value["frontends"].get("mdns", True):
-        frontend_config.add(Frontend.MDNS)
-        # REST frontend is part of the mDNS frontend
+    if customization.value["frontends"].get("lan", True):
+        frontend_config.add(Frontend.LAN)
+        # REST frontend is part of the LAN frontend
         frontend_config.add(Frontend.REST)
     if customization.value["frontends"].get("modbus_rtu", False):
         frontend_config.add(Frontend.MODBUS_RTU)
@@ -323,7 +323,7 @@ else:
 
 # Backend configuration
 backend_config = set()
-DEFAULT_BACKENDS = {Backend.LOCAL, Backend.MDNS}
+DEFAULT_BACKENDS = {Backend.LOCAL, Backend.LAN}
 
 if customization.value.get("backends") is None:
     backend_config = DEFAULT_BACKENDS
@@ -335,8 +335,8 @@ else:
     mqtt_backend = customization.value["backends"].get("mqtt", 2)
     if (mqtt_backend == 1) or ((mqtt_backend == 2) and tls_present):
         backend_config.add(Backend.MQTT)
-    if customization.value["backends"].get("mdns", True):
-        backend_config.add(Backend.MDNS)
+    if customization.value["backends"].get("lan", True):
+        backend_config.add(Backend.LAN)
     if customization.value["backends"].get("is1", False):
         backend_config.add(Backend.IS1)
 
@@ -402,14 +402,14 @@ ip_version_dict = {
 }
 DEFAULT_IP_VERSION = IPVersion.All
 
-# mDNS backend configuration
+# LAN backend configuration
 DEFAULT_MDNS_TIMEOUT = 3000
 DEFAULT_HOSTS_WHITELIST: list[tuple[str, int]] = []
 DEFAULT_HOSTS_BLACKLIST: list[str] = []
 DEFAULT_HOSTS_SCAN_INTERVAL = 60  # in seconds
 
-if customization.value.get("mdns_backend") is None:
-    mdns_backend_config: MdnsBackendConfigDict = {
+if customization.value.get("lan_backend") is None:
+    lan_backend_config: LanBackendConfigDict = {
         "MDNS_TIMEOUT": DEFAULT_MDNS_TIMEOUT,
         "TYPE": DEFAULT_TYPE,
         "IP_VERSION": DEFAULT_IP_VERSION,
@@ -418,44 +418,42 @@ if customization.value.get("mdns_backend") is None:
         "SCAN_INTERVAL": DEFAULT_HOSTS_SCAN_INTERVAL,
     }
 else:
-    if customization.value["mdns_backend"].get("ip_version") in ip_version_dict:
-        IP_VERSION = ip_version_dict[customization.value["mdns_backend"]["ip_version"]]
+    if customization.value["lan_backend"].get("ip_version") in ip_version_dict:
+        IP_VERSION = ip_version_dict[customization.value["lan_backend"]["ip_version"]]
     else:
         IP_VERSION = DEFAULT_IP_VERSION
-    mdns_backend_config = {
+    lan_backend_config = {
         "MDNS_TIMEOUT": int(
-            customization.value["mdns_backend"].get(
-                "mdns_timeout", DEFAULT_MDNS_TIMEOUT
-            )
+            customization.value["lan_backend"].get("mdns_timeout", DEFAULT_MDNS_TIMEOUT)
         ),
-        "TYPE": customization.value["mdns_backend"].get("type", DEFAULT_TYPE),
+        "TYPE": customization.value["lan_backend"].get("type", DEFAULT_TYPE),
         "IP_VERSION": IP_VERSION,
-        "HOSTS_WHITELIST": customization.value["mdns_backend"].get(
+        "HOSTS_WHITELIST": customization.value["lan_backend"].get(
             "hosts_whitelist", DEFAULT_HOSTS_WHITELIST
         ),
-        "HOSTS_BLACKLIST": customization.value["mdns_backend"].get(
+        "HOSTS_BLACKLIST": customization.value["lan_backend"].get(
             "hosts_blacklist", DEFAULT_HOSTS_BLACKLIST
         ),
         "SCAN_INTERVAL": int(
-            customization.value["mdns_backend"].get(
+            customization.value["lan_backend"].get(
                 "scan_interval", DEFAULT_HOSTS_SCAN_INTERVAL
             )
         ),
     }
 
-# mDNS frontend configuration
-if customization.value.get("mdns_frontend") is None:
-    mdns_frontend_config: MdnsFrontendConfig = {
+# LAN frontend configuration
+if customization.value.get("lan_frontend") is None:
+    lan_frontend_config: LanFrontendConfig = {
         "TYPE": DEFAULT_TYPE,
         "IP_VERSION": DEFAULT_IP_VERSION,
     }
 else:
-    if customization.value["mdns_frontend"].get("ip_version") in ip_version_dict:
+    if customization.value["lan_frontend"].get("ip_version") in ip_version_dict:
         IP_VERSION = ip_version_dict[customization.value["ip_version"]]
     else:
         IP_VERSION = DEFAULT_IP_VERSION
-    mdns_frontend_config = {
-        "TYPE": customization.value["mdns_frontend"].get("type", DEFAULT_TYPE),
+    lan_frontend_config = {
+        "TYPE": customization.value["lan_frontend"].get("type", DEFAULT_TYPE),
         "IP_VERSION": IP_VERSION,
     }
 

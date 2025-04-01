@@ -70,7 +70,7 @@ class Registrar(BaseActor):
         self.handleDeadLetters(startHandling=True)
         if Frontend.MQTT in frontend_config:
             self._create_actor(MqttSchedulerActor, "mqtt_scheduler", None)
-        if Frontend.MDNS in frontend_config:
+        if Frontend.LAN in frontend_config:
             self._create_actor(MdnsSchedulerActor, "mdns_scheduler", None)
         if Backend.LOCAL in backend_config:
             self._create_actor(ClusterActor, "cluster", None)

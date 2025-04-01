@@ -29,8 +29,8 @@ from waitress import serve  # type: ignore
 from regserver.actor_messages import Backend, Frontend, KillMsg, SetupMsg
 from regserver.config import (FRMT, PING_FILE_NAME, actor_config,
                               backend_config, config, config_file,
-                              frontend_config, mdns_backend_config,
-                              mqtt_config, rest_frontend_config)
+                              frontend_config, lan_backend_config, mqtt_config,
+                              rest_frontend_config)
 from regserver.logdef import LOGFILENAME, logcfg
 from regserver.logger import logger
 from regserver.modules.backend.mdns.mdns_listener import MdnsListener
@@ -127,7 +127,7 @@ class Main:
         # The Actor System must be started *before* the RestApi
         self.modbus_rtu = None
         usb_listener = None
-        self.mdns_backend = None
+        self.lan_backend = None
         self.api_process = None
         if Frontend.REST in frontend_config:
             if os.name == "posix":
@@ -157,9 +157,9 @@ class Main:
                 daemon=True,
             )
             self.usb_listener_thread.start()
-        if Backend.MDNS in backend_config:
-            self.mdns_backend = MdnsListener(self.registrar_actor)
-            self.mdns_backend.start(mdns_backend_config["TYPE"])
+        if Backend.LAN in backend_config:
+            self.lan_backend = MdnsListener(self.registrar_actor)
+            self.lan_backend.start(lan_backend_config["TYPE"])
         logger.info("The RegServer is up and running now.")
 
     def start_webserver(self):
@@ -204,10 +204,10 @@ class Main:
         """Shutdown application"""
         self.stop_event.set()
         self.usb_listener_thread.join()
-        if self.mdns_backend is not None:
+        if self.lan_backend is not None:
             logger.info("Shutdown MdnsListener")
             try:
-                self.mdns_backend.shutdown()
+                self.lan_backend.shutdown()
             except Exception as exception:  # pylint: disable=broad-except
                 logger.critical(exception)
         if self.modbus_rtu is not None:

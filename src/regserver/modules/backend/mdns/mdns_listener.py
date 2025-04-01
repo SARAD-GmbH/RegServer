@@ -16,7 +16,7 @@ from datetime import timedelta
 
 from regserver.actor_messages import (ActorCreatedMsg, CreateActorMsg, KillMsg,
                                       SetDeviceStatusMsg, SetupHostActorMsg)
-from regserver.config import config, mdns_backend_config
+from regserver.config import config, lan_backend_config
 from regserver.helpers import (get_actor, sarad_protocol, short_id,
                                transport_technology)
 from regserver.hostname_functions import compare_hostnames
@@ -39,7 +39,7 @@ class MdnsListener(ServiceListener):
     @staticmethod
     def device_id(name):
         """Convert mDNS name into a proper device_id/actor_id"""
-        if transport_technology(name) == mdns_backend_config["TYPE"]:
+        if transport_technology(name) == lan_backend_config["TYPE"]:
             return f"{short_id(name, check=False)}.{sarad_protocol(name)}.mdns"
         return name
 
@@ -64,7 +64,7 @@ class MdnsListener(ServiceListener):
         """Helper function to convert mdns service information
         to the desired dictionary"""
         info = zc.get_service_info(
-            type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
+            type_, name, timeout=lan_backend_config["MDNS_TIMEOUT"]
         )
         if not info or not name:
             logger.error(
@@ -135,7 +135,7 @@ class MdnsListener(ServiceListener):
     def _get_host_actor(self, zc, type_, name):
         # pylint: disable=invalid-name
         info = zc.get_service_info(
-            type_, name, timeout=mdns_backend_config["MDNS_TIMEOUT"]
+            type_, name, timeout=lan_backend_config["MDNS_TIMEOUT"]
         )
         hostname = self.get_host_addr(info)
         if hostname is None:
@@ -153,7 +153,7 @@ class MdnsListener(ServiceListener):
         self.registrar = registrar_actor
         self.zeroconf = None
         self.browser = None
-        self.hosts_whitelist = mdns_backend_config.get("HOSTS_WHITELIST", [])
+        self.hosts_whitelist = lan_backend_config.get("HOSTS_WHITELIST", [])
         for host in self.hosts_whitelist:
             hostname = host[0]
             logger.debug("Ask Registrar to create Host Actor %s", hostname)
@@ -181,7 +181,7 @@ class MdnsListener(ServiceListener):
                     SetupHostActorMsg(
                         host=hostname,
                         port=host[1],
-                        scan_interval=mdns_backend_config["SCAN_INTERVAL"],
+                        scan_interval=lan_backend_config["SCAN_INTERVAL"],
                     ),
                 )
 
@@ -189,7 +189,7 @@ class MdnsListener(ServiceListener):
         """Start the ZeroConf listener thread"""
         if not self.hosts_whitelist:
             self.zeroconf = Zeroconf(
-                ip_version=mdns_backend_config["IP_VERSION"],
+                ip_version=lan_backend_config["IP_VERSION"],
                 interfaces=[config["MY_IP"], "127.0.0.1"],
             )
             self.browser = ServiceBrowser(self.zeroconf, service_type, self)
@@ -206,7 +206,7 @@ class MdnsListener(ServiceListener):
         my_hostname = config["MY_HOSTNAME"]
         logger.debug("Host to add: %s", hostname)
         logger.debug("My hostname: %s", my_hostname)
-        hosts_blacklist = mdns_backend_config.get("HOSTS_BLACKLIST", [])
+        hosts_blacklist = lan_backend_config.get("HOSTS_BLACKLIST", [])
         if (
             (host_actor is None)
             and (not compare_hostnames(my_hostname, hostname))
@@ -268,7 +268,7 @@ class MdnsListener(ServiceListener):
         representing a device is being detected"""
         logger.info("[Del] Service %s of type %s", name, type_)
         info = zc.get_service_info(
-            type_, name, timeout=int(mdns_backend_config["MDNS_TIMEOUT"])
+            type_, name, timeout=int(lan_backend_config["MDNS_TIMEOUT"])
         )
         logger.debug("[Del] Info: %s", info)
         device_id = self.device_id(name)

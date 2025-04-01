@@ -94,10 +94,10 @@
 ## - `rest` :: Defines whether the REST API will be active.
 ## - `mqtt` :: Defined whether the MQTT frontend will be active. This might
 ##             require further configuration in section `[mqtt]`.
-## - `mdns` :: Defines whether the mDNS frontend will be active.
+## - `lan` :: Defines whether the LAN frontend will be active.
 ## - `modbus_rtu` :: Defines whether the Modbus RTU frontend will be active.
 ##
-## Per default the REST and the mDNS frontends are switched on.
+## Per default the REST and the LAN frontends are switched on.
 [frontends]
 ### Key: rest
 ### Default: true
@@ -107,9 +107,9 @@
 ### Default: false
 #mqtt = false
 
-### Key: mdns
+### Key: lan
 ### Default: true
-#mdns = true
+#lan = true
 
 ### Key: modbus_rtu
 ### Default: false
@@ -120,7 +120,7 @@
 ## - `local` :: Defines whether the backend for locally connected SARAD
 ##              instruments will be active.
 ## - `mqtt` :: Defines whether the MQTT backend will be active.
-## - `mdns` :: Defines whether the mDNS backend will be active.
+## - `lan` :: Defines whether the LAN backend will be active.
 ## - `is1` :: Defines whether the IS1 backend for the legacy SARAD Instrument
 ##            Server will be active. This backend is required for some devices
 ##            with WLAN modules.
@@ -140,9 +140,9 @@
 ### Default: 2
 #mqtt = 2
 
-### Key: mdns
+### Key: lan
 ### Default: true
-#mdns = true
+#lan = true
 
 ### Key: is1
 ## Take care to set this key to true at only one RegServer in your LAN.
@@ -170,8 +170,8 @@
 ### Key: gateway
 ## `gateway` contains a list of backends. Each instrument connected via one of
 ## the backends in this list is to be provided via the frontend.
-### Default: ["local", "mqtt", "mdns", "is1"]
-#gateway = ["local", "mqtt", "mdns", "is1"]
+### Default: ["local", "mqtt", "lan", "is1"]
+#gateway = ["local", "mqtt", "lan", "is1"]
 
 
 ## The `mqtt` section contains parameters regarding both the MQTT frontend as
@@ -264,10 +264,10 @@
 ## `gateway` contains a list of backends. Each instrument connected via one of
 ## the backends in this list is to be provided via the frontend.
 ### Default: ["local", "is1"]
-#gateway = ["local", "mdns", "is1"]
+#gateway = ["local", "lan", "is1"]
 
 
-[mdns_frontend]
+[lan_frontend]
 ### Key: gateway
 ## `gateway` contains a list of backends. Each instrument connected via one of
 ## the backends in this list is to be provided via the frontend.
@@ -418,11 +418,11 @@
 #scan_interval = 60
 
 
-## The `mdns_backend` section contains the settings for the mDNS (Zeroconf)
-## backend. RegServers with the mDNS frontend identify themselves by multicast
+## The `lan_backend` section contains the settings for the LAN (mDNS, Zeroconf)
+## backend. RegServers with the LAN frontend typically identify themselves by multicast
 ## messages in the LAN. Refer to
 ## https://python-zeroconf.readthedocs.io/en/latest/api.html.
-[mdns_backend]
+[lan_backend]
 ### Key: type
 ## `type` designates the type of the multicast mDNS message. Don't change it.
 ### Default: "_raw._tcp.local."
@@ -440,7 +440,7 @@
 #ip_version = "all"
 
 ### Key: hosts_whitelist
-## `hosts_whitelist` may contain a list of host names running RegServers with mDNS frontend.
+## `hosts_whitelist` may contain a list of host names running RegServers with LAN frontend.
 ## It has the form [[host1, 8008], [host2, 8080]].
 ## The first element of an entry contains the hostname, the second the belonging port number
 ## of the REST APIs on this host (usually 8008).

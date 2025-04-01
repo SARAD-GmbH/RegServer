@@ -1,7 +1,8 @@
-"""mDNS Scheduler Actor for mDNS frontend
+"""mDNS Scheduler Actor for LAN frontend
 
-This actor will be created as singleton by the Registrar Actor if mDNS frontend
-is active. It manages the creation and removal of MdnsAdvertiserActors.
+This actor will be created as singleton by the Registrar Actor if the LAN
+frontend is active. It manages the creation and removal of
+MdnsAdvertiserActors.
 
 Created
     2022-05-05
@@ -10,6 +11,7 @@ Author
     Michael Strey <strey@sarad.de>
 
 """
+
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, KillMsg,
                                       SetupMdnsAdvertiserActorMsg)
