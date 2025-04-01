@@ -91,6 +91,7 @@ class LanFrontendConfig(TypedDict):
     """Type declaration for lan_frontend_config."""
     TYPE: str
     IP_VERSION: IPVersion
+    GATEWAY: list[Backend]
 
 
 class ActorConfigDict(TypedDict):
@@ -110,6 +111,7 @@ class MqttFrontendConfigDict(TypedDict):
     """Type declaration for mqtt_frontend_config."""
     REBOOT_AFTER: float
     RESTART_INSTEAD_OF_REBOOT: int
+    GATEWAY: list[Backend]
 
 
 def get_ip(ipv6=False):
@@ -441,13 +443,32 @@ else:
         ),
     }
 
-# LAN frontend configuration
+BACKEND_TRANSLATOR = {
+    "local": Backend.LOCAL,
+    "is1": Backend.IS1,
+    "mdns": Backend.LAN,
+    "mqtt": Backend.MQTT,
+}
+
+# Configuration of LAN frontend
+DEFAULT_LAN_GATEWAY = [Backend.LOCAL, Backend.IS1]
+
 if customization.value.get("lan_frontend") is None:
     lan_frontend_config: LanFrontendConfig = {
         "TYPE": DEFAULT_TYPE,
         "IP_VERSION": DEFAULT_IP_VERSION,
+        "GATEWAY": DEFAULT_LAN_GATEWAY,
     }
 else:
+    if not customization.value["lan_frontend"].get("gateway", False):
+        lan_gateway = DEFAULT_LAN_GATEWAY
+    else:
+        lan_gateway = []
+        for backend_str in customization.value["lan_frontend"]["gateway"]:
+            try:
+                lan_gateway.append(BACKEND_TRANSLATOR[backend_str])
+            except KeyError as exception:
+                print(f"Error in config of lan_frontend.gateway: {exception}")
     if customization.value["lan_frontend"].get("ip_version") in ip_version_dict:
         IP_VERSION = ip_version_dict[customization.value["ip_version"]]
     else:
@@ -455,6 +476,7 @@ else:
     lan_frontend_config = {
         "TYPE": customization.value["lan_frontend"].get("type", DEFAULT_TYPE),
         "IP_VERSION": IP_VERSION,
+        "GATEWAY": lan_gateway,
     }
 
 # Local backend configuration
@@ -657,13 +679,24 @@ else:
 # Configuration of MQTT frontend
 DEFAULT_REBOOT_AFTER = 60
 DEFAULT_RESTART_INSTEAD_OF_REBOOT = 0
+DEFAULT_MQTT_GATEWAY = [Backend.LOCAL, Backend.IS1]
 
 if customization.value.get("mqtt_frontend") is None:
     mqtt_frontend_config: MqttFrontendConfigDict = {
         "REBOOT_AFTER": DEFAULT_REBOOT_AFTER,
         "RESTART_INSTEAD_OF_REBOOT": DEFAULT_RESTART_INSTEAD_OF_REBOOT,
+        "GATEWAY": DEFAULT_MQTT_GATEWAY,
     }
 else:
+    if not customization.value["mqtt_frontend"].get("gateway", False):
+        mqtt_gateway = DEFAULT_MQTT_GATEWAY
+    else:
+        mqtt_gateway = []
+        for backend_str in customization.value["mqtt_frontend"]["gateway"]:
+            try:
+                mqtt_gateway.append(BACKEND_TRANSLATOR[backend_str])
+            except KeyError as exception:
+                print(f"Error in config of mqtt_frontend.gateway: {exception}")
     mqtt_frontend_config = {
         "REBOOT_AFTER": int(
             customization.value["mqtt_frontend"].get(
@@ -675,6 +708,7 @@ else:
                 "restart_instead_of_reboot", DEFAULT_RESTART_INSTEAD_OF_REBOOT
             )
         ),
+        "GATEWAY": mqtt_gateway,
     }
 
 # Configuration of Monitoring Mode
