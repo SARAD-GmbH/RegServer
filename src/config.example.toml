@@ -39,7 +39,7 @@
 
 ## The following parameters `is_id`, `description`, `place`, `latitude`,
 ## `longitude`, `altitude`, `my_ip`, and `my_hostname` are relevant for RegServers
-## that are connected with SARAD instruments via their USB backend, thus working
+## that are connected with SARAD instruments via their 'local' backend, thus working
 ## as Instrument Servers.
 
 ### Key: is_id
@@ -117,17 +117,17 @@
 
 
 ## The `backends` section defines, which backends will be switched on.
-## - `usb` :: Defines whether the USB backend for locally connected SARAD
-##            instruments will be active.
+## - `local` :: Defines whether the backend for locally connected SARAD
+##              instruments will be active.
 ## - `mqtt` :: Defines whether the MQTT backend will be active.
 ## - `mdns` :: Defines whether the mDNS backend will be active.
 ## - `is1` :: Defines whether the IS1 backend for the legacy SARAD Instrument
 ##            Server will be active. This backend is required for some devices
 ##            with WLAN modules.
 [backends]
-### Key: usb
+### Key: local
 ### Default: true
-#usb = true
+#local = true
 
 ### Key: mqtt
 ## As a convenience feature `mqtt` can not only have the values true or false but
@@ -166,6 +166,12 @@
 ## second one the end of the port range.
 ### Default: [50003, 50500]
 #port_range = [50003, 50500]
+
+### Key: gateway
+## `gateway` contains a list of backends. Each instrument connected via one of
+## the backends in this list is to be provided via the frontend.
+### Default: ["local", "mqtt", "mdns", "is1"]
+#gateway = ["local", "mqtt", "mdns", "is1"]
 
 
 ## The `mqtt` section contains parameters regarding both the MQTT frontend as
@@ -254,6 +260,20 @@
 ### Default: 0
 #restart_instead_of_reboot = 0
 
+### Key: gateway
+## `gateway` contains a list of backends. Each instrument connected via one of
+## the backends in this list is to be provided via the frontend.
+### Default: ["local", "is1"]
+#gateway = ["local", "mdns", "is1"]
+
+
+[mdns_frontend]
+### Key: gateway
+## `gateway` contains a list of backends. Each instrument connected via one of
+## the backends in this list is to be provided via the frontend.
+### Default: ["local", "is1"]
+#gateway = ["local", "mqtt", "is1"]
+
 
 ## The `modbus_rtu_frontend` section allows to modify the parameters of the
 ## Modbus RTU frontend. This section is mandatory, if the `modbus_rtu` frontend
@@ -296,11 +316,9 @@
 #device_id = "28tkhn4V.sarad-dacm.local"
 
 
-## The `usb_backend` section contains parameter modifying the behaviour of the
-## backend for locally connected SARAD instruments. Other than suggested by its
-## name, the USB backend will handle as well devices that are connected via
-## RS-232 ports.
-[usb_backend]
+## The `local_backend` section contains parameter modifying the behaviour of the
+## backend for locally via USB, RS-232, or RS-485 connected SARAD instruments.
+[local_backend]
 ### Key: poll_serial_ports
 ## SARAD instruments connected via USB will usually be detected automatically.
 ## The detection will be triggered by the operating system when the USB is

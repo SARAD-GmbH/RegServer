@@ -330,7 +330,7 @@ if customization.value.get("backends") is None:
     if tls_present:
         backend_config.add(Backend.MQTT)
 else:
-    if customization.value["backends"].get("usb", True):
+    if customization.value["backends"].get("local", True):
         backend_config.add(Backend.USB)
     mqtt_backend = customization.value["backends"].get("mqtt", 2)
     if (mqtt_backend == 1) or ((mqtt_backend == 2) and tls_present):
@@ -470,7 +470,7 @@ DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
 DEFAULT_SET_RTC = False
 DEFAULT_UTC_OFFSET = 0
 
-if customization.value.get("usb_backend") is None:
+if customization.value.get("local_backend") is None:
     usb_backend_config: UsbBackendConfigDict = {
         "POLL_SERIAL_PORTS": DEFAULT_POLL_SERIAL_PORTS,
         "IGNORED_SERIAL_PORTS": DEFAULT_IGNORED_SERIAL_PORTS,
@@ -481,24 +481,24 @@ if customization.value.get("usb_backend") is None:
     }
 else:
     usb_backend_config = {
-        "POLL_SERIAL_PORTS": customization.value["usb_backend"].get(
+        "POLL_SERIAL_PORTS": customization.value["local_backend"].get(
             "poll_serial_ports", DEFAULT_POLL_SERIAL_PORTS
         ),
-        "IGNORED_SERIAL_PORTS": customization.value["usb_backend"].get(
+        "IGNORED_SERIAL_PORTS": customization.value["local_backend"].get(
             "ignored_serial_ports", DEFAULT_IGNORED_SERIAL_PORTS
         ),
-        "IGNORED_HWIDS": customization.value["usb_backend"].get(
+        "IGNORED_HWIDS": customization.value["local_backend"].get(
             "ignored_hwids", DEFAULT_IGNORED_HWIDS
         ),
         "LOCAL_RETRY_INTERVAL": int(
-            customization.value["usb_backend"].get(
+            customization.value["local_backend"].get(
                 "local_retry_interval", DEFAULT_LOCAL_RETRY_INTERVAL
             )
         ),
-        "SET_RTC": customization.value["usb_backend"].get(
+        "SET_RTC": customization.value["local_backend"].get(
             "set_realtime_clock", DEFAULT_SET_RTC
         ),
-        "UTC_OFFSET": customization.value["usb_backend"].get(
+        "UTC_OFFSET": customization.value["local_backend"].get(
             "utc_offset", DEFAULT_UTC_OFFSET
         ),
     }
