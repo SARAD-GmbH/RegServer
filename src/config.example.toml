@@ -167,12 +167,6 @@
 ### Default: [50003, 50500]
 #port_range = [50003, 50500]
 
-### Key: gateway
-## `gateway` contains a list of backends. Each instrument connected via one of
-## the backends in this list is to be provided via the frontend.
-### Default: ["local", "mqtt", "lan", "is1"]
-#gateway = ["local", "mqtt", "lan", "is1"]
-
 
 ## The `mqtt` section contains parameters regarding both the MQTT frontend as
 ## well as the MQTT backend.
