@@ -19,7 +19,7 @@ from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                       Is1Address, SetDeviceStatusMsg,
                                       SetupUsbActorMsg, TransportTechnology)
 from regserver.base_actor import BaseActor
-from regserver.config import config, config_file, is1_backend_config
+from regserver.config import CONFIG_FILE, config, is1_backend_config
 from regserver.helpers import check_message, make_command_msg
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
@@ -336,7 +336,7 @@ class Is1Listener(BaseActor):
         for _actor_id, is1_address in self.active_is1_addresses.items():
             self.is1_addresses.append(is1_address)
         logger.info("is1_addresses = %s", self.is1_addresses)
-        with open(config_file, encoding="utf8") as custom_file:
+        with open(CONFIG_FILE, encoding="utf8") as custom_file:
             customization = tomlkit.load(custom_file)
         if not customization.get("is1_backend", False):
             customization["is1_backend"] = {"hosts": []}
@@ -346,7 +346,7 @@ class Is1Listener(BaseActor):
         for is1_address in self.is1_addresses:
             is1_hosts.append(is1_address.hostname)
         customization["is1_backend"]["hosts"] = list(set(is1_hosts))
-        with open(config_file, "w", encoding="utf8") as custom_file:
+        with open(CONFIG_FILE, "w", encoding="utf8") as custom_file:
             tomlkit.dump(customization, custom_file)
 
     def _create_and_setup_actor(

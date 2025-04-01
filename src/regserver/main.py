@@ -27,9 +27,9 @@ from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
 from waitress import serve  # type: ignore
 
 from regserver.actor_messages import Backend, Frontend, KillMsg, SetupMsg
-from regserver.config import (FRMT, PING_FILE_NAME, actor_config,
-                              backend_config, config, config_file,
-                              frontend_config, lan_backend_config, mqtt_config,
+from regserver.config import (CONFIG_FILE, FRMT, PING_FILE_NAME, actor_config,
+                              backend_config, config, frontend_config,
+                              lan_backend_config, mqtt_config,
                               rest_frontend_config)
 from regserver.logdef import LOGFILENAME, logcfg
 from regserver.logger import logger
@@ -373,7 +373,7 @@ class Main:
         try:
             with open(LOGFILENAME, "w", encoding="utf8") as _:
                 logger.info("SARAD Registration Server %s", VERSION)
-                logger.info("Configuration taken from %s", config_file)
+                logger.info("Configuration taken from %s", CONFIG_FILE)
                 logger.info("Log entries go to %s", LOGFILENAME)
         except Exception:  # pylint: disable=broad-except
             logger.error("Initialization of log file failed.")

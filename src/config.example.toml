@@ -223,17 +223,17 @@
 
 ### Key: tls_ca_file
 ## This is the certificate file of the Certificate Authority (CA).
-### Default: f"{config_folder}tls_cert_sarad.pem"
+### Default: f"{CONFIG_FOLDER}tls_cert_sarad.pem"
 #tls_ca_file = "/etc/regserver/tls_cert_sarad.pem"
 
 ### Key: tls_key_file
 ## This is the actual key for authentication and TLS encryption.
-### Default: f"{config_folder}tls_key_personal.pem"
+### Default: f"{CONFIG_FOLDER}tls_key_personal.pem"
 #tls_key_file = "/etc/regserver/tls_key_personal.pem"
 
 ### Key: tls_cert_file
 ## This is the certificate for the TLS key in PEM file format.
-### Default: f"{config_folder}tls_cert_personal.crt"
+### Default: f"{CONFIG_FOLDER}tls_cert_personal.crt"
 #tls_cert_file = "/etc/regserver/tls_cert_personal.crt"
 
 

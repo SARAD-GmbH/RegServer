@@ -170,14 +170,14 @@ if os.name == "nt":
 else:
     home = os.environ.get("HOME") or f"{dirs.site_cache_dir}"
     os.makedirs(home, exist_ok=True)
-config_folder = f"{dirs.site_config_dir}{os.path.sep}"
-config_file = f"{config_folder}config.toml"
+CONFIG_FOLDER = f"{dirs.site_config_dir}{os.path.sep}"
+CONFIG_FILE = f"{CONFIG_FOLDER}config.toml"
 if os.name == "nt":
-    tls_folder = f"{home}{os.path.sep}SARAD{os.path.sep}"
+    TLS_FOLDER = f"{home}{os.path.sep}SARAD{os.path.sep}"
 else:
-    tls_folder = config_folder
+    TLS_FOLDER = CONFIG_FOLDER
 try:
-    with open(config_file, encoding="utf8") as custom_file:
+    with open(CONFIG_FILE, encoding="utf8") as custom_file:
         customization = tomlkit.load(custom_file)
 except OSError:
     customization = tomlkit.document()
@@ -205,7 +205,7 @@ if customization.value.get("debug_level") in level_dict:
 else:
     DEBUG_LEVEL = DEFAULT_LEVEL
 if os.name == "nt":
-    DEFAULT_LOG_FOLDER = f"{tls_folder}log{os.path.sep}"
+    DEFAULT_LOG_FOLDER = f"{TLS_FOLDER}log{os.path.sep}"
 else:
     DEFAULT_LOG_FOLDER = "/var/log/"
 DEFAULT_LOG_FILE = "regserver.log"
@@ -260,9 +260,9 @@ DEFAULT_KEEPALIVE = 60
 DEFAULT_QOS = 1
 DEFAULT_RETRY_INTERVAL = 5
 DEFAULT_TLS_USE_TLS = True
-DEFAULT_TLS_CA_FILE = f"{tls_folder}tls_cert_sarad.pem"
-DEFAULT_TLS_KEY_FILE = f"{tls_folder}tls_key_personal.pem"
-DEFAULT_TLS_CERT_FILE = f"{tls_folder}tls_cert_personal.crt"
+DEFAULT_TLS_CA_FILE = f"{TLS_FOLDER}tls_cert_sarad.pem"
+DEFAULT_TLS_KEY_FILE = f"{TLS_FOLDER}tls_key_personal.pem"
+DEFAULT_TLS_CERT_FILE = f"{TLS_FOLDER}tls_cert_personal.crt"
 tls_present = os.path.isfile(DEFAULT_TLS_CERT_FILE)
 if tls_present:
     with open(DEFAULT_TLS_CERT_FILE, encoding="utf8") as cert_file:
