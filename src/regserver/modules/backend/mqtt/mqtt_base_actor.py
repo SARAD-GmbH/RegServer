@@ -71,7 +71,7 @@ class MqttBaseActor(BaseActor):
                 logger.warning("No Ping file from last run. -> Clean session")
                 return True
             now = datetime.utcnow()
-            if (now - finished_at) > timedelta(hours=6):
+            if (now - finished_at) > timedelta(seconds=60):
                 logger.info("Clean session")
                 return True
             logger.info("Persistent connection")
