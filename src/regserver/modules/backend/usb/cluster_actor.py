@@ -19,7 +19,7 @@ from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj, KillMsg,
                                       ReturnNativePortsMsg, ReturnUsbPortsMsg,
                                       SetupComActorMsg, TransportTechnology)
 from regserver.base_actor import BaseActor
-from regserver.config import config, rs485_backend_config, usb_backend_config
+from regserver.config import config, local_backend_config, rs485_backend_config
 from regserver.logger import logger
 from regserver.modules.backend.usb.com_actor import ComActor
 from regserver.version import VERSION
@@ -66,10 +66,11 @@ class ClusterActor(BaseActor):
     @overrides
     def __init__(self):
         self.poll_ports = {
-            self._normalize(port) for port in usb_backend_config["POLL_SERIAL_PORTS"]
+            self._normalize(port) for port in local_backend_config["POLL_SERIAL_PORTS"]
         }
         self.ignore_ports = {
-            self._normalize(port) for port in usb_backend_config["IGNORED_SERIAL_PORTS"]
+            self._normalize(port)
+            for port in local_backend_config["IGNORED_SERIAL_PORTS"]
         }
         self.loop_ports: set[str] = self.poll_ports.difference(self.ignore_ports)
         self.rs485_ports = rs485_backend_config
@@ -137,7 +138,7 @@ class ClusterActor(BaseActor):
         active_ports = comports()
         logger.debug("RS-232 or UART ports: %s", [port.device for port in active_ports])
         toxic_ports = []
-        ignored_hwids: list[str] = usb_backend_config["IGNORED_HWIDS"]
+        ignored_hwids: list[str] = local_backend_config["IGNORED_HWIDS"]
         for hwid_filter in ignored_hwids:
             toxic_ports.extend(grep(hwid_filter))
         for port in toxic_ports:
@@ -224,7 +225,7 @@ class ClusterActor(BaseActor):
             else:
                 route = Route(port=port, rs485_address=None, zigbee_address=None)
                 if port in self.loop_ports:
-                    loop_interval = usb_backend_config["LOCAL_RETRY_INTERVAL"]
+                    loop_interval = local_backend_config["LOCAL_RETRY_INTERVAL"]
                 self._create_and_setup_actor(route, loop_interval)
         for port in gone_ports:
             if port in self.rs485_ports:
@@ -242,7 +243,7 @@ class ClusterActor(BaseActor):
             child_address = child_actor["actor_address"]
             loop_interval = 0
             if route.port in self.loop_ports:
-                loop_interval = usb_backend_config["LOCAL_RETRY_INTERVAL"]
+                loop_interval = local_backend_config["LOCAL_RETRY_INTERVAL"]
             self.send(child_address, SetupComActorMsg(route, loop_interval))
 
     def receiveMsg_InstrAddedMsg(self, msg, sender):

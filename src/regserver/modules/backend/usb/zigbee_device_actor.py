@@ -15,7 +15,7 @@ from overrides import overrides
 from regserver.actor_messages import (FinishSetupUsbActorMsg, FreeDeviceMsg,
                                       ReservationStatusMsg, SetDeviceStatusMsg,
                                       Status)
-from regserver.config import config, usb_backend_config
+from regserver.config import config, local_backend_config
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.global_helpers import get_sarad_type  # type: ignore
@@ -64,7 +64,7 @@ class ZigBeeDeviceActor(UsbActor):
             logger.error("Setup of ZigBee Actor failed")
             self.send(self.parent.parent_address, FinishSetupUsbActorMsg(success=False))
         else:
-            if usb_backend_config["SET_RTC"]:
+            if local_backend_config["SET_RTC"]:
                 self._request_set_rtc_at_is()
             device_status = {
                 "Identification": {

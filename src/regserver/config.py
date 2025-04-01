@@ -39,9 +39,9 @@ class ModbusRtuFrontendConfigDict(TypedDict):
     DEVICE_ID: str
 
 
-class UsbBackendConfigDict(TypedDict):
+class LocalBackendConfigDict(TypedDict):
     # pylint: disable=inherit-non-class, too-few-public-methods
-    """Type declaration for usb_backend_config."""
+    """Type declaration for local_backend_config."""
     POLL_SERIAL_PORTS: list[str]
     IGNORED_SERIAL_PORTS: list[str]
     IGNORED_HWIDS: list[str]
@@ -323,7 +323,7 @@ else:
 
 # Backend configuration
 backend_config = set()
-DEFAULT_BACKENDS = {Backend.USB, Backend.MDNS}
+DEFAULT_BACKENDS = {Backend.LOCAL, Backend.MDNS}
 
 if customization.value.get("backends") is None:
     backend_config = DEFAULT_BACKENDS
@@ -331,7 +331,7 @@ if customization.value.get("backends") is None:
         backend_config.add(Backend.MQTT)
 else:
     if customization.value["backends"].get("local", True):
-        backend_config.add(Backend.USB)
+        backend_config.add(Backend.LOCAL)
     mqtt_backend = customization.value["backends"].get("mqtt", 2)
     if (mqtt_backend == 1) or ((mqtt_backend == 2) and tls_present):
         backend_config.add(Backend.MQTT)
@@ -459,7 +459,7 @@ else:
         "IP_VERSION": IP_VERSION,
     }
 
-# USB backend configuration
+# Local backend configuration
 if os.name == "nt":
     DEFAULT_POLL_SERIAL_PORTS = ["COM1"]
 else:
@@ -471,7 +471,7 @@ DEFAULT_SET_RTC = False
 DEFAULT_UTC_OFFSET = 0
 
 if customization.value.get("local_backend") is None:
-    usb_backend_config: UsbBackendConfigDict = {
+    local_backend_config: LocalBackendConfigDict = {
         "POLL_SERIAL_PORTS": DEFAULT_POLL_SERIAL_PORTS,
         "IGNORED_SERIAL_PORTS": DEFAULT_IGNORED_SERIAL_PORTS,
         "IGNORED_HWIDS": DEFAULT_IGNORED_HWIDS,
@@ -480,7 +480,7 @@ if customization.value.get("local_backend") is None:
         "UTC_OFFSET": DEFAULT_UTC_OFFSET,
     }
 else:
-    usb_backend_config = {
+    local_backend_config = {
         "POLL_SERIAL_PORTS": customization.value["local_backend"].get(
             "poll_serial_ports", DEFAULT_POLL_SERIAL_PORTS
         ),

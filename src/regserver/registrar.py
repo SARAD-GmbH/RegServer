@@ -72,7 +72,7 @@ class Registrar(BaseActor):
             self._create_actor(MqttSchedulerActor, "mqtt_scheduler", None)
         if Frontend.MDNS in frontend_config:
             self._create_actor(MdnsSchedulerActor, "mdns_scheduler", None)
-        if Backend.USB in backend_config:
+        if Backend.LOCAL in backend_config:
             self._create_actor(ClusterActor, "cluster", None)
         if Backend.MQTT in backend_config:
             self._create_actor(MqttClientActor, "mqtt_client_actor", None)

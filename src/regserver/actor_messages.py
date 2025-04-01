@@ -89,7 +89,7 @@ class Backend(Enum):
     the application defined by this configuration.
     """
 
-    USB = 1
+    LOCAL = 1
     MDNS = 2
     MQTT = 4
     IS1 = 8

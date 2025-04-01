@@ -15,7 +15,7 @@ from typing import Union
 from overrides import overrides
 from regserver.actor_messages import KillMsg, SetupUsbActorMsg
 from regserver.base_actor import BaseActor
-from regserver.config import usb_backend_config
+from regserver.config import local_backend_config
 from regserver.logger import logger
 from regserver.modules.backend.usb.net_usb_actor import NetUsbActor
 from regserver.modules.backend.usb.usb_actor import UsbActor
@@ -199,7 +199,7 @@ class ComActor(BaseActor):
             # DOSEman, DOSEman Pro, and MyRIAM are using an IR cradle with USB/ser adapter
             poll_doseman = True
             if (not self.polling_loop_running) and not self.polling_interval:
-                self.polling_interval = usb_backend_config["LOCAL_RETRY_INTERVAL"]
+                self.polling_interval = local_backend_config["LOCAL_RETRY_INTERVAL"]
                 self._start_polling()
         else:
             poll_doseman = False

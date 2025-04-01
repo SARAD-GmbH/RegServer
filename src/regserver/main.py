@@ -148,7 +148,7 @@ class Main:
                 self.modbus_rtu.start()
             except SerialException as exception:
                 logger.error("Modbus RTU not functional: %s", exception)
-        if Backend.USB in backend_config:
+        if Backend.LOCAL in backend_config:
             usb_listener = UsbListener(self.registrar_actor)
             self.usb_listener_thread = threading.Thread(
                 target=usb_listener.run,

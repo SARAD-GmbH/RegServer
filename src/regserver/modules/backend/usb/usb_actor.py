@@ -21,8 +21,8 @@ from regserver.actor_messages import (ControlFunctionalityMsg, Frontend,
                                       MqttPublishMsg, RecentValueMsg,
                                       RescanMsg, ReserveDeviceMsg, RxBinaryMsg,
                                       SetDeviceStatusMsg, Status)
-from regserver.config import (config, frontend_config, monitoring_config,
-                              mqtt_config, unique_id, usb_backend_config)
+from regserver.config import (config, frontend_config, local_backend_config,
+                              monitoring_config, mqtt_config, unique_id)
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
@@ -110,7 +110,7 @@ class UsbActor(DeviceBaseActor):
         self._subscribe_to_actor_dict_msg()
         family_id = msg.family["family_id"]
         if msg.poll:
-            self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
+            self.wakeupAfter(local_backend_config["LOCAL_RETRY_INTERVAL"])
         self._start_thread(
             thread=Thread(
                 target=self._setup,
@@ -147,7 +147,7 @@ class UsbActor(DeviceBaseActor):
             logger.debug("Monitoring mode for %s shall be active", self.instr_id)
             self._request_start_monitoring_at_is(confirm=False)
         else:
-            if usb_backend_config["SET_RTC"]:
+            if local_backend_config["SET_RTC"]:
                 self._request_set_rtc_at_is(confirm=False)
         self.instrument.release_instrument()
         logger.debug("Instrument with Id %s detected.", self.instr_id)
@@ -159,7 +159,7 @@ class UsbActor(DeviceBaseActor):
         # logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
         if msg.payload is None:
             logger.debug("Check connection of %s", self.my_id)
-            self.wakeupAfter(usb_backend_config["LOCAL_RETRY_INTERVAL"])
+            self.wakeupAfter(local_backend_config["LOCAL_RETRY_INTERVAL"])
             try:
                 is_reserved = self.device_status["Reservation"]["Active"]
             except (KeyError, TypeError):
@@ -358,12 +358,12 @@ class UsbActor(DeviceBaseActor):
         else:
             self._set_rtc()
             wait = 0
-        if usb_backend_config["UTC_OFFSET"] > 13:
+        if local_backend_config["UTC_OFFSET"] > 13:
             utc_offset = (
                 datetime.now(timezone.utc).astimezone().utcoffset().seconds / 3600
             )
         else:
-            utc_offset = usb_backend_config["UTC_OFFSET"]
+            utc_offset = local_backend_config["UTC_OFFSET"]
         self._handle_set_rtc_reply_from_is(
             Status.OK,
             confirm,
@@ -380,7 +380,7 @@ class UsbActor(DeviceBaseActor):
         )
 
     def _set_rtc_function(self):
-        self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
+        self.instrument.utc_offset = local_backend_config["UTC_OFFSET"]
         self._request_free_at_is()
 
     def _check_monitoring_config(self) -> bool:
@@ -493,7 +493,7 @@ class UsbActor(DeviceBaseActor):
     def _start_monitoring_function(self):
         monitoring_conf = monitoring_config.get(self.instr_id, {})
         if not self.mon_state.suspended:
-            self.instrument.utc_offset = usb_backend_config["UTC_OFFSET"]
+            self.instrument.utc_offset = local_backend_config["UTC_OFFSET"]
             cycle = monitoring_conf.get("cycle", 0)
             if cycle:
                 success = False
