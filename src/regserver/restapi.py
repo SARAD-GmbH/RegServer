@@ -79,7 +79,8 @@ host_model = api.model(
             + " 2 = online, functional; 10 = offline, ungracefully"
         ),
         "transport_technology": fields.Integer(
-            description="How is the instrument connected to this RegServer"
+            description="How is the instrument connected to this RegServer."
+            + " 0 = local; 1 = LAN; 2 = MQTT; 3 = WiFi"
         ),
         "description": fields.String(
             description="Free text string describing the host"
