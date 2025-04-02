@@ -82,19 +82,6 @@ class Frontend(Enum):
     MODBUS_RTU = 8
 
 
-class Backend(Enum):
-    """One item for every possible backend of of the RegServer or Instrument Server
-
-    `config["BACKENDS"]` will contain a list of backends that are active in
-    the application defined by this configuration.
-    """
-
-    LOCAL = 1
-    LAN = 2
-    MQTT = 4
-    IS1 = 8
-
-
 class ActorType(Enum):
     """Class to identify the type of an Actor.
 
@@ -124,6 +111,15 @@ class TransportTechnology(IntEnum):
             10: "None",
         }
         return longform[self.value]
+
+
+BACKEND_TRANSLATOR = {
+    "local": TransportTechnology.LOCAL,
+    "is1": TransportTechnology.IS1,
+    "mdns": TransportTechnology.LAN,
+    "mqtt": TransportTechnology.MQTT,
+    "zigbee": TransportTechnology.LOCAL,
+}
 
 
 class Family(Enum):

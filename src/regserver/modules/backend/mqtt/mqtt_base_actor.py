@@ -17,7 +17,7 @@ from threading import Thread
 
 import paho.mqtt.client as MQTT  # type: ignore
 from overrides import overrides  # type: ignore
-from regserver.actor_messages import Backend, Frontend
+from regserver.actor_messages import Frontend, TransportTechnology
 from regserver.base_actor import BaseActor
 from regserver.config import (FRMT, PING_FILE_NAME, backend_config,
                               frontend_config, mqtt_config,
@@ -62,7 +62,9 @@ class MqttBaseActor(BaseActor):
 
         Returns:
             True, if MQTT client shall be started as clean session"""
-        if (Backend.MQTT in backend_config) or (Frontend.MQTT in frontend_config):
+        if (TransportTechnology.MQTT in backend_config) or (
+            Frontend.MQTT in frontend_config
+        ):
             logger.info("Checking %s", PING_FILE_NAME)
             try:
                 with open(PING_FILE_NAME, encoding="utf8") as pingfile:

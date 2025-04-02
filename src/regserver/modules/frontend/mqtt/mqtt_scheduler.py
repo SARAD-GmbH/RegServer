@@ -20,7 +20,8 @@ from regserver.actor_messages import (ActorType, FreeDeviceMsg,
                                       GetDeviceStatusesMsg, GetRecentValueMsg,
                                       RescanMsg, ReserveDeviceMsg, SetRtcMsg,
                                       ShutdownMsg, StartMonitoringMsg, Status,
-                                      StopMonitoringMsg, TxBinaryMsg)
+                                      StopMonitoringMsg, TransportTechnology,
+                                      TxBinaryMsg)
 from regserver.config import config
 from regserver.helpers import diff_of_dicts, short_id, transport_technology
 from regserver.logger import logger
@@ -83,8 +84,10 @@ class MqttSchedulerActor(MqttBaseActor):
         active_device_actor_dict = {}
         for actor_id, description in actor_dict.items():
             if (description["actor_type"] == ActorType.DEVICE) and (
-                transport_technology(actor_id) not in ("mqtt", "mdns")
+                transport_technology(actor_id)
+                not in (TransportTechnology.MQTT, TransportTechnology.LAN)
             ):
+                # TODO: #373
                 active_device_actor_dict[actor_id] = description
         return active_device_actor_dict
 
@@ -173,7 +176,11 @@ class MqttSchedulerActor(MqttBaseActor):
         gone_device_actors = diff_of_dicts(old_actor_dict, new_actor_dict)
         logger.debug("Gone device actors %s", gone_device_actors)
         for actor_id, description in new_device_actors.items():
-            if transport_technology(actor_id) not in ("mqtt", "mdns"):
+            if transport_technology(actor_id) not in (
+                TransportTechnology.MQTT,
+                TransportTechnology.LAN,
+            ):
+                # TODO #373
                 self._subscribe_to_device_status_msg(description["address"])
         for actor_id in gone_device_actors:
             self._remove_instrument(actor_id)
@@ -280,7 +287,11 @@ class MqttSchedulerActor(MqttBaseActor):
         self._update_device_status(msg.device_id, msg.device_status)
 
     def _update_device_status(self, device_id, device_status):
-        if transport_technology(device_id) in ("mqtt", "mdns"):
+        if transport_technology(device_id) in (
+            TransportTechnology.MQTT,
+            TransportTechnology.LAN,
+        ):
+            # TODO #373
             return
         instr_id = short_id(device_id)
         new_instrument_connected = False
@@ -723,7 +734,8 @@ class MqttSchedulerActor(MqttBaseActor):
         """Get device actor address and device_id from instr_id"""
         for actor_id, description in self.actor_dict.items():
             if (description["actor_type"] == ActorType.DEVICE) and (
-                transport_technology(actor_id) not in ("mqtt", "mdns")
+                transport_technology(actor_id)
+                not in (TransportTechnology.MQTT, TransportTechnology.LAN)
             ):
                 if instr_id == short_id(actor_id):
                     return (description["address"], actor_id)

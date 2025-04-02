@@ -39,7 +39,8 @@ class MdnsListener(ServiceListener):
     @staticmethod
     def device_id(name):
         """Convert mDNS name into a proper device_id/actor_id"""
-        if transport_technology(name) == lan_backend_config["TYPE"]:
+        mdns_type = name.split(".", 2)[-1]
+        if mdns_type == lan_backend_config["TYPE"]:
             return f"{short_id(name, check=False)}.{sarad_protocol(name)}.mdns"
         return name
 

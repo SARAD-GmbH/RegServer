@@ -26,7 +26,8 @@ from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
 from waitress import serve  # type: ignore
 
-from regserver.actor_messages import Backend, Frontend, KillMsg, SetupMsg
+from regserver.actor_messages import (Frontend, KillMsg, SetupMsg,
+                                      TransportTechnology)
 from regserver.config import (CONFIG_FILE, FRMT, PING_FILE_NAME, actor_config,
                               backend_config, config, frontend_config,
                               lan_backend_config, mqtt_config,
@@ -148,7 +149,7 @@ class Main:
                 self.modbus_rtu.start()
             except SerialException as exception:
                 logger.error("Modbus RTU not functional: %s", exception)
-        if Backend.LOCAL in backend_config:
+        if TransportTechnology.LOCAL in backend_config:
             usb_listener = UsbListener(self.registrar_actor)
             self.usb_listener_thread = threading.Thread(
                 target=usb_listener.run,
@@ -157,7 +158,7 @@ class Main:
                 daemon=True,
             )
             self.usb_listener_thread.start()
-        if Backend.LAN in backend_config:
+        if TransportTechnology.LAN in backend_config:
             self.lan_backend = MdnsListener(self.registrar_actor)
             self.lan_backend.start(lan_backend_config["TYPE"])
         logger.info("The RegServer is up and running now.")

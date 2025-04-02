@@ -150,7 +150,7 @@ class MqttClientActor(MqttBaseActor):
             if (self.actor_dict[old_device_id]["actor_type"] == ActorType.DEVICE) and (
                 short_id(old_device_id) == instr_id
             ):
-                if transport_technology(old_device_id) != "mqtt":
+                if transport_technology(old_device_id) != TransportTechnology.MQTT:
                     logger.info(
                         "%s is already represented by %s",
                         instr_id,

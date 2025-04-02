@@ -19,17 +19,16 @@ from datetime import datetime, timedelta, timezone
 from overrides import overrides  # type: ignore
 from sarad.global_helpers import decode_instr_id
 
-from regserver.actor_messages import (ActorType, Backend, BaudRateAckMsg,
-                                      BaudRateMsg, Frontend, GetHostInfoMsg,
-                                      HostInfoMsg, KeepAliveMsg, KillMsg,
-                                      MqttConnectMsg, PrepareMqttActorMsg,
-                                      RescanAckMsg, RescanMsg,
-                                      ReturnDeviceActorMsg, SetRtcAckMsg,
-                                      SetRtcMsg, ShutdownAckMsg, ShutdownMsg,
-                                      StartMonitoringAckMsg,
+from regserver.actor_messages import (ActorType, BaudRateAckMsg, BaudRateMsg,
+                                      Frontend, GetHostInfoMsg, HostInfoMsg,
+                                      KeepAliveMsg, KillMsg, MqttConnectMsg,
+                                      PrepareMqttActorMsg, RescanAckMsg,
+                                      RescanMsg, ReturnDeviceActorMsg,
+                                      SetRtcAckMsg, SetRtcMsg, ShutdownAckMsg,
+                                      ShutdownMsg, StartMonitoringAckMsg,
                                       StartMonitoringMsg, Status,
                                       StopMonitoringAckMsg, StopMonitoringMsg,
-                                      UpdateActorDictMsg,
+                                      TransportTechnology, UpdateActorDictMsg,
                                       UpdateDeviceStatusesMsg)
 from regserver.base_actor import BaseActor
 from regserver.config import (actor_config, backend_config, config,
@@ -72,11 +71,11 @@ class Registrar(BaseActor):
             self._create_actor(MqttSchedulerActor, "mqtt_scheduler", None)
         if Frontend.LAN in frontend_config:
             self._create_actor(MdnsSchedulerActor, "mdns_scheduler", None)
-        if Backend.LOCAL in backend_config:
+        if TransportTechnology.LOCAL in backend_config:
             self._create_actor(ClusterActor, "cluster", None)
-        if Backend.MQTT in backend_config:
+        if TransportTechnology.MQTT in backend_config:
             self._create_actor(MqttClientActor, "mqtt_client_actor", None)
-        if Backend.IS1 in backend_config:
+        if TransportTechnology.IS1 in backend_config:
             self._create_actor(Is1Listener, "is1_listener", None)
         keepalive_interval: float = actor_config["KEEPALIVE_INTERVAL"]
         if keepalive_interval:
@@ -177,7 +176,7 @@ class Registrar(BaseActor):
                     serial_number,
                 )
                 self.send(self.actor_dict[actor_id]["address"], KillMsg(register=True))
-            elif transport_technology(actor_id) == "mdns":
+            elif transport_technology(actor_id) == TransportTechnology.LAN:
                 logger.debug(
                     "%s is availabel from different hosts. First come, first served.",
                     actor_id,
@@ -205,19 +204,25 @@ class Registrar(BaseActor):
         """
         keep_new_actor = True
         new_device_id = actor_id
-        for old_device_id in self.actor_dict:
+        for old_device_id in self.device_statuses:
             old_tt = transport_technology(old_device_id)
             new_tt = transport_technology(new_device_id)
             if (
                 (short_id(old_device_id) == short_id(new_device_id))
                 and (new_device_id != old_device_id)
-                and (old_tt in ["local", "mdns", "mqtt", "is1", "zigbee"])
+                and (
+                    old_tt
+                    in [
+                        TransportTechnology.LOCAL,
+                        TransportTechnology.LAN,
+                        TransportTechnology.MQTT,
+                        TransportTechnology.IS1,
+                    ]
+                )
             ):
                 logger.debug("New device_id: %s", new_device_id)
                 logger.debug("Old device_id: %s", old_device_id)
-                if (new_tt == "local") or (
-                    (new_tt == "zigbee") and (old_tt != "local")
-                ):
+                if new_tt == TransportTechnology.LOCAL:
                     logger.debug(
                         "Keep new %s and kill the old %s",
                         new_device_id,
@@ -225,7 +230,9 @@ class Registrar(BaseActor):
                     )
                     keep_new_actor = True
                     self.send(self.actor_dict[old_device_id]["address"], KillMsg())
-                elif (new_tt == "mdns") and (old_tt == "is1"):
+                elif (new_tt == TransportTechnology.LAN) and (
+                    old_tt == TransportTechnology.IS1
+                ):
                     logger.debug(
                         "A WLAN instrument might have been connected to another PC via USB."
                     )
@@ -236,10 +243,13 @@ class Registrar(BaseActor):
                     keep_new_actor = False
                     self.send(sender, KillMsg())
                     return
-                elif (new_tt == "is1") and (old_tt == "mqtt"):
-                    logger.info(
+                elif (new_tt == TransportTechnology.IS1) and (
+                    old_tt == TransportTechnology.MQTT
+                ):
+                    logger.error(
                         "Ignore retained MQTT message in favour of new IS1 Device Actor."
                     )
+                    # Since there is no retained MQTT message, this should never happen.
                     keep_new_actor = True
                     self.send(self.actor_dict[old_device_id]["address"], KillMsg())
                 else:
@@ -251,7 +261,10 @@ class Registrar(BaseActor):
             self.device_statuses[actor_id] = self.device_statuses.get(actor_id, {})
             logger.debug("Subscribe %s to device statuses dict", actor_id)
             self._subscribe_to_device_status_msg(sender)
-            if transport_technology(actor_id) in ["local", "is1"]:
+            if transport_technology(actor_id) in [
+                TransportTechnology.LOCAL,
+                TransportTechnology.IS1,
+            ]:
                 for idx, host in enumerate(self.hosts):
                     if host.host == "127.0.0.1":
                         para = {"state": 2}
@@ -320,11 +333,15 @@ class Registrar(BaseActor):
             return
         status_dict = self.device_statuses.pop(actor_id, None)
         if (status_dict is not None) and (
-            transport_technology(actor_id) in ["local", "is1"]
+            transport_technology(actor_id)
+            in [TransportTechnology.LOCAL, TransportTechnology.IS1]
         ):
             local_device_connected = False
             for device_id in self.device_statuses:
-                if transport_technology(device_id) in ["local", "is1"]:
+                if transport_technology(device_id) in [
+                    TransportTechnology.LOCAL,
+                    TransportTechnology.IS1,
+                ]:
                     local_device_connected = True
                     break
             if not local_device_connected:

@@ -1,4 +1,4 @@
-""" Modbus RTU frontend module
+"""Modbus RTU frontend module
 
 Provides measuring values from a local DACM instrument via Modbus RTU.
 
@@ -15,7 +15,8 @@ from datetime import timedelta
 import modbus_tk.defines as cst  # type: ignore
 from BitVector import BitVector  # type: ignore
 from modbus_tk import hooks, modbus_rtu
-from regserver.actor_messages import GetRecentValueMsg, RecentValueMsg, Status
+from regserver.actor_messages import (GetRecentValueMsg, RecentValueMsg,
+                                      Status, TransportTechnology)
 from regserver.config import modbus_rtu_frontend_config
 from regserver.helpers import (get_actor, get_device_status,
                                transport_technology)
@@ -69,7 +70,7 @@ class ModbusRtu:
             device_state = get_device_status(self.registrar, DEVICE_ID)
             if (
                 (device_state == {})
-                or (transport_technology(DEVICE_ID) not in ["local"])
+                or (transport_technology(DEVICE_ID) not in [TransportTechnology.LOCAL])
                 or ("sarad-dacm" not in DEVICE_ID)
             ):
                 logger.error("Request only supported for local DACM instruments.")

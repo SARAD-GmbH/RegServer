@@ -13,14 +13,14 @@ from collections.abc import MutableMapping
 from contextlib import suppress
 from datetime import timedelta
 
-from thespian.actors import (Actor, ActorSystem,  # type: ignore
-                             ActorSystemFailure)
+from thespian.actors import ActorSystem  # type: ignore
 
-from regserver.actor_messages import (ActorType, FreeDeviceMsg,
-                                      GetActorDictMsg, GetDeviceStatusesMsg,
-                                      GetDeviceStatusMsg, GetHostInfoMsg,
-                                      HostInfoMsg, ReservationStatusMsg,
-                                      ReserveDeviceMsg, Status,
+from regserver.actor_messages import (BACKEND_TRANSLATOR, ActorType,
+                                      FreeDeviceMsg, GetActorDictMsg,
+                                      GetDeviceStatusesMsg, GetDeviceStatusMsg,
+                                      GetHostInfoMsg, HostInfoMsg,
+                                      ReservationStatusMsg, ReserveDeviceMsg,
+                                      Status, TransportTechnology,
                                       UpdateActorDictMsg,
                                       UpdateDeviceStatusesMsg,
                                       UpdateDeviceStatusMsg)
@@ -138,18 +138,21 @@ def sarad_protocol(device_id: str) -> str:
     return device_id.split(".")[1]
 
 
-def transport_technology(device_id: str) -> str:
-    """Get the last part of the device_id designating the transport technology (tt).
-    This is in ["local", "is1", "mdns", "mqtt", "zigbee"].
+def transport_technology(device_id: str) -> TransportTechnology:
+    """Get the last part of the device_id designating the transport technology.
+    This is in ["local", "is1", "mdns", "mqtt", "zigbee"]. Return the
+    TransportTechnology belonging to this string.
 
     Args:
         device_id (str): long ID of the instrument that is used
                          as actor_id of device actor
 
     Returns:
-        str: the id of the transport technology
+        TransportTechnology: The backend that connects to this instrument.
+
     """
-    return device_id.split(".", 2)[-1]
+    tech_str = device_id.split(".", 2)[-1]
+    return BACKEND_TRANSLATOR.get(tech_str, TransportTechnology.NONE)
 
 
 def find(pattern, path):

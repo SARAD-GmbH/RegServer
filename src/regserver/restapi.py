@@ -30,7 +30,8 @@ from regserver.actor_messages import (AddPortToLoopMsg, BaudRateAckMsg,
                                       SetRtcMsg, ShutdownAckMsg, ShutdownMsg,
                                       StartMonitoringAckMsg,
                                       StartMonitoringMsg, Status,
-                                      StopMonitoringAckMsg, StopMonitoringMsg)
+                                      StopMonitoringAckMsg, StopMonitoringMsg,
+                                      TransportTechnology)
 from regserver.config import actor_config, config
 from regserver.helpers import (check_msg, get_actor,
                                get_device_status_from_registrar,
@@ -464,7 +465,12 @@ class ReserveDevice(Resource):
         device_state = get_device_status_from_registrar(REGISTRAR_ACTOR, device_id)
         if (
             transport_technology(device_id)
-            not in ["local", "is1", "mdns", "mqtt", "zigbee"]
+            not in [
+                TransportTechnology.LOCAL,
+                TransportTechnology.IS1,
+                TransportTechnology.LAN,
+                TransportTechnology.MQTT,
+            ]
         ) or (device_state == {}):
             logger.error("Requested service not supported by actor system.")
             status = Status.NOT_SUPPORTED
@@ -991,14 +997,19 @@ class GetValues(Resource):
         device_state = get_device_status_from_registrar(REGISTRAR_ACTOR, device_id)
         if (device_state == {}) or (
             transport_technology(device_id)
-            not in ["local", "zigbee", "mdns", "is1", "mqtt"]
+            not in [
+                TransportTechnology.LOCAL,
+                TransportTechnology.IS1,
+                TransportTechnology.LAN,
+                TransportTechnology.MQTT,
+            ]
         ):
             logger.error(
-                "Request only supported for local, mDNS, IS1, MQTT and ZigBee instruments."
+                "Request only supported for local, LAN, IS1, MQTT and ZigBee instruments."
             )
             status = Status.NOT_SUPPORTED
             notification = (
-                "Only supported for local, mDNS, IS1, MQTT and ZigBee instruments"
+                "Only supported for local, LAN, IS1, MQTT and ZigBee instruments"
             )
             return {
                 "Error code": status.value,

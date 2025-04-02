@@ -283,7 +283,7 @@ class ClusterActor(BaseActor):
                 hosts=[
                     HostObj(
                         host="127.0.0.1",
-                        transport_technology=int(TransportTechnology.LOCAL),
+                        transport_technology=TransportTechnology.LOCAL,
                         is_id=config["IS_ID"],
                         description=config["DESCRIPTION"],
                         place=config["PLACE"],

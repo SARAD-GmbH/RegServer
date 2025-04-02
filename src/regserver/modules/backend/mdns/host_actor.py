@@ -58,7 +58,7 @@ class HostActor(BaseActor):
     @staticmethod
     def mdns_id(local_id):
         """Convert device_id from local name into a proper mDNS device_id/actor_id"""
-        if transport_technology(local_id) in ("local", "is1", "mqtt", "zigbee"):
+        if transport_technology(local_id) != TransportTechnology.LAN:
             return f"{short_id(local_id, check=False)}.{sarad_protocol(local_id)}.mdns"
         return local_id
 
@@ -149,7 +149,7 @@ class HostActor(BaseActor):
         """Handler for SetDeviceStatusMsg initialising the device status information."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         device_id = list(msg.device_status)[0]
-        if transport_technology(device_id) in ("mdns"):
+        if transport_technology(device_id) == TransportTechnology.LAN:
             self._set_device_status(msg.device_status)
 
     def receiveMsg_GetHostInfoMsg(self, msg, sender):
@@ -327,7 +327,11 @@ class HostActor(BaseActor):
                 )
             else:
                 for device_id, device_status in device_list.items():
-                    if transport_technology(device_id) in ("local", "is1", "mqtt"):
+                    if transport_technology(device_id) in [
+                        TransportTechnology.LOCAL,
+                        TransportTechnology.IS1,
+                        TransportTechnology.MQTT,
+                    ]:
                         device_status["Remote"] = {
                             "Address": self.host.host,
                             "API port": self.port,

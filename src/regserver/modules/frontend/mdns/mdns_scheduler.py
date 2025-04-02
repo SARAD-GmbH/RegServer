@@ -14,7 +14,8 @@ Author
 
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, KillMsg,
-                                      SetupMdnsAdvertiserActorMsg)
+                                      SetupMdnsAdvertiserActorMsg,
+                                      TransportTechnology)
 from regserver.base_actor import BaseActor
 from regserver.helpers import diff_of_dicts, transport_technology
 from regserver.logger import logger
@@ -58,10 +59,16 @@ class MdnsSchedulerActor(BaseActor):
         gone_device_actors = diff_of_dicts(old_actor_dict, new_actor_dict)
         logger.debug("Gone device actors %s", gone_device_actors)
         for actor_id in new_device_actors:
-            if transport_technology(actor_id) not in ("mdns", "mqtt"):
+            if transport_technology(actor_id) not in (
+                TransportTechnology.LAN,
+                TransportTechnology.MQTT,
+            ):
                 self._create_instrument(actor_id)
         for actor_id in gone_device_actors:
-            if transport_technology(actor_id) not in ("mdns", "mqtt"):
+            if transport_technology(actor_id) not in (
+                TransportTechnology.LAN,
+                TransportTechnology.MQTT,
+            ):
                 self._remove_instrument(actor_id)
 
     def _create_instrument(self, device_id):

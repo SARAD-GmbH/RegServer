@@ -19,7 +19,8 @@ import tomlkit
 from platformdirs import PlatformDirs
 from zeroconf import IPVersion
 
-from regserver.actor_messages import Backend, Frontend
+from regserver.actor_messages import (BACKEND_TRANSLATOR, Frontend,
+                                      TransportTechnology)
 
 
 class RestFrontendConfigDict(TypedDict):
@@ -91,7 +92,7 @@ class LanFrontendConfig(TypedDict):
     """Type declaration for lan_frontend_config."""
     TYPE: str
     IP_VERSION: IPVersion
-    GATEWAY: list[Backend]
+    GATEWAY: list[TransportTechnology]
 
 
 class ActorConfigDict(TypedDict):
@@ -111,7 +112,7 @@ class MqttFrontendConfigDict(TypedDict):
     """Type declaration for mqtt_frontend_config."""
     REBOOT_AFTER: float
     RESTART_INSTEAD_OF_REBOOT: int
-    GATEWAY: list[Backend]
+    GATEWAY: list[TransportTechnology]
 
 
 def get_ip(ipv6=False):
@@ -325,22 +326,22 @@ else:
 
 # Backend configuration
 backend_config = set()
-DEFAULT_BACKENDS = {Backend.LOCAL, Backend.LAN}
+DEFAULT_BACKENDS = {TransportTechnology.LOCAL, TransportTechnology.LAN}
 
 if customization.value.get("backends") is None:
     backend_config = DEFAULT_BACKENDS
     if tls_present:
-        backend_config.add(Backend.MQTT)
+        backend_config.add(TransportTechnology.MQTT)
 else:
     if customization.value["backends"].get("local", True):
-        backend_config.add(Backend.LOCAL)
+        backend_config.add(TransportTechnology.LOCAL)
     mqtt_backend = customization.value["backends"].get("mqtt", 2)
     if (mqtt_backend == 1) or ((mqtt_backend == 2) and tls_present):
-        backend_config.add(Backend.MQTT)
+        backend_config.add(TransportTechnology.MQTT)
     if customization.value["backends"].get("lan", True):
-        backend_config.add(Backend.LAN)
+        backend_config.add(TransportTechnology.LAN)
     if customization.value["backends"].get("is1", False):
-        backend_config.add(Backend.IS1)
+        backend_config.add(TransportTechnology.IS1)
 
 # Configuration of REST frontend
 DEFAULT_API_PORT = 8008
@@ -443,15 +444,8 @@ else:
         ),
     }
 
-BACKEND_TRANSLATOR = {
-    "local": Backend.LOCAL,
-    "is1": Backend.IS1,
-    "mdns": Backend.LAN,
-    "mqtt": Backend.MQTT,
-}
-
 # Configuration of LAN frontend
-DEFAULT_LAN_GATEWAY = [Backend.LOCAL, Backend.IS1]
+DEFAULT_LAN_GATEWAY = [TransportTechnology.LOCAL, TransportTechnology.IS1]
 
 if customization.value.get("lan_frontend") is None:
     lan_frontend_config: LanFrontendConfig = {
@@ -679,7 +673,7 @@ else:
 # Configuration of MQTT frontend
 DEFAULT_REBOOT_AFTER = 60
 DEFAULT_RESTART_INSTEAD_OF_REBOOT = 0
-DEFAULT_MQTT_GATEWAY = [Backend.LOCAL, Backend.IS1]
+DEFAULT_MQTT_GATEWAY = [TransportTechnology.LOCAL, TransportTechnology.IS1]
 
 if customization.value.get("mqtt_frontend") is None:
     mqtt_frontend_config: MqttFrontendConfigDict = {
