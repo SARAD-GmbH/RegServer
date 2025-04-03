@@ -15,13 +15,12 @@ from datetime import timedelta
 
 from thespian.actors import ActorSystem  # type: ignore
 
-from regserver.actor_messages import (BACKEND_TRANSLATOR, ActorType,
-                                      FreeDeviceMsg, GetActorDictMsg,
-                                      GetDeviceStatusesMsg, GetDeviceStatusMsg,
-                                      GetHostInfoMsg, HostInfoMsg,
-                                      ReservationStatusMsg, ReserveDeviceMsg,
-                                      Status, TransportTechnology,
-                                      UpdateActorDictMsg,
+from regserver.actor_messages import (TT_TRANSLATOR, ActorType, FreeDeviceMsg,
+                                      GetActorDictMsg, GetDeviceStatusesMsg,
+                                      GetDeviceStatusMsg, GetHostInfoMsg,
+                                      HostInfoMsg, ReservationStatusMsg,
+                                      ReserveDeviceMsg, Status,
+                                      TransportTechnology, UpdateActorDictMsg,
                                       UpdateDeviceStatusesMsg,
                                       UpdateDeviceStatusMsg)
 from regserver.logger import logger
@@ -152,7 +151,7 @@ def transport_technology(device_id: str) -> TransportTechnology:
 
     """
     tech_str = device_id.split(".", 2)[-1]
-    return BACKEND_TRANSLATOR.get(tech_str, TransportTechnology.NONE)
+    return TT_TRANSLATOR.get(tech_str, TransportTechnology.NONE)
 
 
 def find(pattern, path):

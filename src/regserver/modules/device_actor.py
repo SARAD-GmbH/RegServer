@@ -9,6 +9,7 @@
 
 """
 
+import copy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -84,6 +85,7 @@ class DeviceBaseActor(BaseActor):
     def __init__(self):
         super().__init__()
         self.device_status: dict = {}
+        self.prev_device_status: dict = {}
         self.subscribers: dict = {}
         self.reserve_device_msg: ReserveDeviceMsg = ReserveDeviceMsg(
             host="", user="", app="", create_redirector=False
@@ -615,28 +617,29 @@ class DeviceBaseActor(BaseActor):
 
     def _publish_status_change(self):
         """Publish a changed device status to all subscribers."""
-        device_status = self.device_status
-        if device_status.get("Identification", False):
-            device_status["Identification"]["IS Id"] = self.device_status[
-                "Identification"
-            ].get("IS Id", config["IS_ID"])
-            for actor_address in self.subscribers.values():
-                self.send(
-                    actor_address,
-                    UpdateDeviceStatusMsg(self.my_id, device_status),
-                )
+        if self.prev_device_status != self.device_status:
+            if self.device_status.get("Identification", False):
+                self.device_status["Identification"]["IS Id"] = self.device_status[
+                    "Identification"
+                ].get("IS Id", config["IS_ID"])
+                for actor_address in self.subscribers.values():
+                    self.send(
+                        actor_address,
+                        UpdateDeviceStatusMsg(self.my_id, self.device_status),
+                    )
+            logger.debug("Published change: %s", self.device_status)
+            self.prev_device_status = copy.deepcopy(self.device_status)
 
     def _publish_status(self, new_subscribers: list):
         """Publish a device status to all new_subscribers."""
-        device_status = self.device_status
-        if device_status.get("Identification", False):
-            device_status["Identification"]["IS Id"] = self.device_status[
+        if self.device_status.get("Identification", False):
+            self.device_status["Identification"]["IS Id"] = self.device_status[
                 "Identification"
             ].get("IS Id", config["IS_ID"])
             for actor_address in new_subscribers:
                 self.send(
                     actor_address,
-                    UpdateDeviceStatusMsg(self.my_id, device_status),
+                    UpdateDeviceStatusMsg(self.my_id, self.device_status),
                 )
 
     def _request_start_monitoring_at_is(self, start_time=None, confirm=False):

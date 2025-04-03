@@ -46,7 +46,7 @@ class TimeoutHTTPAdapter(HTTPAdapter):
     def send(
         self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None
     ):
-        # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-arguments, too-many-positional-arguments
         if timeout is None:
             timeout = self.timeout
         return super().send(request, stream, timeout, verify, cert, proxies)
@@ -367,7 +367,7 @@ class DeviceActor(DeviceBaseActor):
             self.device_status["Reservation"] = self.response[self.device_id][
                 "Reservation"
             ]
-        except Exception as exception:
+        except Exception as exception:  # pylint: disable=broad-exception-caught
             logger.info("Exception in _finish_free: %s", exception)
             self.device_status["Reservation"] = {}
         if self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
@@ -420,7 +420,7 @@ class DeviceActor(DeviceBaseActor):
                 self.device_status["Reservation"] = self.response[self.device_id][
                     "Reservation"
                 ]
-            except Exception as exception:
+            except Exception as exception:  # pylint: disable=broad-exception-caught
                 logger.info("Exception in _finish_reserve: %s", exception)
                 self.device_status["Reservation"] = {}
         self.return_message = ReservationStatusMsg(
@@ -463,7 +463,9 @@ class DeviceActor(DeviceBaseActor):
             super().receiveMsg_SetDeviceStatusMsg(msg, sender)
             self.occupied = False
             if self.device_status:
-                self.device_status["Reservation"] = msg.device_status.get("Reservation")
+                self.device_status["Reservation"] = msg.device_status.get(
+                    "Reservation", self.device_status["Reservation"]
+                )
             else:
                 self.device_status = msg.device_status
             logger.debug("Device status: %s", self.device_status)
@@ -510,30 +512,25 @@ class DeviceActor(DeviceBaseActor):
                 )
                 self.device_status.pop("Reservation", None)
             else:
-                if reservation.get("Active", False):
-                    using_host = reservation.get("Host", "")
-                    if self.reserve_device_msg is not None:
-                        my_host = self.reserve_device_msg.host
-                    else:
-                        my_host = config["MY_HOSTNAME"]
-                    if compare_hostnames(using_host, my_host):
-                        logger.debug(
-                            "Occupied by me. Using host is %s, my host is %s",
-                            using_host,
-                            my_host,
-                        )
-                    else:
-                        logger.debug("Occupied by somebody else.")
-                        logger.debug("Using host: %s, my host: %s", using_host, my_host)
-                        self.occupied = True
-                        reservation.pop("IP", None)
-                        reservation.pop("Port", None)
-                    self.wakeupAfter(
-                        timedelta(seconds=UPDATE_INTERVAL), payload="update"
-                    )
-                    self.device_status["Reservation"] = reservation
+                using_host = reservation.get("Host", "")
+                if self.reserve_device_msg is not None:
+                    my_host = self.reserve_device_msg.host
                 else:
-                    self.device_status.pop("Reservation", None)
+                    my_host = config["MY_HOSTNAME"]
+                if compare_hostnames(using_host, my_host):
+                    logger.debug(
+                        "Occupied by me. Using host is %s, my host is %s",
+                        using_host,
+                        my_host,
+                    )
+                else:
+                    logger.debug("Occupied by somebody else.")
+                    logger.debug("Using host: %s, my host: %s", using_host, my_host)
+                    self.occupied = True
+                    reservation.pop("IP", None)
+                    reservation.pop("Port", None)
+                self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
+                self.device_status["Reservation"] = reservation
             self._publish_status_change()
         else:
             logger.info(

@@ -280,7 +280,22 @@ class MqttSchedulerActor(MqttBaseActor):
         self._update_device_status(msg.device_id, msg.device_status)
 
     def _update_device_status(self, device_id, device_status):
+        reservation = device_status.get("Reservation", {})
+        reservation_object = Reservation(
+            timestamp=reservation.get("timestamp", time.time()),
+            active=reservation.get("Active", False),
+            host=reservation.get("Host", ""),
+            app=reservation.get("App", ""),
+            user=reservation.get("User", ""),
+            status=Status.OK,
+        )
+        if self.reservations.get(device_id) and (
+            reservation_object == self.reservations.get(device_id)
+        ):
+            logger.debug("No need to update anything at %s", device_id)
+            return
         logger.info("Forward status of %s via MQTT frontend", device_id)
+        logger.debug("%s: %s", device_id, device_status)
         instr_id = short_id(device_id)
         new_instrument_connected = False
         if not device_status.get("State", 2) < 2:

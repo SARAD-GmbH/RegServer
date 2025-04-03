@@ -113,12 +113,20 @@ class TransportTechnology(IntEnum):
         return longform[self.value]
 
 
-BACKEND_TRANSLATOR = {
+TT_TRANSLATOR = {
     "local": TransportTechnology.LOCAL,
     "is1": TransportTechnology.IS1,
     "mdns": TransportTechnology.LAN,
     "mqtt": TransportTechnology.MQTT,
     "zigbee": TransportTechnology.LOCAL,
+}
+
+
+BACKEND_TRANSLATOR = {
+    "local": TransportTechnology.LOCAL,
+    "is1": TransportTechnology.IS1,
+    "lan": TransportTechnology.LAN,
+    "mqtt": TransportTechnology.MQTT,
 }
 
 
