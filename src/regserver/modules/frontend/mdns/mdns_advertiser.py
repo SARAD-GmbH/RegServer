@@ -127,7 +127,9 @@ class MdnsAdvertiserActor(BaseActor):
         self.__update_service()
 
     def __update_service(self):
-        logger.debug("Update %s: occupied = %s", self.service.name, self.occupied)
+        logger.debug(
+            "Update service for %s: occupied = %s", self.device_id, self.occupied
+        )
         properties = {
             "VENDOR": "SARAD GmbH",
             "MODEL_ENC": self.instr_name,

@@ -408,8 +408,7 @@ class MqttClientActor(MqttBaseActor):
         instr_id = message.topic.split("/")[2]
         is_id = message.topic.split("/")[1]
         device_id = self.device_id_2(is_id, instr_id)
-        child_actors = self.child_actors.copy()
-        for child_id, device_actor in child_actors.items():
+        for child_id, device_actor in self.child_actors.items():
             if child_id == device_id:
                 self.send(
                     device_actor["actor_address"],
@@ -432,8 +431,7 @@ class MqttClientActor(MqttBaseActor):
         instr_id = message.topic.split("/")[2]
         is_id = message.topic.split("/")[1]
         device_id = self.device_id_2(is_id, instr_id)
-        child_actors = self.child_actors.copy()
-        for child_id, device_actor in child_actors.items():
+        for child_id, device_actor in self.child_actors.items():
             if child_id == device_id:
                 self.send(
                     device_actor["actor_address"],
@@ -446,8 +444,7 @@ class MqttClientActor(MqttBaseActor):
         instr_id = message.topic.split("/")[2]
         is_id = message.topic.split("/")[1]
         device_id = self.device_id_2(is_id, instr_id)
-        child_actors = self.child_actors.copy()
-        for child_id, device_actor in child_actors.items():
+        for child_id, device_actor in self.child_actors.items():
             if child_id == device_id:
                 self.send(
                     device_actor["actor_address"],
@@ -470,8 +467,7 @@ class MqttClientActor(MqttBaseActor):
         instr_id = message.topic.split("/")[2]
         is_id = message.topic.split("/")[1]
         device_id = self.device_id_2(is_id, instr_id)
-        child_actors = self.child_actors.copy()
-        for child_id, device_actor in child_actors.items():
+        for child_id, device_actor in self.child_actors.items():
             if child_id == device_id:
                 self.send(
                     device_actor["actor_address"],

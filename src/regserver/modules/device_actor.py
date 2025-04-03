@@ -831,9 +831,7 @@ class DeviceBaseActor(BaseActor):
                 self.device_status["Reservation"].pop("IP")
             if self.device_status["Reservation"].get("Port", False):
                 self.device_status["Reservation"].pop("Port")
-            if self.return_message is None:
-                pass
-            else:
+            if self.return_message is not None:
                 self._send_reservation_status_msg()
         super().receiveMsg_ChildActorExited(msg, sender)
 
