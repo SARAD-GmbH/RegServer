@@ -14,14 +14,12 @@ Author
 
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, KillMsg,
-                                      SetupMdnsAdvertiserActorMsg,
-                                      TransportTechnology)
+                                      SetupMdnsAdvertiserActorMsg)
 from regserver.base_actor import BaseActor
+from regserver.config import lan_frontend_config
 from regserver.helpers import diff_of_dicts, transport_technology
 from regserver.logger import logger
 from regserver.modules.frontend.mdns.mdns_advertiser import MdnsAdvertiserActor
-
-# logger.debug("%s -> %s", __package__, __file__)
 
 
 class MdnsSchedulerActor(BaseActor):
@@ -59,21 +57,15 @@ class MdnsSchedulerActor(BaseActor):
         gone_device_actors = diff_of_dicts(old_actor_dict, new_actor_dict)
         logger.debug("Gone device actors %s", gone_device_actors)
         for actor_id in new_device_actors:
-            if transport_technology(actor_id) not in (
-                TransportTechnology.LAN,
-                TransportTechnology.MQTT,
-            ):
+            if transport_technology(actor_id) in lan_frontend_config["GATEWAY"]:
                 self._create_instrument(actor_id)
         for actor_id in gone_device_actors:
-            if transport_technology(actor_id) not in (
-                TransportTechnology.LAN,
-                TransportTechnology.MQTT,
-            ):
+            if transport_technology(actor_id) in lan_frontend_config["GATEWAY"]:
                 self._remove_instrument(actor_id)
 
     def _create_instrument(self, device_id):
         """Create advertiser actor if it does not exist already"""
-        logger.debug("Create MdnsAdvertiserActor of %s", device_id)
+        logger.info("Create MdnsAdvertiserActor of %s", device_id)
         my_advertiser = self._create_actor(
             MdnsAdvertiserActor, self._advertiser(device_id), None
         )
@@ -85,9 +77,8 @@ class MdnsSchedulerActor(BaseActor):
         )
 
     def _remove_instrument(self, device_id):
-        # pylint: disable=invalid-name
         """Remove the advertiser actor for instr_id."""
-        logger.debug("Remove advertiser of %s", device_id)
+        logger.info("Remove advertiser of %s", device_id)
         self.send(
             self.child_actors[self._advertiser(device_id)]["actor_address"], KillMsg()
         )
