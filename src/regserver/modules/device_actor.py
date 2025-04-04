@@ -110,28 +110,31 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SetDeviceStatusMsg"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self._finish_set_device_status(msg.device_status)
+
+    def _finish_set_device_status(self, device_status):
         sections = ["Identification", "Reservation", "Remote"]
         for section in sections:
-            if msg.device_status.get(section, False):
+            if device_status.get(section, False):
                 if self.device_status.get(section, False):
                     for key in self.device_status[section]:
-                        if key in msg.device_status[section]:
-                            self.device_status[section][key] = msg.device_status[
-                                section
-                            ][key]
+                        if key in device_status[section]:
+                            self.device_status[section][key] = device_status[section][
+                                key
+                            ]
                 else:
-                    self.device_status[section] = msg.device_status[section]
-        if msg.device_status.get("State", False):
-            self.device_status["State"] = msg.device_status["State"]
+                    self.device_status[section] = device_status[section]
+        if device_status.get("State", False):
+            self.device_status["State"] = device_status["State"]
         logger.debug(
             "%s created or updated at %s. is_id = %s",
             self.my_id,
             self.device_status["Identification"].get("Host"),
             self.device_status["Identification"].get("IS Id"),
         )
-        if msg.device_status.get("Reservation", False):
-            if msg.device_status["Reservation"].get("Active", False):
-                if not msg.device_status["Reservation"].get("Host", False):
+        if device_status.get("Reservation", False):
+            if device_status["Reservation"].get("Active", False):
+                if not device_status["Reservation"].get("Host", False):
                     logger.debug("Uncomplete reservation information -> Don't publish.")
                     logger.debug("This is most probably comming in from ZeroConf.")
                     return

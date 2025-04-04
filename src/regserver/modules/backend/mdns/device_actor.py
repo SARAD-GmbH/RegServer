@@ -57,7 +57,7 @@ class Purpose(Enum):
 
     GENERAL = 0
     SETUP = 1
-    WAKEUP = 2
+    UPDATE = 2
     RESERVE = 3
     FREE = 4
     STATUS = 5
@@ -136,8 +136,8 @@ class DeviceActor(DeviceBaseActor):
         # pylint: disable=too-many-branches
         if purpose == Purpose.SETUP:
             self._finish_setup_mdns_actor()
-        elif purpose == Purpose.WAKEUP:
-            self._finish_wakeup()
+        elif purpose == Purpose.UPDATE:
+            self._finish_update()
         elif purpose == Purpose.RESERVE:
             self._finish_reserve()
         elif purpose == Purpose.FREE:
@@ -184,7 +184,11 @@ class DeviceActor(DeviceBaseActor):
                 )
             self._handle_recent_value_reply_from_is(answer)
         elif purpose == Purpose.STATUS:
-            self._finish_set_device_status()
+            logger.debug(
+                "_finish_set_device_status called from SetDeviceStatus at %s",
+                self.device_id,
+            )
+            self._finish_set_device_status({})
         elif purpose == Purpose.SET_RTC:
             logger.info("Target responded to Set-RTC request: %s", self.response)
             if self.success == Status.OK:
@@ -272,6 +276,11 @@ class DeviceActor(DeviceBaseActor):
         """Do everything that is required after receiving the reply to the HTTP request."""
         if self.success == Status.OK:
             self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
+            logger.debug(
+                "_finish_set_device_status called from _finish_setup_mdns_actor at %s",
+                self.device_id,
+            )
+            self._finish_set_device_status({})
         elif self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
             logger.info(
                 "_kill_myself called from _finish_setup_mdns_actor. %s, self.on_kill is %s",
@@ -280,7 +289,8 @@ class DeviceActor(DeviceBaseActor):
             )
             self._kill_myself()
 
-    def receiveMsg_WakeupMessage(self, msg, _sender):
+    @overrides
+    def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name
         """Handle WakeupMessage for regular updates"""
         if msg.payload == "update":
@@ -302,7 +312,7 @@ class DeviceActor(DeviceBaseActor):
                             kwargs={
                                 "endpoint": f"{self.base_url}/list/{self.device_id}/",
                                 "params": None,
-                                "purpose": Purpose.WAKEUP,
+                                "purpose": Purpose.UPDATE,
                             },
                             daemon=True,
                         )
@@ -310,7 +320,7 @@ class DeviceActor(DeviceBaseActor):
         elif isinstance(msg.payload, Thread):
             self._start_thread(msg.payload)
 
-    def _finish_wakeup(self):
+    def _finish_update(self):
         """Handle WakeupMessage for regular updates"""
         if self.success == Status.OK:
             device_desc = self.response.get(self.device_id, False)
@@ -318,7 +328,7 @@ class DeviceActor(DeviceBaseActor):
                 reservation = device_desc.get("Reservation", False)
             else:
                 logger.info(
-                    "_kill_myself called from _finish_wakeup. %s, self.on_kill is %s",
+                    "_kill_myself called from _finish_update. %s, self.on_kill is %s",
                     self.success,
                     self.on_kill,
                 )
@@ -336,7 +346,7 @@ class DeviceActor(DeviceBaseActor):
             self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
         elif self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
             logger.info(
-                "_kill_myself called from _finish_wakeup. %s, self.on_kill is %s",
+                "_kill_myself called from _finish_update. %s, self.on_kill is %s",
                 self.success,
                 self.on_kill,
             )
@@ -460,15 +470,7 @@ class DeviceActor(DeviceBaseActor):
     @overrides
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         if not (self.reserve_lock.value or self.free_lock.value):
-            super().receiveMsg_SetDeviceStatusMsg(msg, sender)
             self.occupied = False
-            if self.device_status:
-                self.device_status["Reservation"] = msg.device_status.get(
-                    "Reservation", self.device_status["Reservation"]
-                )
-            else:
-                self.device_status = msg.device_status
-            logger.debug("Device status: %s", self.device_status)
             self._start_thread(
                 Thread(
                     target=self._http_get_function,
@@ -481,16 +483,16 @@ class DeviceActor(DeviceBaseActor):
                 )
             )
 
-    def _finish_set_device_status(self):
-        # pylint: disable=invalid-name
+    @overrides
+    def _finish_set_device_status(self, device_status):
         """Finalize SetDeviceStatusMsg handler after receiving HTTP request."""
         if self.success == Status.OK:
             device_desc = self.response.get(self.device_id, False)
             logger.debug("device_desc: %s", device_desc)
             error = False
             if device_desc:
-                remote_ident = device_desc.get("Identification", False)
-                error = not bool(remote_ident)
+                identification = device_desc.get("Identification", False)
+                error = not bool(identification)
             else:
                 error = True
             if error:
@@ -501,10 +503,7 @@ class DeviceActor(DeviceBaseActor):
                 )
                 self._kill_myself()
                 return
-            ident = self.device_status["Identification"]
-            ident["IS Id"] = remote_ident.get("IS Id")
-            ident["Firmware version"] = remote_ident.get("Firmware version")
-            self.device_status["Identification"] = ident
+            self.device_status["Identification"] = identification
             reservation = device_desc.get("Reservation")
             if reservation is None:
                 logger.debug(
