@@ -294,7 +294,7 @@ class MqttSchedulerActor(MqttBaseActor):
         ):
             logger.debug("No need to update anything at %s", device_id)
             return
-        logger.info("Forward status of %s via MQTT frontend", device_id)
+        logger.debug("Forward status of %s via MQTT frontend", device_id)
         logger.debug("%s: %s", device_id, device_status)
         instr_id = short_id(device_id)
         new_instrument_connected = False

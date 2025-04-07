@@ -9,6 +9,7 @@
 
 """
 
+import socket
 from datetime import timedelta
 from enum import Enum
 from threading import Thread
@@ -16,7 +17,8 @@ from threading import Thread
 import requests  # type: ignore
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (KillMsg, RecentValueMsg,
-                                      ReservationStatusMsg, Status)
+                                      ReservationStatusMsg, RxBinaryMsg,
+                                      Status)
 from regserver.config import config
 from regserver.hostname_functions import compare_hostnames
 from regserver.logger import logger
@@ -91,6 +93,7 @@ class DeviceActor(DeviceBaseActor):
             },
             daemon=True,
         )
+        self._client_socket = None
 
     def _http_get_function(self, endpoint="", params=None, purpose=Purpose.SETUP):
         try:
@@ -393,6 +396,9 @@ class DeviceActor(DeviceBaseActor):
             self._forward_to_children(KillMsg())
         else:
             self._send_reservation_status_msg()
+        if self._client_socket is not None:
+            self._client_socket.close()
+            self._client_socket = None
 
     @overrides
     def _request_reserve_at_is(self):
@@ -445,6 +451,25 @@ class DeviceActor(DeviceBaseActor):
             logger.error("%s during reservation", success)
             self._kill_myself()
         self._send_reservation_status_msg()
+        try:
+            is_host = self.device_status["Reservation"]["IP"]
+            is_port = self.device_status["Reservation"]["Port"]
+        except KeyError:
+            logger.error("Cannot create the client socket. Uncomplete reservation.")
+            return
+        if self._client_socket is None:
+            self._client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self._client_socket.settimeout(5)
+            try:
+                logger.debug("Trying to connect %s:%d", is_host, is_port)
+                self._client_socket.connect((is_host, is_port))
+            except (
+                ConnectionRefusedError,
+                OSError,
+                TimeoutError,
+                socket.timeout,
+            ) as exception:
+                logger.debug("%s:%d not reachable. %s", is_host, is_port, exception)
 
     @overrides
     def _request_recent_value_at_is(self, msg, sender):
@@ -581,3 +606,22 @@ class DeviceActor(DeviceBaseActor):
             )
         )
         super()._request_stop_monitoring_at_is()
+
+    @overrides
+    def _request_bin_at_is(self, data):
+        """Forward cmd data into the direction of the instrument."""
+        super()._request_bin_at_is(data)
+        try:
+            self._client_socket.sendall(data)
+            reply = self._client_socket.recv(1024)
+        except (
+            OSError,
+            TimeoutError,
+            socket.timeout,
+            ConnectionResetError,
+            NameError,
+            AttributeError,
+        ) as exception:
+            logger.error("%s. IS closed or disconnected.", exception)
+            return
+        self._handle_bin_reply_from_is(RxBinaryMsg(data=reply))

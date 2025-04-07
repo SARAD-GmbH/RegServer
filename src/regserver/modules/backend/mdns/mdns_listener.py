@@ -199,7 +199,7 @@ class MdnsListener(ServiceListener):
         # pylint: disable=invalid-name
         """Hook, being called when a new service
         representing a device is being detected"""
-        logger.info("[Add] Service %s of type %s", name, type_)
+        logger.debug("[Add] Service %s of type %s", name, type_)
         host_actor, hostname = self._get_host_actor(zc, type_, name)
         logger.debug("hostname: %s, host_actor: %s", hostname, host_actor)
         if hostname is None:
@@ -260,7 +260,7 @@ class MdnsListener(ServiceListener):
         # pylint: disable=invalid-name
         """Hook, being called when a service
         representing a device is being updated"""
-        logger.info("[Update] Service %s of type %s", name, type_)
+        logger.debug("[Update] Service %s of type %s", name, type_)
         self.add_service(zc, type_, name)
 
     def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
