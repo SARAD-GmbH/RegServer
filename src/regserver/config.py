@@ -460,7 +460,11 @@ else:
         lan_gateway = []
         for backend_str in customization.value["lan_frontend"]["gateway"]:
             try:
-                lan_gateway.append(BACKEND_TRANSLATOR[backend_str])
+                backend = BACKEND_TRANSLATOR[backend_str]
+                if backend == TransportTechnology.LAN:
+                    print("Error in config of lan_frontend.gateway: 'lan' not allowed")
+                else:
+                    lan_gateway.append(backend)
             except KeyError as exception:
                 print(f"Error in config of lan_frontend.gateway: {exception}")
     if customization.value["lan_frontend"].get("ip_version") in ip_version_dict:
@@ -688,7 +692,13 @@ else:
         mqtt_gateway = []
         for backend_str in customization.value["mqtt_frontend"]["gateway"]:
             try:
-                mqtt_gateway.append(BACKEND_TRANSLATOR[backend_str])
+                backend = BACKEND_TRANSLATOR[backend_str]
+                if backend == TransportTechnology.MQTT:
+                    print(
+                        "Error in config of mqtt_frontend.gateway: 'mqtt' not allowed"
+                    )
+                else:
+                    lan_gateway.append(backend)
             except KeyError as exception:
                 print(f"Error in config of mqtt_frontend.gateway: {exception}")
     mqtt_frontend_config = {
