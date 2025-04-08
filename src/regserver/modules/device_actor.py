@@ -326,12 +326,13 @@ class DeviceBaseActor(BaseActor):
                 self.my_id,
                 success,
             )
+            self._send_reservation_status_msg()
             self._kill_myself(resurrect=True)
         elif success == Status.ERROR:
             logger.error("%s during reservation of %s", success, self.my_id)
+            self._send_reservation_status_msg()
+            logger.debug("_send_reservation_status_msg case D")
             self._kill_myself(resurrect=True)
-        self._send_reservation_status_msg()
-        logger.debug("_send_reservation_status_msg case D")
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name

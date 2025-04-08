@@ -376,29 +376,10 @@ class DeviceActor(DeviceBaseActor):
             self.occupied = False
         else:
             success = self.success
-        try:
-            self.device_status["Reservation"] = self.response[self.device_id][
-                "Reservation"
-            ]
-        except Exception as exception:  # pylint: disable=broad-exception-caught
-            logger.info("Exception in _finish_free: %s", exception)
-            self.device_status["Reservation"] = {}
-        if self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
-            logger.info(
-                "_kill_myself called from _finish_free. %s, self.on_kill is %s",
-                self.success,
-                self.on_kill,
-            )
-            self._kill_myself()
-        self.return_message = ReservationStatusMsg(self.instr_id, success)
-        logger.debug(self.device_status)
-        if self.child_actors:
-            self._forward_to_children(KillMsg())
-        else:
-            self._send_reservation_status_msg()
         if self._client_socket is not None:
             self._client_socket.close()
             self._client_socket = None
+        self._handle_free_reply_from_is(success)
 
     @overrides
     def _request_reserve_at_is(self):
@@ -425,51 +406,29 @@ class DeviceActor(DeviceBaseActor):
         logger.debug("_finish_reserve")
         if self.success == Status.OK:
             success = Status(self.response.get("Error code", 98))
+            try:
+                is_host = self.response[self.device_id]["Reservation"]["IP"]
+                is_port = self.response[self.device_id]["Reservation"]["Port"]
+            except KeyError:
+                logger.error("Cannot create the client socket. Uncomplete reservation.")
+                success = Status.NOT_FOUND
+            if (success == Status.OK) and (self._client_socket is None):
+                self._client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self._client_socket.settimeout(5)
+                try:
+                    logger.debug("Trying to connect %s:%d", is_host, is_port)
+                    self._client_socket.connect((is_host, is_port))
+                except (
+                    ConnectionRefusedError,
+                    OSError,
+                    TimeoutError,
+                    socket.timeout,
+                ) as exception:
+                    logger.debug("%s:%d not reachable. %s", is_host, is_port, exception)
+                    success = Status.NOT_FOUND
         else:
             success = self.success
-        if success == Status.OCCUPIED:
-            self.occupied = True
-        else:
-            self.occupied = False
-        if success in (Status.OK, Status.OCCUPIED):
-            try:
-                self.device_status["Reservation"] = self.response[self.device_id][
-                    "Reservation"
-                ]
-            except Exception as exception:  # pylint: disable=broad-exception-caught
-                logger.info("Exception in _finish_reserve: %s", exception)
-                self.device_status["Reservation"] = {}
-        self.return_message = ReservationStatusMsg(
-            instr_id=self.instr_id, status=success
-        )
-        if success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
-            logger.error(
-                "Reservation failed with %s. Removing device from list.", success
-            )
-            self._kill_myself()
-        elif success == Status.ERROR:
-            logger.error("%s during reservation", success)
-            self._kill_myself()
-        self._send_reservation_status_msg()
-        try:
-            is_host = self.device_status["Reservation"]["IP"]
-            is_port = self.device_status["Reservation"]["Port"]
-        except KeyError:
-            logger.error("Cannot create the client socket. Uncomplete reservation.")
-            return
-        if self._client_socket is None:
-            self._client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._client_socket.settimeout(5)
-            try:
-                logger.debug("Trying to connect %s:%d", is_host, is_port)
-                self._client_socket.connect((is_host, is_port))
-            except (
-                ConnectionRefusedError,
-                OSError,
-                TimeoutError,
-                socket.timeout,
-            ) as exception:
-                logger.debug("%s:%d not reachable. %s", is_host, is_port, exception)
+        self._handle_reserve_reply_from_is(success)
 
     @overrides
     def _request_recent_value_at_is(self, msg, sender):
@@ -623,5 +582,5 @@ class DeviceActor(DeviceBaseActor):
             AttributeError,
         ) as exception:
             logger.error("%s. IS closed or disconnected.", exception)
-            return
+            reply = self.RET_TIMEOUT
         self._handle_bin_reply_from_is(RxBinaryMsg(data=reply))

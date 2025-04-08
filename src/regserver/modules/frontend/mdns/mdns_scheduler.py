@@ -79,6 +79,10 @@ class MdnsSchedulerActor(BaseActor):
     def _remove_instrument(self, device_id):
         """Remove the advertiser actor for instr_id."""
         logger.info("Remove advertiser of %s", device_id)
-        self.send(
-            self.child_actors[self._advertiser(device_id)]["actor_address"], KillMsg()
-        )
+        try:
+            self.send(
+                self.child_actors[self._advertiser(device_id)]["actor_address"],
+                KillMsg(),
+            )
+        except KeyError:
+            logger.warning("%s doesn't exist.", self._advertiser(device_id))
