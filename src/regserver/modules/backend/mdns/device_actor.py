@@ -22,13 +22,12 @@ from regserver.actor_messages import (KillMsg, RecentValueMsg,
 from regserver.config import config
 from regserver.hostname_functions import compare_hostnames
 from regserver.logger import logger
-from regserver.modules.device_actor import DeviceBaseActor
+from regserver.modules.device_actor import BIN_TIMEOUT, DeviceBaseActor
 from requests.adapters import HTTPAdapter  # type: ignore
 from sarad.instrument import Gps
 from urllib3.util.retry import Retry  # type: ignore
 
-CMD_CYCLE_TIMEOUT = 1
-DEFAULT_TIMEOUT = 15  # seconds
+DEFAULT_TIMEOUT = 20  # seconds
 RETRY = 0  # number of retries for HTTP requests
 UPDATE_INTERVAL = 3  # in seconds
 
@@ -414,7 +413,7 @@ class DeviceActor(DeviceBaseActor):
                 success = Status.NOT_FOUND
             if (success == Status.OK) and (self._client_socket is None):
                 self._client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self._client_socket.settimeout(5)
+                self._client_socket.settimeout(BIN_TIMEOUT.seconds)
                 try:
                     logger.debug("Trying to connect %s:%d", is_host, is_port)
                     self._client_socket.connect((is_host, is_port))
