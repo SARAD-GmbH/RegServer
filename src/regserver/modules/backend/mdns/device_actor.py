@@ -16,9 +16,7 @@ from threading import Thread
 
 import requests  # type: ignore
 from overrides import overrides  # type: ignore
-from regserver.actor_messages import (KillMsg, RecentValueMsg,
-                                      ReservationStatusMsg, RxBinaryMsg,
-                                      Status)
+from regserver.actor_messages import RecentValueMsg, RxBinaryMsg, Status
 from regserver.config import config
 from regserver.hostname_functions import compare_hostnames
 from regserver.logger import logger
@@ -511,8 +509,8 @@ class DeviceActor(DeviceBaseActor):
                     self.occupied = True
                     reservation.pop("IP", None)
                     reservation.pop("Port", None)
-                self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
                 self.device_status["Reservation"] = reservation
+                self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
             self._publish_status_change()
         else:
             logger.info(
