@@ -189,8 +189,8 @@ class UsbActor(DeviceBaseActor):
                     logger.info("Suspend monitoring mode at %s", self.my_id)
                     self.mon_state.suspended = True
                 else:
-                    self._request_start_monitoring_at_is()
                     logger.info("Resume monitoring mode at %s", self.my_id)
+                    self._request_start_monitoring_at_is()
 
     def _finish_poll(self):
         """Finalize the handling of WakeupMessage for regular rescan"""
@@ -334,7 +334,7 @@ class UsbActor(DeviceBaseActor):
         """
         self.instrument.release_instrument()
         self._handle_free_reply_from_is(Status.OK)
-        self.wakeupAfter(timedelta(seconds=1), "resume_monitoring")
+        self.wakeupAfter(timedelta(seconds=10), "resume_monitoring")
 
     @overrides
     def _request_set_rtc_at_is(self, confirm=False):
