@@ -33,7 +33,7 @@ from regserver.actor_messages import (AddPortToLoopMsg, BaudRateAckMsg,
                                       StopMonitoringAckMsg, StopMonitoringMsg,
                                       TransportTechnology)
 from regserver.config import actor_config, config
-from regserver.helpers import (check_msg, get_actor,
+from regserver.helpers import (check_msg, get_actor, get_device_status,
                                get_device_status_from_registrar,
                                get_device_statuses, get_hosts,
                                send_free_message, send_reserve_message,
@@ -402,7 +402,7 @@ class ListDevice(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        return {device_id: get_device_status_from_registrar(REGISTRAR_ACTOR, device_id)}
+        return get_device_status(REGISTRAR_ACTOR, device_id)
 
 
 # @api.deprecated

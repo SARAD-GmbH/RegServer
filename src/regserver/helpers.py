@@ -258,7 +258,7 @@ def get_device_status(registrar_actor, device_id: str) -> dict:
             result = h_get_device_status.ask(
                 get_actor(registrar_actor, device_id),
                 GetDeviceStatusMsg(),
-                timeout=timedelta(seconds=5),
+                timeout=timedelta(seconds=10),
             )
         except (ConnectionResetError, ValueError) as exception:
             logger.debug(exception)
@@ -307,7 +307,7 @@ def get_device_statuses(registrar_actor):
             logger.debug(exception)
             result = None
         if result is None:
-            logger.debug("Timeout at GetDeviceStatusMsg.")
+            logger.debug("Timeout at GetDeviceStatusesMsg.")
             return None
         if not isinstance(result, UpdateDeviceStatusesMsg):
             logger.critical(

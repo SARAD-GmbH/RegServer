@@ -10,7 +10,7 @@
 """
 
 import socket
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import Enum
 from threading import Thread
 
@@ -27,7 +27,7 @@ from urllib3.util.retry import Retry  # type: ignore
 
 DEFAULT_TIMEOUT = 20  # seconds
 RETRY = 0  # number of retries for HTTP requests
-UPDATE_INTERVAL = 3  # in seconds
+UPDATE_INTERVAL = 10  # seconds, update interval for occupied devices
 
 
 class TimeoutHTTPAdapter(HTTPAdapter):
@@ -64,6 +64,7 @@ class Purpose(Enum):
     SET_RTC = 7
     MONITOR_START = 8
     MONITOR_STOP = 9
+    GET_STATUS = 10
 
 
 class DeviceActor(DeviceBaseActor):
@@ -91,6 +92,7 @@ class DeviceActor(DeviceBaseActor):
             daemon=True,
         )
         self._client_socket = None
+        self.last_update = datetime.now()
 
     def _http_get_function(self, endpoint="", params=None, purpose=Purpose.SETUP):
         try:
@@ -133,7 +135,7 @@ class DeviceActor(DeviceBaseActor):
         self._handle_http_reply(purpose)
 
     def _handle_http_reply(self, purpose: Purpose):
-        # pylint: disable=too-many-branches
+        # pylint: disable=too-many-branches, too-many-statements
         if purpose == Purpose.SETUP:
             self._finish_setup_mdns_actor()
         elif purpose == Purpose.UPDATE:
@@ -189,6 +191,12 @@ class DeviceActor(DeviceBaseActor):
                 self.device_id,
             )
             self._finish_set_device_status({})
+        elif purpose == Purpose.GET_STATUS:
+            logger.debug(
+                "_finish_get_status called from GetDeviceStatus at %s",
+                self.device_id,
+            )
+            self._finish_get_status()
         elif purpose == Purpose.SET_RTC:
             logger.info("Target responded to Set-RTC request: %s", self.response)
             if self.success == Status.OK:
@@ -275,7 +283,8 @@ class DeviceActor(DeviceBaseActor):
     def _finish_setup_mdns_actor(self):
         """Do everything that is required after receiving the reply to the HTTP request."""
         if self.success == Status.OK:
-            self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
+            if self.occupied:
+                self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
             logger.debug(
                 "_finish_set_device_status called from _finish_setup_mdns_actor at %s",
                 self.device_id,
@@ -294,29 +303,19 @@ class DeviceActor(DeviceBaseActor):
         # pylint: disable=invalid-name
         """Handle WakeupMessage for regular updates"""
         if msg.payload == "update":
-            if self.occupied:
-                try:
-                    logger.debug(
-                        "Check whether %s still occupies %s.",
-                        self.device_status["Reservation"]["Host"],
-                        self.device_id,
+            logger.debug("Update reservation state of %s", self.device_id)
+            if not self.request_thread.is_alive():
+                self._start_thread(
+                    Thread(
+                        target=self._http_get_function,
+                        kwargs={
+                            "endpoint": f"{self.base_url}/list/{self.device_id}/",
+                            "params": None,
+                            "purpose": Purpose.UPDATE,
+                        },
+                        daemon=True,
                     )
-                except (KeyError, TypeError):
-                    logger.error(
-                        "%s occupied, but we don't know by whom", self.device_id
-                    )
-                if not self.request_thread.is_alive():
-                    self._start_thread(
-                        Thread(
-                            target=self._http_get_function,
-                            kwargs={
-                                "endpoint": f"{self.base_url}/list/{self.device_id}/",
-                                "params": None,
-                                "purpose": Purpose.UPDATE,
-                            },
-                            daemon=True,
-                        )
-                    )
+                )
         elif isinstance(msg.payload, Thread):
             self._start_thread(msg.payload)
 
@@ -336,14 +335,18 @@ class DeviceActor(DeviceBaseActor):
                 return
             if reservation:
                 active = reservation.get("Active", False)
+                self.device_status["Reservation"] = reservation
             else:
                 active = False
-            self.device_status["Reservation"]["Active"] = active
             logger.debug("%s reservation active: %s", self.device_id, active)
             self._publish_status_change()
-            if not active:
+            if active and (
+                datetime.now() - self.last_update > timedelta(seconds=UPDATE_INTERVAL)
+            ):
+                self.last_update = datetime.now()
+                self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
+            else:
                 self.occupied = False
-            self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
         elif self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
             logger.info(
                 "_kill_myself called from _finish_update. %s, self.on_kill is %s",
@@ -377,6 +380,8 @@ class DeviceActor(DeviceBaseActor):
             self._client_socket.close()
             self._client_socket = None
         self._handle_free_reply_from_is(success)
+        logger.info("Doublecheck the reservation status after free")
+        self.wakeupAfter(timedelta(seconds=11), payload="update")
 
     @overrides
     def _request_reserve_at_is(self):
@@ -509,8 +514,10 @@ class DeviceActor(DeviceBaseActor):
                     self.occupied = True
                     reservation.pop("IP", None)
                     reservation.pop("Port", None)
+                    self.wakeupAfter(
+                        timedelta(seconds=UPDATE_INTERVAL), payload="update"
+                    )
                 self.device_status["Reservation"] = reservation
-                self.wakeupAfter(timedelta(seconds=UPDATE_INTERVAL), payload="update")
             self._publish_status_change()
         else:
             logger.info(
@@ -581,3 +588,81 @@ class DeviceActor(DeviceBaseActor):
             logger.error("%s. IS closed or disconnected.", exception)
             reply = self.RET_TIMEOUT
         self._handle_bin_reply_from_is(RxBinaryMsg(data=reply))
+
+    @overrides
+    def _request_status_at_is(self):
+        """Send a request to the Instrument Server to get the recent status of
+        the device.
+
+        Args:
+            sender (ActorAddress): Address of the requesting Actor."""
+        if not (self.reserve_lock.value or self.free_lock.value):
+            self._start_thread(
+                Thread(
+                    target=self._http_get_function,
+                    kwargs={
+                        "endpoint": f"{self.base_url}/list/{self.device_id}/",
+                        "params": None,
+                        "purpose": Purpose.GET_STATUS,
+                    },
+                    daemon=True,
+                )
+            )
+
+    def _finish_get_status(self):
+        """Finalize GetDeviceStatusMsg handler after receiving HTTP request."""
+        if self.success == Status.OK:
+            device_desc = self.response.get(self.device_id, False)
+            logger.debug("device_desc: %s", device_desc)
+            error = False
+            if device_desc:
+                identification = device_desc.get("Identification", False)
+                error = not bool(identification)
+            else:
+                error = True
+            if error:
+                logger.info(
+                    "_kill_myself called from _finish_get_status. %s, self.on_kill is %s",
+                    self.success,
+                    self.on_kill,
+                )
+                self._kill_myself()
+                return
+            self.device_status["Identification"] = identification
+            reservation = device_desc.get("Reservation")
+            if reservation is None:
+                logger.debug(
+                    "API reply from % has no Reservation section", self.device_id
+                )
+                self.device_status.pop("Reservation", None)
+            else:
+                using_host = reservation.get("Host", "")
+                if self.reserve_device_msg is not None:
+                    my_host = self.reserve_device_msg.host
+                else:
+                    my_host = config["MY_HOSTNAME"]
+                if compare_hostnames(using_host, my_host):
+                    logger.debug(
+                        "Occupied by me. Using host is %s, my host is %s",
+                        using_host,
+                        my_host,
+                    )
+                else:
+                    logger.debug("Occupied by somebody else.")
+                    logger.debug("Using host: %s, my host: %s", using_host, my_host)
+                    self.occupied = True
+                    reservation.pop("IP", None)
+                    reservation.pop("Port", None)
+                    self.wakeupAfter(
+                        timedelta(seconds=UPDATE_INTERVAL), payload="update"
+                    )
+                self.device_status["Reservation"] = reservation
+            self._publish_status_change()
+            self._handle_status_reply_from_is(Status.OK)
+        else:
+            logger.info(
+                "_kill_myself called from _finish_set_device_status. %s, self.on_kill is %s",
+                self.success,
+                self.on_kill,
+            )
+            self._kill_myself()

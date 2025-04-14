@@ -599,7 +599,34 @@ class DeviceBaseActor(BaseActor):
 
         Sends back a message containing the device_status."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.send(sender, UpdateDeviceStatusMsg(self.my_id, self.device_status))
+        self.sender_api = sender
+        self._request_status_at_is()
+
+    def _request_status_at_is(self):
+        """Send a request to the Instrument Server to get the recent status of
+        the device.
+
+        This has to be overriden in the backend specific implementation."""
+        self._handle_status_reply_from_is(Status.OK)
+
+    def _handle_status_reply_from_is(self, status: Status):
+        # pylint: disable=unused-argument
+        """Forward the status received from the Instrument Server to the sender
+        requesting status information. This function has to be called in the
+        protocol specific modules.
+
+        Args:
+            status (Status): Info about the success of operation.
+        """
+        logger.debug(
+            "Send UpdateDeviceStatusMsg back to %s: %s",
+            self.sender_api,
+            self.device_status,
+        )
+        self.send(
+            self.sender_api, UpdateDeviceStatusMsg(self.my_id, self.device_status)
+        )
+        self.sender_api = None
 
     def receiveMsg_SubscribeToDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -845,6 +872,7 @@ class DeviceBaseActor(BaseActor):
             if (
                 self.device_status["Reservation"].get("Active", False)
                 and self.child_actors
+                and self.redirector_actor is not None
             ):
                 self._handle_bin_reply_from_is(answer=RxBinaryMsg(self.RET_TIMEOUT))
         self.device_status["State"] = 1
