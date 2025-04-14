@@ -248,7 +248,7 @@ class Main:
         self.kill_residual_processes(end_with_error=with_error)
         if self.led and not self.led.closed:
             self.led.close()
-        if not wait_some_time:
+        if (not wait_some_time) and (TransportTechnology.MQTT in backend_config):
             write_ping_file(PING_FILE_NAME, FRMT)
         if with_error:
             logger.info("RegServer will exit with error to be restarted automatically")

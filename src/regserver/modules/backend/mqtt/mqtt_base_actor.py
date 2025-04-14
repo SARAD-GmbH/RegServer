@@ -268,7 +268,8 @@ class MqttBaseActor(BaseActor):
             )
             # There is no need to do anything.
             # With loop_start() in place, re-connections will be handled automatically.
-        write_ping_file(PING_FILE_NAME, FRMT)
+        if TransportTechnology.MQTT in backend_config:
+            write_ping_file(PING_FILE_NAME, FRMT)
         self.is_connected = False
 
     def on_message(self, _client, _userdata, message):
