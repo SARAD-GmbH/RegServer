@@ -126,12 +126,6 @@ class DeviceBaseActor(BaseActor):
                     self.device_status[section] = device_status[section]
         if device_status.get("State", False):
             self.device_status["State"] = device_status["State"]
-        logger.debug(
-            "%s created or updated at %s. is_id = %s",
-            self.my_id,
-            self.device_status["Identification"].get("Host"),
-            self.device_status["Identification"].get("IS Id"),
-        )
         if device_status.get("Reservation", False):
             if device_status["Reservation"].get("Active", False):
                 if not device_status["Reservation"].get("Host", False):
