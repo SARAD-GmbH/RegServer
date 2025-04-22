@@ -39,12 +39,6 @@ class RedirectorActor(BaseActor):
             daemon=True,
         )
 
-    def receiveMsg_WakeupMessage(self, msg, _sender):
-        # pylint: disable=invalid-name
-        """Handler for WakeupMessage"""
-        if msg.payload == "loop":
-            self._loop()
-
     def _loop(self):
         logger.debug("Redirector thread in %s initialized", self.my_id)
         while not self.on_kill:
