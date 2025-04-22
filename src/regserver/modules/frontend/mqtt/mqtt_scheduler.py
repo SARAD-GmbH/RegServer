@@ -268,7 +268,7 @@ class MqttSchedulerActor(MqttBaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         for device_id, status_dict in msg.device_statuses.items():
             if transport_technology(device_id) in mqtt_frontend_config["GATEWAY"]:
-                self._update_device_status(device_id, status_dict)
+                self._update_device_status(device_id, status_dict, force=True)
 
     def receiveMsg_UpdateDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name, too-many-locals
@@ -277,9 +277,9 @@ class MqttSchedulerActor(MqttBaseActor):
         Adds a new instrument to the list of available instruments
         or updates the reservation state."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self._update_device_status(msg.device_id, msg.device_status)
+        self._update_device_status(msg.device_id, msg.device_status, force=False)
 
-    def _update_device_status(self, device_id, device_status):
+    def _update_device_status(self, device_id, device_status, force=False):
         reservation = device_status.get("Reservation", {})
         reservation_object = Reservation(
             timestamp=reservation.get("timestamp", time.time()),
@@ -289,8 +289,10 @@ class MqttSchedulerActor(MqttBaseActor):
             user=reservation.get("User", ""),
             status=Status.OK,
         )
-        if self.reservations.get(device_id) and (
-            reservation_object == self.reservations.get(device_id)
+        if (
+            self.reservations.get(device_id)
+            and (reservation_object == self.reservations.get(device_id))
+            and not force
         ):
             logger.debug("No need to update anything at %s", device_id)
             return
@@ -299,12 +301,16 @@ class MqttSchedulerActor(MqttBaseActor):
         instr_id = short_id(device_id)
         new_instrument_connected = False
         if not device_status.get("State", 2) < 2:
-            reservation = device_status.get("Reservation")
+            reservation = device_status.get("Reservation", {})
             self.mqttc.subscribe(f"{self.group}/{self.is_id}/{instr_id}/control", 2)
             self.mqttc.subscribe(f"{self.group}/{self.is_id}/{instr_id}/cmd", 2)
             identification = device_status["Identification"]
             identification["Host"] = self.is_meta.host
-            message = {"State": 2, "Identification": identification}
+            message = {
+                "State": 2,
+                "Identification": identification,
+                "Reservation": reservation,
+            }
             self.mqttc.publish(
                 topic=f"{self.group}/{self.is_id}/{instr_id}/meta",
                 payload=json.dumps(message),
