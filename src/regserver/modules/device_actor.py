@@ -237,6 +237,32 @@ class DeviceBaseActor(BaseActor):
         self.reserve_lock.value = True
         self.reserve_lock.time = datetime.now()
         logger.debug("%s: reserve_lock set to %s", self.my_id, self.reserve_lock.time)
+        has_reservation_section = self.device_status.get("Reservation", False)
+        if has_reservation_section:
+            is_reserved = self.device_status["Reservation"].get("Active", False)
+        else:
+            is_reserved = False
+        if is_reserved:
+            reservation = self.device_status["Reservation"]
+            current_user = reservation.get("User", "")
+            current_app = reservation.get("App", "")
+            current_host = reservation.get("Host", "")
+            requested_user = msg.user
+            requested_app = msg.app
+            requested_host = msg.host
+            if (
+                current_user == requested_user
+                and current_app == requested_app
+                and current_host == requested_host
+            ):
+                reply_status = Status.OK_UPDATED
+            else:
+                reply_status = Status.OCCUPIED
+            self.return_message = ReservationStatusMsg(self.instr_id, reply_status)
+            if self.sender_api is None:
+                self.sender_api = sender
+            self._send_reservation_status_msg()
+            return
         if self.sender_api is None:
             self.sender_api = sender
         self.reserve_device_msg = msg
@@ -332,19 +358,6 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for FreeDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        has_reservation_section = self.device_status.get("Reservation", False)
-        if has_reservation_section:
-            is_reserved = self.device_status["Reservation"].get("Active", False)
-        else:
-            is_reserved = False
-        if not is_reserved:
-            self.free_lock.value = True
-            self.free_lock.time = datetime.now()
-            self.return_message = ReservationStatusMsg(self.instr_id, Status.OK_SKIPPED)
-            if self.sender_api is None:
-                self.sender_api = sender
-            self._send_reservation_status_msg()
-            return
         if self.free_lock.value or self.reserve_lock.value:
             if self.free_lock.value:
                 logger.info("%s FREE action pending", self.my_id)
@@ -373,6 +386,17 @@ class DeviceBaseActor(BaseActor):
         self.free_lock.value = True
         self.free_lock.time = datetime.now()
         logger.debug("%s: free_lock set to %s", self.my_id, self.free_lock)
+        has_reservation_section = self.device_status.get("Reservation", False)
+        if has_reservation_section:
+            is_reserved = self.device_status["Reservation"].get("Active", False)
+        else:
+            is_reserved = False
+        if not is_reserved:
+            self.return_message = ReservationStatusMsg(self.instr_id, Status.OK_SKIPPED)
+            if self.sender_api is None:
+                self.sender_api = sender
+            self._send_reservation_status_msg()
+            return
         if self.sender_api is None:
             self.sender_api = sender
         self._request_free_at_is()
