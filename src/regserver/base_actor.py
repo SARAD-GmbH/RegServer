@@ -21,13 +21,13 @@ from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import ActorAddress, ActorTypeDispatcher, ChildActorExited
 
-from regserver.actor_messages import (ActorType, DeadChildMsg,
-                                      GetDeviceStatusMsg, KeepAliveMsg,
-                                      KillMsg, MqttReceiveMsg, Parent,
-                                      PrepareMqttActorMsg, RescanAckMsg,
-                                      ReservationStatusMsg, RxBinaryMsg,
-                                      SetDeviceStatusMsg, SetupMdnsActorMsg,
-                                      SetupMsg, SetupUsbActorMsg, SubscribeMsg,
+from regserver.actor_messages import (ActorType, GetDeviceStatusMsg,
+                                      KeepAliveMsg, KillMsg, MqttReceiveMsg,
+                                      Parent, PrepareMqttActorMsg,
+                                      RescanAckMsg, ReservationStatusMsg,
+                                      RxBinaryMsg, SetDeviceStatusMsg,
+                                      SetupMdnsActorMsg, SetupMsg,
+                                      SetupUsbActorMsg, SubscribeMsg,
                                       SubscribeToActorDictMsg,
                                       SubscribeToDeviceStatusMsg,
                                       UnSubscribeFromActorDictMsg,
