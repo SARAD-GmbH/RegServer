@@ -299,7 +299,6 @@ class MqttSchedulerActor(MqttBaseActor):
         logger.debug("Forward status of %s via MQTT frontend", device_id)
         logger.debug("%s: %s", device_id, device_status)
         instr_id = short_id(device_id)
-        new_instrument_connected = False
         if not device_status.get("State", 2) < 2:
             reservation = device_status.get("Reservation", {})
             self.mqttc.subscribe(f"{self.group}/{self.is_id}/{instr_id}/control", 2)
@@ -319,58 +318,20 @@ class MqttSchedulerActor(MqttBaseActor):
             )
             if device_id not in self.reservations:
                 logger.info("Add %s as new instrument.", instr_id)
-                new_instrument_connected = True
                 if reservation is None:
                     logger.debug("%s has never been reserved.", instr_id)
                     self.reservations[device_id] = Reservation(
                         status=Status.OK_SKIPPED, timestamp=time.time()
                     )
                     reservation = {"Active": False}
-                else:
-                    self.reservations[device_id] = Reservation(
-                        timestamp=time.time(),
-                        active=reservation.get("Active", False),
-                        host=reservation.get("Host", ""),
-                        app=reservation.get("App", ""),
-                        user=reservation.get("User", ""),
-                        status=Status.OK,
-                    )
-            saved_reservation_object = self.reservations.get(device_id)
-            if saved_reservation_object is not None:
-                status = saved_reservation_object.status
-            else:
-                status = Status.OK
-            try:
-                reservation_object = Reservation(
-                    timestamp=time.time(),
-                    active=reservation.get("Active", False),
-                    host=reservation.get("Host", ""),
-                    app=reservation.get("App", ""),
-                    user=reservation.get("User", ""),
-                    status=status,
-                )
-            except AttributeError:
-                reservation_object = Reservation(
-                    timestamp=time.time(),
-                    active=False,
-                    host="",
-                    app="",
-                    user="",
-                    status=status,
-                )
-            if (
-                not (self.reservations[device_id] == reservation_object)
-                or new_instrument_connected
-            ):
-                self.reservations[device_id] = reservation_object
-                reservation_json = get_instr_reservation(reservation_object)
-                topic = f"{self.group}/{self.is_id}/{instr_id}/reservation"
-                logger.debug("Publish %s on %s", reservation_json, topic)
-                self.mqttc.publish(
-                    topic=topic, payload=reservation_json, qos=self.qos, retain=False
-                )
-                if new_instrument_connected and (self.is_meta.state < 2):
-                    self._instruments_connected()
+            self.reservations[device_id] = Reservation(
+                timestamp=time.time(),
+                active=reservation.get("Active", False),
+                host=reservation.get("Host", ""),
+                app=reservation.get("App", ""),
+                user=reservation.get("User", ""),
+                status=Status.OK,
+            )
 
     def _instruments_connected(self):
         """Check whether there are connected instruments"""
