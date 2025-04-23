@@ -57,7 +57,7 @@ class MqttBaseActor(BaseActor):
         logger.info("%s: Client loop stopped", self.my_id)
         super()._kill_myself(register=register, resurrect=resurrect)
 
-    def clean_session(self) -> bool:
+    def _clean_session(self) -> bool:
         """Read datetime from ping file and compare with currrent time.
 
         Returns:
@@ -88,7 +88,7 @@ class MqttBaseActor(BaseActor):
         self.mqttc = MQTT.Client(
             MQTT.CallbackAPIVersion.VERSION2,
             client_id=msg.client_id,
-            clean_session=self.clean_session(),
+            clean_session=self._clean_session(),
         )
         self.group = msg.group
         self.mqttc.on_connect = self.on_connect

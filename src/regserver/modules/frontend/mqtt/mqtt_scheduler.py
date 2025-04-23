@@ -20,8 +20,7 @@ from regserver.actor_messages import (ActorType, FreeDeviceMsg,
                                       GetDeviceStatusesMsg, GetRecentValueMsg,
                                       RescanMsg, ReserveDeviceMsg, SetRtcMsg,
                                       ShutdownMsg, StartMonitoringMsg, Status,
-                                      StopMonitoringMsg, TransportTechnology,
-                                      TxBinaryMsg)
+                                      StopMonitoringMsg, TxBinaryMsg)
 from regserver.config import config, mqtt_frontend_config
 from regserver.helpers import diff_of_dicts, short_id, transport_technology
 from regserver.logger import logger
@@ -113,7 +112,7 @@ class MqttSchedulerActor(MqttBaseActor):
         self.led = False
         if platform.machine() in ["aarch64", "armv7l"]:
             try:
-                self.led = LED(23)
+                self.led = LED(23)  # pylint: disable=possibly-used-before-assignment
                 self.led.blink(1, 0.3)
             except Exception:  # pylint: disable=broad-exception-caught
                 logger.error(
@@ -123,7 +122,7 @@ class MqttSchedulerActor(MqttBaseActor):
         self.cached_replies = {}  # {instr_id: CachedReply}
 
     @overrides
-    def clean_session(self) -> bool:
+    def _clean_session(self) -> bool:
         """We always want a persistent session, since in the frontend we don't
         have the problem of message storms like in the MQTT backend. That's why
         we do not check the ping file."""
@@ -182,8 +181,8 @@ class MqttSchedulerActor(MqttBaseActor):
         """Handler for ReservationStatusMsg from Device Actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         _device_actor, device_id = self._device_actor(msg.instr_id)
-        reservation = self.reservations.get(device_id)
-        if reservation is not None:
+        reservation_object = self.reservations.get(device_id, False)
+        if reservation_object:
             self.reservations[device_id] = replace(
                 self.reservations[device_id], status=msg.status
             )
@@ -191,7 +190,6 @@ class MqttSchedulerActor(MqttBaseActor):
             self.reservations[device_id] = Reservation(
                 status=msg.status, timestamp=time.time()
             )
-        reservation_object = self.reservations[device_id]
         if self.pending_control_action["ctype"] in (
             ControlType.RESERVE,
             ControlType.FREE,
@@ -290,7 +288,7 @@ class MqttSchedulerActor(MqttBaseActor):
             status=Status.OK,
         )
         if (
-            self.reservations.get(device_id)
+            self.reservations.get(device_id, False)
             and (reservation_object == self.reservations.get(device_id))
             and not force
         ):
@@ -339,10 +337,12 @@ class MqttSchedulerActor(MqttBaseActor):
         old_state = self.is_meta.state
         if self.reservations:
             new_state = 2
+            logger.debug("LED on")
             if self.led and self.is_connected:
                 self.led.on()
         else:
             new_state = 1
+            logger.debug("LED blinking")
             if self.led:
                 self.led.blink(1, 0.3)
         payload = get_is_meta(replace(self.is_meta, state=new_state))
@@ -422,9 +422,9 @@ class MqttSchedulerActor(MqttBaseActor):
                 "ctype": control.ctype,
             }
             if control.ctype == ControlType.RESERVE:
-                self.process_reserve(instr_id, control)
+                self._process_reserve(instr_id, control)
             elif control.ctype == ControlType.FREE:
-                self.process_free(instr_id)
+                self._process_free(instr_id)
                 logger.debug(
                     "[FREE] client=%s, instr_id=%s, control=%s",
                     self.mqttc,
@@ -432,15 +432,15 @@ class MqttSchedulerActor(MqttBaseActor):
                     control,
                 )
             elif control.ctype == ControlType.VALUE:
-                self.process_value(instr_id, control)
+                self._process_value(instr_id, control)
             elif control.ctype == ControlType.CONFIG:
-                self.process_config(instr_id, control)
+                self._process_config(instr_id, control)
             elif control.ctype == ControlType.MONITOR_START:
-                self.process_monitor(instr_id, control.data.start_time)
+                self._process_monitor(instr_id, control.data.start_time)
             elif control.ctype == ControlType.MONITOR_STOP:
-                self.process_monitor_stop(instr_id)
+                self._process_monitor_stop(instr_id)
             elif control.ctype == ControlType.SET_RTC:
-                self.process_set_rtc(instr_id)
+                self._process_set_rtc(instr_id)
 
     def on_cmd(self, _client, _userdata, message):
         """Event handler for all MQTT messages with cmd topic for instruments."""
@@ -547,7 +547,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 retain=False,
             )
 
-    def process_reserve(self, instr_id, control):
+    def _process_reserve(self, instr_id, control):
         """Sub event handler that will be called from the on_message event handler,
         when a MQTT control message with a 'reserve' request was received
         for a specific instrument ID."""
@@ -567,7 +567,7 @@ class MqttSchedulerActor(MqttBaseActor):
             )
             self.cached_replies[instr_id] = CachedReply()
 
-    def process_free(self, instr_id):
+    def _process_free(self, instr_id):
         """Sub event handler that will be called from the on_message event
         handler, when a MQTT control message with a 'free' request was received
         for a specific instrument ID.
@@ -578,7 +578,7 @@ class MqttSchedulerActor(MqttBaseActor):
             self.send(device_actor, FreeDeviceMsg())
         self.cached_replies[instr_id] = CachedReply()
 
-    def process_value(self, instr_id, control):
+    def _process_value(self, instr_id, control):
         """Sub event handler that will be called from the on_message event
         handler, when a MQTT control message with a 'value' request was
         received for a specific instrument ID.
@@ -601,7 +601,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 ),
             )
 
-    def process_config(self, instr_id, control):
+    def _process_config(self, instr_id, control):
         """Sub event handler that will be called from the on_message event
         handler, when a MQTT control message with a 'config' request was
         received for a specific instrument ID. The config request configurates
@@ -610,7 +610,7 @@ class MqttSchedulerActor(MqttBaseActor):
         """
         # TODO implement
 
-    def process_monitor(self, instr_id: str, start_time: datetime):
+    def _process_monitor(self, instr_id: str, start_time: datetime):
         """Sub event handler that will be called from the on_message event
         handler, when a MQTT control message with a 'monitor-start' request to start
         the monitoring mode was received for a specific instrument ID.
@@ -620,7 +620,7 @@ class MqttSchedulerActor(MqttBaseActor):
         if device_actor is not None:
             self.send(device_actor, StartMonitoringMsg(instr_id, start_time=start_time))
 
-    def process_monitor_stop(self, instr_id: str):
+    def _process_monitor_stop(self, instr_id: str):
         """Sub event handler that will be called from the on_message event
         handler, when a MQTT control message with a 'monitor-stop' request to stop
         the monitoring mode was received for a specific instrument ID.
@@ -630,7 +630,7 @@ class MqttSchedulerActor(MqttBaseActor):
         if device_actor is not None:
             self.send(device_actor, StopMonitoringMsg(instr_id))
 
-    def process_set_rtc(self, instr_id):
+    def _process_set_rtc(self, instr_id):
         """Sub event handler that will be called from the on_message event
         handler, when a MQTT control message with a 'set-rtc' request to set
         the clock on teh instrument was received for a specific instrument ID.
