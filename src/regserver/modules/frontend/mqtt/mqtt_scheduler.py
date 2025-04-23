@@ -330,6 +330,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 user=reservation.get("User", ""),
                 status=Status.OK,
             )
+            self._instruments_connected()
 
     def _instruments_connected(self):
         """Check whether there are connected instruments"""
