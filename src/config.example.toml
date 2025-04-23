@@ -368,8 +368,8 @@
 ## If `utc_offset` > 13, the local computer time will be used to set the RTC.
 ## This setting is *not* recommended.
 ## For monitoring systems we recommend using 0, i.e. the RTC running on UTC.
-### Default: 0
-#utc_offset = 0
+### Default: 14
+#utc_offset = 14
 
 
 ## There are SARAD instruments (e. g. the Smart Radon Sensor) that can be

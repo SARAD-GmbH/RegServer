@@ -508,7 +508,7 @@ DEFAULT_IGNORED_SERIAL_PORTS: list[str] = []
 DEFAULT_IGNORED_HWIDS: list[str] = ["BTHENUM", "2c7c"]
 DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
 DEFAULT_SET_RTC = False
-DEFAULT_UTC_OFFSET = 0
+DEFAULT_UTC_OFFSET = 14
 
 if cust_dict.get("local_backend") is None:
     print("Something went wrong.")
