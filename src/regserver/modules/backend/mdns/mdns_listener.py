@@ -17,8 +17,7 @@ from datetime import timedelta
 from regserver.actor_messages import (ActorCreatedMsg, CreateActorMsg, KillMsg,
                                       SetDeviceStatusMsg, SetupHostActorMsg)
 from regserver.config import config, lan_backend_config
-from regserver.helpers import (get_actor, sarad_protocol, short_id,
-                               transport_technology)
+from regserver.helpers import get_actor, sarad_protocol, short_id
 from regserver.hostname_functions import compare_hostnames
 from regserver.logger import logger
 from regserver.modules.backend.mdns.host_actor import HostActor
