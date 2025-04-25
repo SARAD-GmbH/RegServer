@@ -402,7 +402,7 @@ class ListDevice(Resource):
                 "Notification": "Registration Server going down for restart.",
                 "Requester": "Emergency shutdown",
             }
-        return get_device_status(REGISTRAR_ACTOR, device_id)
+        return {device_id: get_device_status(REGISTRAR_ACTOR, device_id)}
 
 
 # @api.deprecated
