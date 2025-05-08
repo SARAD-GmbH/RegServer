@@ -168,7 +168,7 @@ class MdnsListener(ServiceListener):
                     logger.debug(exception)
                     reply = None
             if not isinstance(reply, ActorCreatedMsg):
-                logger.critical("Got %s instead of ActorCreateMsg", reply)
+                logger.critical("Got %s instead of ActorCreatedMsg", reply)
                 logger.critical("Check `hosts_whitelist` in `config.toml`!")
                 logger.critical("-> Stop and shutdown system")
                 system_shutdown()
@@ -224,7 +224,7 @@ class MdnsListener(ServiceListener):
                     logger.debug(exception)
                     reply = None
             if not isinstance(reply, ActorCreatedMsg):
-                logger.critical("Got %s instead of ActorCreateMsg", reply)
+                logger.critical("Got %s instead of ActorCreatedMsg", reply)
                 logger.critical("-> Stop and shutdown system")
                 system_shutdown()
             elif reply.actor_address is None:
