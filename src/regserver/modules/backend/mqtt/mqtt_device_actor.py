@@ -172,6 +172,7 @@ class MqttDeviceActor(DeviceBaseActor):
     def _handle_reserve_reply_from_is(self, success):
         if success is Status.NOT_FOUND:
             logger.warning("Reserve request to %s timed out", self.my_id)
+            self._request_free_at_is()
         super()._handle_reserve_reply_from_is(success)
 
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
