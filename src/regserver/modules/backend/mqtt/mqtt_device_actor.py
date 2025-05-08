@@ -434,7 +434,7 @@ class MqttDeviceActor(DeviceBaseActor):
         if reservation == self.last_message:
             logger.debug("We have already got message %s", reservation)
             return
-        self.last_message = reservation
+        self.last_message = reservation.copy()
         logger.debug("%s received [on_reserve]: %s", self.my_id, reservation)
         instr_status = reservation.get("Active")
         app = reservation.get("App")

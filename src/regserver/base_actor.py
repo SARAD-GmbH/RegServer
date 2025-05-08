@@ -17,6 +17,8 @@ Actors created in the actor system
 
 """
 
+from copy import deepcopy
+
 from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import ActorAddress, ActorTypeDispatcher, ChildActorExited
@@ -141,7 +143,7 @@ class BaseActor(ActorTypeDispatcher):
         # pylint: disable=invalid-name, unused-argument
         """Handler for UpdateActorDictMsg from Registrar"""
         # logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.actor_dict = msg.actor_dict
+        self.actor_dict = deepcopy(msg.actor_dict)
 
     def receiveMsg_PoisonMessage(self, msg, sender):
         # pylint: disable=invalid-name

@@ -9,7 +9,7 @@
 
 """
 
-import copy
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -265,7 +265,7 @@ class DeviceBaseActor(BaseActor):
             return
         if self.sender_api is None:
             self.sender_api = sender
-        self.reserve_device_msg = msg
+        self.reserve_device_msg = deepcopy(msg)
         self._request_reserve_at_is()
 
     def _request_reserve_at_is(self):
@@ -675,7 +675,7 @@ class DeviceBaseActor(BaseActor):
                         UpdateDeviceStatusMsg(self.my_id, self.device_status),
                     )
             logger.debug("Published change: %s", self.device_status)
-            self.prev_device_status = copy.deepcopy(self.device_status)
+            self.prev_device_status = deepcopy(self.device_status)
 
     def _publish_status(self, new_subscribers: list):
         """Publish a device status to all new_subscribers."""

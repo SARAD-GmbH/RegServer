@@ -10,6 +10,7 @@
 """
 
 import json
+from copy import deepcopy
 from datetime import datetime, timedelta
 
 from overrides import overrides  # type: ignore
@@ -531,7 +532,7 @@ class MqttClientActor(MqttBaseActor):
         # pylint: disable=invalid-name
         """Handler for ResurrectMsg asking for resurrect a killed Device Actor (child)"""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.resurrect_msg = msg
+        self.resurrect_msg = deepcopy(msg)
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
