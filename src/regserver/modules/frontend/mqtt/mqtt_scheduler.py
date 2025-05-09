@@ -275,7 +275,8 @@ class MqttSchedulerActor(MqttBaseActor):
         Adds a new instrument to the list of available instruments
         or updates the reservation state."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self._update_device_status(msg.device_id, msg.device_status, force=False)
+        if transport_technology(msg.device_id) in mqtt_frontend_config["GATEWAY"]:
+            self._update_device_status(msg.device_id, msg.device_status, force=False)
 
     def _update_device_status(self, device_id, device_status, force=False):
         reservation = device_status.get("Reservation", {})

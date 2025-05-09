@@ -8,6 +8,7 @@
 
 """
 
+from copy import deepcopy
 from datetime import datetime, timezone
 from threading import Thread
 
@@ -128,7 +129,7 @@ class ZigBeeDeviceActor(UsbActor):
             logger.debug("Another ZigBee instrument is blocking %s", self.my_id)
             if self.sender_api is None:
                 self.sender_api = sender
-            self.reserve_device_msg = msg
+            self.reserve_device_msg = deepcopy(msg)
             self.return_message = ReservationStatusMsg(
                 instr_id=self.instr_id, status=Status.OCCUPIED
             )

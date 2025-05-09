@@ -172,6 +172,7 @@ class MqttDeviceActor(DeviceBaseActor):
     def _handle_reserve_reply_from_is(self, success):
         if success is Status.NOT_FOUND:
             logger.warning("Reserve request to %s timed out", self.my_id)
+            self._request_free_at_is()
         super()._handle_reserve_reply_from_is(success)
 
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
@@ -434,16 +435,16 @@ class MqttDeviceActor(DeviceBaseActor):
         if reservation == self.last_message:
             logger.debug("We have already got message %s", reservation)
             return
-        self.last_message = reservation
+        self.last_message = reservation.copy()
         logger.debug("%s received [on_reserve]: %s", self.my_id, reservation)
-        instr_status = reservation.get("Active")
+        instr_is_reserved = reservation.get("Active", False)
         app = reservation.get("App")
         host = reservation.get("Host")
         user = reservation.get("User")
         timestamp = reservation.get("Timestamp")
         if self.state["RESERVE"]["Pending"]:
             if (
-                (instr_status)
+                (instr_is_reserved)
                 and (app == self.reserve_device_msg.app)
                 and (host == self.reserve_device_msg.host)
                 and (user == self.reserve_device_msg.user)
@@ -468,15 +469,23 @@ class MqttDeviceActor(DeviceBaseActor):
                 reservation_status = Status.OCCUPIED
             reservation_active = bool(
                 reservation_status in [Status.OK, Status.OK_SKIPPED, Status.OK_UPDATED]
+                and instr_is_reserved
             )
             self.state["RESERVE"]["Active"] = reservation_active
             logger.debug("Reservation status: %s", reservation_status)
-            self._handle_reserve_reply_from_is(
-                reservation_status
-            )  # create redirector actor
+            if instr_is_reserved:
+                self._handle_reserve_reply_from_is(
+                    reservation_status
+                )  # create redirector actor
+            else:
+                logger.warning(
+                    "%s received unexpected *Free* reply instead of *Reserved*",
+                    self.instr_id,
+                )
+                self._handle_free_reply_from_is(Status.OK)
             self.state["RESERVE"]["Pending"] = False
             return
-        if not reservation.get("Active", False):
+        if not instr_is_reserved:
             logger.debug("Free status: %s", reservation_status)
             self._handle_free_reply_from_is(Status.OK)
             return

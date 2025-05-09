@@ -9,7 +9,7 @@
 
 """
 
-import copy
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -265,7 +265,7 @@ class DeviceBaseActor(BaseActor):
             return
         if self.sender_api is None:
             self.sender_api = sender
-        self.reserve_device_msg = msg
+        self.reserve_device_msg = deepcopy(msg)
         self._request_reserve_at_is()
 
     def _request_reserve_at_is(self):
@@ -414,15 +414,14 @@ class DeviceBaseActor(BaseActor):
         Forward the reservation state from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
-        logger.info("Free command returned %s", success)
+        logger.debug("Free command on %s returned %s", self.instr_id, success)
         if success in (Status.OK, Status.OK_SKIPPED, Status.OK_UPDATED):
             try:
-                if self.device_status["Reservation"]["Active"]:
-                    logger.debug("Free active %s", self.my_id)
-                    self.device_status["Reservation"]["Active"] = False
-                    self.device_status["Reservation"]["Timestamp"] = datetime.now(
-                        timezone.utc
-                    ).isoformat(timespec="seconds")
+                logger.debug("Free active %s", self.my_id)
+                self.device_status["Reservation"]["Active"] = False
+                self.device_status["Reservation"]["Timestamp"] = datetime.now(
+                    timezone.utc
+                ).isoformat(timespec="seconds")
             except (KeyError, TypeError):
                 logger.debug("Instr. was not reserved before.")
                 success = Status.OK_SKIPPED
@@ -675,7 +674,7 @@ class DeviceBaseActor(BaseActor):
                         UpdateDeviceStatusMsg(self.my_id, self.device_status),
                     )
             logger.debug("Published change: %s", self.device_status)
-            self.prev_device_status = copy.deepcopy(self.device_status)
+            self.prev_device_status = deepcopy(self.device_status)
 
     def _publish_status(self, new_subscribers: list):
         """Publish a device status to all new_subscribers."""
@@ -896,6 +895,8 @@ class DeviceBaseActor(BaseActor):
             self._send_reservation_status_msg()
         except AttributeError as exception:
             logger.error("%s on %s", exception, self.my_id)
+        if self.child_actors:
+            logger.info("%s has children: %s", self.my_id, self.child_actors)
         try:
             super()._kill_myself(register=register, resurrect=resurrect)
         except TypeError as exception:
