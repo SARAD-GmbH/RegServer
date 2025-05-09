@@ -71,6 +71,7 @@ Source: "{#Source}\config.example.toml"; DestDir: "{#Config}"
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Run]
+Filename: "{#Destination}\firewall.bat"; Flags: nowait hidewizard runhidden runascurrentuser; Tasks: allow_inbound_fw_rules
 Filename: "{#Destination}\setup-rss.bat"; Flags: nowait hidewizard runhidden runascurrentuser
 
 [UninstallRun]
@@ -81,3 +82,6 @@ Name: "post-compile.bat"; Flags: abortonerror cmdprompt redirectoutput
 
 [PreCompile]
 Name: "pre-compile.bat"; Flags: abortonerror cmdprompt redirectoutput
+
+[Tasks]
+Name: "allow_inbound_fw_rules"; Description: "Allow inbound connections"; GroupDescription: "Don't activate this task, if you are in a Zero Trust environment."
