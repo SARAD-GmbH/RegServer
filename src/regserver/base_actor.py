@@ -116,6 +116,9 @@ class BaseActor(ActorTypeDispatcher):
         self._kill_myself(register=msg.register)
 
     def _kill_myself(self, register=True, resurrect=False):
+        # The following line is a workaround to fix #442.
+        # The KeepAliveMsg shall be answered under all circumstances.
+        self._subscribe(True)
         if resurrect:
             logger.warning("%s will be killed but resurrect", self.my_id)
         if not self.on_kill:
@@ -170,7 +173,7 @@ class BaseActor(ActorTypeDispatcher):
             )
         logger.debug("self.on_kill is %s", self.on_kill)
         if (not self.child_actors) and self.on_kill:
-            if self.my_id in ("registrar"):
+            if self.my_id == "registrar":
                 logger.info("Last man (%s) standing!", self.my_id)
             else:
                 logger.debug(
@@ -206,18 +209,19 @@ class BaseActor(ActorTypeDispatcher):
             (
                 ActorExitRequest,
                 GetDeviceStatusMsg,
+                KeepAliveMsg,
                 KillMsg,
-                SubscribeToDeviceStatusMsg,
-                UnSubscribeFromDeviceStatusMsg,
-                UpdateActorDictMsg,
+                MqttReceiveMsg,
+                PrepareMqttActorMsg,
+                RescanAckMsg,
+                ReservationStatusMsg,
+                RxBinaryMsg,
                 SetDeviceStatusMsg,
                 SetupMdnsActorMsg,
                 SetupUsbActorMsg,
-                ReservationStatusMsg,
-                RxBinaryMsg,
-                RescanAckMsg,
-                MqttReceiveMsg,
-                PrepareMqttActorMsg,
+                SubscribeToDeviceStatusMsg,
+                UnSubscribeFromDeviceStatusMsg,
+                UpdateActorDictMsg,
             ),
         ):
             self.send(self.registrar, UnsubscribeMsg(msg.deadAddress))

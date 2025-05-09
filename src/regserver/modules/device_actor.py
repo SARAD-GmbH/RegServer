@@ -895,6 +895,8 @@ class DeviceBaseActor(BaseActor):
             self._send_reservation_status_msg()
         except AttributeError as exception:
             logger.error("%s on %s", exception, self.my_id)
+        if self.child_actors:
+            logger.info("%s has children: %s", self.my_id, self.child_actors)
         try:
             super()._kill_myself(register=register, resurrect=resurrect)
         except TypeError as exception:
