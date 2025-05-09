@@ -97,7 +97,6 @@ class HostActor(BaseActor):
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
-        super().receiveMsg_SetupMsg(msg, sender)
         self.http = requests.Session()
         self.http.hooks["response"] = [
             lambda response, *args, **kwargs: response.raise_for_status()
@@ -115,6 +114,7 @@ class HostActor(BaseActor):
         self._subscribe_to_actor_dict_msg()
         logger.info("Ping %s every %d minutes.", self.my_id, PING_INTERVAL)
         self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
+        super().receiveMsg_SetupMsg(msg, sender)
 
     @overrides
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):

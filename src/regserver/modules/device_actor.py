@@ -414,7 +414,7 @@ class DeviceBaseActor(BaseActor):
         Forward the reservation state from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
-        logger.info("Free command returned %s", success)
+        logger.debug("Free command on %s returned %s", self.instr_id, success)
         if success in (Status.OK, Status.OK_SKIPPED, Status.OK_UPDATED):
             try:
                 logger.debug("Free active %s", self.my_id)
