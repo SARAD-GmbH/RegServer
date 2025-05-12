@@ -242,7 +242,6 @@ class Registrar(BaseActor):
                     )
                     keep_new_actor = False
                     self.send(sender, KillMsg())
-                    return
                 elif (new_tt == TransportTechnology.IS1) and (
                     old_tt == TransportTechnology.MQTT
                 ):
@@ -256,9 +255,8 @@ class Registrar(BaseActor):
                     logger.debug("Keep device actor %s in place.", old_device_id)
                     keep_new_actor = False
                     self.send(sender, KillMsg())
-                    return
+        self.device_statuses[actor_id] = self.device_statuses.get(actor_id, {})
         if keep_new_actor:
-            self.device_statuses[actor_id] = self.device_statuses.get(actor_id, {})
             logger.debug("Subscribe %s to device statuses dict", actor_id)
             self._subscribe_to_device_status_msg(sender)
             if transport_technology(actor_id) in [
