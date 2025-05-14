@@ -162,13 +162,17 @@ class MdnsListener(ServiceListener):
                     reply = add_host.ask(
                         self.registrar,
                         CreateActorMsg(HostActor, hostname),
-                        timeout=timedelta(seconds=20),
+                        timeout=timedelta(seconds=30),
                     )
                 except ConnectionResetError as exception:
                     logger.debug(exception)
                     reply = None
             if not isinstance(reply, ActorCreatedMsg):
-                logger.critical("Got %s instead of ActorCreatedMsg", reply)
+                logger.critical(
+                    "Got %s instead of ActorCreatedMsg when trying to create %s",
+                    reply,
+                    hostname,
+                )
                 logger.critical("Check `hosts_whitelist` in `config.toml`!")
                 logger.critical("-> Stop and shutdown system")
                 system_shutdown()
@@ -218,13 +222,17 @@ class MdnsListener(ServiceListener):
                     reply = create_host.ask(
                         self.registrar,
                         CreateActorMsg(HostActor, hostname),
-                        timeout=timedelta(seconds=20),
+                        timeout=timedelta(seconds=30),
                     )
                 except ConnectionResetError as exception:
                     logger.debug(exception)
                     reply = None
             if not isinstance(reply, ActorCreatedMsg):
-                logger.critical("Got %s instead of ActorCreatedMsg", reply)
+                logger.critical(
+                    "Got %s instead of ActorCreatedMsg when trying to create %s",
+                    reply,
+                    hostname,
+                )
                 logger.critical("-> Stop and shutdown system")
                 system_shutdown()
             elif reply.actor_address is None:
