@@ -224,8 +224,9 @@ class MdnsListener(ServiceListener):
                     logger.debug(exception)
                     reply = None
             if not isinstance(reply, ActorCreatedMsg):
-                logger.error("Got %s instead of ActorCreatedMsg", reply)
-                logger.info("Creation of Host Actor for %s failed.", hostname)
+                logger.critical("Got %s instead of ActorCreatedMsg", reply)
+                logger.critical("-> Stop and shutdown system")
+                system_shutdown()
             elif reply.actor_address is None:
                 return
             else:
