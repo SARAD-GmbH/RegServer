@@ -45,8 +45,7 @@ class TimeoutHTTPAdapter(HTTPAdapter):
     @overrides
     def send(
         self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None
-    ):
-        # pylint: disable=too-many-arguments
+    ):  # pylint: disable=too-many-arguments, too-many-positional-arguments
         if timeout is None:
             timeout = self.timeout
         return super().send(request, stream, timeout, verify, cert, proxies)
@@ -84,7 +83,7 @@ class HostActor(BaseActor):
             version="",
             running_since=datetime(year=1970, month=1, day=1),
         )
-        self.port = None
+        self.port = 0
         self.ping_thread = Thread(target=self._ping_function, daemon=True)
         self.scan_thread = Thread(target=self._scan_function, daemon=True)
         self.rescan_thread = Thread(target=self._rescan_function, daemon=True)
@@ -121,7 +120,15 @@ class HostActor(BaseActor):
         super().receiveMsg_UpdateActorDictMsg(msg, sender)
         if self.my_id in msg.actor_dict:
             if self._virgin:
-                self.send(self._asys, ActorCreatedMsg(self.myAddress))
+                self.send(
+                    self._asys,
+                    ActorCreatedMsg(
+                        self.myAddress,
+                        actor_type=self.actor_type,
+                        hostname=self.my_id,
+                        port=self.port,
+                    ),
+                )
                 self._virgin = False
 
     @overrides

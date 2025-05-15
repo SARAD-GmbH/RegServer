@@ -12,15 +12,11 @@ services (SARAD devices) in the local network.
 
 import ipaddress
 import socket
-from datetime import timedelta
 
-from regserver.actor_messages import (ActorCreatedMsg, CreateActorMsg, KillMsg,
-                                      SetDeviceStatusMsg, SetupHostActorMsg)
+from regserver.actor_messages import KillMsg, SetupLanDeviceMsg
 from regserver.config import config, lan_backend_config
 from regserver.helpers import get_actor, sarad_protocol, short_id
-from regserver.hostname_functions import compare_hostnames
 from regserver.logger import logger
-from regserver.modules.backend.mdns.host_actor import HostActor
 from regserver.shutdown import system_shutdown
 from sarad.global_helpers import decode_instr_id  # type: ignore
 from thespian.actors import ActorSystem  # type: ignore
@@ -132,7 +128,7 @@ class MdnsListener(ServiceListener):
             }
         }
 
-    def _get_host_actor(self, zc, type_, name):
+    def _get_hostname(self, zc, type_, name):
         # pylint: disable=invalid-name
         info = zc.get_service_info(
             type_, name, timeout=lan_backend_config["MDNS_TIMEOUT"]
@@ -140,10 +136,7 @@ class MdnsListener(ServiceListener):
         hostname = self.get_host_addr(info)
         if hostname is None:
             logger.warning("Cannot handle Zeroconf service with info=%s", info)
-            host_actor = None
-            return host_actor, hostname
-        host_actor = get_actor(self.registrar, hostname)
-        return host_actor, hostname
+        return hostname
 
     def __init__(self, registrar_actor):
         """
@@ -153,45 +146,11 @@ class MdnsListener(ServiceListener):
         self.registrar = registrar_actor
         self.zeroconf = None
         self.browser = None
-        self.hosts_whitelist = lan_backend_config.get("HOSTS_WHITELIST", [])
-        for host in self.hosts_whitelist:
-            hostname = host[0]
-            logger.debug("Ask Registrar to create Host Actor %s", hostname)
-            with ActorSystem().private() as add_host:
-                try:
-                    reply = add_host.ask(
-                        self.registrar,
-                        CreateActorMsg(HostActor, hostname),
-                        timeout=timedelta(seconds=30),
-                    )
-                except ConnectionResetError as exception:
-                    logger.debug(exception)
-                    reply = None
-            if not isinstance(reply, ActorCreatedMsg):
-                logger.critical(
-                    "Got %s instead of ActorCreatedMsg when trying to create %s",
-                    reply,
-                    hostname,
-                )
-                logger.critical("Check `hosts_whitelist` in `config.toml`!")
-                logger.critical("-> Stop and shutdown system")
-                system_shutdown()
-            elif reply.actor_address is None:
-                return
-            else:
-                host_actor = reply.actor_address
-                ActorSystem().tell(
-                    host_actor,
-                    SetupHostActorMsg(
-                        host=hostname,
-                        port=host[1],
-                        scan_interval=lan_backend_config["SCAN_INTERVAL"],
-                    ),
-                )
+        self.host_creator_actor = get_actor(self.registrar, "host_creator")
 
     def start(self, service_type):
         """Start the ZeroConf listener thread"""
-        if not self.hosts_whitelist:
+        if not lan_backend_config.get("HOSTS_WHITELIST", []):
             self.zeroconf = Zeroconf(
                 ip_version=lan_backend_config["IP_VERSION"],
                 interfaces=[config["MY_IP"], "127.0.0.1"],
@@ -203,44 +162,9 @@ class MdnsListener(ServiceListener):
         """Hook, being called when a new service
         representing a device is being detected"""
         logger.debug("[Add] Service %s of type %s", name, type_)
-        host_actor, hostname = self._get_host_actor(zc, type_, name)
-        logger.debug("hostname: %s, host_actor: %s", hostname, host_actor)
-        if hostname is None:
-            return
-        my_hostname = config["MY_HOSTNAME"]
-        logger.debug("Host to add: %s", hostname)
-        logger.debug("My hostname: %s", my_hostname)
-        hosts_blacklist = lan_backend_config.get("HOSTS_BLACKLIST", [])
-        if (
-            (host_actor is None)
-            and (not compare_hostnames(my_hostname, hostname))
-            and (hostname not in hosts_blacklist)
-        ):
-            logger.debug("Ask Registrar to create Host Actor %s", hostname)
-            with ActorSystem().private() as create_host:
-                try:
-                    reply = create_host.ask(
-                        self.registrar,
-                        CreateActorMsg(HostActor, hostname),
-                        timeout=timedelta(seconds=30),
-                    )
-                except ConnectionResetError as exception:
-                    logger.debug(exception)
-                    reply = None
-            if not isinstance(reply, ActorCreatedMsg):
-                logger.critical(
-                    "Got %s instead of ActorCreatedMsg when trying to create %s",
-                    reply,
-                    hostname,
-                )
-                logger.critical("-> Stop and shutdown system")
-                system_shutdown()
-            elif reply.actor_address is None:
-                return
-            else:
-                host_actor = reply.actor_address
+        hostname = self._get_hostname(zc, type_, name)
         data = self.convert_properties(zc, type_, name)
-        if (data is not None) and (host_actor is not None):
+        if data is not None:
             first_key = next(iter(data))
             if data[first_key].get("Remote", False):
                 if data[first_key]["Remote"].get("API port"):
@@ -250,11 +174,11 @@ class MdnsListener(ServiceListener):
             else:
                 api_port = 0
             ActorSystem().tell(
-                host_actor,
-                SetupHostActorMsg(host=hostname, port=api_port, scan_interval=0),
+                self.host_creator_actor,
+                SetupLanDeviceMsg(
+                    host=hostname, port=api_port, scan_interval=0, device_status=data
+                ),
             )
-            logger.debug("Tell Host Actor to setup device actor with %s", data)
-            ActorSystem().tell(host_actor, SetDeviceStatusMsg(data))
         elif data is None:
             logger.error(
                 "add_service was called with bad parameters: %s, %s, %s",

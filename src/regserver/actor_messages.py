@@ -268,6 +268,25 @@ class SetupHostActorMsg:
 
 
 @dataclass
+class SetupLanDeviceMsg:
+    """Message used to send the setup information required by DeviceCreatorActor
+    to setup a new Device Actor.
+
+    Args:
+        host: Hostname of the host running the instrument server
+        port: Port address of the REST API
+        scan_interval (int): Polling interval for instrument detection via REST API
+                             in seconds. 0 = don't scan!
+        device_status (dict): Dictionary with status information of the instrument.
+    """
+
+    host: str
+    port: int
+    scan_interval: int
+    device_status: dict[str, object]
+
+
+@dataclass
 class SetupUsbActorMsg:
     """Message used to send the special setup information required for USB Actors.
     The parameters are required to create the SaradInst object for serial communication
@@ -746,10 +765,13 @@ class CreateActorMsg:
 
 @dataclass
 class ActorCreatedMsg:
-    """Message sent by the Registrar to inform the recipient about
-    a newly created actor."""
+    """Message sent by the HostActor to inform the HostCreatorActor about
+    a successfully created HostActor."""
 
     actor_address: ActorAddress
+    actor_type: Any
+    hostname: str
+    port: int
 
 
 @dataclass

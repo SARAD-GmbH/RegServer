@@ -36,6 +36,7 @@ from regserver.config import (actor_config, backend_config, config,
 from regserver.helpers import short_id, transport_technology
 from regserver.logger import logger
 from regserver.modules.backend.is1.is1_listener import Is1Listener
+from regserver.modules.backend.mdns.lan_host_creator import HostCreatorActor
 from regserver.modules.backend.mqtt.mqtt_client_actor import MqttClientActor
 from regserver.modules.backend.usb.cluster_actor import ClusterActor
 from regserver.modules.frontend.mdns.mdns_scheduler import MdnsSchedulerActor
@@ -45,6 +46,7 @@ from regserver.shutdown import system_shutdown
 ACTOR_DICT = {
     "mqtt_scheduler": MqttSchedulerActor,
     "mdns_scheduler": MdnsSchedulerActor,
+    "host_creator": HostCreatorActor,
     "cluster": ClusterActor,
     "mqtt_client_actor": MqttClientActor,
     "is1_listener": Is1Listener,
@@ -71,6 +73,8 @@ class Registrar(BaseActor):
             self._create_actor(MqttSchedulerActor, "mqtt_scheduler", None)
         if Frontend.LAN in frontend_config:
             self._create_actor(MdnsSchedulerActor, "mdns_scheduler", None)
+        if TransportTechnology.LAN in backend_config:
+            self._create_actor(HostCreatorActor, "host_creator", None)
         if TransportTechnology.LOCAL in backend_config:
             self._create_actor(ClusterActor, "cluster", None)
         if TransportTechnology.MQTT in backend_config:
