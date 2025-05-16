@@ -337,7 +337,6 @@ class HostActor(BaseActor):
                     if transport_technology(device_id) in [
                         TransportTechnology.LOCAL,
                         TransportTechnology.IS1,
-                        TransportTechnology.MQTT,
                     ]:
                         device_status["Remote"] = {
                             "Address": self.host.host,
