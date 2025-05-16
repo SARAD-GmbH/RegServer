@@ -161,7 +161,7 @@ class ComActor(BaseActor):
                     test_instrument.type_id,
                     test_instrument.serial_number,
                 )
-                if test_instrument.type_id and test_instrument.serial_number:
+                if test_instrument.type_id:
                     instr_id = encode_instr_id(
                         test_instrument.family["family_id"],
                         test_instrument.type_id,
