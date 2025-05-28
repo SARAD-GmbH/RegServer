@@ -17,6 +17,7 @@ import shutil
 import signal
 import sys
 import threading
+import traceback
 from datetime import datetime, timedelta
 from multiprocessing import Process, freeze_support
 from time import sleep
@@ -336,10 +337,14 @@ class Main:
     def custom_hook(self, args):
         """Custom exception hook to handle exceptions that occured within threads."""
         logger.critical("Thread %s failed with %s", args.thread, args.exc_value)
-        logger.critical("Traceback: %s", args.exc_traceback)
+        formatted_exception = traceback.format_exception(
+            args.exc_type, args.exc_value, args.exc_traceback
+        )
+        logger.critical("Traceback: %s", formatted_exception)
         if args.exc_type == OSError and ("zeroconf" in args.thread):
             logger.info("I'm ignoring this error. Fingers crossed!")
         else:
+            logger.info("[custom_hook] emergency shutdown")
             system_shutdown(with_error=True)
 
     def check_network(self, stop_event):
