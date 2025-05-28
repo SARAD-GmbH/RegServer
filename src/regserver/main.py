@@ -341,8 +341,9 @@ class Main:
             args.exc_type, args.exc_value, args.exc_traceback
         )
         logger.critical("Traceback: %s", formatted_exception)
-        if args.exc_type == OSError and ("zeroconf" in args.thread):
-            logger.info("I'm ignoring this error. Fingers crossed!")
+        if args.exc_type == OSError and ("ServiceBrowser" in args.thread):
+            logger.info("[custom_hook] Restart ServiceBrowser")
+            self.lan_backend.browser.run()
         else:
             logger.info("[custom_hook] emergency shutdown")
             system_shutdown(with_error=True)
