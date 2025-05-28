@@ -30,8 +30,7 @@ from regserver.actor_messages import (Frontend, KillMsg, SetupMsg,
                                       TransportTechnology)
 from regserver.config import (CONFIG_FILE, FRMT, PING_FILE_NAME, actor_config,
                               backend_config, config, frontend_config,
-                              lan_backend_config, mqtt_config,
-                              rest_frontend_config)
+                              lan_backend_config, rest_frontend_config)
 from regserver.logdef import LOGFILENAME, logcfg
 from regserver.logger import logger
 from regserver.modules.backend.mdns.mdns_listener import MdnsListener
@@ -170,15 +169,15 @@ class Main:
         process.
 
         """
-        retry_interval = mqtt_config.get("RETRY_INTERVAL", 60)
+        wait_before_restart = rest_frontend_config.get("WAIT_BEFORE_RESTART", 60)
         port = rest_frontend_config["API_PORT"]
-        while True:
+        while not self.stop_event.is_set():
             try:
                 logger.info("Starting API at port %d", port)
                 serve(app, listen=f"*:{port}", threads=24, connection_limit=200)
             except OSError as exception:
                 logger.critical(exception)
-                sleep(retry_interval)
+                sleep(wait_before_restart)
 
     def handle_aranea_led(self):
         """Take care to switch the green LED, if there is one"""
@@ -354,7 +353,7 @@ class Main:
             p = select.poll()  # pylint: disable=invalid-name
             p.register(j, j.get_events())
             self.led.on()
-            while p.poll() and not stop_event.isSet():
+            while p.poll() and not stop_event.is_set():
                 if j.process() != journal.APPEND:
                     sleep(0.5)
                     continue

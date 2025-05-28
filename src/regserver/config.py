@@ -374,11 +374,13 @@ else:
 # Configuration of REST frontend
 DEFAULT_API_PORT = 8008
 DEFAULT_PORT_RANGE = range(50003, 50500)
+DEFAULT_WAIT = 5
 
 if cust_dict.get("rest_frontend") is None:
     rest_frontend_config: RestFrontendConfigDict = {
         "API_PORT": DEFAULT_API_PORT,
         "PORT_RANGE": DEFAULT_PORT_RANGE,
+        "WAIT_BEFORE_RESTART": DEFAULT_WAIT,
     }
 else:
     try:
@@ -389,6 +391,9 @@ else:
     rest_frontend_config = {
         "API_PORT": int(cust_dict["rest_frontend"].get("api_port", DEFAULT_API_PORT)),
         "PORT_RANGE": PORT_RANGE,
+        "WAIT_BEFORE_RESTART": int(
+            cust_dict["rest_frontend"].get("wait_before_restart", DEFAULT_WAIT)
+        ),
     }
 
 # Configuration of Modbus RTU frontend

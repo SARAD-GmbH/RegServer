@@ -167,6 +167,13 @@
 ### Default: [50003, 50500]
 #port_range = [50003, 50500]
 
+### Key: wait_before_restart
+## In the case of failure, the webserver providing the REST API will be restarted
+## after a certain waiting time. `wait_before_restart` defines this waiting time
+## in seconds.
+### Default: 5
+#wait_before_restart = 5
+
 
 ## The `mqtt` section contains parameters regarding both the MQTT frontend as
 ## well as the MQTT backend.

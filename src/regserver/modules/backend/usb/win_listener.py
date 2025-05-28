@@ -105,7 +105,7 @@ class UsbListener(BaseListener):
         self.hwnd = self._create_listener()
         logger.debug("Created listener window with hwnd=%s", self.hwnd)
         logger.info("[Start] Windows USB Listener")
-        while not stop_event.isSet():
+        while not stop_event.is_set():
             win32gui.PumpWaitingMessages()
             sleep(0.5)
         self.stop()

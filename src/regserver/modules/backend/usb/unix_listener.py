@@ -49,7 +49,7 @@ class UsbListener(BaseListener):
         """Start listening and keep listening until SIGTERM or SIGINT or stop()"""
         self._usb_stick_observer.start()
         logger.info("Start listening for USB devices.")
-        while not stop_event.isSet():
+        while not stop_event.is_set():
             sleep(0.5)
         self.stop()
 
