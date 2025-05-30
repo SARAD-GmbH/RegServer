@@ -164,7 +164,7 @@ class MdnsListener(ServiceListener):
         logger.debug("[Add] Service %s of type %s", name, type_)
         hostname = self._get_hostname(zc, type_, name)
         data = self.convert_properties(zc, type_, name)
-        if data is not None:
+        if data is not None and hostname is not None:
             first_key = next(iter(data))
             if data[first_key].get("Remote", False):
                 if data[first_key]["Remote"].get("API port"):
@@ -179,7 +179,7 @@ class MdnsListener(ServiceListener):
                     host=hostname, port=api_port, scan_interval=0, device_status=data
                 ),
             )
-        elif data is None:
+        else:
             logger.error(
                 "add_service was called with bad parameters: %s, %s, %s",
                 zc,

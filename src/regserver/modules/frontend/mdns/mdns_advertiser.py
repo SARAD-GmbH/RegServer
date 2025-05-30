@@ -36,10 +36,14 @@ class MdnsAdvertiserActor(BaseActor):
         self.tcp_port = rest_frontend_config["API_PORT"]
         self.address = config["MY_IP"]
         self.service = None
-        self.zeroconf = Zeroconf(
-            ip_version=lan_frontend_config["IP_VERSION"],
-            interfaces=[config["MY_IP"], "127.0.0.1"],
-        )
+        try:
+            self.zeroconf = Zeroconf(
+                ip_version=lan_frontend_config["IP_VERSION"],
+                interfaces=[config["MY_IP"], "127.0.0.1"],
+            )
+        except OSError:
+            self.zeroconf = None
+            logger.error("No network -- %s", self.my_id)
         self.service_name = ""
         self.instr_name = ""
         self.device_id = ""
@@ -72,9 +76,9 @@ class MdnsAdvertiserActor(BaseActor):
             self.occupied = False
         else:
             self.occupied = msg.device_status["Reservation"].get("Active", False)
-            if not self.virgin:
+            if not self.virgin and self.zeroconf is not None:
                 self.__update_service()
-        if self.virgin:
+        if self.virgin and self.zeroconf is not None:
             try:
                 self.__start_advertising()
             except NonUniqueNameException:
