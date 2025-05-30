@@ -29,6 +29,7 @@ class RestFrontendConfigDict(TypedDict):
     """Type declaration for rest_frontend_config."""
     API_PORT: int
     PORT_RANGE: range
+    WAIT_BEFORE_RESTART: int
 
 
 class ModbusRtuFrontendConfigDict(TypedDict):

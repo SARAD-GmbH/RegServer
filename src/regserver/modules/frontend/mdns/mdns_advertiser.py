@@ -9,11 +9,10 @@ The associated Redirector will be created by the Device Actor on Reservation.
 :Authors:
     | Michael Strey <strey@sarad.de>
 
-Based on work of Riccardo Förster <foerster@sarad.de>.
-
 """
 
 import socket
+from threading import Thread
 
 from overrides import overrides  # type: ignore
 from regserver.base_actor import BaseActor
@@ -118,6 +117,11 @@ class MdnsAdvertiserActor(BaseActor):
             server=get_hostname(get_ip(False)),
             addresses=[socket.inet_aton(self.address)],
         )
+        register_thread = Thread(target=self.register_service, daemon=True)
+        register_thread.start()
+
+    def register_service(self):
+        """Function for register_thread"""
         try:
             self.zeroconf.register_service(self.service)
         except (EventLoopBlocked, AssertionError) as exception:
@@ -130,28 +134,33 @@ class MdnsAdvertiserActor(BaseActor):
         logger.debug(
             "Update service for %s: occupied = %s", self.device_id, self.occupied
         )
-        properties = {
-            "VENDOR": "SARAD GmbH",
-            "MODEL_ENC": self.instr_name,
-            "SERIAL_SHORT": self.service_name,
-            "DEVICE_ID": self.device_id,
-            "OCCUPIED": self.occupied,
-        }
-        service_type = lan_frontend_config["TYPE"]
-        self.service = ServiceInfo(
-            service_type,
-            f"{self.service_name}.{service_type}",
-            port=self.tcp_port,
-            weight=0,
-            priority=0,
-            properties=properties,
-            server=get_hostname(get_ip(False)),
-            addresses=[socket.inet_aton(self.address)],
-        )
+        if not self.virgin:
+            properties = {
+                "VENDOR": "SARAD GmbH",
+                "MODEL_ENC": self.instr_name,
+                "SERIAL_SHORT": self.service_name,
+                "DEVICE_ID": self.device_id,
+                "OCCUPIED": self.occupied,
+            }
+            service_type = lan_frontend_config["TYPE"]
+            self.service = ServiceInfo(
+                service_type,
+                f"{self.service_name}.{service_type}",
+                port=self.tcp_port,
+                weight=0,
+                priority=0,
+                properties=properties,
+                server=get_hostname(get_ip(False)),
+                addresses=[socket.inet_aton(self.address)],
+            )
+            update_thread = Thread(target=self.update_service, daemon=True)
+            update_thread.start()
+
+    def update_service(self):
+        """Function for update_thread"""
         try:
             self.zeroconf.update_service(self.service)
         except (EventLoopBlocked, AssertionError) as exception:
             logger.critical(
                 "Exception in __update_service: %s, %s", exception, self.service
             )
-            # system_shutdown()

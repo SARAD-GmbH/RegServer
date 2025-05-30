@@ -80,6 +80,9 @@ lint = [
     "ruff>=0.3.4",
 ]
 
+[tool.pdm.scripts]
+_.env_file = ".env"
+
 [tool.pylint.MAIN]
 init-hook = """
 try: import pylint_venv
