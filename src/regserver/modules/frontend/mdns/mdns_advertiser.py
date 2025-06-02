@@ -126,6 +126,7 @@ class MdnsAdvertiserActor(BaseActor):
 
     def register_service(self):
         """Function for register_thread"""
+        logger.debug("Register %s", self.device_id)
         try:
             self.zeroconf.register_service(self.service)
         except (EventLoopBlocked, AssertionError) as exception:
@@ -162,6 +163,7 @@ class MdnsAdvertiserActor(BaseActor):
 
     def update_service(self):
         """Function for update_thread"""
+        logger.debug("Update %s", self.device_id)
         try:
             self.zeroconf.update_service(self.service)
         except (EventLoopBlocked, AssertionError) as exception:

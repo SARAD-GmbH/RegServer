@@ -112,7 +112,7 @@ class HostActor(BaseActor):
         self._asys = msg.asys_address
         self._subscribe_to_actor_dict_msg()
         logger.info("Ping %s every %d minutes.", self.my_id, PING_INTERVAL)
-        self.wakeupAfter(timedelta(minutes=PING_INTERVAL), payload="ping")
+        self.wakeupAfter(timedelta(seconds=1), payload="ping")
         super().receiveMsg_SetupMsg(msg, sender)
 
     @overrides
@@ -148,7 +148,7 @@ class HostActor(BaseActor):
         self.base_url = f"http://{msg.host}:{msg.port}"
         self.port = msg.port
         if self.scan_interval:
-            logger.debug("Scan %s every %d seconds", self.base_url, self.scan_interval)
+            logger.info("Scan %s every %d seconds", self.base_url, self.scan_interval)
             self.wakeupAfter(timedelta(seconds=1), payload="scan")
 
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
@@ -333,11 +333,13 @@ class HostActor(BaseActor):
                     "Instrument list on remote host %s is empty.", self.host.host
                 )
             else:
+                updated_instr_list = []
                 for device_id, device_status in device_list.items():
                     if transport_technology(device_id) in [
                         TransportTechnology.LOCAL,
                         TransportTechnology.IS1,
                     ]:
+                        updated_instr_list.append(short_id(device_id))
                         device_status["Remote"] = {
                             "Address": self.host.host,
                             "API port": self.port,
@@ -347,6 +349,13 @@ class HostActor(BaseActor):
                         device_actor_id = self.mdns_id(device_id)
                         if device_actor_id not in self.child_actors:
                             self._set_device_status({device_actor_id: device_status})
+            current_instr_list = [short_id(x) for x in self.child_actors]
+            for current_instr in current_instr_list:
+                if current_instr not in updated_instr_list:
+                    logger.debug("@%s, remove %s", self.my_id, current_instr)
+                    for device_actor_id, child_actor in self.child_actors.items():
+                        if current_instr in device_actor_id:
+                            self.send(child_actor["actor_address"], KillMsg())
         logger.debug("Scan of %s finished", self.my_id)
 
     def _get_host_info(self):

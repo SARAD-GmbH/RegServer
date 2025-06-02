@@ -65,7 +65,7 @@ class MdnsSchedulerActor(BaseActor):
 
     def _create_instrument(self, device_id):
         """Create advertiser actor if it does not exist already"""
-        logger.info("Create MdnsAdvertiserActor of %s", device_id)
+        logger.debug("Create MdnsAdvertiserActor of %s", device_id)
         my_advertiser = self._create_actor(
             MdnsAdvertiserActor, self._advertiser(device_id), None
         )
