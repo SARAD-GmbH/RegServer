@@ -148,6 +148,7 @@ class Is1Listener(BaseActor):
         self.scan_is_thread = Thread(target=self._scan_is_function, daemon=True)
         self.cmd_thread = Thread(target=self._cmd_handler_function, daemon=True)
         self.actor_type = ActorType.HOST
+        self.last_ip = ""
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -184,6 +185,7 @@ class Is1Listener(BaseActor):
                     self._client_socket, _socket_info = server_socket.accept()
                     self.read_list.append(self._client_socket)
                     logger.info("Connection from %s", _socket_info)
+                    self.last_ip = _socket_info[0]
                 else:
                     self._cmd_handler()
         except ValueError:
@@ -211,6 +213,10 @@ class Is1Listener(BaseActor):
 
     def _cmd_handler_function(self):
         """Handle a binary SARAD command received via the socket."""
+        try:
+            fqdn = socket.getfqdn(self.last_ip)
+        except socket.error:
+            fqdn = ""
         for _i in range(0, 5):
             try:
                 data = self.conn.recv(1024)
@@ -225,11 +231,13 @@ class Is1Listener(BaseActor):
                 data,
             )
             is_port_id = self._get_port_and_id(data)
+            if not fqdn:
+                fqdn = is_port_id["id"]
             logger.debug("IS1 port: %d", is_port_id["port"])
-            logger.debug("IS1 hostname: %s", is_port_id["id"])
+            logger.debug("IS1 hostname: %s", fqdn)
             self._scan_one_is(
                 Is1Address(
-                    hostname=is_port_id["id"],
+                    hostname=fqdn,
                     port=is_port_id["port"],
                 )
             )
