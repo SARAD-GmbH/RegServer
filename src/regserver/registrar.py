@@ -90,6 +90,12 @@ class Registrar(BaseActor):
                 timedelta(seconds=keepalive_interval), payload="keep alive"
             )
 
+    @overrides
+    def receiveMsg_ChildActorExited(self, msg, sender):
+        actor_id = self._get_actor_id(msg.childAddress, self.child_actors)
+        self.check_persistency(actor_id)
+        super().receiveMsg_ChildActorExited(msg, sender)
+
     def receiveMsg_ControlFunctionalityMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for a message to switch frontends of backends on or off."""
@@ -364,6 +370,7 @@ class Registrar(BaseActor):
         removed_actor = self.actor_dict.pop(actor_id, None)
         logger.info("%s removed from actor_dict", actor_id)
         if removed_actor is not None:
+            self.check_persistency(actor_id)
             self._send_updates(self.actor_dict)
 
     def _send_updates(self, actor_dict):
@@ -641,6 +648,25 @@ class Registrar(BaseActor):
                 logger.critical("Emergency shutdown")
                 system_shutdown(with_error=True)
                 return False
+        return True
+
+    def check_persistency(self, actor_id) -> bool:
+        """Make sure that all Actors that shall run all the time stay alive."""
+        if (
+            actor_id
+            in [
+                "mqtt_scheduler",
+                "mdns_scheduler",
+                "host_creator",
+                "cluster",
+                "mqtt_client_actor",
+                "is1_listener",
+            ]
+            and not self.on_kill
+        ):
+            logger.critical("%s was killed. This should never happen.", actor_id)
+            system_shutdown(with_error=True)
+            return False
         return True
 
     def receiveMsg_RecentValueMsg(self, msg, sender):
