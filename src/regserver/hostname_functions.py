@@ -6,7 +6,9 @@ Created
 Authors
     Michael Strey <strey@sarad.de>
 """
+
 import re
+import socket
 
 
 def is_fqdn(hostname: str) -> bool:
@@ -44,3 +46,14 @@ def compare_hostnames(hn1: str, hn2: str) -> bool:
     if is_fqdn(hn1) and is_fqdn(hn2):
         return bool(hn1.casefold() == hn2.casefold())
     return bool(sanitize_hn(hn1) == sanitize_hn(hn2))
+
+
+def get_fqdn_from_pqdn(pqdn):
+    """Get the Fully Qualified Domain Name from a Partially Qualified Domain Name."""
+    if is_fqdn(pqdn):
+        return pqdn
+    try:
+        fqdn = socket.getfqdn(pqdn)
+        return fqdn
+    except socket.error:
+        return None

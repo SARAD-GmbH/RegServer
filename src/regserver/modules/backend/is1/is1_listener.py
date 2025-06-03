@@ -21,6 +21,7 @@ from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
 from regserver.base_actor import BaseActor
 from regserver.config import CONFIG_FILE, config, is1_backend_config
 from regserver.helpers import check_message, make_command_msg
+from regserver.hostname_functions import get_fqdn_from_pqdn
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.cluster import id_family_mapping  # type: ignore
@@ -47,7 +48,10 @@ class Is1Listener(BaseActor):
     def _get_port_and_id(is_id):
         id_string = is_id.decode("utf-8")
         id_list = id_string.rstrip("\r\n").split("-", 1)
-        return {"port": int(id_list[0]), "id": id_list[1]}
+        port = int(id_list[0])
+        host = id_list[1]
+        fqdn = get_fqdn_from_pqdn(host)
+        return {"port": port, "id": fqdn}
 
     @staticmethod
     def _get_instrument_id(payload: bytes):
