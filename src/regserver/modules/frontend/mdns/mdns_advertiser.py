@@ -130,8 +130,17 @@ class MdnsAdvertiserActor(BaseActor):
         try:
             self.zeroconf.register_service(self.service)
         except (EventLoopBlocked, AssertionError) as exception:
-            logger.critical("Exception in __start_advertising: %s", exception)
+            logger.critical(
+                "Exception in register_service of %s: %s", self.my_id, exception
+            )
             system_shutdown()
+        except NonUniqueNameException:
+            logger.error(
+                "NonUniqueNameException in register_service of %s. Service: %s",
+                self.my_id,
+                self.service,
+            )
+            return
         self.virgin = False
         self.__update_service()
 
@@ -168,5 +177,11 @@ class MdnsAdvertiserActor(BaseActor):
             self.zeroconf.update_service(self.service)
         except (EventLoopBlocked, AssertionError) as exception:
             logger.critical(
-                "Exception in __update_service: %s, %s", exception, self.service
+                "Exception in update_service: %s, %s", exception, self.service
+            )
+        except NonUniqueNameException:
+            logger.error(
+                "NonUniqueNameException in update_service of %s. Service: %s",
+                self.my_id,
+                self.service,
             )
