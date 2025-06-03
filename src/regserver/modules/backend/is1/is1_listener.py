@@ -315,11 +315,16 @@ class Is1Listener(BaseActor):
                     and checked_reply["payload"][0].to_bytes(1, byteorder="little")
                     == self.COM_SELECTED
                 ):
-                    self._create_and_setup_actor(
-                        instr_id=this_instrument["instr_id"],
-                        is1_address=address,
-                        firmware_version=this_instrument["version"],
-                    )
+                    instr_id = this_instrument["instr_id"]
+                    family_id = decode_instr_id(instr_id)[0]
+                    if id_family_mapping.get(family_id) is not None:
+                        self._create_and_setup_actor(
+                            instr_id=instr_id,
+                            is1_address=address,
+                            firmware_version=this_instrument["version"],
+                        )
+                    else:
+                        logger.error("%s isn't a valid instrument", instr_id)
                 self._update_host_info()
             else:
                 logger.error("Error parsing payload received from instrument")
