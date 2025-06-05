@@ -22,7 +22,8 @@ from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.shutdown import system_shutdown
 from zeroconf import ServiceInfo, Zeroconf
-from zeroconf._exceptions import EventLoopBlocked, NonUniqueNameException
+from zeroconf._exceptions import (EventLoopBlocked, NonUniqueNameException,
+                                  ServiceNameAlreadyRegistered)
 
 
 class MdnsAdvertiserActor(BaseActor):
@@ -134,9 +135,10 @@ class MdnsAdvertiserActor(BaseActor):
                 "Exception in register_service of %s: %s", self.my_id, exception
             )
             system_shutdown()
-        except NonUniqueNameException:
+        except (NonUniqueNameException, ServiceNameAlreadyRegistered) as exception:
             logger.error(
-                "NonUniqueNameException in register_service of %s. Service: %s",
+                "%s in register_service of %s. Service: %s",
+                exception,
                 self.my_id,
                 self.service,
             )
