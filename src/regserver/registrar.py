@@ -138,10 +138,19 @@ class Registrar(BaseActor):
             success = True
             for actor_id in self.actor_dict:
                 if not self.actor_dict[actor_id]["is_alive"]:
-                    logger.critical(
-                        "Actor %s did not respond to KeepAliveMsg.", actor_id
-                    )
-                    success = False
+                    if (
+                        self.actor_dict[actor_id].get("actor_type", ActorType.NONE)
+                        == ActorType.DEVICE
+                        and transport_technology(actor_id) == TransportTechnology.IS1
+                    ):
+                        logger.error(
+                            "Actor %s did not respond to KeepAliveMsg.", actor_id
+                        )
+                    else:
+                        logger.critical(
+                            "Actor %s did not respond to KeepAliveMsg.", actor_id
+                        )
+                        success = False
             if success:
                 logger.debug("Watchdog: health check finished successfully")
                 self.wakeupAfter(
