@@ -91,7 +91,11 @@ class UsbActor(DeviceBaseActor):
     def _check_connection(self, purpose: Purpose = Purpose.WAKEUP):
         logger.debug("Check if %s is still connected", self.my_id)
         if self.instrument is not None:
-            self.is_connected = self.instrument.get_description()
+            try:
+                self.is_connected = self.instrument.get_description()
+            except TypeError:
+                logger.error("Cannot get instrument description of %s", self.my_id)
+                self.is_connected = False
         if purpose == Purpose.WAKEUP:
             self._finish_poll()
         elif purpose == Purpose.RESERVE:
