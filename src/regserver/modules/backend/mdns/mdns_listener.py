@@ -183,12 +183,15 @@ class MdnsListener(ServiceListener):
                     api_port = 0
             else:
                 api_port = 0
-            ActorSystem().tell(
-                self.host_creator_actor,
-                SetupLanDeviceMsg(
+            try:
+                msg = SetupLanDeviceMsg(
                     host=hostname, port=api_port, scan_interval=0, device_status=data
-                ),
-            )
+                )
+                ActorSystem().tell(self.host_creator_actor, msg)
+            except OSError:
+                logger.critical(
+                    "OSError in ActorSystem().tell. SetupLanDeviceMsg: %s", msg
+                )
         else:
             logger.error(
                 "add_service was called with bad parameters: %s, %s, %s",
