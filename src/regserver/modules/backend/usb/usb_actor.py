@@ -195,7 +195,7 @@ class UsbActor(DeviceBaseActor):
     def _finish_poll(self):
         """Finalize the handling of WakeupMessage for regular rescan"""
         if not self.is_connected and not self.on_kill:
-            logger.info("Nothing connected -> Killing myself")
+            logger.info("Nothing connected -> Killing %s", self.my_id)
             self._kill_myself()
         elif self.instrument.family.get("family_id", False):
             instr_id = encode_instr_id(
