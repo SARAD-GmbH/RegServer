@@ -20,7 +20,8 @@ from regserver.logger import logger
 from regserver.shutdown import system_shutdown
 from sarad.global_helpers import decode_instr_id  # type: ignore
 from thespian.actors import ActorSystem  # type: ignore
-from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
+from zeroconf import (BadTypeInNameException, NonUniqueNameException,
+                      ServiceBrowser, ServiceListener, Zeroconf)
 
 
 class MdnsListener(ServiceListener):
@@ -130,9 +131,12 @@ class MdnsListener(ServiceListener):
 
     def _get_hostname(self, zc, type_, name):
         # pylint: disable=invalid-name
-        info = zc.get_service_info(
-            type_, name, timeout=lan_backend_config["MDNS_TIMEOUT"]
-        )
+        try:
+            info = zc.get_service_info(
+                type_, name, timeout=lan_backend_config["MDNS_TIMEOUT"]
+            )
+        except (OSError, BadTypeInNameException, NonUniqueNameException):
+            logger.error("An error occurred in zc.get_service_info().")
         hostname = self.get_host_addr(info)
         if hostname is None:
             logger.warning("Cannot handle Zeroconf service with info=%s", info)
@@ -151,11 +155,17 @@ class MdnsListener(ServiceListener):
     def start(self, service_type):
         """Start the ZeroConf listener thread"""
         if not lan_backend_config.get("HOSTS_WHITELIST", []):
-            self.zeroconf = Zeroconf(
-                ip_version=lan_backend_config["IP_VERSION"],
-                interfaces=[config["MY_IP"], "127.0.0.1"],
-            )
-            self.browser = ServiceBrowser(self.zeroconf, service_type, self)
+            try:
+                self.zeroconf = Zeroconf(
+                    ip_version=lan_backend_config["IP_VERSION"],
+                    interfaces=[config["MY_IP"], "127.0.0.1"],
+                )
+                self.browser = ServiceBrowser(self.zeroconf, service_type, self)
+            except (OSError, BadTypeInNameException, NonUniqueNameException):
+                logger.critical(
+                    "An error occurred while initializing the ServiceBrowser."
+                )
+                system_shutdown()
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
