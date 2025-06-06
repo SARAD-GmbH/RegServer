@@ -135,10 +135,18 @@ class MdnsAdvertiserActor(BaseActor):
                 "Exception in register_service of %s: %s", self.my_id, exception
             )
             system_shutdown()
-        except (NonUniqueNameException, ServiceNameAlreadyRegistered) as exception:
+        except NonUniqueNameException:
             logger.error(
                 "%s in register_service of %s. Service: %s",
-                exception,
+                "NonUniqueNameException",
+                self.my_id,
+                self.service,
+            )
+            return
+        except ServiceNameAlreadyRegistered:
+            logger.error(
+                "%s in register_service of %s. Service: %s",
+                "ServiceNameAlreadyRegistered",
                 self.my_id,
                 self.service,
             )
