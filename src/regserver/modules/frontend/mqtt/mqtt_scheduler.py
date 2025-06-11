@@ -386,8 +386,13 @@ class MqttSchedulerActor(MqttBaseActor):
             qos=self.qos,
             retain=True,
         )
-        publish_result.wait_for_publish()
         logger.debug("Publish %s on %s", payload, topic)
+        try:
+            publish_result.wait_for_publish()
+        except RuntimeError:
+            logger.debug(
+                "RuntimeError on KillMsg. The MQTT client migth not be connected."
+            )
         if self.led and not self.led.closed:
             self.led.close()
         super().receiveMsg_KillMsg(msg, sender)
