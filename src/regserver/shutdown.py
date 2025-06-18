@@ -58,19 +58,21 @@ def is_flag_set():
               2nd: True if the system shall be terminated with error
     """
     stop_file_exists = os.path.isfile(FLAGFILENAME)
-    try:
-        with open(FLAGFILENAME, mode="r", encoding="utf8") as flag_file:
-            with_error_str = flag_file.read(4)
-            if with_error_str == "True":
-                with_error = True
-            elif with_error_str == "Fals":  # sic! We read only 4 characters.
-                with_error = False
-            else:
-                logger.error("Stop file corrupted: %s", with_error_str)
-                with_error = True
-        stop_file_exists = stop_file_exists or True
-    except IOError:
-        stop_file_exists = False
+    if stop_file_exists:
+        try:
+            with open(FLAGFILENAME, mode="r", encoding="utf8") as flag_file:
+                with_error_str = flag_file.read(4)
+                if with_error_str == "True":
+                    with_error = True
+                elif with_error_str == "Fals":  # sic! We read only 4 characters.
+                    with_error = False
+                else:
+                    logger.error("Stop file corrupted: %s", with_error_str)
+                    with_error = True
+        except IOError:
+            stop_file_exists = False
+            with_error = False
+    else:
         with_error = False
     return not stop_file_exists, with_error
 

@@ -255,7 +255,7 @@ class Registrar(BaseActor):
                     logger.debug(
                         "A WLAN instrument might have been connected to another PC via USB."
                     )
-                    # TODO Check whether old_device_id is still active
+                    # TODO Check whether old_device_id is still active (refer to SARAD/RegServer#79)
                     logger.warning(
                         "A WLAN instrument connected via USB to a remote host will be ignored."
                     )
