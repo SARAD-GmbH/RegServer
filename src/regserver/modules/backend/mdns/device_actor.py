@@ -434,15 +434,13 @@ class DeviceActor(DeviceBaseActor):
 
     @overrides
     def _request_recent_value_at_is(self, msg, sender):
+        super()._request_recent_value_at_is(msg, sender)
         self._start_thread(
             Thread(
                 target=self._http_get_function,
                 kwargs={
                     "endpoint": f"{self.base_url}/values/{self.device_id}",
                     "params": {
-                        "app": msg.app,
-                        "user": msg.user,
-                        "host": msg.host,
                         "component": msg.component,
                         "sensor": msg.sensor,
                         "measurand": msg.measurand,
