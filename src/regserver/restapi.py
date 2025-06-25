@@ -45,7 +45,7 @@ from regserver.version import VERSION
 
 STARTTIME = datetime.now(timezone.utc).replace(microsecond=0)
 PASSWORD = "Diev5Pw."
-TIMEOUT = timedelta(seconds=20)
+TIMEOUT = timedelta(seconds=21)
 
 
 app = Flask(__name__)
@@ -1047,6 +1047,7 @@ class GetValues(Resource):
                 }
         reply_is_corrupted = check_msg(value_return, RecentValueMsg)
         if reply_is_corrupted:
+            logger.error("Didn't receive RecentValueMsg from %s", device_id)
             return reply_is_corrupted
         if value_return.status in [Status.INDEX_ERROR, Status.OCCUPIED]:
             if value_return.status == Status.OCCUPIED:

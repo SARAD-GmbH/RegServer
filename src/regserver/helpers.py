@@ -258,7 +258,7 @@ def get_device_status(registrar_actor, device_id: str) -> dict:
             result = h_get_device_status.ask(
                 get_actor(registrar_actor, device_id),
                 GetDeviceStatusMsg(),
-                timeout=timedelta(seconds=10),
+                timeout=timedelta(seconds=21),
             )
         except (ConnectionResetError, ValueError) as exception:
             logger.debug(exception)
@@ -419,7 +419,7 @@ def send_reserve_message(
             reserve_return = reserve_sys.ask(
                 device_actor,
                 ReserveDeviceMsg(request_host, user, app, create_redirector),
-                timeout=timedelta(seconds=20),
+                timeout=timedelta(seconds=21),
             )
         except ConnectionResetError as exception:
             logger.error(exception)
@@ -460,7 +460,7 @@ def send_free_message(device_id, registrar_actor) -> Status:
             free_return = free_dev.ask(
                 device_actor,
                 FreeDeviceMsg(),
-                timeout=timedelta(seconds=10),
+                timeout=timedelta(seconds=21),
             )
         except ConnectionResetError as exception:
             logger.error(exception)

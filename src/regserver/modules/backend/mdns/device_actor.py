@@ -100,7 +100,7 @@ class DeviceActor(DeviceBaseActor):
             self.response = resp.json()
             self.success = Status.OK
         except Exception as exception:  # pylint: disable=broad-except
-            logger.error("REST API of IS is not responding. %s", exception)
+            logger.error("REST API of IS is not responding. %s, %s", exception, purpose)
             self.response = {}
             self.success = Status.IS_NOT_FOUND
         else:
@@ -145,7 +145,7 @@ class DeviceActor(DeviceBaseActor):
         elif purpose == Purpose.FREE:
             self._finish_free()
         elif purpose == Purpose.VALUE:
-            logger.debug("Target responded: %s", self.response)
+            logger.debug("%s - Target responded: %s", self.my_id, self.response)
             if self.success == Status.OK:
                 error_code = self.response.get("Error code", 0)
                 if error_code:
@@ -184,6 +184,7 @@ class DeviceActor(DeviceBaseActor):
                     status=self.success,
                     instr_id=self.instr_id,
                 )
+                logger.info("Call _handle_recent_value_reply_from_is(%s)", answer)
             self._handle_recent_value_reply_from_is(answer)
         elif purpose == Purpose.STATUS:
             logger.debug(
