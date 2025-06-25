@@ -328,12 +328,12 @@ class HostActor(BaseActor):
             logger.warning("%s in _scan_function of %s", success, self.my_id)
             self._forward_to_children(KillMsg())
         else:
+            updated_instr_list = []
             if (device_list is None) or (device_list == {}):
                 logger.debug(
                     "Instrument list on remote host %s is empty.", self.host.host
                 )
             else:
-                updated_instr_list = []
                 for device_id, device_status in device_list.items():
                     if transport_technology(device_id) in [
                         TransportTechnology.LOCAL,
