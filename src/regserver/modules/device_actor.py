@@ -323,12 +323,7 @@ class DeviceBaseActor(BaseActor):
         self.request_locks["Free"].locked = True
         self.request_locks["Free"].time = datetime.now()
         self.request_locks["Free"].requester = sender
-        has_reservation_section = self.device_status.get("Reservation", False)
-        if has_reservation_section:
-            is_reserved = self.device_status["Reservation"].get("Active", False)
-        else:
-            is_reserved = False
-        if not is_reserved:
+        if not self._is_reserved():
             self.return_message = ReservationStatusMsg(self.instr_id, Status.OK_SKIPPED)
             self._handle_free_reply_from_is(Status.OK_SKIPPED)
             return
@@ -372,40 +367,18 @@ class DeviceBaseActor(BaseActor):
         """Get a value from an instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.request_locks["GetRecentValue"].requester = sender
-        has_reservation_section = self.device_status.get("Reservation", False)
-        if has_reservation_section:
-            is_reserved = self.device_status["Reservation"].get("Active", False)
-        else:
-            is_reserved = False
-        if is_reserved:
+        if self._is_reserved():
             self._handle_recent_value_reply_from_is(
                 answer=RecentValueMsg(
                     status=Status.OCCUPIED,
                     instr_id=self.instr_id,
                 )
             )
-        else:
-            if self.request_locks["GetRecentValue"].locked:
-                logger.info("%s VALUE action pending", self.my_id)
-                if (
-                    datetime.now() - self.request_locks["GetRecentValue"].time
-                    > REQUEST_TIMEOUT
-                ):
-                    logger.warning(
-                        "Pending VALUE on %s took longer than %s",
-                        self.my_id,
-                        REQUEST_TIMEOUT,
-                    )
-                    self._kill_myself(resurrect=True)
-                    return
-                self.wakeupAfter(
-                    timedelta(milliseconds=500),
-                    (self.receiveMsg_GetRecentValueMsg, msg, sender),
-                )
-                return
-            self.request_locks["GetRecentValue"].locked = True
-            self.request_locks["GetRecentValue"].time = datetime.now()
-            self._request_recent_value_at_is(msg, sender)
+            return
+        self._lock_request(
+            "GetRecentValue", (self.receiveMsg_GetRecentValueMsg, msg, sender)
+        )
+        self._request_recent_value_at_is(msg, sender)
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -414,9 +387,13 @@ class DeviceBaseActor(BaseActor):
 
         Sends back a message containing the device_status."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        # TODO Lock!
         self.request_locks["GetDeviceStatus"].requester = sender
-        self.request_locks["GetDeviceStatus"].locked = True
+        if self._is_reserved():
+            self._handle_status_reply_from_is(Status.OCCUPIED)
+            return
+        self._lock_request(
+            "GetDeviceStatus", (self.receiveMsg_GetDeviceStatusMsg, msg, sender)
+        )
         self._request_status_at_is()
 
     def receiveMsg_StartMonitoringMsg(self, msg, sender):
@@ -427,37 +404,15 @@ class DeviceBaseActor(BaseActor):
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.request_locks["StartMonitoring"].requester = sender
-        has_reservation_section = self.device_status.get("Reservation", False)
-        if has_reservation_section:
-            is_reserved = self.device_status["Reservation"].get("Active", False)
-        else:
-            is_reserved = False
-        if is_reserved:
+        if self._is_reserved():
             self._handle_start_monitoring_reply_from_is(
                 status=Status.OCCUPIED, confirm=True
             )
-        else:
-            if self.request_locks["StartMonitoring"].locked:
-                logger.info("%s START MONITORING action pending", self.my_id)
-                if (
-                    datetime.now() - self.request_locks["StartMonitoring"].time
-                    > REQUEST_TIMEOUT
-                ):
-                    logger.warning(
-                        "Pending START MONITORING on %s took longer than %s",
-                        self.my_id,
-                        REQUEST_TIMEOUT,
-                    )
-                    self._kill_myself(resurrect=True)
-                    return
-                self.wakeupAfter(
-                    timedelta(milliseconds=500),
-                    (self.receiveMsg_StartMonitoringMsg, msg, sender),
-                )
-                return
-            self.request_locks["StartMonitoring"].locked = True
-            self.request_locks["StartMonitoring"].time = datetime.now()
-            self._request_start_monitoring_at_is(msg.start_time, confirm=True)
+            return
+        self._lock_request(
+            "StartMonitoring", (self.receiveMsg_StartMonitoringMsg, msg, sender)
+        )
+        self._request_start_monitoring_at_is(msg.start_time, confirm=True)
 
     def receiveMsg_StopMonitoringMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -467,35 +422,13 @@ class DeviceBaseActor(BaseActor):
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.request_locks["StopMonitoring"].requester = sender
-        has_reservation_section = self.device_status.get("Reservation", False)
-        if has_reservation_section:
-            is_reserved = self.device_status["Reservation"].get("Active", False)
-        else:
-            is_reserved = False
-        if not is_reserved:
+        if not self._is_reserved():
             self._handle_stop_monitoring_reply_from_is(status=Status.OK_SKIPPED)
-        else:
-            if self.request_locks["StopMonitoring"].locked:
-                logger.info("%s STOP MONITORING action pending", self.my_id)
-                if (
-                    datetime.now() - self.request_locks["StopMonitoring"].time
-                    > REQUEST_TIMEOUT
-                ):
-                    logger.warning(
-                        "Pending STOP MONITORING on %s took longer than %s",
-                        self.my_id,
-                        REQUEST_TIMEOUT,
-                    )
-                    self._kill_myself(resurrect=True)
-                    return
-                self.wakeupAfter(
-                    timedelta(milliseconds=500),
-                    (self.receiveMsg_StopMonitoringMsg, msg, sender),
-                )
-                return
-            self.request_locks["StopMonitoring"].locked = True
-            self.request_locks["StopMonitoring"].time = datetime.now()
-            self._request_stop_monitoring_at_is()
+            return
+        self._lock_request(
+            "StopMonitoring", (self.receiveMsg_StopMonitoringMsg, msg, sender)
+        )
+        self._request_stop_monitoring_at_is()
 
     def receiveMsg_SetRtcMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -505,32 +438,11 @@ class DeviceBaseActor(BaseActor):
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.request_locks["SetRtc"].requester = sender
-        has_reservation_section = self.device_status.get("Reservation", False)
-        if has_reservation_section:
-            is_reserved = self.device_status["Reservation"].get("Active", False)
-        else:
-            is_reserved = False
-        if is_reserved:
+        if self._is_reserved():
             self._handle_set_rtc_reply_from_is(status=Status.OCCUPIED, confirm=True)
-        else:
-            if self.request_locks["SetRtc"].locked:
-                logger.info("%s SET RTC action pending", self.my_id)
-                if datetime.now() - self.request_locks["SetRtc"].time > REQUEST_TIMEOUT:
-                    logger.warning(
-                        "Pending SET RTC on %s took longer than %s",
-                        self.my_id,
-                        REQUEST_TIMEOUT,
-                    )
-                    self._kill_myself(resurrect=True)
-                    return
-                self.wakeupAfter(
-                    timedelta(milliseconds=500),
-                    (self.receiveMsg_SetRtcMsg, msg, sender),
-                )
-                return
-            self.request_locks["SetRtc"].locked = True
-            self.request_locks["SetRtc"].time = datetime.now()
-            self._request_set_rtc_at_is(confirm=True)
+            return
+        self._lock_request("SetRtc", (self.receiveMsg_SetRtcMsg, msg, sender))
+        self._request_set_rtc_at_is(confirm=True)
 
     def receiveMsg_BaudRateMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -945,3 +857,29 @@ class DeviceBaseActor(BaseActor):
             super()._kill_myself(register=register, resurrect=resurrect)
         except TypeError as exception:
             logger.warning("TypeError in _kill_myself on %s: %s", self.my_id, exception)
+
+    def _lock_request(self, request_lock: str, retry):
+        """Set the lock for the request, check for reservation and forward the
+        request to Instrument Server."""
+        if self.request_locks[request_lock].locked:
+            logger.info("%s %s action pending", self.my_id, request_lock)
+            if datetime.now() - self.request_locks[request_lock].time > REQUEST_TIMEOUT:
+                logger.warning(
+                    "Pending %s on %s took longer than %s",
+                    request_lock,
+                    self.my_id,
+                    REQUEST_TIMEOUT,
+                )
+                self._kill_myself(resurrect=True)
+                return
+            self.wakeupAfter(timedelta(milliseconds=500), retry)
+            return
+        self.request_locks[request_lock].locked = True
+        self.request_locks[request_lock].time = datetime.now()
+
+    def _is_reserved(self) -> bool:
+        """Helper to find out whether this device is reserved."""
+        has_reservation_section = self.device_status.get("Reservation", False)
+        if has_reservation_section:
+            return self.device_status["Reservation"].get("Active", False)
+        return False
