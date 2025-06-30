@@ -110,16 +110,14 @@ class ZigBeeDeviceActor(UsbActor):
                     self.select_channel_thread.start()
             elif is_reserved:
                 logger.debug("%s occupied", self.my_id)
-                self.reserve_lock.value = True
-                self.reserve_lock.time = datetime.now()
-                if self.sender_api is None:
-                    self.sender_api = sender
+                self.request_locks["Reserve"].locked = True
+                self.request_locks["Reserve"].time = datetime.now()
+                self.request_locks["Reserve"].requester = sender
                 self.return_message = ReservationStatusMsg(
                     instr_id=self.instr_id, status=Status.OCCUPIED
                 )
                 self._update_reservation_status(self.device_status["Reservation"])
                 self._send_reservation_status_msg()
-                self.sender_api = None
         elif self.forwarded_reserve_pending:
             logger.debug(
                 "The ReserveDeviceMsg for %s is comming from NetUsbActor", self.my_id
@@ -127,8 +125,7 @@ class ZigBeeDeviceActor(UsbActor):
             self.forwarded_reserve_pending = False
         else:
             logger.debug("Another ZigBee instrument is blocking %s", self.my_id)
-            if self.sender_api is None:
-                self.sender_api = sender
+            self.request_locks["Reserve"].requester = sender
             self.reserve_device_msg = deepcopy(msg)
             self.return_message = ReservationStatusMsg(
                 instr_id=self.instr_id, status=Status.OCCUPIED
@@ -142,7 +139,6 @@ class ZigBeeDeviceActor(UsbActor):
             }
             self._update_reservation_status(reservation)
             self._publish_status_change()
-            self.sender_api = None
 
     def _select_channel(self, msg, sender):
         self.instrument.select_channel(self.zigbee_address)
@@ -174,7 +170,7 @@ class ZigBeeDeviceActor(UsbActor):
             is_reserved = self.device_status["Reservation"].get("Active", False)
         else:
             is_reserved = False
-        if is_reserved or self.reserve_lock.value:
+        if is_reserved or self.request_locks["Reserve"].locked:
             self.send(self.parent.parent_address, FreeDeviceMsg())
         if self.zigbee_address:
             if not self.close_channel_thread.is_alive():

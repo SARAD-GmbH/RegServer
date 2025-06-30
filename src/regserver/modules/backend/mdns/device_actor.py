@@ -20,7 +20,7 @@ from regserver.actor_messages import RecentValueMsg, RxBinaryMsg, Status
 from regserver.config import config
 from regserver.hostname_functions import compare_hostnames
 from regserver.logger import logger
-from regserver.modules.device_actor import BIN_TIMEOUT, DeviceBaseActor
+from regserver.modules.device_actor import REQUEST_TIMEOUT, DeviceBaseActor
 from requests.adapters import HTTPAdapter  # type: ignore
 from sarad.instrument import Gps
 from urllib3.util.retry import Retry  # type: ignore
@@ -417,7 +417,7 @@ class DeviceActor(DeviceBaseActor):
                 success = Status.NOT_FOUND
             if (success == Status.OK) and (self._client_socket is None):
                 self._client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self._client_socket.settimeout(BIN_TIMEOUT.seconds)
+                self._client_socket.settimeout(REQUEST_TIMEOUT.seconds - 1)
                 try:
                     logger.debug("Trying to connect %s:%d", is_host, is_port)
                     self._client_socket.connect((is_host, is_port))
@@ -454,7 +454,9 @@ class DeviceActor(DeviceBaseActor):
 
     @overrides
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
-        if not (self.reserve_lock.value or self.free_lock.value):
+        if not (
+            self.request_locks["Reserve"].locked or self.request_locks["Free"].locked
+        ):
             self.occupied = False
             self._start_thread(
                 Thread(
@@ -595,7 +597,9 @@ class DeviceActor(DeviceBaseActor):
 
         Args:
             sender (ActorAddress): Address of the requesting Actor."""
-        if not (self.reserve_lock.value or self.free_lock.value):
+        if not (
+            self.request_locks["Reserve"].locked or self.request_locks["Free"].locked
+        ):
             self._start_thread(
                 Thread(
                     target=self._http_get_function,

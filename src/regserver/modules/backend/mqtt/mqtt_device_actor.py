@@ -343,7 +343,7 @@ class MqttDeviceActor(DeviceBaseActor):
             and client_id == value_dict.get("client", "")
         )
         logger.debug("Is it for me? %s, %s", state, value_dict)
-        if self.value_lock.value and it_is_for_me:
+        if self.request_locks["GetRecentValue"].locked and it_is_for_me:
             self.send(
                 self.parent.parent_address,
                 MqttUnsubscribeMsg([self.allowed_sys_topics["VALUE"]]),
@@ -388,7 +388,10 @@ class MqttDeviceActor(DeviceBaseActor):
             and client_id == ack_dict.get("client", "")
         )
         logger.debug("Is it for me? %s, %s", state, ack_dict)
-        if self.ack_lock.value and it_is_for_me:
+        waiting_for_reply = False
+        for _key, request_lock in self.request_locks.items():
+            waiting_for_reply = waiting_for_reply or request_lock.locked
+        if waiting_for_reply and it_is_for_me:
             self.send(
                 self.parent.parent_address,
                 MqttUnsubscribeMsg([self.allowed_sys_topics["ACK"]]),
