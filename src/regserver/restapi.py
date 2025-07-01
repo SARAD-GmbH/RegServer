@@ -19,8 +19,7 @@ from thespian.actors import Thespian_ActorStatus
 from thespian.system.messages.status import (  # type: ignore
     Thespian_StatusReq, formatStatus)
 
-from regserver.actor_messages import (AddPortToLoopMsg, BaudRateAckMsg,
-                                      BaudRateMsg, GetLocalPortsMsg,
+from regserver.actor_messages import (AddPortToLoopMsg, GetLocalPortsMsg,
                                       GetNativePortsMsg, GetRecentValueMsg,
                                       GetUsbPortsMsg, InstrObj, RecentValueMsg,
                                       RemovePortFromLoopMsg, RescanAckMsg,
@@ -169,15 +168,6 @@ start_arguments.add_argument(
     required=False,
     help="Datetime string in ISO format giving the time to start the monitoring mode at.\n"
     + "The string must contain the time zone information.",
-)
-baudrate_arguments = reqparse.RequestParser()
-baudrate_arguments.add_argument(
-    "rate",
-    type=int,
-    required=True,
-    help="Set the baud rate for the serial interface to the instrument.",
-    choices=[9600, 115200, 256000],
-    trim=True,
 )
 ports_arguments = reqparse.RequestParser()
 ports_arguments.add_argument("port", type=str, required=False)
@@ -867,43 +857,6 @@ class StopMonitoring(Resource):
                         logger.debug(exception)
                         reply = None
                 reply_is_corrupted = check_msg(reply, StopMonitoringAckMsg)
-                if reply_is_corrupted:
-                    return reply_is_corrupted
-                return {
-                    "Error code": reply.status.value,
-                    "Error": str(reply.status),
-                }
-        return api.abort(404)
-
-
-@instruments_ns.route("/<string:instr_id>/baudrate")
-@instruments_ns.param(
-    "rate",
-    "Baud rate of the serial connection to the instrument.",
-)
-class BaudRate(Resource):
-    # pylint: disable=too-few-public-methods
-    """Set the baud rate of serial connection."""
-
-    @api.expect(baudrate_arguments, validate=True)
-    def put(self, instr_id):
-        """Change the baud rate at the given instrument."""
-        args = baudrate_arguments.parse_args()
-        if REGISTRAR_ACTOR is None:
-            return api.abort(404)
-        for device_id in get_device_statuses(REGISTRAR_ACTOR):
-            if short_id(device_id) == instr_id:
-                with ActorSystem().private() as start_sys:
-                    try:
-                        reply = start_sys.ask(
-                            REGISTRAR_ACTOR,
-                            BaudRateMsg(baud_rate=args["rate"], instr_id=instr_id),
-                            timeout=timedelta(seconds=60),
-                        )
-                    except ConnectionResetError as exception:
-                        logger.debug(exception)
-                        reply = None
-                reply_is_corrupted = check_msg(reply, BaudRateAckMsg)
                 if reply_is_corrupted:
                     return reply_is_corrupted
                 return {

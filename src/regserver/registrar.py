@@ -19,13 +19,13 @@ from datetime import datetime, timedelta, timezone
 from overrides import overrides  # type: ignore
 from sarad.global_helpers import decode_instr_id
 
-from regserver.actor_messages import (ActorType, BaudRateAckMsg, BaudRateMsg,
-                                      Frontend, GetHostInfoMsg, HostInfoMsg,
-                                      KeepAliveMsg, KillMsg, MqttConnectMsg,
-                                      PrepareMqttActorMsg, RescanAckMsg,
-                                      RescanMsg, ReturnDeviceActorMsg,
-                                      SetRtcAckMsg, SetRtcMsg, ShutdownAckMsg,
-                                      ShutdownMsg, StartMonitoringAckMsg,
+from regserver.actor_messages import (ActorType, Frontend, GetHostInfoMsg,
+                                      HostInfoMsg, KeepAliveMsg, KillMsg,
+                                      MqttConnectMsg, PrepareMqttActorMsg,
+                                      RescanAckMsg, RescanMsg,
+                                      ReturnDeviceActorMsg, SetRtcAckMsg,
+                                      SetRtcMsg, ShutdownAckMsg, ShutdownMsg,
+                                      StartMonitoringAckMsg,
                                       StartMonitoringMsg, Status,
                                       StopMonitoringAckMsg, StopMonitoringMsg,
                                       TransportTechnology, UpdateActorDictMsg,
@@ -568,19 +568,6 @@ class Registrar(BaseActor):
         """Forward the StopMonitoringAckMsg to REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.send(self.rest_api, msg)
-
-    def receiveMsg_BaudRateMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Forward the BaudRateMsg to Device Actors."""
-        logger.info("%s for %s from %s", msg, self.my_id, sender)
-        for actor_id in self.actor_dict:
-            if self.actor_dict[actor_id]["actor_type"] == ActorType.DEVICE:
-                if (msg.instr_id is None) or (short_id(actor_id) == msg.instr_id):
-                    self.send(
-                        self.actor_dict[actor_id]["address"],
-                        BaudRateMsg(baud_rate=msg.baud_rate, instr_id=msg.instr_id),
-                    )
-        self.send(sender, BaudRateAckMsg(Status.OK))
 
     def receiveMsg_SetRtcMsg(self, msg, sender):
         # pylint: disable=invalid-name

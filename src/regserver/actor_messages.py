@@ -1001,26 +1001,6 @@ class StopMonitoringAckMsg:
 
 
 @dataclass
-class BaudRateMsg:
-    """Message instructing the Device Actor to change the baud rate.
-
-    Args:
-        instr_id (str): Id of the instrument
-        baud_rate (int): Baud rate the serial interface shall use
-    """
-
-    instr_id: str
-    baud_rate: int
-
-
-@dataclass
-class BaudRateAckMsg:
-    """Confirmation that the BaudRateMsg was handled properly."""
-
-    status: Status
-
-
-@dataclass
 class SetRtcMsg:
     """Message instructing the Device Actor to set the RTC of the instrument.
 

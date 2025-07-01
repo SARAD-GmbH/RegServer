@@ -103,7 +103,6 @@ class DeviceBaseActor(BaseActor):
             "Free": RequestLock(),
             "GetRecentValue": RequestLock(),
             "GetDeviceStatus": RequestLock(),
-            "BaudRate": RequestLock(),
             "StartMonitoring": RequestLock(),
             "StopMonitoring": RequestLock(),
             "SetRtc": RequestLock(),
@@ -443,13 +442,6 @@ class DeviceBaseActor(BaseActor):
             return
         self._lock_request("SetRtc", (self.receiveMsg_SetRtcMsg, msg, sender))
         self._request_set_rtc_at_is(confirm=True)
-
-    def receiveMsg_BaudRateMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler to change the baud rate of the serial connection.
-
-        This is only a stub. The method is implemented in the USB device actor only."""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
