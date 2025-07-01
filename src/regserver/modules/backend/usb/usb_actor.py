@@ -195,6 +195,8 @@ class UsbActor(DeviceBaseActor):
                 else:
                     logger.info("Resume monitoring mode at %s", self.my_id)
                     self._request_start_monitoring_at_is()
+        elif msg.payload == "request_set_rtc_at_is":
+            self._request_set_rtc_at_is(confirm=False)
 
     def _finish_poll(self):
         """Finalize the handling of WakeupMessage for regular rescan"""
@@ -374,6 +376,8 @@ class UsbActor(DeviceBaseActor):
             utc_offset=utc_offset,
             wait=wait,
         )
+        if local_backend_config["SET_RTC"]:
+            self.wakeupAfter(timedelta(days=7), "request_set_rtc_at_is")
 
     def _set_rtc(self):
         self._start_thread(
