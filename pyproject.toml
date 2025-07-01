@@ -30,15 +30,15 @@ dependencies = [
     "sarad @ git+https://github.com/SARAD-GmbH/sarad.git@master",
     "platformdirs>=4.2.0",
 ]
-requires-python = "<3.14, >=3.9"
+requires-python = "<3.14, >=3.10"
 readme = "README.md"
 license = {text = "LGPL-3.0-or-later"}
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
     "Development Status :: 5 - Stable",
     "Environment :: Console",
