@@ -11,6 +11,7 @@
 
 import os
 from datetime import datetime, timedelta, timezone
+from threading import current_thread
 
 from flask import Flask, request
 from flask_restx import Api, Resource, fields, inputs, reqparse  # type: ignore
@@ -977,6 +978,7 @@ class GetValues(Resource):
                 "Error code": status.value,
                 "Error": str(status),
             }
+        logger.debug("Request for %s in thread %s", device_id, current_thread().ident)
         with ActorSystem().private() as value_sys:
             try:
                 value_return = value_sys.ask(
@@ -1002,6 +1004,7 @@ class GetValues(Resource):
         if reply_is_corrupted:
             logger.error("Didn't receive RecentValueMsg from %s", device_id)
             return reply_is_corrupted
+        logger.debug("Reply %s in thread %s", value_return, current_thread().ident)
         if value_return.status in [Status.INDEX_ERROR, Status.OCCUPIED]:
             if value_return.status == Status.OCCUPIED:
                 notification = "The instrument is occupied by somebody else."
