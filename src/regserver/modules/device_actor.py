@@ -365,8 +365,8 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Get a value from an instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.request_locks["GetRecentValue"].requester = sender
         if self._is_reserved():
+            self.request_locks["GetRecentValue"].requester = sender
             self._handle_recent_value_reply_from_is(
                 answer=RecentValueMsg(
                     status=Status.OCCUPIED,
@@ -386,8 +386,8 @@ class DeviceBaseActor(BaseActor):
 
         Sends back a message containing the device_status."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.request_locks["GetDeviceStatus"].requester = sender
         if self._is_reserved():
+            self.request_locks["GetDeviceStatus"].requester = sender
             self._handle_status_reply_from_is(Status.OCCUPIED)
             return
         self._lock_request(
@@ -402,8 +402,8 @@ class DeviceBaseActor(BaseActor):
             logger.error("%s for %s from %s", msg, self.my_id, sender)
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.request_locks["StartMonitoring"].requester = sender
         if self._is_reserved():
+            self.request_locks["StartMonitoring"].requester = sender
             self._handle_start_monitoring_reply_from_is(
                 status=Status.OCCUPIED, confirm=True
             )
@@ -420,8 +420,8 @@ class DeviceBaseActor(BaseActor):
             logger.error("%s for %s from %s", msg, self.my_id, sender)
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.request_locks["StopMonitoring"].requester = sender
         if not self._is_reserved():
+            self.request_locks["StopMonitoring"].requester = sender
             self._handle_stop_monitoring_reply_from_is(status=Status.OK_SKIPPED)
             return
         self._lock_request(
@@ -436,8 +436,8 @@ class DeviceBaseActor(BaseActor):
             logger.error("%s for %s from %s", msg, self.my_id, sender)
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.request_locks["SetRtc"].requester = sender
         if self._is_reserved():
+            self.request_locks["SetRtc"].requester = sender
             self._handle_set_rtc_reply_from_is(status=Status.OCCUPIED, confirm=True)
             return
         self._lock_request("SetRtc", (self.receiveMsg_SetRtcMsg, msg, sender))
@@ -866,6 +866,7 @@ class DeviceBaseActor(BaseActor):
                 return
             self.wakeupAfter(timedelta(milliseconds=500), retry)
             return
+        self.request_locks[request_lock].requester = retry[2]
         self.request_locks[request_lock].locked = True
         self.request_locks[request_lock].time = datetime.now()
 
