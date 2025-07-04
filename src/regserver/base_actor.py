@@ -26,10 +26,10 @@ from thespian.actors import ActorAddress, ActorTypeDispatcher, ChildActorExited
 from regserver.actor_messages import (ActorType, GetDeviceStatusMsg,
                                       KeepAliveMsg, KillMsg, MqttReceiveMsg,
                                       Parent, PrepareMqttActorMsg,
-                                      RescanAckMsg, ReservationStatusMsg,
-                                      RxBinaryMsg, SetDeviceStatusMsg,
-                                      SetupMdnsActorMsg, SetupMsg,
-                                      SetupUsbActorMsg, SubscribeMsg,
+                                      RecentValueMsg, RescanAckMsg,
+                                      ReservationStatusMsg, RxBinaryMsg,
+                                      SetDeviceStatusMsg, SetupMdnsActorMsg,
+                                      SetupMsg, SetupUsbActorMsg, SubscribeMsg,
                                       SubscribeToActorDictMsg,
                                       SubscribeToDeviceStatusMsg,
                                       UnSubscribeFromActorDictMsg,
@@ -227,6 +227,8 @@ class BaseActor(ActorTypeDispatcher):
             self.send(self.registrar, UnsubscribeMsg(msg.deadAddress))
         elif isinstance(msg.deadMessage, (KeepAliveMsg)):
             logger.warning("%s for %s from %s", msg, self.my_id, sender)
+        elif isinstance(msg.deadMessage, (RecentValueMsg)):
+            logger.error("%s for %s from %s", msg, self.my_id, sender)
         else:
             logger.critical("%s for %s from %s", msg, self.my_id, sender)
             logger.critical("%s -> Emergency shutdown", self.my_id)

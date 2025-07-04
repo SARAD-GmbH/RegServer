@@ -941,35 +941,14 @@ class GetValues(Resource):
                 "Requester": "Emergency shutdown",
             }
         arguments = values_arguments.parse_args()
-        logger.info(
-            "Request value %d/%d/%d of %s",
+        logger.debug(
+            "Request value %d/%d/%d of %s in thread %s",
             arguments["component"],
             arguments["sensor"],
             arguments["measurand"],
             device_id,
+            current_thread().ident,
         )
-        device_state = get_device_status_from_registrar(REGISTRAR_ACTOR, device_id)
-        if (device_state == {}) or (
-            transport_technology(device_id)
-            not in [
-                TransportTechnology.LOCAL,
-                TransportTechnology.IS1,
-                TransportTechnology.LAN,
-                TransportTechnology.MQTT,
-            ]
-        ):
-            logger.error(
-                "Request only supported for local, LAN, IS1, MQTT and ZigBee instruments."
-            )
-            status = Status.NOT_SUPPORTED
-            notification = (
-                "Only supported for local, LAN, IS1, MQTT and ZigBee instruments"
-            )
-            return {
-                "Error code": status.value,
-                "Error": str(status),
-                "Notification": notification,
-            }
         # send GetRecentValueMsg to device actor
         device_actor = get_actor(REGISTRAR_ACTOR, device_id)
         if device_actor is None:
@@ -978,7 +957,6 @@ class GetValues(Resource):
                 "Error code": status.value,
                 "Error": str(status),
             }
-        logger.debug("Request for %s in thread %s", device_id, current_thread().ident)
         with ActorSystem().private() as value_sys:
             try:
                 value_return = value_sys.ask(
@@ -1000,11 +978,21 @@ class GetValues(Resource):
                     "Notification": "Registration Server going down for restart.",
                     "Requester": "Emergency shutdown",
                 }
-        reply_is_corrupted = check_msg(value_return, RecentValueMsg)
-        if reply_is_corrupted:
-            logger.error("Didn't receive RecentValueMsg from %s", device_id)
+        if value_return is not None:
+            reply_is_corrupted = check_msg(value_return, RecentValueMsg)
+            if reply_is_corrupted:
+                logger.error("Didn't receive RecentValueMsg from %s", device_id)
+                return reply_is_corrupted
+        else:
+            logger.error(
+                "Reply %s for %s in thread %s",
+                value_return,
+                device_id,
+                current_thread().ident,
+            )
+            status = Status.CRITICAL
+            reply_is_corrupted = {"Error code": status.value, "Error": str(status)}
             return reply_is_corrupted
-        logger.debug("Reply %s in thread %s", value_return, current_thread().ident)
         if value_return.status in [Status.INDEX_ERROR, Status.OCCUPIED]:
             if value_return.status == Status.OCCUPIED:
                 notification = "The instrument is occupied by somebody else."
