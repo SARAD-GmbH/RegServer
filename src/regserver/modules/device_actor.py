@@ -10,15 +10,18 @@
 """
 
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 from overrides import overrides  # type: ignore
-from regserver.actor_messages import (ActorType, Frontend, KillMsg,
-                                      RecentValueMsg, ReservationStatusMsg,
-                                      ReserveDeviceMsg, RxBinaryMsg,
-                                      SetRtcAckMsg, StartMonitoringAckMsg,
-                                      Status, StopMonitoringAckMsg,
+from regserver.actor_messages import (ActorType, FreeDeviceMsg, Frontend,
+                                      GetDeviceStatusMsg, GetRecentValueMsg,
+                                      KillMsg, RecentValueMsg,
+                                      ReservationStatusMsg, ReserveDeviceMsg,
+                                      RxBinaryMsg, SetRtcAckMsg, SetRtcMsg,
+                                      StartMonitoringAckMsg,
+                                      StartMonitoringMsg, Status,
+                                      StopMonitoringAckMsg, StopMonitoringMsg,
                                       UpdateDeviceStatusMsg)
 from regserver.base_actor import BaseActor
 from regserver.config import config, frontend_config
@@ -39,13 +42,32 @@ class Lock:
 
 
 @dataclass
+class ActionRequest:
+    """Class to store requested actions."""
+
+    worker: callable = print
+    msg: (
+        ReserveDeviceMsg
+        | FreeDeviceMsg
+        | GetDeviceStatusMsg
+        | GetRecentValueMsg
+        | StartMonitoringMsg
+        | StopMonitoringMsg
+        | SetRtcMsg
+        | None
+    ) = None
+    sender: Actor | ActorSystem | None = None
+    timeout_handler: callable = print
+    on_kill_handler: callable = print
+    time: datetime = datetime.min
+
+
+@dataclass
 class RequestLock:
     """Provides a lock to prevent concurrent calls for all common requests."""
 
-    requester: Actor | ActorSystem | None = None
-    pending: bool = False
+    request: ActionRequest = field(default_factory=ActionRequest)
     locked: bool = False
-    time: datetime = datetime.min
 
 
 @dataclass
@@ -108,6 +130,7 @@ class DeviceBaseActor(BaseActor):
             "StopMonitoring": RequestLock(),
             "SetRtc": RequestLock(),
         }
+        self.request_queue: list[ActionRequest] = []
         self.bin_locks: list[Lock] = []
 
     @overrides
@@ -143,73 +166,28 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage to retry a waiting reservation task."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if isinstance(msg.payload, tuple):
-            logger.info("Retry at %s", self.my_id)
-            msg.payload[0](msg.payload[1], msg.payload[2])
-        elif (
-            (msg.payload == "timeout_on_reserve")
-            and self.request_locks["Reserve"].locked
-            and (datetime.now() - self.request_locks["Reserve"].time > REQUEST_TIMEOUT)
-        ):
-            self._handle_reserve_reply_from_is(success=Status.NOT_FOUND)
-        elif (
-            (msg.payload == "timeout_on_free")
-            and self.request_locks["Free"].locked
-            and (datetime.now() - self.request_locks["Free"].time > REQUEST_TIMEOUT)
-        ):
-            self._handle_free_reply_from_is(success=Status.NOT_FOUND)
-        elif (
-            (msg.payload == "timeout_on_value")
-            and self.request_locks["GetRecentValue"].locked
-            and (
-                datetime.now() - self.request_locks["GetRecentValue"].time
-                > REQUEST_TIMEOUT
-            )
-        ):
-            logger.warning("Timeout on GetRecentValue at %s", self.instr_id)
-            self._handle_recent_value_reply_from_is(
-                answer=RecentValueMsg(
-                    status=Status.NOT_FOUND,
-                    instr_id=self.instr_id,
-                )
-            )
-        elif (
-            (msg.payload == "timeout_on_set_rtc")
-            and self.request_locks["SetRtc"].locked
-            and (datetime.now() - self.request_locks["SetRtc"].time > REQUEST_TIMEOUT)
-        ):
-            self._handle_set_rtc_reply_from_is(status=Status.NOT_FOUND, confirm=True)
-        elif (
-            (msg.payload == "timeout_on_start_monitoring")
-            and self.request_locks["StartMonitoring"].locked
-            and (
-                datetime.now() - self.request_locks["StartMonitoring"].time
-                > REQUEST_TIMEOUT
-            )
-        ):
-            self._handle_start_monitoring_reply_from_is(
-                status=Status.NOT_FOUND, confirm=True
-            )
-        elif (
-            (msg.payload == "timeout_on_stop_monitoring")
-            and self.request_locks.get(
-                "StopMonitoring", RequestLock(locked=False)
-            ).locked
-            and (
-                datetime.now() - self.request_locks["StopMonitoring"].time
-                > REQUEST_TIMEOUT
-            )
-        ):
-            self._handle_stop_monitoring_reply_from_is(status=Status.NOT_FOUND)
-        elif (
-            (msg.payload == "timeout_on_get_device_status")
-            and self.request_locks["GetDeviceStatus"].locked
-            and (
-                datetime.now() - self.request_locks["GetDeviceSatus"].time
-                > REQUEST_TIMEOUT
-            )
-        ):
-            self._handle_status_reply_from_is(status=Status.NOT_FOUND)
+        if isinstance(msg.payload, ActionRequest):
+            action_request: ActionRequest = msg.payload
+            logger.debug("Retry to start action at %s", self.my_id)
+            action_request.worker(action_request)
+        elif msg.payload == "timeout":
+            logger.info("%s for %s from %s", msg, self.my_id, sender)
+            for _lock_key, lock in self.request_locks.items():
+                if lock.locked and (
+                    datetime.now() - lock.request.time >= REQUEST_TIMEOUT
+                ):
+                    logger.warning(
+                        "Timeout in locked %s on %s", lock.request.msg, self.my_id
+                    )
+                    lock.request.timeout_handler(lock.request)
+                    lock.locked = False
+            for pending_request in self.request_queue:
+                if datetime.now() - pending_request.time >= REQUEST_TIMEOUT:
+                    logger.warning(
+                        "Timeout in pending %s on %s", pending_request.msg, self.my_id
+                    )
+                    pending_request.timeout_handler(pending_request)
+                    self.request_queue.remove(pending_request)
         elif isinstance(msg.payload, TimeoutMsg) and msg.payload.type == "bin_timeout":
             logger.debug(
                 "msg.payload.counter=%d, self.bin_locks=%s",
@@ -238,9 +216,8 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for ReserveDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.request_locks["Reserve"].pending = True
         if self._is_reserved():
-            self.request_locks["Reserve"].requester = sender
+            self.request_locks["Reserve"].request.sender = sender
             reservation = self.device_status["Reservation"]
             current_user = reservation.get("User", "")
             current_app = reservation.get("App", "")
@@ -257,34 +234,83 @@ class DeviceBaseActor(BaseActor):
             else:
                 reply_status = Status.OCCUPIED
             self.return_message = ReservationStatusMsg(self.instr_id, reply_status)
-            self._send_reservation_status_msg()
+            self._send_reservation_status_msg(sender)
             return
-        if self._lock_request(
-            "Reserve", (self.receiveMsg_ReserveDeviceMsg, msg, sender)
-        ):
-            self.reserve_device_msg = deepcopy(msg)
-            self._request_reserve_at_is()
+        if self.on_kill:
+            self._handle_reserve_reply_from_is(
+                success=Status.NOT_FOUND, requester=sender
+            )
+            return
+        self.wakeupAfter(REQUEST_TIMEOUT, "timeout")
+        action_request = ActionRequest(
+            worker=self._reserve_device_worker,
+            msg=msg,
+            sender=sender,
+            timeout_handler=self._reserve_device_timeout,
+            time=datetime.now(),
+            on_kill_handler=self._reserve_device_on_kill,
+        )
+        self._fifo(action_request)
+
+    def _reserve_device_worker(self, action_request):
+        if self._lock_request("Reserve", action_request):
+            self.reserve_device_msg = deepcopy(action_request.msg)
+            self._request_reserve_at_is(action_request.sender)
+
+    def _reserve_device_timeout(self, action_request):
+        self._handle_reserve_reply_from_is(
+            success=Status.BUSY_TIMEOUT, requester=action_request.sender
+        )
+
+    def _reserve_device_on_kill(self, action_request):
+        self._handle_reserve_reply_from_is(
+            success=Status.NOT_FOUND, requester=action_request.sender
+        )
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for FreeDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.request_locks["Free"].pending = True
         if not self._is_reserved():
-            self.request_locks["Free"].requester = sender
             self.return_message = ReservationStatusMsg(self.instr_id, Status.OK_SKIPPED)
-            self._handle_free_reply_from_is(Status.OK_SKIPPED)
+            self._handle_free_reply_from_is(Status.OK_SKIPPED, sender)
             return
-        if self._lock_request("Free", (self.receiveMsg_FreeDeviceMsg, msg, sender)):
-            self._request_free_at_is()
+        action_request = ActionRequest(
+            worker=self._free_device_worker,
+            msg=msg,
+            sender=sender,
+            timeout_handler=self._free_device_timeout,
+            time=datetime.now(),
+            on_kill_handler=self._free_device_on_kill,
+        )
+        if self.on_kill:
+            self._free_device_on_kill(action_request)
+            return
+        self.wakeupAfter(REQUEST_TIMEOUT, "timeout")
+        self._fifo(action_request)
+
+    def _free_device_worker(self, action_request):
+        if self._lock_request("Free", action_request):
+            self._request_free_at_is(action_request.sender)
+
+    def _free_device_timeout(self, action_request):
+        self._handle_free_reply_from_is(
+            success=Status.BUSY_TIMEOUT, requester=action_request.sender
+        )
+
+    def _free_device_on_kill(self, action_request):
+        self._handle_free_reply_from_is(
+            success=Status.NOT_FOUND, requester=action_request.sender
+        )
 
     def receiveMsg_SocketMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SocketMsg from Redirector Actor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        requester = self.request_locks["Reserve"].request.sender
         if msg.status not in (Status.OK, Status.OK_SKIPPED):
             self.return_message = ReservationStatusMsg(self.instr_id, msg.status)
-            self._send_reservation_status_msg()
+            self._send_reservation_status_msg(requester)
             logger.debug("_send_reservation_status_msg case E")
             return
         # Write Reservation section into device status
@@ -298,7 +324,7 @@ class DeviceBaseActor(BaseActor):
             "Timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }
         self._update_reservation_status(reservation)
-        self._send_reservation_status_msg()
+        self._send_reservation_status_msg(requester)
         logger.debug("_send_reservation_status_msg case B")
 
     def receiveMsg_TxBinaryMsg(self, msg, sender):
@@ -315,20 +341,52 @@ class DeviceBaseActor(BaseActor):
         # pylint: disable=invalid-name
         """Get a value from an instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.request_locks["GetRecentValue"].pending = True
         if self._is_reserved():
-            self.request_locks["GetRecentValue"].requester = sender
             self._handle_recent_value_reply_from_is(
                 answer=RecentValueMsg(
                     status=Status.OCCUPIED,
                     instr_id=self.instr_id,
-                )
+                ),
+                requester=sender,
             )
             return
-        if self._lock_request(
-            "GetRecentValue", (self.receiveMsg_GetRecentValueMsg, msg, sender)
-        ):
-            self._request_recent_value_at_is(msg, sender)
+        action_request = ActionRequest(
+            worker=self._get_recent_value_worker,
+            msg=msg,
+            sender=sender,
+            timeout_handler=self._get_recent_value_timeout,
+            time=datetime.now(),
+            on_kill_handler=self._get_recent_value_on_kill,
+        )
+        if self.on_kill:
+            self._get_recent_value_on_kill(action_request)
+            return
+        self.wakeupAfter(REQUEST_TIMEOUT, "timeout")
+        self._fifo(action_request)
+
+    def _get_recent_value_worker(self, action_request: ActionRequest):
+        if self._lock_request("GetRecentValue", action_request):
+            self._request_recent_value_at_is(
+                msg=action_request.msg, sender=action_request.sender
+            )
+
+    def _get_recent_value_timeout(self, action_request: ActionRequest):
+        self._handle_recent_value_reply_from_is(
+            answer=RecentValueMsg(
+                status=Status.BUSY_TIMEOUT,
+                instr_id=self.instr_id,
+            ),
+            requester=action_request.sender,
+        )
+
+    def _get_recent_value_on_kill(self, action_request: ActionRequest):
+        self._handle_recent_value_reply_from_is(
+            answer=RecentValueMsg(
+                status=Status.NOT_FOUND,
+                instr_id=self.instr_id,
+            ),
+            requester=action_request.sender,
+        )
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -337,66 +395,162 @@ class DeviceBaseActor(BaseActor):
 
         Sends back a message containing the device_status."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self.request_locks["GetDeviceStatus"].pending = True
         if self._is_reserved():
-            self.request_locks["GetDeviceStatus"].requester = sender
-            self._handle_status_reply_from_is(Status.OCCUPIED)
+            self.request_locks["GetDeviceStatus"].request.sender = sender
+            self._handle_status_reply_from_is(Status.OCCUPIED, sender)
             return
-        if self._lock_request(
-            "GetDeviceStatus", (self.receiveMsg_GetDeviceStatusMsg, msg, sender)
-        ):
-            self._request_status_at_is()
+        action_request = ActionRequest(
+            worker=self._get_device_status_worker,
+            msg=msg,
+            sender=sender,
+            timeout_handler=self._get_device_status_timeout,
+            time=datetime.now(),
+            on_kill_handler=self._get_device_status_on_kill,
+        )
+        if self.on_kill:
+            self._get_device_status_on_kill(action_request)
+            return
+        self.wakeupAfter(REQUEST_TIMEOUT, "timeout")
+        self._fifo(action_request)
+
+    def _get_device_status_worker(self, action_request):
+        if self._lock_request("GetDeviceStatus", action_request):
+            self._request_status_at_is(action_request.sender)
+
+    def _get_device_status_timeout(self, action_request):
+        self._handle_status_reply_from_is(
+            status=Status.BUSY_TIMEOUT, requester=action_request.sender
+        )
+
+    def _get_device_status_on_kill(self, action_request):
+        self._handle_status_reply_from_is(
+            status=Status.NOT_FOUND, requester=action_request.sender
+        )
 
     def receiveMsg_StartMonitoringMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Start monitoring mode at a given time."""
-        self.request_locks["StartMonitoring"].pending = True
         if msg.instr_id != self.instr_id:
             logger.error("%s for %s from %s", msg, self.my_id, sender)
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if self._is_reserved():
-            self.request_locks["StartMonitoring"].requester = sender
+            self.request_locks["StartMonitoring"].request.sender = sender
             self._handle_start_monitoring_reply_from_is(
-                status=Status.OCCUPIED, confirm=True
+                status=Status.OCCUPIED, confirm=True, requester=sender
             )
             return
-        if self._lock_request(
-            "StartMonitoring", (self.receiveMsg_StartMonitoringMsg, msg, sender)
-        ):
-            self._request_start_monitoring_at_is(msg.start_time, confirm=True)
+        action_request = ActionRequest(
+            worker=self._start_monitoring_worker,
+            msg=msg,
+            sender=sender,
+            timeout_handler=self._start_monitoring_timeout,
+            time=datetime.now(),
+            on_kill_handler=self._start_monitoring_on_kill,
+        )
+        if self.on_kill:
+            self._start_monitoring_on_kill(action_request)
+            return
+        self.wakeupAfter(REQUEST_TIMEOUT, "timeout")
+        self._fifo(action_request)
+
+    def _start_monitoring_worker(self, action_request):
+        if self._lock_request("StartMonitoring", action_request):
+            self._request_start_monitoring_at_is(
+                sender=action_request.sender,
+                start_time=action_request.msg.start_time,
+                confirm=True,
+            )
+
+    def _start_monitoring_timeout(self, action_request):
+        self._handle_start_monitoring_reply_from_is(
+            status=Status.BUSY_TIMEOUT, confirm=True, requester=action_request.sender
+        )
+
+    def _start_monitoring_on_kill(self, action_request):
+        self._handle_start_monitoring_reply_from_is(
+            status=Status.NOT_FOUND, confirm=True, requester=action_request.sender
+        )
 
     def receiveMsg_StopMonitoringMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Terminate monitoring mode."""
-        self.request_locks["StopMonitoring"].pending = True
         if msg.instr_id != self.instr_id:
             logger.error("%s for %s from %s", msg, self.my_id, sender)
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if not self._is_reserved():
-            self.request_locks["StopMonitoring"].requester = sender
-            self._handle_stop_monitoring_reply_from_is(status=Status.OK_SKIPPED)
+            self._handle_stop_monitoring_reply_from_is(
+                status=Status.OK_SKIPPED, requester=sender
+            )
             return
-        if self._lock_request(
-            "StopMonitoring", (self.receiveMsg_StopMonitoringMsg, msg, sender)
-        ):
-            self._request_stop_monitoring_at_is()
+        action_request = ActionRequest(
+            worker=self._stop_monitoring_worker,
+            msg=msg,
+            sender=sender,
+            timeout_handler=self._stop_monitoring_timeout,
+            time=datetime.now(),
+            on_kill_handler=self._stop_monitoring_on_kill,
+        )
+        if self.on_kill:
+            self._stop_monitoring_on_kill(action_request)
+            return
+        self.wakeupAfter(REQUEST_TIMEOUT, "timeout")
+        self._fifo(action_request)
+
+    def _stop_monitoring_worker(self, action_request: ActionRequest):
+        if self._lock_request("StopMonitoring", action_request):
+            self._request_stop_monitoring_at_is(action_request.sender)
+
+    def _stop_monitoring_timeout(self, action_request):
+        self._handle_stop_monitoring_reply_from_is(
+            status=Status.BUSY_TIMEOUT, requester=action_request.sender
+        )
+
+    def _stop_monitoring_on_kill(self, action_request):
+        self._handle_stop_monitoring_reply_from_is(
+            status=Status.NOT_FOUND, requester=action_request.sender
+        )
 
     def receiveMsg_SetRtcMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Set the RTC of the instrument given in msg."""
-        self.request_locks["SetRtc"].pending = True
         if msg.instr_id != self.instr_id:
             logger.error("%s for %s from %s", msg, self.my_id, sender)
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if self._is_reserved():
-            self.request_locks["SetRtc"].requester = sender
-            self._handle_set_rtc_reply_from_is(status=Status.OCCUPIED, confirm=True)
+            self._handle_set_rtc_reply_from_is(
+                status=Status.OCCUPIED, confirm=True, requester=sender
+            )
             return
-        if self._lock_request("SetRtc", (self.receiveMsg_SetRtcMsg, msg, sender)):
-            self._request_set_rtc_at_is(confirm=True)
+        action_request = ActionRequest(
+            worker=self._set_rtc_worker,
+            msg=msg,
+            sender=sender,
+            timeout_handler=self._set_rtc_timeout,
+            time=datetime.now(),
+            on_kill_handler=self._set_rtc_on_kill,
+        )
+        if self.on_kill:
+            self._set_rtc_on_kill(action_request)
+            return
+        self.wakeupAfter(REQUEST_TIMEOUT, "timeout")
+        self._fifo(action_request)
+
+    def _set_rtc_worker(self, action_request: ActionRequest):
+        if self._lock_request("SetRtc", action_request):
+            self._request_set_rtc_at_is(sender=action_request.sender, confirm=True)
+
+    def _set_rtc_timeout(self, action_request):
+        self._handle_set_rtc_reply_from_is(
+            status=Status.BUSY_TIMEOUT, confirm=True, requester=action_request.sender
+        )
+
+    def _set_rtc_on_kill(self, action_request):
+        self._handle_set_rtc_reply_from_is(
+            status=Status.NOT_FOUND, confirm=True, requester=action_request.sender
+        )
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
@@ -406,7 +560,7 @@ class DeviceBaseActor(BaseActor):
             if self.device_status["Reservation"].get("Port", False):
                 self.device_status["Reservation"].pop("Port")
             if self.return_message is not None:
-                self._send_free_status_msg()
+                self._send_free_status_msg(self.request_locks["Free"].request.sender)
         super().receiveMsg_ChildActorExited(msg, sender)
 
     @overrides
@@ -440,7 +594,7 @@ class DeviceBaseActor(BaseActor):
                     return
         self._publish_status_change()
 
-    def _request_reserve_at_is(self):
+    def _request_reserve_at_is(self, sender):
         # pylint: disable=unused-argument
         """Request the reservation of an instrument at the Instrument Server. This function has
         to be implemented (overridden) in the protocol specific modules.
@@ -448,23 +602,22 @@ class DeviceBaseActor(BaseActor):
         Args:
             self.reserve_device_msg: Dataclass identifying the requesting app, host and user.
         """
-        self.wakeupAfter(REQUEST_TIMEOUT, "timeout_on_reserve")
 
-    def _request_free_at_is(self):
+    def _request_free_at_is(self, sender):
         # pylint: disable=unused-argument
         """Request freeing an instrument at the Instrument Server. This function has
         to be implemented (overridden) in the protocol specific modules.
         """
-        self.wakeupAfter(REQUEST_TIMEOUT, "timeout_on_free")
 
-    def _handle_reserve_reply_from_is(self, success: Status):
+    def _handle_reserve_reply_from_is(self, success: Status, requester):
         # pylint: disable=unused-argument
         """Create redirector.
         Forward the reservation state from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
         logger.debug("_handle_reserve_reply_from_is")
-        self._release_lock("Reserve")
+        if success not in [Status.OCCUPIED]:
+            self._release_lock("Reserve")
         self.return_message = ReservationStatusMsg(
             instr_id=self.instr_id, status=success
         )
@@ -492,7 +645,7 @@ class DeviceBaseActor(BaseActor):
                         self.return_message = ReservationStatusMsg(
                             self.instr_id, Status.OCCUPIED
                         )
-                        self._send_reservation_status_msg()
+                        self._send_reservation_status_msg(requester)
                         logger.debug("_send_reservation_status_msg case A")
                         return
             except (KeyError, TypeError):
@@ -504,7 +657,7 @@ class DeviceBaseActor(BaseActor):
                     logger.debug("Create redirector for %s", self.my_id)
                     self._create_redirector()
                 else:
-                    self._send_reservation_status_msg()
+                    self._send_reservation_status_msg(requester)
                     logger.debug("_send_reservation_status_msg case F")
             else:
                 reservation = {
@@ -517,32 +670,40 @@ class DeviceBaseActor(BaseActor):
                     ),
                 }
                 self._update_reservation_status(reservation)
-                self._send_reservation_status_msg()
+                self._send_reservation_status_msg(requester)
                 logger.debug("_send_reservation_status_msg case C")
             return
         self.return_message = ReservationStatusMsg(self.instr_id, success)
+        if success in [Status.BUSY_TIMEOUT]:
+            logger.error(
+                "Reservation of %s failed with %s.",
+                self.my_id,
+                success,
+            )
+            self._send_reservation_status_msg(requester)
         if success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
             logger.error(
                 "Reservation of %s failed with %s. Removing device from list.",
                 self.my_id,
                 success,
             )
-            self._send_reservation_status_msg()
+            self._send_reservation_status_msg(requester)
             self._kill_myself(resurrect=True)
         elif success == Status.ERROR:
             logger.error("%s during reservation of %s", success, self.my_id)
-            self._send_reservation_status_msg()
+            self._send_reservation_status_msg(requester)
             logger.debug("_send_reservation_status_msg case D")
             self._kill_myself(resurrect=True)
 
-    def _handle_free_reply_from_is(self, success: Status):
+    def _handle_free_reply_from_is(self, success: Status, requester):
         # pylint: disable=unused-argument
         """Inform all interested parties that the instrument is free.
         Forward the reservation state from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
         logger.debug("Free command on %s returned %s", self.instr_id, success)
-        self._release_lock("Free")
+        if success not in [Status.OK_SKIPPED]:
+            self._release_lock("Free")
         if success in (Status.OK, Status.OK_SKIPPED, Status.OK_UPDATED):
             try:
                 logger.debug("Free active %s", self.my_id)
@@ -558,7 +719,7 @@ class DeviceBaseActor(BaseActor):
         if self.child_actors:
             self._forward_to_children(KillMsg())
         else:
-            self._send_free_status_msg()
+            self._send_free_status_msg(requester)
 
     def _create_redirector(self) -> bool:
         """Create redirector actor if it does not exist already"""
@@ -579,19 +740,24 @@ class DeviceBaseActor(BaseActor):
             msg.measurand,
             self.my_id,
         )
-        self.wakeupAfter(REQUEST_TIMEOUT, "timeout_on_value")
 
-    def _handle_recent_value_reply_from_is(self, answer: RecentValueMsg):
+    def _handle_recent_value_reply_from_is(self, answer: RecentValueMsg, requester):
         # pylint: disable=unused-argument
         """Forward the recent value from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
         logger.debug("Send answer to requester: %s", answer)
-        self._release_lock("GetRecentValue")
-        self.send(self.request_locks["GetRecentValue"].requester, answer)
+        if answer.status not in [Status.OCCUPIED]:
+            self._release_lock("GetRecentValue")
+        self.send(requester, answer)
 
     def _handle_set_rtc_reply_from_is(
-        self, status: Status, confirm: bool, utc_offset: float = -13, wait: int = 0
+        self,
+        status: Status,
+        requester,
+        confirm: bool,
+        utc_offset: float = -13,
+        wait: int = 0,
     ):
         # pylint: disable=unused-argument
         """Forward the acknowledgement received from the Instrument Server to the REST API.
@@ -603,15 +769,16 @@ class DeviceBaseActor(BaseActor):
                             False, if it was called during setup of the UsbActor.
             utc_offset (float): UTC offset (time zone). -13 = unknown
         """
-        self._release_lock("SetRtc")
+        if status not in [Status.OCCUPIED]:
+            self._release_lock("SetRtc")
         if confirm:
             self.send(
-                self.request_locks["SetRtc"].requester,
+                requester,
                 SetRtcAckMsg(self.instr_id, status, utc_offset=utc_offset, wait=wait),
             )
 
     def _handle_start_monitoring_reply_from_is(
-        self, status: Status, confirm: bool, offset: timedelta = timedelta(0)
+        self, status: Status, requester, confirm: bool, offset: timedelta = timedelta(0)
     ):
         # pylint: disable=unused-argument
         """Forward the acknowledgement received from the Instrument Server to the REST API.
@@ -622,14 +789,15 @@ class DeviceBaseActor(BaseActor):
             confirm (bool): True, if the ACK shall be forwarded;
                             False, if it was called during setup of the UsbActor.
         """
-        self._release_lock("StartMonitoring")
+        if status not in [Status.OCCUPIED]:
+            self._release_lock("StartMonitoring")
         if confirm:
             self.send(
-                self.request_locks["StartMonitoring"].requester,
+                requester,
                 StartMonitoringAckMsg(self.instr_id, status, offset=offset),
             )
 
-    def _handle_stop_monitoring_reply_from_is(self, status: Status):
+    def _handle_stop_monitoring_reply_from_is(self, status: Status, requester):
         # pylint: disable=unused-argument
         """Forward the acknowledgement received from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
@@ -637,9 +805,10 @@ class DeviceBaseActor(BaseActor):
         Args:
             status (Status): Info about the success of operation.
         """
-        self._release_lock("StopMonitoring")
+        if status not in [Status.OCCUPIED]:
+            self._release_lock("StopMonitoring")
         self.send(
-            self.request_locks["StopMonitoring"].requester,
+            requester,
             StopMonitoringAckMsg(self.instr_id, status),
         )
 
@@ -647,40 +816,42 @@ class DeviceBaseActor(BaseActor):
         self.device_status["Reservation"] = reservation
         logger.debug("Reservation state updated: %s", self.device_status)
 
-    def _send_reservation_status_msg(self):
+    def _send_reservation_status_msg(self, requester):
         logger.debug("%s _send_reservation_status_msg", self.my_id)
         self._publish_status_change()
-        if self.request_locks["Reserve"].requester is not None:
+        if requester not in [self.myAddress, None]:
             if self.return_message is not None:
-                self.send(self.request_locks["Reserve"].requester, self.return_message)
+                self.send(requester, self.return_message)
             else:
                 logger.error(
                     "self.return_message should contain a ReservationStatusMsg for Reserve"
                 )
+        if self.return_message.status not in [Status.OCCUPIED]:
+            self._release_lock("Reserve")
         self.return_message = None
-        self._release_lock("Reserve")
 
-    def _send_free_status_msg(self):
-        logger.debug("%s _send_reservation_status_msg", self.my_id)
+    def _send_free_status_msg(self, requester):
+        logger.debug("%s _send_free_status_msg", self.my_id)
         self._publish_status_change()
-        if self.request_locks["Free"].requester is not None:
+        if requester not in [self.myAddress, None]:
             if self.return_message is not None:
-                self.send(self.request_locks["Free"].requester, self.return_message)
+                self.send(requester, self.return_message)
             else:
                 logger.error(
                     "self.return_message should contain a ReservationStatusMsg for Free"
                 )
+        if self.return_message.status not in [Status.OK_SKIPPED]:
+            self._release_lock("Free")
         self.return_message = None
-        self._release_lock("Free")
 
-    def _request_status_at_is(self):
+    def _request_status_at_is(self, sender):
         """Send a request to the Instrument Server to get the recent status of
         the device.
 
         This has to be overriden in the backend specific implementation."""
-        self._handle_status_reply_from_is(Status.OK)
+        self._handle_status_reply_from_is(Status.OK, sender)
 
-    def _handle_status_reply_from_is(self, status: Status):
+    def _handle_status_reply_from_is(self, status: Status, requester):
         # pylint: disable=unused-argument
         """Forward the status received from the Instrument Server to the sender
         requesting status information. This function has to be called in the
@@ -690,10 +861,11 @@ class DeviceBaseActor(BaseActor):
             status (Status): Info about the success of operation.
         """
         self.send(
-            self.request_locks["GetDeviceStatus"].requester,
+            requester,
             UpdateDeviceStatusMsg(self.my_id, self.device_status),
         )
-        self._release_lock("GetDeviceStatus")
+        if status not in [Status.OCCUPIED]:
+            self._release_lock("GetDeviceStatus")
 
     def _publish_status_change(self):
         """Publish a changed device status to all subscribers."""
@@ -722,7 +894,7 @@ class DeviceBaseActor(BaseActor):
                     UpdateDeviceStatusMsg(self.my_id, self.device_status),
                 )
 
-    def _request_start_monitoring_at_is(self, start_time=None, confirm=False):
+    def _request_start_monitoring_at_is(self, sender, start_time=None, confirm=False):
         # pylint: disable=unused-argument
         """Handler to start the monitoring mode on the Device Actor.
 
@@ -734,14 +906,12 @@ class DeviceBaseActor(BaseActor):
             self.my_id,
             start_time.isoformat(sep="T", timespec="auto"),
         )
-        self.wakeupAfter(REQUEST_TIMEOUT, "timeout_on_start_monitoring")
 
-    def _request_stop_monitoring_at_is(self):
+    def _request_stop_monitoring_at_is(self, sender):
         """Handler to terminate the monitoring mode on the Device Actor.
 
         This is only a stub. The method is implemented in the backend Device Actor."""
         logger.info("%s requested to stop monitoring", self.my_id)
-        self.wakeupAfter(REQUEST_TIMEOUT, "timeout_on_stop_monitoring")
 
     def _request_bin_at_is(self, data):
         # pylint: disable=unused-argument
@@ -767,59 +937,45 @@ class DeviceBaseActor(BaseActor):
         if self.bin_locks and self.bin_locks[-1].value:
             self.bin_locks[-1].value = False
 
-    def _request_set_rtc_at_is(self, confirm=False):
+    def _request_set_rtc_at_is(self, sender, confirm=False):
         # pylint: disable=unused-argument
         """Request setting the RTC of an instrument. This method has
         to be implemented (overridden) in the backend Device Actor.
         """
-        self.wakeupAfter(REQUEST_TIMEOUT, "timeout_on_set_rtc")
 
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
-        if self.device_status.get("Reservation", False):
-            if (
-                self.device_status["Reservation"].get("Active", False)
-                and self.child_actors
-                and self.redirector_actor is not None
-            ):
-                self._handle_bin_reply_from_is(answer=RxBinaryMsg(self.RET_TIMEOUT))
-        self.device_status["State"] = 1
-        if self.child_actors:
-            logger.info("%s has children: %s", self.my_id, self.child_actors)
-        if self.request_locks["Reserve"].pending:
-            self._handle_reserve_reply_from_is(success=Status.NOT_FOUND)
-        if self.request_locks["Free"].pending:
-            self._handle_free_reply_from_is(success=Status.NOT_FOUND)
-        if self.request_locks["GetRecentValue"].pending:
-            self._handle_recent_value_reply_from_is(
-                answer=RecentValueMsg(
-                    status=Status.NOT_FOUND,
-                    instr_id=self.instr_id,
-                )
-            )
-        if self.request_locks["SetRtc"].pending:
-            self._handle_set_rtc_reply_from_is(status=Status.NOT_FOUND, confirm=True)
-        if self.request_locks["StartMonitoring"].pending:
-            self._handle_start_monitoring_reply_from_is(
-                status=Status.NOT_FOUND, confirm=True
-            )
-        if self.request_locks["StopMonitoring"].pending:
-            self._handle_stop_monitoring_reply_from_is(status=Status.NOT_FOUND)
-        if self.request_locks["GetDeviceStatus"].pending:
-            self._handle_status_reply_from_is(status=Status.NOT_FOUND)
+        if not self.on_kill:
+            if self.device_status.get("Reservation", False):
+                if (
+                    self.device_status["Reservation"].get("Active", False)
+                    and self.child_actors
+                    and self.redirector_actor is not None
+                ):
+                    self._handle_bin_reply_from_is(answer=RxBinaryMsg(self.RET_TIMEOUT))
+            self.device_status["State"] = 1
+            if self.child_actors:
+                logger.info("%s has children: %s", self.my_id, self.child_actors)
+            for _lock_key, lock in self.request_locks.items():
+                if lock.locked:
+                    lock.request.on_kill_handler(lock.request)
+            for pending_request in self.request_queue:
+                pending_request.on_kill_handler(pending_request)
         try:
             super()._kill_myself(register=register, resurrect=resurrect)
         except TypeError as exception:
             logger.warning("TypeError in _kill_myself on %s: %s", self.my_id, exception)
 
-    def _lock_request(self, request_lock: str, retry) -> bool:
+    def _lock_request(self, request_lock: str, action_request: ActionRequest) -> bool:
         """Set the lock for the request, check for reservation and forward the
         request to Instrument Server."""
-        logger.info("Request %s lock for %s", request_lock, self.my_id)
+        logger.debug("Request %s lock for %s", request_lock, self.my_id)
+        if action_request not in self.request_queue:
+            return False
         for lock_key, lock in self.request_locks.items():
             if lock.locked:
                 logger.info("%s %s action pending", self.my_id, lock_key)
-                if datetime.now() - lock.time >= REQUEST_TIMEOUT:
+                if datetime.now() - lock.request.time >= REQUEST_TIMEOUT:
                     logger.warning(
                         "Pending %s on %s took longer than %s",
                         request_lock,
@@ -828,11 +984,13 @@ class DeviceBaseActor(BaseActor):
                     )
                     self._kill_myself(resurrect=True)
                     return False
-                self.wakeupAfter(timedelta(milliseconds=500), retry)
+                self.wakeupAfter(timedelta(milliseconds=500), action_request)
                 return False
-        self.request_locks[request_lock].requester = retry[2]
+        self.request_queue.pop(
+            0
+        )  # Every request shall either be in the queue or in the lock.
+        self.request_locks[request_lock].request = action_request
         self.request_locks[request_lock].locked = True
-        self.request_locks[request_lock].time = datetime.now()
         return True
 
     def _is_reserved(self) -> bool:
@@ -843,6 +1001,13 @@ class DeviceBaseActor(BaseActor):
         return False
 
     def _release_lock(self, request_lock: str):
-        """Release the lock and reset pending state."""
+        """Release the lock."""
         self.request_locks[request_lock].locked = False
-        self.request_locks[request_lock].pending = False
+
+    def _fifo(self, action_request):
+        """Puts action_request into the request_queue, takes the first action
+        from the queue and calls its worker."""
+        self.request_queue.append(action_request)
+        logger.info("%d elements in queue of %s", len(self.request_queue), self.my_id)
+        dequeued_action = self.request_queue[0]
+        dequeued_action.worker(dequeued_action)

@@ -93,8 +93,8 @@ class NetUsbActor(UsbActor):
             logger.warning("%s during _close_channel from %s", exception, self.my_id)
 
     @overrides
-    def receiveMsg_WakeupMessage(self, msg, _sender):
-        super().receiveMsg_WakeupMessage(msg, _sender)
+    def receiveMsg_WakeupMessage(self, msg, sender):
+        super().receiveMsg_WakeupMessage(msg, sender)
         if (msg.payload == "scan") and not self.blocked:
             if not self.scan_thread.is_alive():
                 self.scan_thread = Thread(target=self.scan, daemon=True)

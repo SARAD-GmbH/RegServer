@@ -142,13 +142,13 @@ class MqttDeviceActor(DeviceBaseActor):
         logger.debug("[SEND] send status is %s", self.state["SEND"]["Pending"])
 
     @overrides
-    def _request_reserve_at_is(self):
+    def _request_reserve_at_is(self, sender):
         """Request the reservation of an instrument at the Instrument Server.
 
         Args:
             self.reserve_device_msg: Dataclass identifying the requesting app, host and user.
         """
-        super()._request_reserve_at_is()
+        super()._request_reserve_at_is(sender)
         if not self.state["RESERVE"]["Pending"]:
             self.state["RESERVE"]["Pending"] = True
             self.send(
@@ -169,11 +169,11 @@ class MqttDeviceActor(DeviceBaseActor):
             )
 
     @overrides
-    def _handle_reserve_reply_from_is(self, success):
+    def _handle_reserve_reply_from_is(self, success, requester):
         if success is Status.NOT_FOUND:
             logger.warning("Reserve request to %s timed out", self.my_id)
-            self._request_free_at_is()
-        super()._handle_reserve_reply_from_is(success)
+            self._request_free_at_is(sender=requester)
+        super()._handle_reserve_reply_from_is(success, requester)
 
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -193,7 +193,7 @@ class MqttDeviceActor(DeviceBaseActor):
         )
 
     @overrides
-    def _request_free_at_is(self):
+    def _request_free_at_is(self, sender):
         """Forward the free request to the broker."""
         self.send(
             self.parent.parent_address,
@@ -208,13 +208,13 @@ class MqttDeviceActor(DeviceBaseActor):
             self.parent.parent_address,
             MqttUnsubscribeMsg([self.allowed_sys_topics["MSG"]]),
         )
-        super()._request_free_at_is()
+        super()._request_free_at_is(sender)
 
     @overrides
-    def _handle_free_reply_from_is(self, success):
+    def _handle_free_reply_from_is(self, success, requester):
         if success is Status.NOT_FOUND:
             logger.warning("Free request to %s timed out", self.my_id)
-        super()._handle_free_reply_from_is(success)
+        super()._handle_free_reply_from_is(success, requester)
 
     def receiveMsg_MqttReceiveMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -256,8 +256,8 @@ class MqttDeviceActor(DeviceBaseActor):
         )
 
     @overrides
-    def _request_set_rtc_at_is(self, confirm=False):
-        super()._request_set_rtc_at_is(confirm)
+    def _request_set_rtc_at_is(self, sender, confirm=False):
+        super()._request_set_rtc_at_is(sender, confirm)
         self.send(
             self.parent.parent_address,
             MqttSubscribeMsg([(self.allowed_sys_topics["ACK"], self.qos)]),
@@ -280,8 +280,10 @@ class MqttDeviceActor(DeviceBaseActor):
         )
 
     @overrides
-    def _request_start_monitoring_at_is(self, start_time=None, confirm=False):
-        super()._request_start_monitoring_at_is(start_time=start_time, confirm=confirm)
+    def _request_start_monitoring_at_is(self, sender, start_time=None, confirm=False):
+        super()._request_start_monitoring_at_is(
+            sender=sender, start_time=start_time, confirm=confirm
+        )
         if not start_time:
             start_time = datetime.now(timezone.utc)
         self.send(
@@ -308,8 +310,8 @@ class MqttDeviceActor(DeviceBaseActor):
         )
 
     @overrides
-    def _request_stop_monitoring_at_is(self):
-        super()._request_stop_monitoring_at_is()
+    def _request_stop_monitoring_at_is(self, sender):
+        super()._request_stop_monitoring_at_is(sender)
         self.send(
             self.parent.parent_address,
             MqttSubscribeMsg([(self.allowed_sys_topics["ACK"], self.qos)]),
@@ -373,7 +375,8 @@ class MqttDeviceActor(DeviceBaseActor):
                     utc_offset=value_dict.get("utc_offset", 0),
                     sample_interval=value_dict.get("interval", 0),
                     gps=gps,
-                )
+                ),
+                self.request_locks["GetRecentValue"].request.sender,
             )
             self.state["VALUE"]["Pending"] = False
 
@@ -401,6 +404,7 @@ class MqttDeviceActor(DeviceBaseActor):
             if (req == "set-rtc") and (waiting_for == "set-rtc"):
                 self._handle_set_rtc_reply_from_is(
                     status=Status(ack_dict.get("status", 98)),
+                    requester=self.request_locks["SetRtc"].request.sender,
                     confirm=True,
                     utc_offset=ack_dict.get("utc_offset", -13),
                     wait=ack_dict.get("wait", 0),
@@ -409,6 +413,7 @@ class MqttDeviceActor(DeviceBaseActor):
             elif (req == "monitor-start") and (waiting_for == "monitor-start"):
                 self._handle_start_monitoring_reply_from_is(
                     status=Status(ack_dict.get("status", 98)),
+                    requester=self.request_locks["StartMonitoring"].request.sender,
                     confirm=True,
                     offset=timedelta(seconds=ack_dict.get("offset", 0)),
                 )
@@ -416,6 +421,7 @@ class MqttDeviceActor(DeviceBaseActor):
             elif (req == "monitor-stop") and (waiting_for == "monitor-stop"):
                 self._handle_stop_monitoring_reply_from_is(
                     status=Status(ack_dict.get("status", 98)),
+                    requester=self.request_locks["StopMonitoring"].request.sender,
                 )
                 self.state["WAIT_FOR_ACK"]["Pending"] = False
             elif (req == "config") and (waiting_for == "config"):
@@ -478,19 +484,23 @@ class MqttDeviceActor(DeviceBaseActor):
             logger.debug("Reservation status: %s", reservation_status)
             if instr_is_reserved:
                 self._handle_reserve_reply_from_is(
-                    reservation_status
+                    reservation_status, self.request_locks["Reserve"].request.sender
                 )  # create redirector actor
             else:
                 logger.warning(
                     "%s received unexpected *Free* reply instead of *Reserved*",
                     self.instr_id,
                 )
-                self._handle_free_reply_from_is(Status.OK)
+                self._handle_free_reply_from_is(
+                    Status.OK, self.request_locks["Free"].request.sender
+                )
             self.state["RESERVE"]["Pending"] = False
             return
         if not instr_is_reserved:
             logger.debug("Free status: %s", reservation_status)
-            self._handle_free_reply_from_is(Status.OK)
+            self._handle_free_reply_from_is(
+                Status.OK, self.request_locks["Free"].request.sender
+            )
             return
         logger.debug(
             "%s is now occupied by %s, %s @ %s",
@@ -506,7 +516,10 @@ class MqttDeviceActor(DeviceBaseActor):
             if self.device_status["Reservation"].get("Port", False):
                 reservation["Port"] = self.device_status["Reservation"]["Port"]
         self.device_status["Reservation"] = reservation
-        self._handle_reserve_reply_from_is(reservation_status)
+        self._handle_reserve_reply_from_is(
+            success=reservation_status,
+            requester=self.request_locks["Reserve"].request.sender,
+        )
 
     def on_msg(self, payload):
         """Handler for MQTT messages regarding binary messages from instrument"""
@@ -562,13 +575,9 @@ class MqttDeviceActor(DeviceBaseActor):
             logger.debug(
                 "%s is still reserved by my host -> sending Free request", self.my_id
             )
-            self._request_free_at_is()
+            self._request_free_at_is(self.myAddress)
         except (KeyError, TypeError):
             pass
-        try:
-            self._send_reservation_status_msg()
-        except AttributeError as exception:
-            logger.error(exception)
         if not self.on_kill and resurrect:
             self.send(self.parent.parent_address, ResurrectMsg(is_id=self.is_id))
         try:

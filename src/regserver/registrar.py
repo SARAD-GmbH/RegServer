@@ -651,7 +651,6 @@ class Registrar(BaseActor):
         if (
             actor_id
             in [
-                "mqtt_scheduler",
                 "mdns_scheduler",
                 "host_creator",
                 "cluster",
@@ -659,6 +658,14 @@ class Registrar(BaseActor):
                 "is1_listener",
             ]
             and not self.on_kill
+        ):
+            logger.critical("%s was killed. This should never happen.", actor_id)
+            system_shutdown(with_error=True)
+            return False
+        if (
+            (actor_id == "mqtt_scheduler")
+            and not self.on_kill
+            and (Frontend.MQTT in frontend_config)
         ):
             logger.critical("%s was killed. This should never happen.", actor_id)
             system_shutdown(with_error=True)

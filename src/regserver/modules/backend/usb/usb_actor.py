@@ -26,8 +26,8 @@ from regserver.config import (config, frontend_config, local_backend_config,
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
-from sarad.global_helpers import (encode_instr_id,  # type: ignore
-                                  get_sarad_type)
+from sarad.global_helpers import encode_instr_id  # type: ignore
+from sarad.global_helpers import get_sarad_type
 from sarad.instrument import Gps  # type: ignore
 from sarad.mapping import id_family_mapping  # type: ignore
 from sarad.sari import SaradInst  # type: ignore
@@ -149,18 +149,20 @@ class UsbActor(DeviceBaseActor):
         self.mon_state.monitoring_shall_be_active = monitoring_conf.get("active", False)
         if self.mon_state.monitoring_shall_be_active:
             logger.debug("Monitoring mode for %s shall be active", self.instr_id)
-            self._request_start_monitoring_at_is(confirm=False)
+            self._request_start_monitoring_at_is(confirm=False, sender=self.myAddress)
         else:
             if local_backend_config["SET_RTC"]:
-                self._request_set_rtc_at_is(confirm=False)
+                self._request_set_rtc_at_is(confirm=False, sender=self.myAddress)
         self.instrument.release_instrument()
         logger.debug("Instrument with Id %s detected.", self.instr_id)
         return
 
-    def receiveMsg_WakeupMessage(self, msg, _sender):
+    @overrides
+    def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name, disable=too-many-branches
         """Handler for WakeupMessage"""
         # logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
+        super().receiveMsg_WakeupMessage(msg, sender)
         if msg.payload is None:
             logger.debug("Check connection of %s", self.my_id)
             self.wakeupAfter(local_backend_config["LOCAL_RETRY_INTERVAL"])
@@ -194,9 +196,9 @@ class UsbActor(DeviceBaseActor):
                     self.mon_state.suspended = True
                 else:
                     logger.info("Resume monitoring mode at %s", self.my_id)
-                    self._request_start_monitoring_at_is()
+                    self._request_start_monitoring_at_is(sender=self.myAddress)
         elif msg.payload == "request_set_rtc_at_is":
-            self._request_set_rtc_at_is(confirm=False)
+            self._request_set_rtc_at_is(sender=self.myAddress, confirm=False)
 
     def _finish_poll(self):
         """Finalize the handling of WakeupMessage for regular rescan"""
@@ -296,7 +298,7 @@ class UsbActor(DeviceBaseActor):
                 return
 
     @overrides
-    def _request_reserve_at_is(self):
+    def _request_reserve_at_is(self, sender):
         """Reserve the requested instrument.
 
         To avoid wrong reservations of instruments like DOSEman sitting on an
@@ -327,28 +329,38 @@ class UsbActor(DeviceBaseActor):
         if not self.is_connected and not self.on_kill:
             logger.info("Killing myself")
             self._kill_myself()
-            self._handle_reserve_reply_from_is(Status.NOT_FOUND)
+            success = Status.NOT_FOUND
         else:
-            self._handle_reserve_reply_from_is(Status.OK)
+            success = Status.OK
+        self._handle_reserve_reply_from_is(
+            success=success,
+            requester=self.request_locks["Reserve"].request.sender,
+        )
 
     @overrides
-    def _request_free_at_is(self):
+    def _request_free_at_is(self, sender):
         """Free the instrument
 
         The USB Actor is already the last in the chain. There is no need to ask
         somebody else to free the instrument.
         """
         self.instrument.release_instrument()
-        self._handle_free_reply_from_is(Status.OK)
+        self._handle_free_reply_from_is(
+            success=Status.OK,
+            requester=sender,
+        )
         self.wakeupAfter(timedelta(seconds=10), "resume_monitoring")
 
     @overrides
-    def _request_set_rtc_at_is(self, confirm=False):
-        super()._request_set_rtc_at_is(confirm)
+    def _request_set_rtc_at_is(self, sender, confirm=False):
+        super()._request_set_rtc_at_is(sender, confirm)
         self.reserve_device_msg = ReserveDeviceMsg(
             host="localhost", user="self", app="set-rtc"
         )
-        self._handle_reserve_reply_from_is(Status.OK)
+        self._handle_reserve_reply_from_is(
+            success=Status.OK,
+            requester=self.myAddress,
+        )
         if self.instrument.family["family_id"] == 2:
             logger.debug("Features of %s: %s", self.my_id, self.instrument.features)
             if self.instrument.features.get("rtc_set_seconds", False):
@@ -371,8 +383,9 @@ class UsbActor(DeviceBaseActor):
         else:
             utc_offset = local_backend_config["UTC_OFFSET"]
         self._handle_set_rtc_reply_from_is(
-            Status.OK,
-            confirm,
+            status=Status.OK,
+            requester=sender,
+            confirm=confirm,
             utc_offset=utc_offset,
             wait=wait,
         )
@@ -389,7 +402,7 @@ class UsbActor(DeviceBaseActor):
 
     def _set_rtc_function(self):
         self.instrument.utc_offset = local_backend_config["UTC_OFFSET"]
-        self._request_free_at_is()
+        self._request_free_at_is(sender=self.myAddress)
 
     def _check_monitoring_config(self) -> bool:
         """Check correctness of configuration. Return True, if correct."""
@@ -420,14 +433,19 @@ class UsbActor(DeviceBaseActor):
         return True
 
     @overrides
-    def _request_start_monitoring_at_is(self, start_time=None, confirm=False):
-        super()._request_start_monitoring_at_is(start_time, confirm)
+    def _request_start_monitoring_at_is(self, sender, start_time=None, confirm=False):
+        super()._request_start_monitoring_at_is(
+            sender=sender, start_time=start_time, confirm=confirm
+        )
         if not start_time:
             start_time = datetime.now(timezone.utc)
         self.reserve_device_msg = ReserveDeviceMsg(
             host="localhost", user="self", app="monitoring"
         )
-        self._handle_reserve_reply_from_is(Status.OK)
+        self._handle_reserve_reply_from_is(
+            success=Status.OK,
+            requester=self.myAddress,
+        )
         if Frontend.MQTT not in frontend_config:
             self.send(
                 self.registrar,
@@ -440,6 +458,7 @@ class UsbActor(DeviceBaseActor):
         offset = max(start_time - datetime.now(timezone.utc), timedelta(0))
         self._handle_start_monitoring_reply_from_is(
             status=status,
+            requester=self.request_locks["StartMonitoring"].request.sender,
             confirm=confirm,
             offset=offset,
         )
@@ -460,11 +479,11 @@ class UsbActor(DeviceBaseActor):
                 "Cannot start monitoring mode because of error in 'config.toml'"
             )
             self.mon_state.monitoring_shall_be_active = False
-            self._request_free_at_is()
+            self._request_free_at_is(sender=sender)
 
     @overrides
-    def _request_stop_monitoring_at_is(self):
-        super()._request_stop_monitoring_at_is()
+    def _request_stop_monitoring_at_is(self, sender):
+        super()._request_stop_monitoring_at_is(sender)
         self.mon_state.monitoring_shall_be_active = False
         has_reservation_section = self.device_status.get("Reservation", False)
         if has_reservation_section:
@@ -473,11 +492,14 @@ class UsbActor(DeviceBaseActor):
             is_reserved = False
         if is_reserved and self.mon_state.monitoring_active:
             self._stop_monitoring()
-            self._request_free_at_is()
+            self._request_free_at_is(sender)
             status = Status.OK
         else:
             status = Status.OK_SKIPPED
-        self._handle_stop_monitoring_reply_from_is(status=status)
+        self._handle_stop_monitoring_reply_from_is(
+            status=status,
+            requester=self.request_locks["StopMonitoring"].request.sender,
+        )
 
     def _start_monitoring(self):
         self._start_thread(
@@ -524,7 +546,7 @@ class UsbActor(DeviceBaseActor):
             else:
                 logger.error("Error in config.toml. Cycle not configured.")
                 self.mon_state.monitoring_active = False
-                self._request_free_at_is()
+                self._request_free_at_is(self.myAddress)
                 return
         self.mon_state.monitoring_active = True
         self.mon_state.start_timestamp = int(
@@ -673,7 +695,10 @@ class UsbActor(DeviceBaseActor):
         self.reserve_device_msg = ReserveDeviceMsg(
             host="localhost", user="self", app="value-request"
         )
-        self._handle_reserve_reply_from_is(Status.OK)
+        self._handle_reserve_reply_from_is(
+            success=Status.OK,
+            requester=self.myAddress,
+        )
         self._start_thread(
             Thread(
                 target=self._get_recent_value,
@@ -688,8 +713,11 @@ class UsbActor(DeviceBaseActor):
 
     def _get_recent_value(self, component, sensor, measurand):
         answer = self._get_recent_value_inner(component, sensor, measurand)
-        self._request_free_at_is()
-        self._handle_recent_value_reply_from_is(answer)
+        self._request_free_at_is(self.myAddress)
+        self._handle_recent_value_reply_from_is(
+            answer=answer,
+            requester=self.request_locks["GetRecentValue"].request.sender,
+        )
 
     def _get_recent_value_for_monitoring(self, component, sensor, measurand, interval):
         if self.mon_state.monitoring_active:

@@ -185,7 +185,10 @@ class DeviceActor(DeviceBaseActor):
                     instr_id=self.instr_id,
                 )
                 logger.info("Call _handle_recent_value_reply_from_is(%s)", answer)
-            self._handle_recent_value_reply_from_is(answer)
+            self._handle_recent_value_reply_from_is(
+                answer=answer,
+                requester=self.request_locks["GetRecentValue"].request.sender,
+            )
         elif purpose == Purpose.STATUS:
             logger.debug(
                 "_finish_set_device_status called from SetDeviceStatus at %s",
@@ -206,6 +209,7 @@ class DeviceActor(DeviceBaseActor):
                 error_code = self.success
             self._handle_set_rtc_reply_from_is(
                 status=Status(error_code),
+                requester=self.request_locks["SetRtc"].request.sender,
                 confirm=True,
                 utc_offset=self.response.get("UTC offset", -13),
                 wait=self.response.get("Wait", 0),
@@ -220,6 +224,7 @@ class DeviceActor(DeviceBaseActor):
                 error_code = self.success
             self._handle_start_monitoring_reply_from_is(
                 status=Status(error_code),
+                requester=self.request_locks["StartMonitoring"].request.sender,
                 confirm=True,
                 offset=timedelta(seconds=self.response.get("Offset", 0)),
             )
@@ -231,7 +236,10 @@ class DeviceActor(DeviceBaseActor):
                 error_code = self.response.get("Error code", 98)
             else:
                 error_code = self.success
-            self._handle_stop_monitoring_reply_from_is(status=Status(error_code))
+            self._handle_stop_monitoring_reply_from_is(
+                status=Status(error_code),
+                requester=self.request_locks["StartMonitoring"].request.sender,
+            )
 
     def _start_thread(self, thread):
         if not self.request_thread.is_alive():
@@ -303,6 +311,7 @@ class DeviceActor(DeviceBaseActor):
     def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name
         """Handle WakeupMessage for regular updates"""
+        super().receiveMsg_WakeupMessage(msg, sender)
         if msg.payload == "update":
             logger.debug("Update reservation state of %s", self.device_id)
             if not self.request_thread.is_alive():
@@ -357,7 +366,7 @@ class DeviceActor(DeviceBaseActor):
             self._kill_myself()
 
     @overrides
-    def _request_free_at_is(self):
+    def _request_free_at_is(self, sender):
         self._start_thread(
             Thread(
                 target=self._http_get_function,
@@ -380,12 +389,14 @@ class DeviceActor(DeviceBaseActor):
         if self._client_socket is not None:
             self._client_socket.close()
             self._client_socket = None
-        self._handle_free_reply_from_is(success)
+        self._handle_free_reply_from_is(
+            success=success, requester=self.request_locks["Free"].request.sender
+        )
         logger.info("Doublecheck the reservation status after free")
         self.wakeupAfter(timedelta(seconds=11), payload="update")
 
     @overrides
-    def _request_reserve_at_is(self):
+    def _request_reserve_at_is(self, sender):
         """Reserve the requested instrument at the instrument server."""
         app = self.reserve_device_msg.app
         user = self.reserve_device_msg.user
@@ -431,7 +442,9 @@ class DeviceActor(DeviceBaseActor):
                     success = Status.NOT_FOUND
         else:
             success = self.success
-        self._handle_reserve_reply_from_is(success)
+        self._handle_reserve_reply_from_is(
+            success=success, requester=self.request_locks["Reserve"].request.sender
+        )
 
     @overrides
     def _request_recent_value_at_is(self, msg, sender):
@@ -529,7 +542,7 @@ class DeviceActor(DeviceBaseActor):
             self._kill_myself()
 
     @overrides
-    def _request_set_rtc_at_is(self, confirm=False):
+    def _request_set_rtc_at_is(self, sender, confirm=False):
         self._start_thread(
             Thread(
                 target=self._http_post_function,
@@ -540,10 +553,10 @@ class DeviceActor(DeviceBaseActor):
                 daemon=True,
             )
         )
-        super()._request_set_rtc_at_is(confirm)
+        super()._request_set_rtc_at_is(sender, confirm)
 
     @overrides
-    def _request_start_monitoring_at_is(self, start_time=..., confirm=False):
+    def _request_start_monitoring_at_is(self, sender, start_time=None, confirm=False):
         self._start_thread(
             Thread(
                 target=self._http_post_function,
@@ -555,10 +568,10 @@ class DeviceActor(DeviceBaseActor):
                 daemon=True,
             )
         )
-        super()._request_start_monitoring_at_is(start_time, confirm)
+        super()._request_start_monitoring_at_is(sender, start_time, confirm)
 
     @overrides
-    def _request_stop_monitoring_at_is(self):
+    def _request_stop_monitoring_at_is(self, sender):
         self._start_thread(
             Thread(
                 target=self._http_post_function,
@@ -569,7 +582,7 @@ class DeviceActor(DeviceBaseActor):
                 daemon=True,
             )
         )
-        super()._request_stop_monitoring_at_is()
+        super()._request_stop_monitoring_at_is(sender)
 
     @overrides
     def _request_bin_at_is(self, data):
@@ -591,7 +604,7 @@ class DeviceActor(DeviceBaseActor):
         self._handle_bin_reply_from_is(RxBinaryMsg(data=reply))
 
     @overrides
-    def _request_status_at_is(self):
+    def _request_status_at_is(self, sender):
         """Send a request to the Instrument Server to get the recent status of
         the device.
 
@@ -661,7 +674,10 @@ class DeviceActor(DeviceBaseActor):
                     )
                 self.device_status["Reservation"] = reservation
             self._publish_status_change()
-            self._handle_status_reply_from_is(Status.OK)
+            self._handle_status_reply_from_is(
+                status=Status.OK,
+                requester=self.request_locks["GetDeviceStatus"].request.sender,
+            )
         else:
             logger.info(
                 "_kill_myself called from _finish_set_device_status. %s, self.on_kill is %s",

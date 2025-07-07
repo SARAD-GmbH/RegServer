@@ -941,7 +941,7 @@ class GetValues(Resource):
                 "Requester": "Emergency shutdown",
             }
         arguments = values_arguments.parse_args()
-        logger.debug(
+        logger.info(
             "Request value %d/%d/%d of %s in thread %s",
             arguments["component"],
             arguments["sensor"],
@@ -983,6 +983,12 @@ class GetValues(Resource):
             if reply_is_corrupted:
                 logger.error("Didn't receive RecentValueMsg from %s", device_id)
                 return reply_is_corrupted
+            logger.info(
+                "Reply %s for %s in thread %s",
+                value_return,
+                device_id,
+                current_thread().ident,
+            )
         else:
             logger.error(
                 "Reply %s for %s in thread %s",
@@ -993,23 +999,25 @@ class GetValues(Resource):
             status = Status.CRITICAL
             reply_is_corrupted = {"Error code": status.value, "Error": str(status)}
             return reply_is_corrupted
-        if value_return.status in [Status.INDEX_ERROR, Status.OCCUPIED]:
+        if value_return.status in [
+            Status.INDEX_ERROR,
+            Status.OCCUPIED,
+            Status.BUSY_TIMEOUT,
+            Status.NOT_FOUND,
+            Status.IS_NOT_FOUND,
+        ]:
             if value_return.status == Status.OCCUPIED:
                 notification = "The instrument is occupied by somebody else."
             elif value_return.status == Status.INDEX_ERROR:
                 notification = "The requested measurand is not available."
-            return {
-                "Error code": value_return.status.value,
-                "Error": str(value_return.status),
-                "Notification": notification,
-            }
-        if value_return.status in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
-            if value_return.status == Status.NOT_FOUND:
+            elif value_return.status == Status.NOT_FOUND:
                 notification = "The instrument does not reply."
             elif value_return.status == Status.IS_NOT_FOUND:
                 notification = (
                     "The instrument server hosting the instrument cannot be reached."
                 )
+            else:
+                notification = ""
             return {
                 "Error code": value_return.status.value,
                 "Error": str(value_return.status),

@@ -66,7 +66,7 @@ class ZigBeeDeviceActor(UsbActor):
             self.send(self.parent.parent_address, FinishSetupUsbActorMsg(success=False))
         else:
             if local_backend_config["SET_RTC"]:
-                self._request_set_rtc_at_is()
+                self._request_set_rtc_at_is(sender=self.myAddress)
             device_status = {
                 "Identification": {
                     "Name": self.instrument.type_name,
@@ -117,7 +117,7 @@ class ZigBeeDeviceActor(UsbActor):
                     instr_id=self.instr_id, status=Status.OCCUPIED
                 )
                 self._update_reservation_status(self.device_status["Reservation"])
-                self._send_reservation_status_msg()
+                self._send_reservation_status_msg(sender)
         elif self.forwarded_reserve_pending:
             logger.debug(
                 "The ReserveDeviceMsg for %s is comming from NetUsbActor", self.my_id
