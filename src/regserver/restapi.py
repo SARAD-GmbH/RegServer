@@ -448,7 +448,7 @@ class ReserveDevice(Resource):
     def reserve_device(self, device_id, who, create_redirector):
         """The actual reserve method. It will be called after checking all
         boundary conditions."""
-        logger.info(
+        logger.debug(
             "Request reservation of %s for %s",
             device_id,
             who,
@@ -941,7 +941,7 @@ class GetValues(Resource):
                 "Requester": "Emergency shutdown",
             }
         arguments = values_arguments.parse_args()
-        logger.info(
+        logger.debug(
             "Request value %d/%d/%d of %s in thread %s",
             arguments["component"],
             arguments["sensor"],
@@ -983,7 +983,7 @@ class GetValues(Resource):
             if reply_is_corrupted:
                 logger.error("Didn't receive RecentValueMsg from %s", device_id)
                 return reply_is_corrupted
-            logger.info(
+            logger.debug(
                 "Reply %s for %s in thread %s",
                 value_return,
                 device_id,

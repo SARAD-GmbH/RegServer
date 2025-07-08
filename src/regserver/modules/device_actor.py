@@ -171,7 +171,7 @@ class DeviceBaseActor(BaseActor):
             logger.debug("Retry to start action at %s", self.my_id)
             action_request.worker(action_request)
         elif msg.payload == "timeout":
-            logger.info("%s for %s from %s", msg, self.my_id, sender)
+            logger.debug("%s for %s from %s", msg, self.my_id, sender)
             for _lock_key, lock in self.request_locks.items():
                 if lock.locked and (
                     datetime.now() - lock.request.time >= REQUEST_TIMEOUT
@@ -566,7 +566,7 @@ class DeviceBaseActor(BaseActor):
     @overrides
     def receiveMsg_ActorExitRequest(self, msg, sender):
         super().receiveMsg_ActorExitRequest(msg, sender)
-        logger.info(
+        logger.debug(
             "%s exited at %s.",
             self.my_id,
             self.device_status["Identification"]["Host"],
@@ -733,7 +733,7 @@ class DeviceBaseActor(BaseActor):
         """Request a recent value at the Instrument Server. This function has
         to be implemented (overridden) in the protocol specific modules.
         """
-        logger.info(
+        logger.debug(
             "_request_recent_value_at_is %d/%d/%d for %s",
             msg.component,
             msg.sensor,
@@ -974,7 +974,7 @@ class DeviceBaseActor(BaseActor):
             return False
         for lock_key, lock in self.request_locks.items():
             if lock.locked:
-                logger.info("%s %s action pending", self.my_id, lock_key)
+                logger.debug("%s %s action pending", self.my_id, lock_key)
                 if datetime.now() - lock.request.time >= REQUEST_TIMEOUT:
                     logger.warning(
                         "Pending %s on %s took longer than %s",
@@ -1008,6 +1008,6 @@ class DeviceBaseActor(BaseActor):
         """Puts action_request into the request_queue, takes the first action
         from the queue and calls its worker."""
         self.request_queue.append(action_request)
-        logger.info("%d elements in queue of %s", len(self.request_queue), self.my_id)
+        logger.debug("%d elements in queue of %s", len(self.request_queue), self.my_id)
         dequeued_action = self.request_queue[0]
         dequeued_action.worker(dequeued_action)
