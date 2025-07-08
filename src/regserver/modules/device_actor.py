@@ -10,7 +10,7 @@
 """
 
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 
 from overrides import overrides  # type: ignore
@@ -346,6 +346,7 @@ class DeviceBaseActor(BaseActor):
                 answer=RecentValueMsg(
                     status=Status.OCCUPIED,
                     instr_id=self.instr_id,
+                    client=msg.client,
                 ),
                 requester=sender,
             )
@@ -375,6 +376,7 @@ class DeviceBaseActor(BaseActor):
             answer=RecentValueMsg(
                 status=Status.BUSY_TIMEOUT,
                 instr_id=self.instr_id,
+                client=action_request.msg.client,
             ),
             requester=action_request.sender,
         )
@@ -384,6 +386,7 @@ class DeviceBaseActor(BaseActor):
             answer=RecentValueMsg(
                 status=Status.NOT_FOUND,
                 instr_id=self.instr_id,
+                client=action_request.msg.client,
             ),
             requester=action_request.sender,
         )
@@ -520,8 +523,9 @@ class DeviceBaseActor(BaseActor):
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if self._is_reserved():
+            answer = SetRtcAckMsg(self.instr_id, status=Status.OCCUPIED)
             self._handle_set_rtc_reply_from_is(
-                status=Status.OCCUPIED, confirm=True, requester=sender
+                answer=answer, confirm=True, requester=sender
             )
             return
         action_request = ActionRequest(
@@ -544,12 +548,16 @@ class DeviceBaseActor(BaseActor):
 
     def _set_rtc_timeout(self, action_request):
         self._handle_set_rtc_reply_from_is(
-            status=Status.BUSY_TIMEOUT, confirm=True, requester=action_request.sender
+            answer=SetRtcAckMsg(self.instr_id, Status.BUSY_TIMEOUT),
+            confirm=True,
+            requester=action_request.sender,
         )
 
     def _set_rtc_on_kill(self, action_request):
         self._handle_set_rtc_reply_from_is(
-            status=Status.NOT_FOUND, confirm=True, requester=action_request.sender
+            answer=SetRtcAckMsg(self.instr_id, Status.NOT_FOUND),
+            confirm=True,
+            requester=action_request.sender,
         )
 
     @overrides
@@ -747,17 +755,20 @@ class DeviceBaseActor(BaseActor):
         This function has to be called in the protocol specific modules.
         """
         logger.debug("Send answer to requester: %s", answer)
+        client = ""
+        for _key, request_lock in self.request_locks.items():
+            if request_lock.locked:
+                client = request_lock.request.msg.client
+                break
+        if client:
+            answer = replace(answer, client=client)
+            logger.info("Recent value reply from %s to %s", self.my_id, client)
+        self.send(requester, answer)
         if answer.status not in [Status.OCCUPIED]:
             self._release_lock("GetRecentValue")
-        self.send(requester, answer)
 
     def _handle_set_rtc_reply_from_is(
-        self,
-        status: Status,
-        requester,
-        confirm: bool,
-        utc_offset: float = -13,
-        wait: int = 0,
+        self, answer: SetRtcAckMsg, requester, confirm: bool
     ):
         # pylint: disable=unused-argument
         """Forward the acknowledgement received from the Instrument Server to the REST API.
@@ -769,13 +780,15 @@ class DeviceBaseActor(BaseActor):
                             False, if it was called during setup of the UsbActor.
             utc_offset (float): UTC offset (time zone). -13 = unknown
         """
-        if status not in [Status.OCCUPIED]:
+        if answer.status not in [Status.OCCUPIED]:
             self._release_lock("SetRtc")
         if confirm:
-            self.send(
-                requester,
-                SetRtcAckMsg(self.instr_id, status, utc_offset=utc_offset, wait=wait),
-            )
+            for _key, request_lock in self.request_locks.items():
+                if request_lock.locked:
+                    client = request_lock.request.msg.client
+                    break
+            answer = replace(answer, client=client)
+            self.send(requester, answer)
 
     def _handle_start_monitoring_reply_from_is(
         self, status: Status, requester, confirm: bool, offset: timedelta = timedelta(0)
@@ -792,9 +805,15 @@ class DeviceBaseActor(BaseActor):
         if status not in [Status.OCCUPIED]:
             self._release_lock("StartMonitoring")
         if confirm:
+            for _key, request_lock in self.request_locks.items():
+                if request_lock.locked:
+                    client = request_lock.request.msg.client
+                    break
             self.send(
                 requester,
-                StartMonitoringAckMsg(self.instr_id, status, offset=offset),
+                StartMonitoringAckMsg(
+                    self.instr_id, status, offset=offset, client=client
+                ),
             )
 
     def _handle_stop_monitoring_reply_from_is(self, status: Status, requester):
@@ -807,9 +826,13 @@ class DeviceBaseActor(BaseActor):
         """
         if status not in [Status.OCCUPIED]:
             self._release_lock("StopMonitoring")
+        for _key, request_lock in self.request_locks.items():
+            if request_lock.locked:
+                client = request_lock.request.msg.client
+                break
         self.send(
             requester,
-            StopMonitoringAckMsg(self.instr_id, status),
+            StopMonitoringAckMsg(self.instr_id, status, client=client),
         )
 
     def _update_reservation_status(self, reservation):

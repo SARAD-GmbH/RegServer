@@ -238,7 +238,7 @@ class MqttSchedulerActor(MqttBaseActor):
             }
         payload = {
             "status": msg.status.value,
-            "client": self.pending_control_action["control"].data.client,
+            "client": msg.client,
             "c_name": msg.component_name,
             "s_name": msg.sensor_name,
             "m_name": msg.measurand_name,
@@ -441,11 +441,11 @@ class MqttSchedulerActor(MqttBaseActor):
             elif control.ctype == ControlType.CONFIG:
                 self._process_config(instr_id, control)
             elif control.ctype == ControlType.MONITOR_START:
-                self._process_monitor(instr_id, control.data.start_time)
+                self._process_monitor(instr_id, control)
             elif control.ctype == ControlType.MONITOR_STOP:
-                self._process_monitor_stop(instr_id)
+                self._process_monitor_stop(instr_id, control)
             elif control.ctype == ControlType.SET_RTC:
-                self._process_set_rtc(instr_id)
+                self._process_set_rtc(instr_id, control)
 
     def on_cmd(self, _client, _userdata, message):
         """Event handler for all MQTT messages with cmd topic for instruments."""
@@ -603,6 +603,7 @@ class MqttSchedulerActor(MqttBaseActor):
                     component=control.data.component,
                     sensor=control.data.sensor,
                     measurand=control.data.measurand,
+                    client=control.data.client,
                 ),
             )
 
@@ -615,7 +616,7 @@ class MqttSchedulerActor(MqttBaseActor):
         """
         # TODO implement
 
-    def _process_monitor(self, instr_id: str, start_time: datetime):
+    def _process_monitor(self, instr_id: str, control: Control):
         """Sub event handler that will be called from the on_message event
         handler, when a MQTT control message with a 'monitor-start' request to start
         the monitoring mode was received for a specific instrument ID.
@@ -623,9 +624,16 @@ class MqttSchedulerActor(MqttBaseActor):
         """
         device_actor, _device_id = self._device_actor(instr_id)
         if device_actor is not None:
-            self.send(device_actor, StartMonitoringMsg(instr_id, start_time=start_time))
+            self.send(
+                device_actor,
+                StartMonitoringMsg(
+                    instr_id,
+                    start_time=control.data.start_time,
+                    client=control.data.client,
+                ),
+            )
 
-    def _process_monitor_stop(self, instr_id: str):
+    def _process_monitor_stop(self, instr_id: str, control: Control):
         """Sub event handler that will be called from the on_message event
         handler, when a MQTT control message with a 'monitor-stop' request to stop
         the monitoring mode was received for a specific instrument ID.
@@ -633,9 +641,15 @@ class MqttSchedulerActor(MqttBaseActor):
         """
         device_actor, _device_id = self._device_actor(instr_id)
         if device_actor is not None:
-            self.send(device_actor, StopMonitoringMsg(instr_id))
+            self.send(
+                device_actor,
+                StopMonitoringMsg(
+                    instr_id,
+                    client=control.data.client,
+                ),
+            )
 
-    def _process_set_rtc(self, instr_id):
+    def _process_set_rtc(self, instr_id, control: Control):
         """Sub event handler that will be called from the on_message event
         handler, when a MQTT control message with a 'set-rtc' request to set
         the clock on teh instrument was received for a specific instrument ID.
@@ -643,7 +657,13 @@ class MqttSchedulerActor(MqttBaseActor):
         """
         device_actor, _device_id = self._device_actor(instr_id)
         if device_actor is not None:
-            self.send(device_actor, SetRtcMsg(instr_id))
+            self.send(
+                device_actor,
+                SetRtcMsg(
+                    instr_id,
+                    client=control.data.client,
+                ),
+            )
 
     def on_is_meta(self, _client, _userdata, message):
         """Handler for all messages of topic group/+/meta.
@@ -726,7 +746,7 @@ class MqttSchedulerActor(MqttBaseActor):
         topic = f"{self.group}/{self.is_id}/{msg.instr_id}/ack"
         message = {
             "req": "set-rtc",
-            "client": self.pending_control_action["control"].data.client,
+            "client": msg.client,
             "status": msg.status.value,
             "utc_offset": msg.utc_offset,
             "wait": msg.wait,
@@ -746,7 +766,7 @@ class MqttSchedulerActor(MqttBaseActor):
         topic = f"{self.group}/{self.is_id}/{msg.instr_id}/ack"
         message = {
             "req": "monitor-start",
-            "client": self.pending_control_action["control"].data.client,
+            "client": msg.client,
             "status": msg.status.value,
             "offset": msg.offset.total_seconds(),
         }
@@ -765,7 +785,7 @@ class MqttSchedulerActor(MqttBaseActor):
         topic = f"{self.group}/{self.is_id}/{msg.instr_id}/ack"
         message = {
             "req": "monitor-stop",
-            "client": self.pending_control_action["control"].data.client,
+            "client": msg.client,
             "status": msg.status.value,
         }
         self.mqttc.publish(
