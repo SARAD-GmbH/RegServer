@@ -16,7 +16,8 @@ from threading import Thread
 
 import requests  # type: ignore
 from overrides import overrides  # type: ignore
-from regserver.actor_messages import RecentValueMsg, RxBinaryMsg, Status
+from regserver.actor_messages import (RecentValueMsg, RxBinaryMsg,
+                                      SetRtcAckMsg, Status)
 from regserver.config import config
 from regserver.hostname_functions import compare_hostnames
 from regserver.logger import logger
@@ -208,11 +209,14 @@ class DeviceActor(DeviceBaseActor):
             else:
                 error_code = self.success
             self._handle_set_rtc_reply_from_is(
-                status=Status(error_code),
+                answer=SetRtcAckMsg(
+                    instr_id=self.instr_id,
+                    status=Status(error_code),
+                    utc_offset=self.response.get("UTC offset", -13),
+                    wait=self.response.get("Wait", 0),
+                ),
                 requester=self.request_locks["SetRtc"].request.sender,
                 confirm=True,
-                utc_offset=self.response.get("UTC offset", -13),
-                wait=self.response.get("Wait", 0),
             )
         elif purpose == Purpose.MONITOR_START:
             logger.info(

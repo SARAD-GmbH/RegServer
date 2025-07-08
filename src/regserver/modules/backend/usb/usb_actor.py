@@ -20,7 +20,7 @@ from overrides import overrides
 from regserver.actor_messages import (ControlFunctionalityMsg, Frontend,
                                       MqttPublishMsg, RecentValueMsg,
                                       RescanMsg, ReserveDeviceMsg, RxBinaryMsg,
-                                      SetDeviceStatusMsg, Status)
+                                      SetDeviceStatusMsg, SetRtcAckMsg, Status)
 from regserver.config import (config, frontend_config, local_backend_config,
                               monitoring_config, mqtt_config, unique_id)
 from regserver.helpers import short_id
@@ -383,11 +383,14 @@ class UsbActor(DeviceBaseActor):
         else:
             utc_offset = local_backend_config["UTC_OFFSET"]
         self._handle_set_rtc_reply_from_is(
-            status=Status.OK,
+            answer=SetRtcAckMsg(
+                instr_id=self.instr_id,
+                status=Status.OK,
+                utc_offset=utc_offset,
+                wait=wait,
+            ),
             requester=sender,
             confirm=confirm,
-            utc_offset=utc_offset,
-            wait=wait,
         )
         if local_backend_config["SET_RTC"]:
             self.wakeupAfter(timedelta(days=7), "request_set_rtc_at_is")

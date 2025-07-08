@@ -801,11 +801,13 @@ class GetRecentValueMsg:
         component (int): Index of the DACM component
         sensor (int): Index of the DACM sensor/actor
         measurand (int): Index of the DACM measurand
+        client (str): Requesting MQTT client
     """
 
     component: int
     sensor: int
     measurand: int
+    client: str = "REST API"
 
 
 @dataclass
@@ -828,6 +830,7 @@ class RecentValueMsg:
         utc_offset (float): Offset of the RTC of the instrument to UTC, None if unknown
         sample_interval (int): Duration of sample interval in seconds
         gps (Gps): Parameters from builtin GPS receiver
+        client (str): Requesting MQTT client
     """
 
     status: Status
@@ -843,6 +846,7 @@ class RecentValueMsg:
     utc_offset: Union[float, None] = None
     sample_interval: int = 0
     gps: Union[Gps, None] = None
+    client: str = ""
 
 
 @dataclass
@@ -956,11 +960,12 @@ class StartMonitoringMsg:
         start_time (datetime): Date and time to start the monitoring mode on.
                                If None, it shall start immediately.
                                Always given as UTC.
-
+        client (str): Requesting MQTT client
     """
 
     instr_id: str
     start_time: datetime = datetime.now(timezone.utc)
+    client: str = ""
 
 
 @dataclass
@@ -971,11 +976,13 @@ class StartMonitoringAckMsg:
         instr_id (str): Id of the instrument
         status (Status): Status of the success of the operation
         offset (timedelta): Time difference between start time and now.
+        client (str): Requesting MQTT client
     """
 
     instr_id: str
     status: Status
     offset: timedelta
+    client: str = ""
 
 
 @dataclass
@@ -984,9 +991,11 @@ class StopMonitoringMsg:
 
     Args:
         instr_id (str): Id of the instrument
+        client (str): Requesting MQTT client
     """
 
     instr_id: str
+    client: str = ""
 
 
 @dataclass
@@ -996,10 +1005,12 @@ class StopMonitoringAckMsg:
     Args:
         instr_id (str): Id of the instrument
         status (Status): Status of the success of the operation
+        client (str): Requesting MQTT client
     """
 
     instr_id: str
     status: Status
+    client: str = ""
 
 
 @dataclass
@@ -1008,9 +1019,11 @@ class SetRtcMsg:
 
     Args:
         instr_id (str): Id of the instrument
+        client (str): Requesting MQTT client
     """
 
     instr_id: str
+    client: str = ""
 
 
 @dataclass
@@ -1022,12 +1035,14 @@ class SetRtcAckMsg:
         status (Status): Status of the success of the operation
         utc_offset (float): Offset to UTC that was used to set the RTC, -13 = unknown
         wait (int): Waiting time in seconds before the setup will take effect
+        client (str): Requesting MQTT client
     """
 
     instr_id: str
     status: Status
     utc_offset: float = -13
     wait: int = 0
+    client: str = ""
 
 
 @dataclass

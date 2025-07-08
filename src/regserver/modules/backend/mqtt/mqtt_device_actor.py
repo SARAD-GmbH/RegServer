@@ -16,7 +16,8 @@ from typing import TypedDict
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (MqttPublishMsg, MqttSubscribeMsg,
                                       MqttUnsubscribeMsg, RecentValueMsg,
-                                      ResurrectMsg, RxBinaryMsg, Status)
+                                      ResurrectMsg, RxBinaryMsg, SetRtcAckMsg,
+                                      Status)
 from regserver.config import mqtt_config
 from regserver.helpers import short_id
 from regserver.logger import logger
@@ -375,6 +376,7 @@ class MqttDeviceActor(DeviceBaseActor):
                     utc_offset=value_dict.get("utc_offset", 0),
                     sample_interval=value_dict.get("interval", 0),
                     gps=gps,
+                    client=value_dict.get("client", ""),
                 ),
                 self.request_locks["GetRecentValue"].request.sender,
             )
@@ -393,7 +395,9 @@ class MqttDeviceActor(DeviceBaseActor):
         logger.debug("Is it for me? %s, %s", state, ack_dict)
         waiting_for_reply = False
         for _key, request_lock in self.request_locks.items():
-            waiting_for_reply = waiting_for_reply or request_lock.locked
+            if request_lock.locked:
+                waiting_for_reply = True
+                break
         if waiting_for_reply and it_is_for_me:
             self.send(
                 self.parent.parent_address,
@@ -403,11 +407,14 @@ class MqttDeviceActor(DeviceBaseActor):
             waiting_for = self.state["WAIT_FOR_ACK"].get("req", "")
             if (req == "set-rtc") and (waiting_for == "set-rtc"):
                 self._handle_set_rtc_reply_from_is(
-                    status=Status(ack_dict.get("status", 98)),
+                    answer=SetRtcAckMsg(
+                        self.instr_id,
+                        status=Status(ack_dict.get("status", 98)),
+                        utc_offset=ack_dict.get("utc_offset", -13),
+                        wait=ack_dict.get("wait", 0),
+                    ),
                     requester=self.request_locks["SetRtc"].request.sender,
                     confirm=True,
-                    utc_offset=ack_dict.get("utc_offset", -13),
-                    wait=ack_dict.get("wait", 0),
                 )
                 self.state["WAIT_FOR_ACK"]["Pending"] = False
             elif (req == "monitor-start") and (waiting_for == "monitor-start"):
