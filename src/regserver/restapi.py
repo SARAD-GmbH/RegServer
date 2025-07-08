@@ -491,6 +491,7 @@ class ReserveDevice(Resource):
             Status.NOT_FOUND,
             Status.IS_NOT_FOUND,
             Status.UNKNOWN_PORT,
+            Status.BUSY_TIMEOUT,
         ):
             return {
                 "Error code": status.value,
