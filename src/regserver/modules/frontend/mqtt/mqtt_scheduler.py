@@ -107,7 +107,6 @@ class MqttSchedulerActor(MqttBaseActor):
         self.pending_control_action = {
             "instr_id": "",
             "control": Control(ctype=ControlType.UNKNOWN, data=None),
-            "ctype": ControlType.UNKNOWN,
         }
         self.led = False
         if platform.machine() in ["aarch64", "armv7l"]:
@@ -190,7 +189,7 @@ class MqttSchedulerActor(MqttBaseActor):
             self.reservations[device_id] = Reservation(
                 status=msg.status, timestamp=time.time()
             )
-        if self.pending_control_action["ctype"] in (
+        if self.pending_control_action["control"].ctype in (
             ControlType.RESERVE,
             ControlType.FREE,
         ):
@@ -200,7 +199,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 Status.OK_SKIPPED,
                 Status.OK_UPDATED,
             ):
-                if self.pending_control_action["ctype"] == ControlType.RESERVE:
+                if self.pending_control_action["control"].ctype == ControlType.RESERVE:
                     reservation_object = replace(reservation_object, active=True)
                 else:
                     reservation_object = replace(reservation_object, active=False)
@@ -211,7 +210,9 @@ class MqttSchedulerActor(MqttBaseActor):
             self.mqttc.publish(
                 topic=topic, payload=reservation_json, qos=self.qos, retain=False
             )
-            self.pending_control_action["ctype"] = ControlType.UNKNOWN
+            self.pending_control_action["control"] = replace(
+                self.pending_control_action["control"], ctype=ControlType.UNKNOWN
+            )
             with self.cached_replies[msg.instr_id].cache_empty:
                 self.cached_replies[msg.instr_id].cache_reply = b""
                 self.cached_replies[msg.instr_id].cache_empty.notify()
@@ -224,38 +225,36 @@ class MqttSchedulerActor(MqttBaseActor):
 
         This message contains the reply to GetRecentValueMsg."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self.pending_control_action["ctype"] == ControlType.VALUE:
-            topic = f"{self.group}/{self.is_id}/{msg.instr_id}/value"
-            if (msg.gps is None) or (not msg.gps.valid):
-                gps_dict = None
-            else:
-                gps_dict = {
-                    "valid": msg.gps.valid,
-                    "lat": msg.gps.latitude,
-                    "lon": msg.gps.longitude,
-                    "alt": msg.gps.altitude,
-                    "dev": msg.gps.deviation,
-                }
-            payload = {
-                "status": msg.status.value,
-                "client": self.pending_control_action["control"].data.client,
-                "c_name": msg.component_name,
-                "s_name": msg.sensor_name,
-                "m_name": msg.measurand_name,
-                "measurand": msg.measurand,
-                "operator": msg.operator,
-                "value": msg.value,
-                "unit": msg.unit,
-                "time": msg.timestamp,
-                "utc_offset": msg.utc_offset,
-                "interval": msg.sample_interval,
-                "gps": gps_dict,
+        topic = f"{self.group}/{self.is_id}/{msg.instr_id}/value"
+        if (msg.gps is None) or (not msg.gps.valid):
+            gps_dict = None
+        else:
+            gps_dict = {
+                "valid": msg.gps.valid,
+                "lat": msg.gps.latitude,
+                "lon": msg.gps.longitude,
+                "alt": msg.gps.altitude,
+                "dev": msg.gps.deviation,
             }
-            logger.debug("Publish %s on %s", payload, topic)
-            self.mqttc.publish(
-                topic=topic, payload=json.dumps(payload), qos=self.qos, retain=False
-            )
-            self.pending_control_action["ctype"] = ControlType.UNKNOWN
+        payload = {
+            "status": msg.status.value,
+            "client": self.pending_control_action["control"].data.client,
+            "c_name": msg.component_name,
+            "s_name": msg.sensor_name,
+            "m_name": msg.measurand_name,
+            "measurand": msg.measurand,
+            "operator": msg.operator,
+            "value": msg.value,
+            "unit": msg.unit,
+            "time": msg.timestamp,
+            "utc_offset": msg.utc_offset,
+            "interval": msg.sample_interval,
+            "gps": gps_dict,
+        }
+        logger.debug("Publish %s on %s", payload, topic)
+        self.mqttc.publish(
+            topic=topic, payload=json.dumps(payload), qos=self.qos, retain=False
+        )
 
     def receiveMsg_UpdateDeviceStatusesMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -426,7 +425,6 @@ class MqttSchedulerActor(MqttBaseActor):
             self.pending_control_action = {
                 "instr_id": instr_id,
                 "control": control,
-                "ctype": control.ctype,
             }
             if control.ctype == ControlType.RESERVE:
                 self._process_reserve(instr_id, control)
