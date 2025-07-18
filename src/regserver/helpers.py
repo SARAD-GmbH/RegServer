@@ -23,6 +23,7 @@ from regserver.actor_messages import (TT_TRANSLATOR, ActorType, FreeDeviceMsg,
                                       TransportTechnology, UpdateActorDictMsg,
                                       UpdateDeviceStatusesMsg,
                                       UpdateDeviceStatusMsg)
+from regserver.config import config
 from regserver.logger import logger
 from regserver.shutdown import system_shutdown
 
@@ -296,6 +297,30 @@ def get_device_status_from_registrar(registrar_actor, device_id: str) -> dict:
     return device_statuses.get(device_id, None)
 
 
+def sort_device_statuses_by_hostname(
+    device_statuses: dict[str, dict[str, str]],
+) -> dict[str, dict[str, str]]:
+    """Return a dictionary sorted by hostname."""
+
+    def get_hostname_from_status(status: dict[str, str]):
+        return status[1]["Identification"]["IS Id"]
+
+    sorted_statuses = dict(
+        sorted(device_statuses.items(), key=get_hostname_from_status)
+    )
+    my_hostname = config["IS_ID"]
+    local_statuses = {}
+    remote_statuses = {}
+    for key, value in sorted_statuses.items():
+        if value["Identification"]["IS Id"] == my_hostname:
+            local_statuses.update({key: value})
+        else:
+            remote_statuses.update({key: value})
+    all_statuses = local_statuses
+    all_statuses.update(remote_statuses)
+    return all_statuses
+
+
 def get_device_statuses(registrar_actor):
     """Return a list of all device ids together with the device status"""
     with ActorSystem().private() as h_get_device_statuses:
@@ -316,7 +341,7 @@ def get_device_statuses(registrar_actor):
             )
             system_shutdown()
             return None
-    return result.device_statuses
+    return sort_device_statuses_by_hostname(result.device_statuses)
 
 
 def get_hosts(registrar_actor):
