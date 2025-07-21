@@ -969,6 +969,7 @@ class DeviceBaseActor(BaseActor):
     @overrides
     def _kill_myself(self, register=True, resurrect=False):
         if not self.on_kill:
+            self.on_kill = True
             if self.device_status.get("Reservation", False):
                 if (
                     self.device_status["Reservation"].get("Active", False)
