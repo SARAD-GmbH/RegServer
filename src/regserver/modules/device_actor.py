@@ -760,9 +760,8 @@ class DeviceBaseActor(BaseActor):
             if request_lock.locked:
                 client = request_lock.request.msg.client
                 break
-        if client:
-            answer = replace(answer, client=client)
-            logger.info("Recent value reply from %s to %s", self.my_id, client)
+        answer = replace(answer, client=client)
+        logger.info("Recent value reply from %s to %s", self.my_id, client)
         self.send(requester, answer)
         if answer.status not in [Status.OCCUPIED]:
             self._release_lock("GetRecentValue")
@@ -780,15 +779,17 @@ class DeviceBaseActor(BaseActor):
                             False, if it was called during setup of the UsbActor.
             utc_offset (float): UTC offset (time zone). -13 = unknown
         """
-        if answer.status not in [Status.OCCUPIED]:
-            self._release_lock("SetRtc")
         if confirm:
+            client = ""
             for _key, request_lock in self.request_locks.items():
                 if request_lock.locked:
                     client = request_lock.request.msg.client
                     break
             answer = replace(answer, client=client)
+            logger.info("Set RTC reply from %s to %s", self.my_id, client)
             self.send(requester, answer)
+        if answer.status not in [Status.OCCUPIED]:
+            self._release_lock("SetRtc")
 
     def _handle_start_monitoring_reply_from_is(
         self, status: Status, requester, confirm: bool, offset: timedelta = timedelta(0)
@@ -802,9 +803,8 @@ class DeviceBaseActor(BaseActor):
             confirm (bool): True, if the ACK shall be forwarded;
                             False, if it was called during setup of the UsbActor.
         """
-        if status not in [Status.OCCUPIED]:
-            self._release_lock("StartMonitoring")
         if confirm:
+            client = ""
             for _key, request_lock in self.request_locks.items():
                 if request_lock.locked:
                     client = request_lock.request.msg.client
@@ -815,6 +815,8 @@ class DeviceBaseActor(BaseActor):
                     self.instr_id, status, offset=offset, client=client
                 ),
             )
+        if status not in [Status.OCCUPIED]:
+            self._release_lock("StartMonitoring")
 
     def _handle_stop_monitoring_reply_from_is(self, status: Status, requester):
         # pylint: disable=unused-argument
@@ -824,8 +826,7 @@ class DeviceBaseActor(BaseActor):
         Args:
             status (Status): Info about the success of operation.
         """
-        if status not in [Status.OCCUPIED]:
-            self._release_lock("StopMonitoring")
+        client = ""
         for _key, request_lock in self.request_locks.items():
             if request_lock.locked:
                 client = request_lock.request.msg.client
@@ -834,6 +835,8 @@ class DeviceBaseActor(BaseActor):
             requester,
             StopMonitoringAckMsg(self.instr_id, status, client=client),
         )
+        if status not in [Status.OCCUPIED]:
+            self._release_lock("StopMonitoring")
 
     def _update_reservation_status(self, reservation):
         self.device_status["Reservation"] = reservation
