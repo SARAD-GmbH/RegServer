@@ -294,7 +294,6 @@ class UsbActor(DeviceBaseActor):
                     data,
                 )
                 self._handle_bin_reply_from_is(RxBinaryMsg(self.RET_TIMEOUT))
-                self._kill_myself()
                 return
 
     @overrides
