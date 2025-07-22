@@ -19,7 +19,7 @@ from time import sleep
 from overrides import overrides
 from regserver.actor_messages import (ControlFunctionalityMsg, Frontend,
                                       MqttPublishMsg, RecentValueMsg,
-                                      RescanMsg, ReserveDeviceMsg, RxBinaryMsg,
+                                      ReserveDeviceMsg, RxBinaryMsg,
                                       SetDeviceStatusMsg, SetRtcAckMsg, Status)
 from regserver.config import (config, frontend_config, local_backend_config,
                               monitoring_config, mqtt_config, unique_id)
@@ -218,7 +218,7 @@ class UsbActor(DeviceBaseActor):
                     old_instr_id,
                     instr_id,
                 )
-                self.send(self.parent, RescanMsg())
+                self._kill_myself()
 
     def dummy_reply(self, data) -> bytes:
         """Filter TX message and give a dummy reply.
