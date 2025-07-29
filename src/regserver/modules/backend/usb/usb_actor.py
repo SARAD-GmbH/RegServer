@@ -79,6 +79,7 @@ class UsbActor(DeviceBaseActor):
             suspended=False,
             start_timestamp=0,
         )
+        self._set_rtc_pending: bool = False
 
     def _start_thread(self, thread):
         if not self.inner_thread.is_alive():
@@ -189,14 +190,13 @@ class UsbActor(DeviceBaseActor):
         elif msg.payload == "set_rtc":
             self._set_rtc()
         elif msg.payload == "resume_monitoring":
+            logger.info("Check whether it's possible to resume the monitoring mode")
             if self.mon_state.monitoring_shall_be_active:
-                if self.mon_state.monitoring_active:
-                    self._stop_monitoring()
-                    logger.info("Suspend monitoring mode at %s", self.my_id)
-                    self.mon_state.suspended = True
-                else:
+                if not self.mon_state.monitoring_active and not self._is_reserved():
                     logger.info("Resume monitoring mode at %s", self.my_id)
                     self._request_start_monitoring_at_is(sender=self.myAddress)
+                else:
+                    self.wakeupAfter(timedelta(seconds=10), "resume_monitoring")
         elif msg.payload == "request_set_rtc_at_is":
             self._request_set_rtc_at_is(sender=self.myAddress, confirm=False)
 
@@ -305,6 +305,15 @@ class UsbActor(DeviceBaseActor):
         RS-232, we have to double-check the availability of the instrument.
 
         """
+        if self._set_rtc_pending:
+            self.reserve_device_msg = ReserveDeviceMsg(
+                host="localhost", user="self", app="set-rtc"
+            )
+            self._handle_reserve_reply_from_is(
+                success=Status.OCCUPIED,
+                requester=sender,
+            )
+            return
         try:
             is_reserved = self.device_status["Reservation"]["Active"]
         except (KeyError, TypeError):
@@ -348,30 +357,27 @@ class UsbActor(DeviceBaseActor):
             success=Status.OK,
             requester=sender,
         )
-        self.wakeupAfter(timedelta(seconds=10), "resume_monitoring")
+        if self.mon_state.monitoring_shall_be_active:
+            if self.mon_state.monitoring_active:
+                self._stop_monitoring()
+                self.wakeupAfter(timedelta(seconds=10), "resume_monitoring")
+                logger.info("Suspend monitoring mode at %s", self.my_id)
+                self.mon_state.suspended = True
 
     @overrides
     def _request_set_rtc_at_is(self, sender, confirm=False):
-        super()._request_set_rtc_at_is(sender, confirm)
-        self.reserve_device_msg = ReserveDeviceMsg(
-            host="localhost", user="self", app="set-rtc"
-        )
-        self._handle_reserve_reply_from_is(
-            success=Status.OK,
-            requester=self.myAddress,
-        )
         if self.instrument.family["family_id"] == 2:
             logger.debug("Features of %s: %s", self.my_id, self.instrument.features)
             if self.instrument.features.get("rtc_set_seconds", False):
                 wait = 0
                 self._set_rtc()
             else:
-                seconds_to_full_minute = 60 - datetime.now().time().second
-                wait = seconds_to_full_minute
-                self.wakeupAfter(timedelta(seconds=seconds_to_full_minute), "set_rtc")
+                wait = 60 - datetime.now().time().second
+                self.wakeupAfter(timedelta(seconds=wait), "set_rtc")
             logger.debug(
                 "Wait %d seconds before setting the RTC of %s", wait, self.my_id
             )
+            self._set_rtc_pending = True
         else:
             self._set_rtc()
             wait = 0
@@ -404,7 +410,7 @@ class UsbActor(DeviceBaseActor):
 
     def _set_rtc_function(self):
         self.instrument.utc_offset = local_backend_config["UTC_OFFSET"]
-        self._request_free_at_is(sender=self.myAddress)
+        self._set_rtc_pending = False
 
     def _check_monitoring_config(self) -> bool:
         """Check correctness of configuration. Return True, if correct."""
@@ -555,6 +561,8 @@ class UsbActor(DeviceBaseActor):
             datetime.now(timezone.utc).replace(microsecond=0).timestamp()
         )
         logger.info("Monitoring mode started at %s", self.my_id)
+        if self.mon_state.suspended:
+            self.mon_state.suspended = False
         self._publish_instr_meta()
         for value in monitoring_conf.get("values", []):
             self._start_thread(

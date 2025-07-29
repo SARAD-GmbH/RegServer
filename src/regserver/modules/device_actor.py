@@ -522,12 +522,6 @@ class DeviceBaseActor(BaseActor):
             logger.error("%s for %s from %s", msg, self.my_id, sender)
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        if self._is_reserved():
-            answer = SetRtcAckMsg(self.instr_id, status=Status.OCCUPIED)
-            self._handle_set_rtc_reply_from_is(
-                answer=answer, confirm=True, requester=sender
-            )
-            return
         action_request = ActionRequest(
             worker=self._set_rtc_worker,
             msg=msg,
