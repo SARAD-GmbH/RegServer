@@ -148,12 +148,11 @@ class UsbActor(DeviceBaseActor):
         self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
         monitoring_conf = monitoring_config.get(self.instr_id, {})
         self.mon_state.monitoring_shall_be_active = monitoring_conf.get("active", False)
+        if local_backend_config["SET_RTC"]:
+            self._request_set_rtc_at_is(confirm=False, sender=self.myAddress)
         if self.mon_state.monitoring_shall_be_active:
             logger.debug("Monitoring mode for %s shall be active", self.instr_id)
             self._request_start_monitoring_at_is(confirm=False, sender=self.myAddress)
-        else:
-            if local_backend_config["SET_RTC"]:
-                self._request_set_rtc_at_is(confirm=False, sender=self.myAddress)
         self.instrument.release_instrument()
         logger.debug("Instrument with Id %s detected.", self.instr_id)
         return
