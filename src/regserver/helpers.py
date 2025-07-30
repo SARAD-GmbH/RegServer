@@ -12,6 +12,7 @@ import os
 from collections.abc import MutableMapping
 from contextlib import suppress
 from datetime import timedelta
+from typing import Any
 
 from thespian.actors import ActorSystem  # type: ignore
 
@@ -302,7 +303,7 @@ def sort_device_statuses_by_hostname(
 ) -> dict[str, dict[str, str]]:
     """Return a dictionary sorted by hostname."""
 
-    def get_hostname_from_status(status: dict[str, str]):
+    def get_hostname_from_status(status: dict[int, Any]):
         return status[1]["Identification"]["IS Id"]
 
     sorted_statuses = dict(
@@ -421,18 +422,15 @@ def check_msg(return_message, message_object_type):
     return False
 
 
-def send_reserve_message(
-    device_id, registrar_actor, request_host, user, app, create_redirector
-) -> Status:
+def send_reserve_message(device_id, registrar_actor, who, create_redirector) -> Status:
     """Send a reserve message to the Device Actor associated with device_id
     and give back the status.
 
     Args:
         device_id: device_id of the device that shall be reserved
         registrar_actor: Actor address of the Registrar Actor
-        request_host: Requesting hostname
-        user: User requesting the reservation
-        app: Requesting application
+        who (dict): Requesting hostname, user and app
+        create_redirector (bool): True, if a redirector Actor shall be created
 
     Returns: Success status
     """
@@ -443,7 +441,9 @@ def send_reserve_message(
         try:
             reserve_return = reserve_sys.ask(
                 device_actor,
-                ReserveDeviceMsg(request_host, user, app, create_redirector),
+                ReserveDeviceMsg(
+                    who["host"], who["user"], who["app"], create_redirector
+                ),
                 timeout=timedelta(seconds=21),
             )
         except ConnectionResetError as exception:
