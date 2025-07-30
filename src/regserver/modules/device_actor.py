@@ -676,26 +676,18 @@ class DeviceBaseActor(BaseActor):
                 logger.debug("_send_reservation_status_msg case C")
             return
         self.return_message = ReservationStatusMsg(self.instr_id, success)
-        if success in [Status.BUSY_TIMEOUT]:
+        if success in [
+            Status.BUSY_TIMEOUT,
+            Status.NOT_FOUND,
+            Status.IS_NOT_FOUND,
+            Status.ERROR,
+        ]:
             logger.error(
                 "Reservation of %s failed with %s.",
                 self.my_id,
                 success,
             )
             self._send_reservation_status_msg(requester)
-        if success in [Status.NOT_FOUND, Status.IS_NOT_FOUND]:
-            logger.error(
-                "Reservation of %s failed with %s. Removing device from list.",
-                self.my_id,
-                success,
-            )
-            self._send_reservation_status_msg(requester)
-            self._kill_myself(resurrect=True)
-        elif success == Status.ERROR:
-            logger.error("%s during reservation of %s", success, self.my_id)
-            self._send_reservation_status_msg(requester)
-            logger.debug("_send_reservation_status_msg case D")
-            self._kill_myself(resurrect=True)
 
     def _handle_free_reply_from_is(self, success: Status, requester):
         # pylint: disable=unused-argument

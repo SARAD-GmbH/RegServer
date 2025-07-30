@@ -333,9 +333,7 @@ class UsbActor(DeviceBaseActor):
     def _finish_reserve(self):
         """Forward the reservation state from the Instrument Server to the REST API."""
         logger.debug("_finish_reserve")
-        if not self.is_connected and not self.on_kill:
-            logger.info("Killing myself")
-            self._kill_myself()
+        if not self.is_connected:
             success = Status.NOT_FOUND
         else:
             success = Status.OK
@@ -343,6 +341,9 @@ class UsbActor(DeviceBaseActor):
             success=success,
             requester=self.request_locks["Reserve"].request.sender,
         )
+        if (success == Status.NOT_FOUND) and not self.on_kill:
+            logger.info("Killing myself")
+            self._kill_myself()
 
     @overrides
     def _request_free_at_is(self, sender):

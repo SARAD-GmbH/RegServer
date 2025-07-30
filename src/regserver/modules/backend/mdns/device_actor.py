@@ -396,6 +396,9 @@ class DeviceActor(DeviceBaseActor):
         self._handle_free_reply_from_is(
             success=success, requester=self.request_locks["Free"].request.sender
         )
+        if success in (Status.IS_NOT_FOUND, Status.NOT_FOUND) and not self.on_kill:
+            logger.debug("_kill_myself called in _finish_free")
+            self._kill_myself()
         logger.info("Doublecheck the reservation status after free")
         self.wakeupAfter(timedelta(seconds=11), payload="update")
 
@@ -449,6 +452,9 @@ class DeviceActor(DeviceBaseActor):
         self._handle_reserve_reply_from_is(
             success=success, requester=self.request_locks["Reserve"].request.sender
         )
+        if success in (Status.IS_NOT_FOUND, Status.NOT_FOUND) and not self.on_kill:
+            logger.debug("_kill_myself called in _finish_reserve")
+            self._kill_myself()
 
     @overrides
     def _request_recent_value_at_is(self, msg, sender):

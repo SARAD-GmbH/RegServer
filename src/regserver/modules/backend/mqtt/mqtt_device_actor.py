@@ -502,6 +502,11 @@ class MqttDeviceActor(DeviceBaseActor):
                     Status.OK, self.request_locks["Free"].request.sender
                 )
             self.state["RESERVE"]["Pending"] = False
+            if (
+                reservation_status in (Status.NOT_FOUND, Status.IS_NOT_FOUND)
+                and not self.on_kill
+            ):
+                self._kill_myself(resurrect=True)
             return
         if not instr_is_reserved:
             logger.debug("Free status: %s", reservation_status)
