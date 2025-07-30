@@ -469,9 +469,7 @@ class ReserveDevice(Resource):
             status = send_reserve_message(
                 device_id,
                 REGISTRAR_ACTOR,
-                who["host"],
-                who["user"],
-                who["app"],
+                who,
                 create_redirector,
             )
         if status in (
