@@ -367,8 +367,8 @@
 ## instrument on every start of the RegServer and whenever an instrument is
 ## connected. If `set_realtime_clock` is set to true, this function will be
 ## active.
-### Default: false
-#set_realtime_clock = false
+### Default: true
+#set_realtime_clock = true
 
 ### Key: utc_offset
 ## `utc_offset` defines the offset of the RTC setting to UTC in hours.
