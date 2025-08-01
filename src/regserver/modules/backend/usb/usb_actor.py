@@ -668,7 +668,7 @@ class UsbActor(DeviceBaseActor):
             self.send(
                 self.actor_dict["mqtt_scheduler"]["address"],
                 MqttPublishMsg(
-                    topic=topic, payload=json.dumps(payload), qos=qos, retain=False
+                    topic=topic, payload=json.dumps(payload), qos=qos, retain=True
                 ),
             )
 
