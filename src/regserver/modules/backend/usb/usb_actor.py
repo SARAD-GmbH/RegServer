@@ -234,7 +234,16 @@ class UsbActor(DeviceBaseActor):
                         logger.info(
                             "Fetch a missed value for %s on %s", parameter, self.my_id
                         )
-                        self._get_recent_value_for_monitoring(parameter, wakeup=False)
+                        self._start_thread(
+                            Thread(
+                                target=self._get_recent_value_for_monitoring,
+                                kwargs={
+                                    "parameter": parameter,
+                                    "wakeup": False,
+                                },
+                                daemon=True,
+                            ),
+                        )
                     self._missed_monitoring_values = []
                 else:
                     self.wakeupAfter(timedelta(seconds=10), "resume_monitoring")
