@@ -49,14 +49,29 @@ class MonitoringState:
         monitoring_shall_be_active: True, if the monitoring mode was configured
                                     to be active.
         monitoring_active: True, if the monitoring mode currently is active.
-        suspended: True, if the monitoring mode is currently suspended.
         start_timestamp (int): Posix timestamp of the start datetime
     """
 
     monitoring_shall_be_active: bool
     monitoring_active: bool
-    suspended: bool
     start_timestamp: int
+
+
+@dataclass
+class Parameter:
+    """Object to store the attributes of a measuring parameter.
+
+    Args:
+        component (int): Component Id.
+        sensor (int): Sensor Id.
+        measurand (int): Measurand Id.
+        interval (int): Interval in seconds used for fetching in monitoring mode.
+    """
+
+    component: int
+    sensor: int
+    measurand: int
+    interval: int
 
 
 class UsbActor(DeviceBaseActor):
@@ -76,10 +91,10 @@ class UsbActor(DeviceBaseActor):
         self.mon_state = MonitoringState(
             monitoring_shall_be_active=False,
             monitoring_active=False,
-            suspended=False,
             start_timestamp=0,
         )
         self._set_rtc_pending: bool = False
+        self._missed_monitoring_values: list[Parameter] = []
 
     def _start_thread(self, thread):
         if not self.inner_thread.is_alive():
@@ -193,7 +208,20 @@ class UsbActor(DeviceBaseActor):
             if self.mon_state.monitoring_shall_be_active:
                 if not self.mon_state.monitoring_active and not self._is_reserved():
                     logger.info("Resume monitoring mode at %s", self.my_id)
-                    self._request_start_monitoring_at_is(sender=self.myAddress)
+                    self.reserve_device_msg = ReserveDeviceMsg(
+                        host="localhost", user="self", app="monitoring"
+                    )
+                    self._handle_reserve_reply_from_is(
+                        success=Status.OK,
+                        requester=self.myAddress,
+                    )
+                    self.mon_state.monitoring_active = True
+                    for parameter in self._missed_monitoring_values:
+                        logger.info(
+                            "Fetch a missed value for %s on %s", parameter, self.my_id
+                        )
+                        self._get_recent_value_for_monitoring(parameter, wakeup=False)
+                    self._missed_monitoring_values = []
                 else:
                     self.wakeupAfter(timedelta(seconds=10), "resume_monitoring")
         elif msg.payload == "request_set_rtc_at_is":
@@ -362,7 +390,7 @@ class UsbActor(DeviceBaseActor):
                 self._stop_monitoring()
                 self.wakeupAfter(timedelta(seconds=10), "resume_monitoring")
                 logger.info("Suspend monitoring mode at %s", self.my_id)
-                self.mon_state.suspended = True
+                self.mon_state.monitoring_active = False
 
     @overrides
     def _request_set_rtc_at_is(self, sender, confirm=False):
@@ -530,53 +558,59 @@ class UsbActor(DeviceBaseActor):
 
     def _start_monitoring_function(self):
         monitoring_conf = monitoring_config.get(self.instr_id, {})
-        if not self.mon_state.suspended:
-            self.instrument.utc_offset = local_backend_config["UTC_OFFSET"]
-            cycle = monitoring_conf.get("cycle", 0)
-            if cycle:
-                success = False
-                try:
-                    success = self.instrument.start_cycle(cycle)
-                    logger.info(
-                        "Device %s started with cycle %d",
-                        self.instrument.device_id,
-                        cycle,
-                    )
-                    sleep(3)  # DACM needs some time to wakeup from standby
-                except Exception as exception:  # pylint: disable=broad-except
-                    logger.error(
-                        "Failed to start cycle on %s. Exception: %s",
-                        self.my_id,
-                        exception,
-                    )
-                if not success:
-                    logger.error("Start/Stop not supported by %s", self.my_id)
-            else:
-                logger.error("Error in config.toml. Cycle not configured.")
-                self.mon_state.monitoring_active = False
-                self._request_free_at_is(self.myAddress)
-                return
+        self.instrument.utc_offset = local_backend_config["UTC_OFFSET"]
+        cycle = monitoring_conf.get("cycle", 0)
+        if cycle:
+            success = False
+            try:
+                success = self.instrument.start_cycle(cycle)
+                logger.info(
+                    "Device %s started with cycle %d",
+                    self.instrument.device_id,
+                    cycle,
+                )
+                sleep(3)  # DACM needs some time to wakeup from standby
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.error(
+                    "Failed to start cycle on %s. Exception: %s",
+                    self.my_id,
+                    exception,
+                )
+            if not success:
+                logger.error("Start/Stop not supported by %s", self.my_id)
+        else:
+            logger.error("Error in config.toml. Cycle not configured.")
+            self.mon_state.monitoring_active = False
+            self._request_free_at_is(self.myAddress)
+            return
         self.mon_state.monitoring_active = True
         self.mon_state.start_timestamp = int(
             datetime.now(timezone.utc).replace(microsecond=0).timestamp()
         )
         logger.info("Monitoring mode started at %s", self.my_id)
-        if self.mon_state.suspended:
-            self.mon_state.suspended = False
         self._publish_instr_meta()
         for value in monitoring_conf.get("values", []):
-            self._start_thread(
-                Thread(
-                    target=self._get_meta_data,
-                    kwargs={
-                        "component": value.get("component", 0),
-                        "sensor": value.get("sensor", 0),
-                        "measurand": value.get("measurand", 0),
-                        "interval": value.get("interval", 0),
-                    },
-                    daemon=True,
-                )
+            parameter = Parameter(
+                component=value.get("component", 0),
+                sensor=value.get("sensor", 0),
+                measurand=value.get("measurand", 0),
+                interval=value.get("interval", 0),
             )
+            self._get_meta_data(
+                parameter.component, parameter.sensor, parameter.measurand
+            )
+            if parameter.interval and self.mon_state.monitoring_active:
+                self.wakeupAfter(
+                    timedelta(seconds=parameter.interval),
+                    Thread(
+                        target=self._get_recent_value_for_monitoring,
+                        kwargs={
+                            "parameter": parameter,
+                            "wakeup": True,
+                        },
+                        daemon=True,
+                    ),
+                )
 
     def _publish_value(
         self,
@@ -663,6 +697,7 @@ class UsbActor(DeviceBaseActor):
             "sensor_name": answer.sensor_name,
             "measurand_name": answer.measurand_name,
             "unit": answer.unit,
+            "interval": answer.sample_interval,
         }
         if self.actor_dict.get("mqtt_scheduler", False):
             self.send(
@@ -729,49 +764,54 @@ class UsbActor(DeviceBaseActor):
             requester=self.request_locks["GetRecentValue"].request.sender,
         )
 
-    def _get_recent_value_for_monitoring(self, component, sensor, measurand, interval):
+    def _get_recent_value_for_monitoring(self, parameter: Parameter, wakeup: bool):
         if self.mon_state.monitoring_active:
-            answer = self._get_recent_value_inner(component, sensor, measurand)
+            answer = self._get_recent_value_inner(
+                parameter.component, parameter.sensor, parameter.measurand
+            )
             if answer.status == Status.CRITICAL:
                 logger.error("Connection lost to %s", self.my_id)
                 self._kill_myself()
                 return
-            self._publish_value(answer, component, sensor, measurand)
+            self._publish_value(
+                answer, parameter.component, parameter.sensor, parameter.measurand
+            )
+        else:
+            parameter_is_already_listed = False
+            for missed_parameter in self._missed_monitoring_values:
+                if (
+                    parameter.component == missed_parameter.component
+                    and parameter.sensor == missed_parameter.sensor
+                    and parameter.measurand == missed_parameter.measurand
+                ):
+                    logger.warning(
+                        "We have lost at least one value of %s on %s",
+                        parameter,
+                        self.my_id,
+                    )
+                    parameter_is_already_listed = True
+            if not parameter_is_already_listed:
+                self._missed_monitoring_values.append(parameter)
+        if wakeup:
             self.wakeupAfter(
-                timedelta(seconds=interval),
+                timedelta(seconds=parameter.interval),
                 Thread(
                     target=self._get_recent_value_for_monitoring,
                     kwargs={
-                        "component": component,
-                        "sensor": sensor,
-                        "measurand": measurand,
-                        "interval": interval,
+                        "parameter": parameter,
+                        "wakeup": True,
                     },
                     daemon=True,
                 ),
             )
 
-    def _get_meta_data(self, component, sensor, measurand, interval):
+    def _get_meta_data(self, component, sensor, measurand):
         answer = self._get_recent_value_inner(component, sensor, measurand)
         if answer.status == Status.CRITICAL:
             logger.error("Connection lost to %s in _get_meta_data", self.my_id)
             self._kill_myself()
             return
         self._publish_meta(answer, component, sensor, measurand)
-        if interval and self.mon_state.monitoring_active:
-            self.wakeupAfter(
-                timedelta(seconds=interval),
-                Thread(
-                    target=self._get_recent_value_for_monitoring,
-                    kwargs={
-                        "component": component,
-                        "sensor": sensor,
-                        "measurand": measurand,
-                        "interval": interval,
-                    },
-                    daemon=True,
-                ),
-            )
 
     def _get_recent_value_inner(
         self, component: int, sensor: int, measurand: int
