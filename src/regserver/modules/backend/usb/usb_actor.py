@@ -96,6 +96,20 @@ class UsbActor(DeviceBaseActor):
         self._set_rtc_pending: bool = False
         self._missed_monitoring_values: list[Parameter] = []
 
+    @staticmethod
+    def _calc_next_wakeup(
+        start: int, margin: int, interval: int, fetched: float
+    ) -> float:
+        """Calculate the time delay in seconds for the next wakupAfter in monitoring mode.
+
+        Args:
+            start (int): Start timestamp.
+            margin (int): Security margin in seconds (typ. 2 s).
+            interval (int): Time interval for fetching in seconds.
+            fetched (float): Timestamp of now.
+        """
+        return (margin + start - fetched) % interval
+
     def _start_thread(self, thread):
         if not self.inner_thread.is_alive():
             self.inner_thread = thread
@@ -601,7 +615,7 @@ class UsbActor(DeviceBaseActor):
             )
             if parameter.interval and self.mon_state.monitoring_active:
                 self.wakeupAfter(
-                    timedelta(seconds=parameter.interval),
+                    timedelta(seconds=parameter.interval + 2),
                     Thread(
                         target=self._get_recent_value_for_monitoring,
                         kwargs={
@@ -765,6 +779,25 @@ class UsbActor(DeviceBaseActor):
         )
 
     def _get_recent_value_for_monitoring(self, parameter: Parameter, wakeup: bool):
+        next_wakeup = self._calc_next_wakeup(
+            start=self.mon_state.start_timestamp,
+            margin=2,
+            interval=parameter.interval,
+            fetched=datetime.now(timezone.utc).timestamp(),
+        )
+        logger.info("Next wakeup in %f s", next_wakeup)
+        if wakeup:
+            self.wakeupAfter(
+                timedelta(seconds=next_wakeup),
+                Thread(
+                    target=self._get_recent_value_for_monitoring,
+                    kwargs={
+                        "parameter": parameter,
+                        "wakeup": True,
+                    },
+                    daemon=True,
+                ),
+            )
         if self.mon_state.monitoring_active:
             answer = self._get_recent_value_inner(
                 parameter.component, parameter.sensor, parameter.measurand
@@ -792,18 +825,6 @@ class UsbActor(DeviceBaseActor):
                     parameter_is_already_listed = True
             if not parameter_is_already_listed:
                 self._missed_monitoring_values.append(parameter)
-        if wakeup:
-            self.wakeupAfter(
-                timedelta(seconds=parameter.interval),
-                Thread(
-                    target=self._get_recent_value_for_monitoring,
-                    kwargs={
-                        "parameter": parameter,
-                        "wakeup": True,
-                    },
-                    daemon=True,
-                ),
-            )
 
     def _get_meta_data(self, component, sensor, measurand):
         answer = self._get_recent_value_inner(component, sensor, measurand)
