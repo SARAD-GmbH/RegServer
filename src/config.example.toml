@@ -330,7 +330,8 @@
 ## separated list of RS-232 or USB ports that shall be polled for newly
 ## connected SARAD instruments.
 ### Default: "COM1" on Windows computers, "/dev/ttyS0" on Linux computers
-#poll_serial_ports = ["/dev/ttyS0"]
+#poll_serial_ports = ["/dev/ttyS0"]  # example for Linux
+#poll_serial_ports = ["COM1"]  # example for Windows
 
 ### Key: local_retry_interval
 ## `local_retry_interval` defines the polling frequency for the serial ports
@@ -344,7 +345,8 @@
 ## serial devices from third parties are connected to that should not be
 ## interfered by the RegServer. This list will be empty by default.
 ### Default: []
-#ignored_serial_ports = ["/dev/ttyS0", "/dev/ttyACM0"]
+#ignored_serial_ports = ["/dev/ttyS0", "/dev/ttyACM0"]  # example for Linux
+#ignored_serial_ports = ["COM1", "COM2"]  # example for Windows
 
 ### Key: ignored_hwids
 ## `ignored_hwids` contains a list of hardware identifiers delivered from USB
