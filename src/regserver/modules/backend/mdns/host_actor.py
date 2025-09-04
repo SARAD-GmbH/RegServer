@@ -111,9 +111,9 @@ class HostActor(BaseActor):
         self.http.mount("http://", adapter)
         self._asys = msg.asys_address
         self._subscribe_to_actor_dict_msg()
-        logger.info("Ping %s every %d minutes.", self.my_id, PING_INTERVAL)
         self.wakeupAfter(timedelta(seconds=1), payload="ping")
         super().receiveMsg_SetupMsg(msg, sender)
+        logger.info("Ping %s every %d minutes.", self.my_id, PING_INTERVAL)
 
     @overrides
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
