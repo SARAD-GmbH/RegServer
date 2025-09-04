@@ -753,7 +753,7 @@ class DeviceBaseActor(BaseActor):
                 break
         if client:
             answer = replace(answer, client=client)
-        logger.info("Recent value reply from %s to %s", self.my_id, answer.client)
+        logger.debug("Recent value reply from %s to %s", self.my_id, answer.client)
         self.send(requester, answer)
         if answer.status not in [Status.OCCUPIED]:
             self._release_lock("GetRecentValue")
