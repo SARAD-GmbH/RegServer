@@ -337,11 +337,14 @@ class DeviceBaseActor(BaseActor):
             self.bin_locks.pop(0)
         self._request_bin_at_is(msg.data)
 
-    def receiveMsg_GetRecentValueMsg(self, msg, sender):
+    def receiveMsg_GetRecentValueMsg(self, msg: GetRecentValueMsg, sender):
         # pylint: disable=invalid-name
         """Get a value from an instrument."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if self._is_reserved():
+            logger.warning(
+                "%s cannot reply to GetRecentValueMsg -- occupied", self.my_id
+            )
             self._handle_recent_value_reply_from_is(
                 answer=RecentValueMsg(
                     status=Status.OCCUPIED,
@@ -372,6 +375,7 @@ class DeviceBaseActor(BaseActor):
             )
 
     def _get_recent_value_timeout(self, action_request: ActionRequest):
+        logger.warning("%s cannot reply to GetRecentValueMsg -- timeout", self.my_id)
         self._handle_recent_value_reply_from_is(
             answer=RecentValueMsg(
                 status=Status.BUSY_TIMEOUT,
@@ -382,6 +386,7 @@ class DeviceBaseActor(BaseActor):
         )
 
     def _get_recent_value_on_kill(self, action_request: ActionRequest):
+        logger.warning("%s cannot reply to GetRecentValueMsg -- on kill", self.my_id)
         self._handle_recent_value_reply_from_is(
             answer=RecentValueMsg(
                 status=Status.NOT_FOUND,
@@ -746,8 +751,9 @@ class DeviceBaseActor(BaseActor):
             if request_lock.locked:
                 client = request_lock.request.msg.client
                 break
-        answer = replace(answer, client=client)
-        logger.info("Recent value reply from %s to %s", self.my_id, client)
+        if client:
+            answer = replace(answer, client=client)
+        logger.info("Recent value reply from %s to %s", self.my_id, answer.client)
         self.send(requester, answer)
         if answer.status not in [Status.OCCUPIED]:
             self._release_lock("GetRecentValue")

@@ -961,9 +961,10 @@ class GetValues(Resource):
                 value_return = value_sys.ask(
                     device_actor,
                     GetRecentValueMsg(
-                        arguments["component"],
-                        arguments["sensor"],
-                        arguments["measurand"],
+                        component=arguments["component"],
+                        sensor=arguments["sensor"],
+                        measurand=arguments["measurand"],
+                        client="REST API",
                     ),
                     timeout=TIMEOUT,
                 )

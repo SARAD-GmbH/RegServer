@@ -84,6 +84,7 @@ class ModbusRtu:
                             component=component_id,
                             sensor=sensor_id,
                             measurand=measurand_id,
+                            client="ModbusRtu",
                         ),
                         timeout=timedelta(seconds=10),
                     )

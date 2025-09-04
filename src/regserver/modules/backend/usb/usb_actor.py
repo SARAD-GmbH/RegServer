@@ -760,28 +760,7 @@ class UsbActor(DeviceBaseActor):
     @overrides
     def _request_recent_value_at_is(self, msg, sender):
         super()._request_recent_value_at_is(msg, sender)
-        self.reserve_device_msg = ReserveDeviceMsg(
-            host="localhost", user="self", app="value-request"
-        )
-        self._handle_reserve_reply_from_is(
-            success=Status.OK,
-            requester=self.myAddress,
-        )
-        self._start_thread(
-            Thread(
-                target=self._get_recent_value,
-                kwargs={
-                    "component": msg.component,
-                    "sensor": msg.sensor,
-                    "measurand": msg.measurand,
-                },
-                daemon=True,
-            )
-        )
-
-    def _get_recent_value(self, component, sensor, measurand):
-        answer = self._get_recent_value_inner(component, sensor, measurand)
-        self._request_free_at_is(self.myAddress)
+        answer = self._get_recent_value_inner(msg.component, msg.sensor, msg.measurand)
         self._handle_recent_value_reply_from_is(
             answer=answer,
             requester=self.request_locks["GetRecentValue"].request.sender,
