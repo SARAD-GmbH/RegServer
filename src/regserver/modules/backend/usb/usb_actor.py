@@ -284,15 +284,6 @@ class UsbActor(DeviceBaseActor):
 
     @overrides
     def _request_bin_at_is(self, data):
-        self._start_thread(
-            Thread(
-                target=self._tx_binary_proceed,
-                kwargs={"data": data},
-                daemon=True,
-            )
-        )
-
-    def _tx_binary_proceed(self, data):
         logger.debug(data)
         has_reservation_section = self.device_status.get("Reservation", False)
         if has_reservation_section:
@@ -419,29 +410,24 @@ class UsbActor(DeviceBaseActor):
     def _request_set_rtc_at_is(self, sender, confirm=False):
         if self.instrument.family["family_id"] == 2:
             logger.debug("Features of %s: %s", self.my_id, self.instrument.features)
-            if self.instrument.features.get("rtc_set_seconds", False):
-                wait = 0
-                self._set_rtc()
-            else:
-                wait = 60 - datetime.now().time().second
-                self.wakeupAfter(timedelta(seconds=wait), "set_rtc")
-            logger.debug(
-                "Wait %d seconds before setting the RTC of %s", wait, self.my_id
-            )
-            self._set_rtc_pending = True
+            rtc_set_seconds = self.instrument.features.get("rtc_set_seconds", False)
         else:
-            self._set_rtc()
+            rtc_set_seconds = True
+        status = Status.OK
+        if rtc_set_seconds:
             wait = 0
-        if local_backend_config["UTC_OFFSET"] > 13:
-            utc_offset = (
-                datetime.now(timezone.utc).astimezone().utcoffset().seconds / 3600
-            )
+            if not self._set_rtc():
+                status = Status.ERROR
         else:
-            utc_offset = local_backend_config["UTC_OFFSET"]
+            wait = 60 - datetime.now().time().second
+            self.wakeupAfter(timedelta(seconds=wait), "set_rtc")
+        logger.debug("Wait %d seconds before setting the RTC of %s", wait, self.my_id)
+        self._set_rtc_pending = True
+        utc_offset = self.instrument.utc_offset
         self._handle_set_rtc_reply_from_is(
             answer=SetRtcAckMsg(
                 instr_id=self.instr_id,
-                status=Status.OK,
+                status=status,
                 utc_offset=utc_offset,
                 wait=wait,
             ),
@@ -451,17 +437,20 @@ class UsbActor(DeviceBaseActor):
         if local_backend_config["SET_RTC"]:
             self.wakeupAfter(timedelta(days=7), "request_set_rtc_at_is")
 
-    def _set_rtc(self):
-        self._start_thread(
-            Thread(
-                target=self._set_rtc_function,
-                daemon=True,
-            )
+    def _set_rtc(self) -> bool:
+        success: bool = self.instrument.set_real_time_clock(
+            local_backend_config["UTC_OFFSET"]
         )
-
-    def _set_rtc_function(self):
-        self.instrument.utc_offset = local_backend_config["UTC_OFFSET"]
+        if not success:
+            logger.warning("Error in set RTC on %s. I will try it again.", self.my_id)
+            sleep(0.5)
+            success = self.instrument.set_real_time_clock(
+                local_backend_config["UTC_OFFSET"]
+            )
+            if not success:
+                logger.error("Permanent error in set RTC on %s", self.my_id)
         self._set_rtc_pending = False
+        return success
 
     def _check_monitoring_config(self) -> bool:
         """Check correctness of configuration. Return True, if correct."""
