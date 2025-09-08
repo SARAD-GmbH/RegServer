@@ -16,8 +16,8 @@ from threading import Thread
 import tomlkit
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
-                                      Is1Address, SetupUsbActorMsg,
-                                      TransportTechnology)
+                                      Is1Address, SetDeviceStatusMsg,
+                                      SetupUsbActorMsg, TransportTechnology)
 from regserver.base_actor import BaseActor
 from regserver.config import CONFIG_FILE, config, is1_backend_config
 from regserver.helpers import check_message, make_command_msg
@@ -402,6 +402,21 @@ class Is1Listener(BaseActor):
             )
         else:
             device_actor = self.child_actors[actor_id]["actor_address"]
+        device_status = {
+            "Identification": {
+                "Name": self.instrument.type_name,
+                "Family": family_id,
+                "Type": decode_instr_id(instr_id)[1],
+                "Serial number": decode_instr_id(instr_id)[2],
+                "Host": is1_address.hostname,
+                "Firmware version": firmware_version,
+                "IS Id": is1_address.hostname,
+                "Protocol": sarad_type,
+            },
+            "State": 2,
+        }
+        logger.debug("Setup device actor %s with %s", actor_id, device_status)
+        self.send(device_actor, SetDeviceStatusMsg(device_status))
         logger.debug("IS1 list before add: %s", self.is1_addresses)
         self.active_is1_addresses[actor_id] = is1_address
         try:
