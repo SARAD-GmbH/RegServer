@@ -16,8 +16,8 @@ from threading import Thread
 import tomlkit
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
-                                      Is1Address, SetDeviceStatusMsg,
-                                      SetupUsbActorMsg, TransportTechnology)
+                                      Is1Address, SetupUsbActorMsg,
+                                      TransportTechnology)
 from regserver.base_actor import BaseActor
 from regserver.config import CONFIG_FILE, config, is1_backend_config
 from regserver.helpers import check_message, make_command_msg
@@ -27,7 +27,7 @@ from regserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.cluster import id_family_mapping  # type: ignore
 from sarad.global_helpers import (decode_instr_id, encode_instr_id,
                                   get_sarad_type, sarad_family)
-from sarad.sari import Route  # type: ignore
+from sarad.sari import Route, SaradInst  # type: ignore
 
 
 class Is1Listener(BaseActor):
@@ -149,6 +149,7 @@ class Is1Listener(BaseActor):
         self.cmd_thread = Thread(target=self._cmd_handler_function, daemon=True)
         self.actor_type = ActorType.HOST
         self.last_ip = ""
+        self.instrument: SaradInst = None
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -330,11 +331,28 @@ class Is1Listener(BaseActor):
                     instr_id = this_instrument["instr_id"]
                     family_id = decode_instr_id(instr_id)[0]
                     if id_family_mapping.get(family_id) is not None:
-                        self._create_and_setup_actor(
-                            instr_id=instr_id,
-                            is1_address=address,
-                            firmware_version=this_instrument["version"],
-                        )
+                        route = Route(ip_address=address.hostname, ip_port=address.port)
+                        self.instrument = id_family_mapping.get(family_id)
+                        if self.instrument is None:
+                            logger.critical("Family %s not supported", family_id)
+                            return
+                        self.instrument.route = route
+                        try:
+                            is_connected = self.instrument.get_description()
+                        except TypeError:
+                            logger.error(
+                                "Cannot get instrument description of %s", self.my_id
+                            )
+                            is_connected = False
+                        if is_connected:
+                            self._create_and_setup_actor(
+                                instr_id=instr_id,
+                                is1_address=address,
+                                firmware_version=this_instrument["version"],
+                            )
+                        else:
+                            logger.warning("%s isn't a valid instrument", instr_id)
+                            return
                     else:
                         logger.error("%s isn't a valid instrument", instr_id)
                 self._update_host_info()
@@ -384,21 +402,6 @@ class Is1Listener(BaseActor):
             )
         else:
             device_actor = self.child_actors[actor_id]["actor_address"]
-        device_status = {
-            "Identification": {
-                "Name": self._get_name(instr_id),
-                "Family": family_id,
-                "Type": decode_instr_id(instr_id)[1],
-                "Serial number": decode_instr_id(instr_id)[2],
-                "Host": is1_address.hostname,
-                "Firmware version": firmware_version,
-                "IS Id": is1_address.hostname,
-                "Protocol": sarad_type,
-            },
-            "State": 2,
-        }
-        logger.debug("Setup device actor %s with %s", actor_id, device_status)
-        self.send(device_actor, SetDeviceStatusMsg(device_status))
         logger.debug("IS1 list before add: %s", self.is1_addresses)
         self.active_is1_addresses[actor_id] = is1_address
         try:
