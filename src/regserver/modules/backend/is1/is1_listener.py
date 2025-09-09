@@ -155,7 +155,7 @@ class Is1Listener(BaseActor):
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         hosts = is1_backend_config["IS1_HOSTS"]
-        logger.info(hosts)
+        logger.debug(hosts)
         deduplicated_hosts = list(set(hosts))
         for host in deduplicated_hosts:
             self.is1_addresses.append(
@@ -185,7 +185,7 @@ class Is1Listener(BaseActor):
                 if self.conn is server_socket:
                     self._client_socket, _socket_info = server_socket.accept()
                     self.read_list.append(self._client_socket)
-                    logger.info("Connection from %s", _socket_info)
+                    logger.debug("Connection from %s", _socket_info)
                     self.last_ip = _socket_info[0]
                 else:
                     self._cmd_handler()
@@ -311,7 +311,7 @@ class Is1Listener(BaseActor):
         ]:
             this_instrument = self._get_instrument_id(checked_reply["payload"])
             if this_instrument:
-                logger.info(
+                logger.debug(
                     "Instrument %s on COM%d",
                     this_instrument["instr_id"],
                     this_instrument["port"],
@@ -381,7 +381,6 @@ class Is1Listener(BaseActor):
             self.instrument.route = route
             try:
                 is_connected = self.instrument.get_description()
-                logger.info(is_connected)
             except TypeError:
                 logger.error("Cannot get instrument description of %s", self.my_id)
                 is_connected = False
