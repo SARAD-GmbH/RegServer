@@ -419,10 +419,10 @@ class UsbActor(DeviceBaseActor):
             if not self._set_rtc():
                 status = Status.ERROR
         else:
+            self._set_rtc_pending = True
             wait = 60 - datetime.now().time().second
             self.wakeupAfter(timedelta(seconds=wait), "set_rtc")
         logger.debug("Wait %d seconds before setting the RTC of %s", wait, self.my_id)
-        self._set_rtc_pending = True
         utc_offset = self.instrument.utc_offset
         self._handle_set_rtc_reply_from_is(
             answer=SetRtcAckMsg(
