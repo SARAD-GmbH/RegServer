@@ -331,30 +331,11 @@ class Is1Listener(BaseActor):
                     instr_id = this_instrument["instr_id"]
                     family_id = decode_instr_id(instr_id)[0]
                     if id_family_mapping.get(family_id) is not None:
-                        route = Route(ip_address=address.hostname, ip_port=address.port)
-                        self.instrument = id_family_mapping.get(family_id)
-                        if self.instrument is None:
-                            logger.critical("Family %s not supported", family_id)
-                            return
-                        self.instrument.route = route
-                        try:
-                            is_connected = self.instrument.get_description()
-                        except TypeError:
-                            logger.error(
-                                "Cannot get instrument description of %s", self.my_id
-                            )
-                            is_connected = False
-                        if is_connected:
-                            self._create_and_setup_actor(
-                                instr_id=instr_id,
-                                is1_address=address,
-                                firmware_version=this_instrument["version"],
-                            )
-                        else:
-                            logger.warning("%s isn't a valid instrument", instr_id)
-                            return
-                    else:
-                        logger.error("%s isn't a valid instrument", instr_id)
+                        self._create_and_setup_actor(
+                            instr_id=instr_id,
+                            is1_address=address,
+                            firmware_version=this_instrument["version"],
+                        )
                 self._update_host_info()
             else:
                 logger.error("Error parsing payload received from instrument")
@@ -391,7 +372,22 @@ class Is1Listener(BaseActor):
         family_id = decode_instr_id(instr_id)[0]
         sarad_type = get_sarad_type(instr_id)
         actor_id = f"{instr_id}.{sarad_type}.is1"
+        route = Route(ip_address=is1_address.hostname, ip_port=is1_address.port)
+        self.instrument = id_family_mapping.get(family_id)
+        if self.instrument is None:
+            logger.critical("Family %s not supported", family_id)
+            return
         if actor_id not in self.child_actors:
+            self.instrument.route = route
+            try:
+                is_connected = self.instrument.get_description()
+                logger.info(is_connected)
+            except TypeError:
+                logger.error("Cannot get instrument description of %s", self.my_id)
+                is_connected = False
+            if not is_connected:
+                logger.error("%s isn't a valid instrument", instr_id)
+                return
             logger.debug("Create actor %s", actor_id)
             family = id_family_mapping.get(family_id).family
             route = Route(ip_address=is1_address.hostname, ip_port=is1_address.port)
