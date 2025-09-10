@@ -126,6 +126,8 @@ class UsbActor(DeviceBaseActor):
             except TypeError:
                 logger.error("Cannot get instrument description of %s", self.my_id)
                 self.is_connected = False
+            finally:
+                self.instrument.release_instrument()
         if purpose == Purpose.WAKEUP:
             self._finish_poll()
         elif purpose == Purpose.RESERVE:
@@ -449,6 +451,7 @@ class UsbActor(DeviceBaseActor):
             )
             if not success:
                 logger.error("Permanent error in set RTC on %s", self.my_id)
+        self.instrument.release_instrument()
         self._set_rtc_pending = False
         return success
 
@@ -588,6 +591,8 @@ class UsbActor(DeviceBaseActor):
                     self.my_id,
                     exception,
                 )
+            finally:
+                self.instrument.release_instrument()
             if not success:
                 logger.error("Start/Stop not supported by %s", self.my_id)
         else:
@@ -855,6 +860,8 @@ class UsbActor(DeviceBaseActor):
         except (IndexError, AttributeError) as exception:
             logger.error("Error in _get_recent_value_inner: %s", exception)
             return RecentValueMsg(status=Status.INDEX_ERROR, instr_id=self.instr_id)
+        finally:
+            self.instrument.release_instrument()
         logger.debug(
             "get_recent_value(%d, %d, %d) came back with %s",
             component,
