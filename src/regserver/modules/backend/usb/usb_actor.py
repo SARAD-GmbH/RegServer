@@ -573,7 +573,7 @@ class UsbActor(DeviceBaseActor):
 
     def _start_monitoring_function(self):
         monitoring_conf = monitoring_config.get(self.instr_id, {})
-        self.instrument.utc_offset = local_backend_config["UTC_OFFSET"]
+        self.instrument.set_real_time_clock(local_backend_config["UTC_OFFSET"])
         cycle = monitoring_conf.get("cycle", 0)
         if cycle:
             success = False
