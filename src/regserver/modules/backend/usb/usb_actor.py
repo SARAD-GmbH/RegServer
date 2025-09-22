@@ -573,7 +573,7 @@ class UsbActor(DeviceBaseActor):
 
     def _start_monitoring_function(self):
         monitoring_conf = monitoring_config.get(self.instr_id, {})
-        self.instrument.utc_offset = local_backend_config["UTC_OFFSET"]
+        self.instrument.set_real_time_clock(local_backend_config["UTC_OFFSET"])
         cycle = monitoring_conf.get("cycle", 0)
         if cycle:
             success = False
@@ -885,6 +885,15 @@ class UsbActor(DeviceBaseActor):
                     gps = Gps(valid=False)
             else:
                 gps = reply["gps"]
+            try:
+                timestamp = reply["datetime"].timestamp()
+            except OSError:
+                logger.error(
+                    "%s delivered %s as datetime. Cannot convert to timestamp.",
+                    self.my_id,
+                    reply["datetime"],
+                )
+                timestamp = 0
             return RecentValueMsg(
                 status=Status.OK,
                 instr_id=self.instr_id,
@@ -895,7 +904,7 @@ class UsbActor(DeviceBaseActor):
                 operator=reply["measurand_operator"],
                 value=reply["value"],
                 unit=reply["measurand_unit"],
-                timestamp=reply["datetime"].timestamp(),
+                timestamp=timestamp,
                 utc_offset=self.instrument.utc_offset,
                 sample_interval=reply["sample_interval"].total_seconds(),
                 gps=gps,
