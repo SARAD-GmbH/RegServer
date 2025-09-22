@@ -43,7 +43,7 @@
 ## as Instrument Servers.
 
 ### Key: is_id
-## `is_id` stands for Instrument Server Id. It shall contain a short string
+## `is_id` stands for Instrument Server ID. It shall contain a short string
 ## identifying the host, your RegServer is running at.
 ##
 ### Default: The hostname of your computer
@@ -180,7 +180,7 @@
 [mqtt]
 ### Key: mqtt_client_id
 ## This is a unique identifier for the MQTT Client of the MQTT backend.
-## The MQTT frontend will use the `is_id` as MQTT Client Id.
+## The MQTT frontend will use the `is_id` as MQTT Client ID.
 ## In order to avoid duplications the ids will be unified by appending the
 ## hex representation of the MAC address of the computer.
 ### Default: "Id"
@@ -206,7 +206,7 @@
 ### Key: keepalive
 ## Keep Alive is a feature of the MQTT protocol that allows an MQTT client to
 ## maintain its connection with a broker by sending regular control packets
-## called PINGREQ to the broker. This parameters defines the interval in seconds
+## called PINGREQ to the broker. This parameter defines the interval in seconds
 ## between two of these messages.
 ### Default: 60 (s)
 #keepalive = 60
@@ -256,7 +256,7 @@
 ### Key: restart_instead_of_reboot
 ## If set to 1, the RegServer will be restarted instead of performing a reboot.
 ## This setting should be used on desktop computers running the RegServer with
-## active MQTT frontend. Typically we don't want a desktop computer to reboot
+## active MQTT frontend. Typically, we don't want a desktop computer to reboot
 ## without user intervention.
 ### Default: 0
 #restart_instead_of_reboot = 0
@@ -337,11 +337,11 @@
 ## `local_retry_interval` defines the polling frequency for the serial ports
 ## listed in `poll_serial_ports` in seconds.
 ### Default: 30 (s)
-#local_retry_interval = 30  # in seconds, must be lager than 5
+#local_retry_interval = 30  # in seconds, must be larger than 5
 
 ### Key: ignored_serial_ports
-## `ignored_serial_ports` can contains a comma separated list of serial ports
-## that shall be ignored by the RegServer. Typically these are ports where other
+## `ignored_serial_ports` can contain a comma separated list of serial ports
+## that shall be ignored by the RegServer. Typically, these are ports where other
 ## serial devices from third parties are connected to that should not be
 ## interfered by the RegServer. This list will be empty by default.
 ### Default: []
@@ -381,7 +381,7 @@
 #utc_offset = 14
 
 
-## There are SARAD instruments (e. g. the Smart Radon Sensor) that can be
+## There are SARAD instruments (e.g. the Smart Radon Sensor) that can be
 ## connected by RS-485 via an addressable daisy chain. The `rs485_backend`
 ## section can contain several lines defining a serial port and a list of node
 ## addresses for instruments connected in the RS-485 daisy-chain on this port.
@@ -394,7 +394,7 @@
 
 
 ## The `is1_backend` section contains the configuration for the backend
-## connection legacy SARAD instrument servers (Instrument Server 1). Typically
+## connection legacy SARAD instrument servers (Instrument Server 1). Typically,
 ## these are only SARAD instruments with WLAN module. There is no reason to use the
 ## legacy SARAD Instrument Server for Windows PCs anymore.
 [is1_backend]
@@ -409,7 +409,7 @@
 ## The RegServer will keep a persistent list of hostnames of IS1 WLAN modules
 ## that have registered on the RegServer in the past. This is required, since
 ## these WLAN-Modules register themselves only during their startup or reset. The
-## RegServer will fill the list of host names in `hosts` automatically but it's
+## RegServer will automatically fill the list of host names in `hosts`, but it's
 ## possible to add the host names by hand as well.
 ### Default: []
 #hosts = ["ESP-C8C1A8", "ESP-C8C1B1", "ESP-0B6980"]
@@ -475,7 +475,7 @@
 
 ## The RegServer was implemented using the Thespian Actor Model library (refer
 ## to https://thespianpy.com/). The entries in the `actor` section allow some
-## fine tuning.
+## fine-tuning.
 [actor]
 ### Key: system_base
 ## Uncomment one of the following three base technologies for the Actor system.
