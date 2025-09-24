@@ -10,10 +10,10 @@ DeviceBaseActor
 
 * SEND
 ** Request to a Device Actor (implimenting DeviceBaseActor)
-*** DATA: Contains the DATA so be send
-*** HOST: Host requesting the DATA to be send ( for reservation checks )
+*** DATA: Contains the DATA to be sent
+*** HOST: Host requesting the DATA to be sent ( for reservation checks )
 ** Response:
-*** DATA: Contains DATA that the device send back, not set in case there is no reponse
+*** DATA: Contains DATA that the device send back, not set in case there is no response
 
 * SEND_RESERVE
 ** Request to reserve an instrument

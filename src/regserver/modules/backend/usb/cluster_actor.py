@@ -131,7 +131,7 @@ class ClusterActor(BaseActor):
     def active_ports(self) -> set[str]:
         """SARAD instruments can be connected:
         1. by RS232 on a native RS232 interface at the computer
-        2. via their built in FT232R USB-serial converter
+        2. via their built-in FT232R USB-serial converter
         3. via an external USB-serial converter (Prolific, Prolific fake, FTDI, QinHeng Electronics)
         4. via the SARAD ZigBee coordinator with FT232R"""
         # Get the list of accessible native RS-232 ports

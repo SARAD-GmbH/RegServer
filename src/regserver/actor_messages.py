@@ -72,7 +72,7 @@ class Status(Enum):
 
 
 class Frontend(Enum):
-    """One item for every possible frontend of of the RegServer or Instrument Server
+    """One item for every possible frontend of the RegServer or Instrument Server
 
     `config["FRONTENDS"]` will contain a list of frontends that are active in
     the application defined by this configuration.
@@ -85,7 +85,7 @@ class Frontend(Enum):
 
 
 class ActorType(Enum):
-    """Class to identify the type of an Actor.
+    """Class to identify the type of Actor.
 
     Used in BaseActor."""
 
@@ -223,9 +223,9 @@ class SetupMsg:
     """Message used to send setup information after actor __init__.
 
     Args:
-        actor_id (str): Unique Id of the actor.
+        actor_id (str): Unique ID of the actor.
                         Can be used to identify the device if the actor is a device actor.
-        parent_id (str): Actor Id if the parent is an actor, actor_system else.
+        parent_id (str): Actor ID if the parent is an actor, actor_system else.
         registrar (ActorAddress): Actor address of the registrar
         asys_address (ActorAddress): Address of the ActorSystem endpoint
                                      that initiated the creation of this Actor
@@ -272,7 +272,7 @@ class SetupHostActorMsg:
 @dataclass
 class SetupLanDeviceMsg:
     """Message used to send the setup information required by DeviceCreatorActor
-    to setup a new Device Actor.
+    to set up a new Device Actor.
 
     Args:
         host: Hostname of the host running the instrument server
@@ -315,7 +315,7 @@ class SetupMdnsActorMsg:
     Args:
         is_host (str): IP address of IS2.
         api_port (int): Port the REST API of IS2 is on.
-        device_id (str): Device Id at the remote host.
+        device_id (str): Device ID at the remote host.
     """
 
     is_host: str
@@ -362,7 +362,7 @@ class SubscribeMsg:
     """Message sent from an actor to the Registrar actor to confirm the successful setup.
 
     Args:
-        actor_id (str): Unique Id of the actor.
+        actor_id (str): Unique ID of the actor.
                         Can be used to identify the device if the actor is a device actor.
         parent (ActorAddress): Address of the parent actor.
         actor_type (ActorType): Used to identify whether this is a Device or Host Actor.
@@ -415,7 +415,7 @@ class KeepAliveMsg:
 
 @dataclass
 class DeadChildMsg:
-    """Message triggering the receiving Actor to check it's list of children
+    """Message triggering the receiving Actor to check its list of children
     for the child Actor given in Args.
     If the child is still in the list of children, it shall cause an emergency shutdown.
 
@@ -432,7 +432,7 @@ class SubscribeToActorDictMsg:
     Registrar actor.
 
     Args:
-        actor_id (str): Unique Id of the actor that shall receive the updates.
+        actor_id (str): Unique ID of the actor that shall receive the updates.
     """
 
     actor_id: str
@@ -444,7 +444,7 @@ class UnSubscribeFromActorDictMsg:
     Registrar actor.
 
     Args:
-        actor_id (str): Unique Id of the actor that shall not receive updates anymore.
+        actor_id (str): Unique ID of the actor that shall not receive updates anymore.
     """
 
     actor_id: str
@@ -476,7 +476,7 @@ class GetActorDictMsg:
 @dataclass
 class KillMsg:
     """Message sent to an actor to trigger the exit of this actor. The actor has to
-    forward this message to all of its children an finally sends an UnsubscribeMsg
+    forward this message to all of its children and finally sends an UnsubscribeMsg
     to the Registrar actor.
 
     Args:
@@ -550,7 +550,7 @@ class SubscribeToDeviceStatusMsg:
     collected in the Device Actor.
 
     Args:
-        actor_id (str): Unique Id of the actor that shall receive the updates.
+        actor_id (str): Unique ID of the actor that shall receive the updates.
     """
 
     actor_id: str
@@ -562,7 +562,7 @@ class UnSubscribeFromDeviceStatusMsg:
     collected in the Device Actor.
 
     Args:
-        actor_id (str): Unique Id of the actor that shall receive the updates.
+        actor_id (str): Unique ID of the actor that shall receive the updates.
     """
 
     actor_id: str
@@ -582,7 +582,7 @@ class UpdateDeviceStatusMsg:
     completely.
 
     Args:
-        device_id (str): Device Id in long form
+        device_id (str): Device ID in long form
         device_status (dict): Dictionary with status information of the instrument.
 
     """
@@ -662,7 +662,7 @@ class RescanAckMsg:
 
 @dataclass
 class ShutdownMsg:
-    """Request to shutdown the Regserver on a given host for a restart.
+    """Request to shut down the Regserver on a given host for a restart.
 
     The ShutdownMsg can be sent to the Cluster Actor, a Host Actor or to the MQTT Listener.
 
@@ -744,7 +744,7 @@ class ReturnNativePortsMsg:
 
 @dataclass
 class PrepareMqttActorMsg:
-    """Message with information to setup the MQTT client of the MQTT Actor."""
+    """Message with information to set up the MQTT client of the MQTT Actor."""
 
     client_id: str
     group: str
@@ -889,7 +889,7 @@ class ResurrectMsg:
     killed Device Actor.
 
     Args:
-        is_id (str): Id of the Instrument Server
+        is_id (str): ID of the Instrument Server
 
     """
 
@@ -956,7 +956,7 @@ class StartMonitoringMsg:
     at a given time or immediately, respectively.
 
     Args:
-        instr_id (str): Id of the instrument
+        instr_id (str): ID of the instrument
         start_time (datetime): Date and time to start the monitoring mode on.
                                If None, it shall start immediately.
                                Always given as UTC.
@@ -973,7 +973,7 @@ class StartMonitoringAckMsg:
     """Confirmation that the StartMonitoringMsg was handled properly.
 
     Args:
-        instr_id (str): Id of the instrument
+        instr_id (str): ID of the instrument
         status (Status): Status of the success of the operation
         offset (timedelta): Time difference between start time and now.
         client (str): Requesting MQTT client
@@ -990,7 +990,7 @@ class StopMonitoringMsg:
     """Message instructing the Device Actor to stop the monitoring mode.
 
     Args:
-        instr_id (str): Id of the instrument
+        instr_id (str): ID of the instrument
         client (str): Requesting MQTT client
     """
 
@@ -1003,7 +1003,7 @@ class StopMonitoringAckMsg:
     """Confirmation that the StopMonitoringMsg was handled properly.
 
     Args:
-        instr_id (str): Id of the instrument
+        instr_id (str): ID of the instrument
         status (Status): Status of the success of the operation
         client (str): Requesting MQTT client
     """
@@ -1018,7 +1018,7 @@ class SetRtcMsg:
     """Message instructing the Device Actor to set the RTC of the instrument.
 
     Args:
-        instr_id (str): Id of the instrument
+        instr_id (str): ID of the instrument
         client (str): Requesting MQTT client
     """
 
@@ -1031,7 +1031,7 @@ class SetRtcAckMsg:
     """Confirmation that the SetRtcMsg was handled properly.
 
     Args:
-        instr_id (str): Id of the instrument
+        instr_id (str): ID of the instrument
         status (Status): Status of the success of the operation
         utc_offset (float): Offset to UTC that was used to set the RTC, -13 = unknown
         wait (int): Waiting time in seconds before the setup will take effect
@@ -1051,7 +1051,7 @@ class ControlFunctionalityMsg:
     Frontends or Backends on or off.
 
     Args:
-        actor_id (str): Id of the Actor that shall be started or stopped
+        actor_id (str): ID of the Actor that shall be started or stopped
         on (bool): True, if the Actor shall be switched on; False,
                    if it shall be switched off.
     """
