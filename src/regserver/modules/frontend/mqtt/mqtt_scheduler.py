@@ -112,7 +112,7 @@ class MqttSchedulerActor(MqttBaseActor):
         if platform.machine() in ["aarch64", "armv7l"]:
             try:
                 self.led = LED(23)  # pylint: disable=possibly-used-before-assignment
-                self.led.blink(1, 0.3)
+                self.led.blink(0.5, 0.15)
             except Exception:  # pylint: disable=broad-exception-caught
                 logger.error(
                     "On a Raspberry Pi or Orange Pi Zero, you could see a LED blinking on GPIO 23."
@@ -156,7 +156,7 @@ class MqttSchedulerActor(MqttBaseActor):
         # pylint: disable=too-many-positional-arguments, too-many-arguments
         super().on_disconnect(client, userdata, flags, reason_code, properties)
         if self.led:
-            self.led.blink(1, 0.3)
+            self.led.blink(0.5, 0.15)
 
     @overrides
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
@@ -345,7 +345,7 @@ class MqttSchedulerActor(MqttBaseActor):
             new_state = 1
             logger.debug("LED blinking")
             if self.led:
-                self.led.blink(1, 0.3)
+                self.led.blink(0.5, 0.15)
         payload = get_is_meta(replace(self.is_meta, state=new_state))
         if old_state != new_state:
             self.mqttc.publish(
