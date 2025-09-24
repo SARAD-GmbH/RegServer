@@ -345,7 +345,7 @@ class MqttSchedulerActor(MqttBaseActor):
             new_state = 1
             logger.debug("LED blinking")
             if self.led:
-                self.led.blink(0.5, 0.15)
+                self.led.blink(0.25, 0.07)
         payload = get_is_meta(replace(self.is_meta, state=new_state))
         if old_state != new_state:
             self.mqttc.publish(
