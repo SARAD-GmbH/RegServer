@@ -60,6 +60,7 @@ class ActionRequest:
     timeout_handler: callable = print
     on_kill_handler: callable = print
     time: datetime = datetime.min
+    id: int = 0
 
 
 @dataclass
@@ -132,6 +133,7 @@ class DeviceBaseActor(BaseActor):
         }
         self.request_queue: list[ActionRequest] = []
         self.bin_locks: list[Lock] = []
+        self.last_request_id: int = 0
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -170,7 +172,7 @@ class DeviceBaseActor(BaseActor):
             action_request: ActionRequest = msg.payload
             logger.debug("Retry to start action at %s", self.my_id)
             action_request.worker(action_request)
-        elif msg.payload == "timeout":
+        elif isinstance(msg.payload, TimeoutMsg) and msg.payload.type == "timeout":
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
             for _lock_key, lock in self.request_locks.items():
                 if lock.locked and (
@@ -182,7 +184,9 @@ class DeviceBaseActor(BaseActor):
                     lock.request.timeout_handler(lock.request)
                     lock.locked = False
             for pending_request in self.request_queue:
-                if datetime.now() - pending_request.time >= REQUEST_TIMEOUT:
+                if (datetime.now() - pending_request.time >= REQUEST_TIMEOUT) and (
+                    pending_request.id == msg.payload.counter
+                ):
                     logger.warning(
                         "Timeout in pending %s on %s", pending_request.msg, self.my_id
                     )
@@ -241,7 +245,10 @@ class DeviceBaseActor(BaseActor):
                 success=Status.NOT_FOUND, requester=sender
             )
             return
-        self.wakeupAfter(REQUEST_TIMEOUT, "timeout")
+        self.last_request_id = self.last_request_id + 1
+        self.wakeupAfter(
+            REQUEST_TIMEOUT, TimeoutMsg(type="timeout", counter=self.last_request_id)
+        )
         action_request = ActionRequest(
             worker=self._reserve_device_worker,
             msg=msg,
@@ -249,6 +256,7 @@ class DeviceBaseActor(BaseActor):
             timeout_handler=self._reserve_device_timeout,
             time=datetime.now(),
             on_kill_handler=self._reserve_device_on_kill,
+            id=self.last_request_id,
         )
         self._fifo(action_request)
 
@@ -275,6 +283,7 @@ class DeviceBaseActor(BaseActor):
             self.return_message = ReservationStatusMsg(self.instr_id, Status.OK_SKIPPED)
             self._handle_free_reply_from_is(Status.OK_SKIPPED, sender)
             return
+        self.last_request_id = self.last_request_id + 1
         action_request = ActionRequest(
             worker=self._free_device_worker,
             msg=msg,
@@ -282,11 +291,14 @@ class DeviceBaseActor(BaseActor):
             timeout_handler=self._free_device_timeout,
             time=datetime.now(),
             on_kill_handler=self._free_device_on_kill,
+            id=self.last_request_id,
         )
         if self.on_kill:
             self._free_device_on_kill(action_request)
             return
-        self.wakeupAfter(REQUEST_TIMEOUT, "timeout")
+        self.wakeupAfter(
+            REQUEST_TIMEOUT, TimeoutMsg(type="timeout", counter=self.last_request_id)
+        )
         self._fifo(action_request)
 
     def _free_device_worker(self, action_request):
@@ -354,6 +366,7 @@ class DeviceBaseActor(BaseActor):
                 requester=sender,
             )
             return
+        self.last_request_id = self.last_request_id + 1
         action_request = ActionRequest(
             worker=self._get_recent_value_worker,
             msg=msg,
@@ -361,11 +374,14 @@ class DeviceBaseActor(BaseActor):
             timeout_handler=self._get_recent_value_timeout,
             time=datetime.now(),
             on_kill_handler=self._get_recent_value_on_kill,
+            id=self.last_request_id,
         )
         if self.on_kill:
             self._get_recent_value_on_kill(action_request)
             return
-        self.wakeupAfter(REQUEST_TIMEOUT, "timeout")
+        self.wakeupAfter(
+            REQUEST_TIMEOUT, TimeoutMsg(type="timeout", counter=self.last_request_id)
+        )
         self._fifo(action_request)
 
     def _get_recent_value_worker(self, action_request: ActionRequest):
@@ -407,6 +423,7 @@ class DeviceBaseActor(BaseActor):
             self.request_locks["GetDeviceStatus"].request.sender = sender
             self._handle_status_reply_from_is(Status.OCCUPIED, sender)
             return
+        self.last_request_id = self.last_request_id + 1
         action_request = ActionRequest(
             worker=self._get_device_status_worker,
             msg=msg,
@@ -414,11 +431,14 @@ class DeviceBaseActor(BaseActor):
             timeout_handler=self._get_device_status_timeout,
             time=datetime.now(),
             on_kill_handler=self._get_device_status_on_kill,
+            id=self.last_request_id,
         )
         if self.on_kill:
             self._get_device_status_on_kill(action_request)
             return
-        self.wakeupAfter(REQUEST_TIMEOUT, "timeout")
+        self.wakeupAfter(
+            REQUEST_TIMEOUT, TimeoutMsg(type="timeout", counter=self.last_request_id)
+        )
         self._fifo(action_request)
 
     def _get_device_status_worker(self, action_request):
@@ -448,6 +468,7 @@ class DeviceBaseActor(BaseActor):
                 status=Status.OCCUPIED, confirm=True, requester=sender
             )
             return
+        self.last_request_id = self.last_request_id + 1
         action_request = ActionRequest(
             worker=self._start_monitoring_worker,
             msg=msg,
@@ -455,11 +476,14 @@ class DeviceBaseActor(BaseActor):
             timeout_handler=self._start_monitoring_timeout,
             time=datetime.now(),
             on_kill_handler=self._start_monitoring_on_kill,
+            id=self.last_request_id,
         )
         if self.on_kill:
             self._start_monitoring_on_kill(action_request)
             return
-        self.wakeupAfter(REQUEST_TIMEOUT, "timeout")
+        self.wakeupAfter(
+            REQUEST_TIMEOUT, TimeoutMsg(type="timeout", counter=self.last_request_id)
+        )
         self._fifo(action_request)
 
     def _start_monitoring_worker(self, action_request):
@@ -492,6 +516,7 @@ class DeviceBaseActor(BaseActor):
                 status=Status.OK_SKIPPED, requester=sender
             )
             return
+        self.last_request_id = self.last_request_id + 1
         action_request = ActionRequest(
             worker=self._stop_monitoring_worker,
             msg=msg,
@@ -499,11 +524,14 @@ class DeviceBaseActor(BaseActor):
             timeout_handler=self._stop_monitoring_timeout,
             time=datetime.now(),
             on_kill_handler=self._stop_monitoring_on_kill,
+            id=self.last_request_id,
         )
         if self.on_kill:
             self._stop_monitoring_on_kill(action_request)
             return
-        self.wakeupAfter(REQUEST_TIMEOUT, "timeout")
+        self.wakeupAfter(
+            REQUEST_TIMEOUT, TimeoutMsg(type="timeout", counter=self.last_request_id)
+        )
         self._fifo(action_request)
 
     def _stop_monitoring_worker(self, action_request: ActionRequest):
@@ -527,6 +555,7 @@ class DeviceBaseActor(BaseActor):
             logger.error("%s for %s from %s", msg, self.my_id, sender)
         else:
             logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        self.last_request_id = self.last_request_id + 1
         action_request = ActionRequest(
             worker=self._set_rtc_worker,
             msg=msg,
@@ -534,11 +563,14 @@ class DeviceBaseActor(BaseActor):
             timeout_handler=self._set_rtc_timeout,
             time=datetime.now(),
             on_kill_handler=self._set_rtc_on_kill,
+            id=self.last_request_id,
         )
         if self.on_kill:
             self._set_rtc_on_kill(action_request)
             return
-        self.wakeupAfter(REQUEST_TIMEOUT, "timeout")
+        self.wakeupAfter(
+            REQUEST_TIMEOUT, TimeoutMsg(type="timeout", counter=self.last_request_id)
+        )
         self._fifo(action_request)
 
     def _set_rtc_worker(self, action_request: ActionRequest):
@@ -1007,6 +1039,8 @@ class DeviceBaseActor(BaseActor):
         self.request_queue.pop(
             0
         )  # Every request shall either be in the queue or in the lock.
+        if len(self.request_queue) == 0:
+            self.last_request_id = 0
         self.request_locks[request_lock].request = action_request
         self.request_locks[request_lock].locked = True
         return True
