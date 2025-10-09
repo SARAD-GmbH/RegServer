@@ -1,10 +1,11 @@
 [Unit]
 Description=Blinking LED indicates waiting for time-sync.target
-After=getty.target
+After=sysinit.target ModemManager.service NetworkManager.service
 
 [Service]
 Type=idle
-ExecStart=/usr/bin/python /home/pi/blinking_led.py
+ExecStart=/usr/local/bin/blinking_led
+KillSignal=SIGINT
 
 [Install]
 WantedBy=multi-user.target
