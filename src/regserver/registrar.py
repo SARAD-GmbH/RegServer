@@ -79,7 +79,7 @@ class Registrar(BaseActor):
         self.hosts = []  # List of Host objects seen since start
         self.rest_api = None  # Address of the Actor System
         self.led = False
-        self.online = False
+        self.online = True
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -106,6 +106,7 @@ class Registrar(BaseActor):
                 timedelta(seconds=keepalive_interval), payload="keep alive"
             )
         self._handle_aranea_led()
+        self._update_led_state()
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
@@ -311,8 +312,7 @@ class Registrar(BaseActor):
                         host = replace(host, **para)
                         self.hosts[idx] = host
                         break
-        if self.led:
-            self._update_led_state()
+        self._update_led_state()
 
     def receiveMsg_SubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -374,6 +374,7 @@ class Registrar(BaseActor):
         if actor_id is None:
             return
         status_dict = self.device_statuses.pop(actor_id, None)
+        self._update_led_state()
         if (status_dict is not None) and (
             transport_technology(actor_id)
             in [TransportTechnology.LOCAL, TransportTechnology.IS1]
@@ -709,8 +710,7 @@ class Registrar(BaseActor):
         state of the network connection."""
         logger.info("%s for %s from %s", msg, self.my_id, sender)
         self.online = msg.online
-        if self.led:
-            self._update_led_state()
+        self._update_led_state()
 
     def _check_network(self):
         """Check the Journal for new entries of NetworkManager."""
@@ -751,10 +751,19 @@ class Registrar(BaseActor):
                     logger.info("Check_network thread started")
 
     def _update_led_state(self):
-        if self.online:
-            if len(self.device_statuses) == 0:
-                self.led.blink(0.25, 0.07)
+        if self.led:
+            if self.online:
+                if len(self.device_statuses) == 0:
+                    self.led.blink(0.25, 0.07)
+                else:
+                    self.led.on()
             else:
-                self.led.on()
+                self.led.blink(0.5, 0.15)
         else:
-            self.led.blink(0.5, 0.15)
+            if self.online:
+                if len(self.device_statuses) == 0:
+                    logger.info("led.blink(0.25, 0.07) -- no instrument")
+                else:
+                    logger.info("led.on() -- fully functional")
+            else:
+                logger.info("led.blink(0.5, 0.15) -- offline")

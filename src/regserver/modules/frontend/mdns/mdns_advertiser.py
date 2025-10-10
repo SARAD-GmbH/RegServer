@@ -15,6 +15,7 @@ import socket
 from threading import Thread
 
 from overrides import overrides  # type: ignore
+from regserver.actor_messages import OnlineStatusMsg
 from regserver.base_actor import BaseActor
 from regserver.config import (config, get_hostname, get_ip,
                               lan_frontend_config, rest_frontend_config)
@@ -37,24 +38,25 @@ class MdnsAdvertiserActor(BaseActor):
         self.tcp_port = rest_frontend_config["API_PORT"]
         self.address = config["MY_IP"]
         self.service = None
+        self.service_name = ""
+        self.instr_name = ""
+        self.device_id = ""
+        self.occupied = False
+        self.virgin = True
+        self.zeroconf = None
+
+    def receiveMsg_SetupMdnsAdvertiserActorMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for the initialisation message from MdnsScheduler"""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
         try:
             self.zeroconf = Zeroconf(
                 ip_version=lan_frontend_config["IP_VERSION"],
                 interfaces=[config["MY_IP"], "127.0.0.1"],
             )
         except OSError:
-            self.zeroconf = None
             logger.error("No network -- %s", self.my_id)
-        self.service_name = ""
-        self.instr_name = ""
-        self.device_id = ""
-        self.occupied = False
-        self.virgin = True
-
-    def receiveMsg_SetupMdnsAdvertiserActorMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler for the initialisation message from MdnsScheduler"""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+            self.send(self.registrar, OnlineStatusMsg(online=False))
         self.device_actor = msg.device_actor
         self._subscribe_to_device_status_msg(self.device_actor)
 
