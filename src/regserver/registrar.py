@@ -722,7 +722,6 @@ class Registrar(BaseActor):
             j.get_previous()
             p = select.poll()  # pylint: disable=invalid-name
             p.register(j, j.get_events())
-            self.led.on()
             while p.poll():
                 if j.process() != journal.APPEND:
                     sleep(0.5)
