@@ -1058,3 +1058,15 @@ class ControlFunctionalityMsg:
 
     actor_id: str
     on: bool
+
+
+@dataclass
+class OnlineStatusMsg:
+    """Message that can be sent to the Registrar in order to inform it
+    that we are offline or online.
+
+    Args:
+        online (bool): State of the network connection.
+    """
+
+    online: bool

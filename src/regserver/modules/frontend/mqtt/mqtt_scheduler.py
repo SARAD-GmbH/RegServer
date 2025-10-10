@@ -9,7 +9,6 @@ Author
 """
 
 import json
-import platform
 import time
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
@@ -18,8 +17,9 @@ from threading import Condition, Thread
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, FreeDeviceMsg,
                                       GetDeviceStatusesMsg, GetRecentValueMsg,
-                                      RescanMsg, ReserveDeviceMsg, SetRtcMsg,
-                                      ShutdownMsg, StartMonitoringMsg, Status,
+                                      OnlineStatusMsg, RescanMsg,
+                                      ReserveDeviceMsg, SetRtcMsg, ShutdownMsg,
+                                      StartMonitoringMsg, Status,
                                       StopMonitoringMsg, TxBinaryMsg)
 from regserver.config import config, mqtt_frontend_config
 from regserver.helpers import diff_of_dicts, short_id, transport_technology
@@ -32,11 +32,6 @@ from regserver.modules.ismqtt_messages import (Control, ControlType,
                                                get_is_meta)
 from regserver.version import VERSION
 from sarad.global_helpers import get_sarad_type  # type: ignore
-
-if platform.machine() == "aarch64":
-    from gpiozero import LED  # type: ignore
-elif platform.machine() == "armv7l":
-    from pyGPIO.wrapper.gpioout import LED
 
 
 @dataclass
@@ -108,15 +103,6 @@ class MqttSchedulerActor(MqttBaseActor):
             "instr_id": "",
             "control": Control(ctype=ControlType.UNKNOWN, data=None),
         }
-        self.led = False
-        if platform.machine() in ["aarch64", "armv7l"]:
-            try:
-                self.led = LED(23)  # pylint: disable=possibly-used-before-assignment
-                self.led.blink(0.5, 0.15)
-            except Exception:  # pylint: disable=broad-exception-caught
-                logger.error(
-                    "On a Raspberry Pi or Orange Pi Zero, you could see a LED blinking on GPIO 23."
-                )
         self.last_update = datetime(year=1970, month=1, day=1)
         self.cached_replies = {}  # {instr_id: CachedReply}
 
@@ -155,8 +141,7 @@ class MqttSchedulerActor(MqttBaseActor):
     def on_disconnect(self, client, userdata, flags, reason_code, properties):
         # pylint: disable=too-many-positional-arguments, too-many-arguments
         super().on_disconnect(client, userdata, flags, reason_code, properties)
-        if self.led:
-            self.led.blink(0.5, 0.15)
+        self.send(self.registrar, OnlineStatusMsg(online=False))
 
     @overrides
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
@@ -338,14 +323,8 @@ class MqttSchedulerActor(MqttBaseActor):
         old_state = self.is_meta.state
         if self.reservations:
             new_state = 2
-            logger.debug("LED on")
-            if self.led and self.is_connected:
-                self.led.on()
         else:
             new_state = 1
-            logger.debug("LED blinking")
-            if self.led:
-                self.led.blink(0.25, 0.07)
         payload = get_is_meta(replace(self.is_meta, state=new_state))
         if old_state != new_state:
             self.mqttc.publish(
@@ -392,8 +371,6 @@ class MqttSchedulerActor(MqttBaseActor):
             logger.debug(
                 "RuntimeError on KillMsg. The MQTT client migth not be connected."
             )
-        if self.led and not self.led.closed:
-            self.led.close()
         super().receiveMsg_KillMsg(msg, sender)
 
     @overrides
@@ -401,8 +378,7 @@ class MqttSchedulerActor(MqttBaseActor):
         # pylint: disable=too-many-arguments, too-many-positional-arguments
         """Will be carried out when the client connected to the MQTT broker."""
         super().on_connect(client, userdata, flags, reason_code, properties)
-        if self.led:
-            self.led.on()
+        self.send(self.registrar, OnlineStatusMsg(online=True))
         self._instruments_connected()
         self.mqttc.subscribe(f"{self.group}/+/meta", 2)
         self.mqttc.subscribe(f"{self.group}/{self.is_id}/+/meta", 2)

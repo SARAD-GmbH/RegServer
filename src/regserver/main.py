@@ -10,9 +10,7 @@
 """
 
 import os
-import platform
 import re
-import select
 import shutil
 import signal
 import sys
@@ -43,14 +41,7 @@ from regserver.shutdown import (is_flag_set, kill_processes, set_file_flag,
 from regserver.version import VERSION
 
 if os.name == "posix":
-    from systemd import journal
-
     from regserver.modules.backend.usb.unix_listener import UsbListener
-
-    if platform.machine() == "aarch64":
-        from gpiozero import LED  # type: ignore
-    elif platform.machine() == "armv7l":
-        from pyGPIO.wrapper.gpioout import LED
 else:
     from regserver.modules.backend.usb.win_listener import UsbListener
 
@@ -79,8 +70,6 @@ class Main:
         set_file_flag(True)
         self.stop_event = threading.Event()
         self.stop_event.clear()
-        self.led = None
-        self.handle_aranea_led()
         try:
             system = ActorSystem(
                 systemBase=actor_config["systemBase"],
@@ -180,26 +169,6 @@ class Main:
                 logger.critical(exception)
                 sleep(wait_before_restart)
 
-    def handle_aranea_led(self):
-        """Take care to switch the green LED, if there is one"""
-        self.led = False
-        if os.name == "posix" and platform.machine() in ["aarch64", "armv7l"]:
-            try:
-                self.led = LED(23)
-            except Exception:  # pylint: disable=broad-exception-caught
-                self.led = False
-            else:
-                if Frontend.MQTT in frontend_config:
-                    self.led.close()  # MQTT scheduler will take over
-                else:
-                    check_network_thread = threading.Thread(
-                        target=self.check_network,
-                        name="check_network_thread",
-                        args=(self.stop_event,),
-                    )
-                    check_network_thread.start()
-                    logger.info("Check_network thread started")
-
     def shutdown(self, wait_some_time, registrar_is_down, with_error=True):
         # pylint: disable=too-many-branches
         """Shutdown application"""
@@ -246,8 +215,6 @@ class Main:
         except OSError as exception:
             logger.critical(exception)
         self.kill_residual_processes(end_with_error=with_error)
-        if self.led and not self.led.closed:
-            self.led.close()
         if (not wait_some_time) and (TransportTechnology.MQTT in backend_config):
             write_ping_file(PING_FILE_NAME, FRMT)
         if with_error:
@@ -347,27 +314,6 @@ class Main:
         else:
             logger.info("[custom_hook] emergency shutdown")
             system_shutdown(with_error=True)
-
-    def check_network(self, stop_event):
-        """Check the Journal for new entries of NetworkManager."""
-        if os.name == "posix":
-            j = journal.Reader()
-            j.add_match("_SYSTEMD_UNIT=NetworkManager.service")
-            j.log_level(journal.LOG_INFO)
-            j.seek_tail()
-            j.get_previous()
-            p = select.poll()  # pylint: disable=invalid-name
-            p.register(j, j.get_events())
-            self.led.on()
-            while p.poll() and not stop_event.is_set():
-                if j.process() != journal.APPEND:
-                    sleep(0.5)
-                    continue
-                for entry in j:
-                    if "CONNECTED_" in entry["MESSAGE"]:
-                        self.led.on()
-                    elif "DISCONNECTED" in entry["MESSAGE"]:
-                        self.led.blink(1, 1)
 
     def init_log_file(self):
         """Store the old log file and start a new one"""

@@ -13,8 +13,11 @@ device actors referenced in the dictionary.
 
 """
 
+import os
+import platform
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+from time import sleep
 
 from overrides import overrides  # type: ignore
 from sarad.global_helpers import decode_instr_id
@@ -43,6 +46,17 @@ from regserver.modules.frontend.mdns.mdns_scheduler import MdnsSchedulerActor
 from regserver.modules.frontend.mqtt.mqtt_scheduler import MqttSchedulerActor
 from regserver.shutdown import system_shutdown
 
+if os.name == "posix":
+    import select
+    import threading
+
+    from systemd import journal
+
+    if platform.machine() == "aarch64":
+        from gpiozero import LED  # type: ignore
+    elif platform.machine() == "armv7l":
+        from pyGPIO.wrapper.gpioout import LED
+
 ACTOR_DICT = {
     "mqtt_scheduler": MqttSchedulerActor,
     "mdns_scheduler": MdnsSchedulerActor,
@@ -64,6 +78,8 @@ class Registrar(BaseActor):
         self.pending = []
         self.hosts = []  # List of Host objects seen since start
         self.rest_api = None  # Address of the Actor System
+        self.led = False
+        self.online = False
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -89,12 +105,19 @@ class Registrar(BaseActor):
             self.wakeupAfter(
                 timedelta(seconds=keepalive_interval), payload="keep alive"
             )
+        self._handle_aranea_led()
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
         actor_id = self._get_actor_id(msg.childAddress, self.child_actors)
-        self.check_persistency(actor_id)
+        self._check_persistency(actor_id)
         super().receiveMsg_ChildActorExited(msg, sender)
+
+    @overrides
+    def _kill_myself(self, register=True, resurrect=False):
+        if self.led and not self.led.closed:
+            self.led.close()
+        super()._kill_myself(register, resurrect)
 
     def receiveMsg_ControlFunctionalityMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -288,6 +311,8 @@ class Registrar(BaseActor):
                         host = replace(host, **para)
                         self.hosts[idx] = host
                         break
+        if self.led:
+            self._update_led_state()
 
     def receiveMsg_SubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -379,7 +404,7 @@ class Registrar(BaseActor):
         removed_actor = self.actor_dict.pop(actor_id, None)
         logger.info("%s removed from actor_dict", actor_id)
         if removed_actor is not None:
-            self.check_persistency(actor_id)
+            self._check_persistency(actor_id)
             self._send_updates(self.actor_dict)
 
     def _send_updates(self, actor_dict):
@@ -474,7 +499,7 @@ class Registrar(BaseActor):
                 sending_actor = sender_id
         if sending_actor != "REST API":
             logger.debug("%s for %s from %s", msg, self.my_id, sending_actor)
-        self.check_integrity()
+        self._check_integrity()
         device_statuses = {}
         for device, status in self.device_statuses.items():
             if status:
@@ -618,7 +643,7 @@ class Registrar(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.send(sender, HostInfoMsg(hosts=self.hosts))
 
-    def check_integrity(self) -> bool:
+    def _check_integrity(self) -> bool:
         """Check integrity between self.actor_dict and self.device_statuses"""
         for actor_id in self.actor_dict:
             if self.actor_dict[actor_id]["actor_type"] in (
@@ -646,7 +671,7 @@ class Registrar(BaseActor):
                 return False
         return True
 
-    def check_persistency(self, actor_id) -> bool:
+    def _check_persistency(self, actor_id) -> bool:
         """Make sure that all Actors that shall run all the time stay alive."""
         if (
             actor_id
@@ -677,3 +702,59 @@ class Registrar(BaseActor):
         """Handler for RecentValueMsg providing measuring values from a Device Actor"""
         logger.info("%s for %s from %s", msg, self.my_id, sender)
         # TODO Send values to a database
+
+    def receiveMsg_OnlineStatusMsg(self, msg, sender):
+        # pylint: disable=invalid-name
+        """Handler for OnlineStatusMsg providing information about the current
+        state of the network connection."""
+        logger.info("%s for %s from %s", msg, self.my_id, sender)
+        self.online = msg.online
+        if self.led:
+            self._update_led_state()
+
+    def _check_network(self):
+        """Check the Journal for new entries of NetworkManager."""
+        if os.name == "posix":
+            j = journal.Reader()
+            j.add_match("_SYSTEMD_UNIT=NetworkManager.service")
+            j.log_level(journal.LOG_INFO)
+            j.seek_tail()
+            j.get_previous()
+            p = select.poll()  # pylint: disable=invalid-name
+            p.register(j, j.get_events())
+            self.led.on()
+            while p.poll():
+                if j.process() != journal.APPEND:
+                    sleep(0.5)
+                    continue
+                for entry in j:
+                    if "CONNECTED_" in entry["MESSAGE"]:
+                        self.online = True
+                    elif "DISCONNECTED" in entry["MESSAGE"]:
+                        self.online = False
+                    self._update_led_state()
+
+    def _handle_aranea_led(self):
+        """Take care to switch the green LED, if there is one"""
+        if os.name == "posix" and platform.machine() in ["aarch64", "armv7l"]:
+            try:
+                self.led = LED(23)
+            except Exception:  # pylint: disable=broad-exception-caught
+                self.led = False
+            else:
+                if Frontend.MQTT not in frontend_config:
+                    check_network_thread = threading.Thread(
+                        target=self._check_network,
+                        name="check_network_thread",
+                    )
+                    check_network_thread.start()
+                    logger.info("Check_network thread started")
+
+    def _update_led_state(self):
+        if self.online:
+            if len(self.device_statuses) == 0:
+                self.led.blink(0.25, 0.07)
+            else:
+                self.led.on()
+        else:
+            self.led.blink(0.5, 0.15)

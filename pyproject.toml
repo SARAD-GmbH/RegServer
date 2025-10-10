@@ -1,6 +1,6 @@
 [project]
 name = "regserver"
-version = "2.5.7"
+version = "2.5.8"
 description = "SARAD Registration Server Service"
 authors = [
     {name = "Michael Strey", email = "strey@sarad.de"},
