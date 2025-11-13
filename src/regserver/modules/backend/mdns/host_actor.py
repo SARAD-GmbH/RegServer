@@ -421,7 +421,6 @@ class HostActor(BaseActor):
             )
         else:
             self.host.state = 0
-            self._forward_to_children(KillMsg())
             logger.debug("Update host info in _no_host_info()")
             self.send(self.registrar, HostInfoMsg([self.host]))
 
