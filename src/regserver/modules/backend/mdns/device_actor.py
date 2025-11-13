@@ -513,6 +513,7 @@ class DeviceActor(DeviceBaseActor):
                 )
                 self._kill_myself()
                 return
+            identification["Host"] = self._is_host
             self.device_status["Identification"] = identification
             reservation = device_desc.get("Reservation")
             if reservation is None:
@@ -654,6 +655,7 @@ class DeviceActor(DeviceBaseActor):
                 )
                 self._kill_myself()
                 return
+            identification["Host"] = self._is_host
             self.device_status["Identification"] = identification
             reservation = device_desc.get("Reservation")
             if reservation is None:
