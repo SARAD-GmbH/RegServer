@@ -750,7 +750,7 @@ class Registrar(BaseActor):
                     logger.info("Check_network thread started")
 
     def _update_led_state(self):
-        if self.led:
+        if self.led and not self.led.closed:
             if self.online:
                 if len(self.device_statuses) == 0:
                     self.led.blink(0.25, 0.07)
