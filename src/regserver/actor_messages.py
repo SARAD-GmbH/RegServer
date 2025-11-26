@@ -1033,9 +1033,11 @@ class SetRtcAckMsg:
     Args:
         instr_id (str): ID of the instrument
         status (Status): Status of the success of the operation
-        utc_offset (float): Offset to UTC that was used to set the RTC, -13 = unknown
+        utc_offset (float): Offset to UTC that was used to set the RTC,
+                            -13 = unknown, use PC time
         wait (int): Waiting time in seconds before the setup will take effect
         client (str): Requesting MQTT client
+
     """
 
     instr_id: str

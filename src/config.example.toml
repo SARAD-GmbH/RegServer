@@ -374,11 +374,11 @@
 
 ### Key: utc_offset
 ## `utc_offset` defines the offset of the RTC setting to UTC in hours.
-## If `utc_offset` > 13, the local computer time will be used to set the RTC.
+## If `utc_offset` < -12, the local computer time will be used to set the RTC.
 ## This setting is *not* recommended.
 ## For monitoring systems we recommend using 0, i.e. the RTC running on UTC.
-### Default: 14
-#utc_offset = 14
+### Default: -13
+#utc_offset = -13
 
 
 ## There are SARAD instruments (e.g. the Smart Radon Sensor) that can be
