@@ -15,6 +15,7 @@ RUN pdm install
 
 EXPOSE 8008
 EXPOSE 5353/udp
+EXPOSE 50003-50500
 
 CMD ["pdm", "run", "sarad_registration_server"]
 
