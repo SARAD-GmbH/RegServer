@@ -870,11 +870,20 @@ class UsbActor(DeviceBaseActor):
             reply,
         )
         if reply:
+            try:
+                timestamp = reply["datetime"].timestamp()
+            except OSError:
+                logger.error(
+                    "%s delivered %s as datetime. Cannot convert to timestamp.",
+                    self.my_id,
+                    reply["datetime"],
+                )
+                timestamp = 0
             if not reply["gps"].valid:
                 if config["LATITUDE"] or config["LONGITUDE"]:
                     gps = Gps(
                         valid=True,
-                        timestamp=reply["datetime"].timestamp(),
+                        timestamp=timestamp,
                         latitude=config["LATITUDE"],
                         longitude=config["LONGITUDE"],
                         altitude=config["ALTITUDE"],
@@ -885,15 +894,6 @@ class UsbActor(DeviceBaseActor):
                     gps = Gps(valid=False)
             else:
                 gps = reply["gps"]
-            try:
-                timestamp = reply["datetime"].timestamp()
-            except OSError:
-                logger.error(
-                    "%s delivered %s as datetime. Cannot convert to timestamp.",
-                    self.my_id,
-                    reply["datetime"],
-                )
-                timestamp = 0
             return RecentValueMsg(
                 status=Status.OK,
                 instr_id=self.instr_id,
