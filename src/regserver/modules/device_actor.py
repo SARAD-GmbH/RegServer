@@ -12,6 +12,7 @@
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
+from typing import Callable
 
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, FreeDeviceMsg, Frontend,
@@ -45,7 +46,7 @@ class Lock:
 class ActionRequest:
     """Class to store requested actions."""
 
-    worker: callable = print
+    worker: Callable = print
     msg: (
         ReserveDeviceMsg
         | FreeDeviceMsg
@@ -57,8 +58,8 @@ class ActionRequest:
         | None
     ) = None
     sender: Actor | ActorSystem | None = None
-    timeout_handler: callable = print
-    on_kill_handler: callable = print
+    timeout_handler: Callable = print
+    on_kill_handler: Callable = print
     time: datetime = datetime.min
     id: int = 0
 
@@ -876,7 +877,9 @@ class DeviceBaseActor(BaseActor):
                 logger.error(
                     "self.return_message should contain a ReservationStatusMsg for Reserve"
                 )
-        if self.return_message.status not in [Status.OCCUPIED]:
+        if (self.return_message is not None) and (
+            self.return_message.status not in [Status.OCCUPIED]
+        ):
             self._release_lock("Reserve")
         self.return_message = None
 
@@ -890,7 +893,9 @@ class DeviceBaseActor(BaseActor):
                 logger.error(
                     "self.return_message should contain a ReservationStatusMsg for Free"
                 )
-        if self.return_message.status not in [Status.OK_SKIPPED]:
+        if (self.return_message is not None) and (
+            self.return_message.status not in [Status.OK_SKIPPED]
+        ):
             self._release_lock("Free")
         self.return_message = None
 
@@ -958,6 +963,7 @@ class DeviceBaseActor(BaseActor):
         )
 
     def _request_stop_monitoring_at_is(self, sender):
+        # pylint: disable=unused-argument
         """Handler to terminate the monitoring mode on the Device Actor.
 
         This is only a stub. The method is implemented in the backend Device Actor."""
