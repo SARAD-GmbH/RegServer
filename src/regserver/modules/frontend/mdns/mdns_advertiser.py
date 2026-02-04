@@ -124,8 +124,7 @@ class MdnsAdvertiserActor(BaseActor):
             server=get_hostname(get_ip(False)),
             addresses=[socket.inet_aton(self.address)],
         )
-        register_thread = Thread(target=self.register_service, daemon=True)
-        register_thread.start()
+        self.register_service()
 
     def register_service(self):
         """Function for register_thread"""
@@ -177,8 +176,7 @@ class MdnsAdvertiserActor(BaseActor):
                 server=get_hostname(get_ip(False)),
                 addresses=[socket.inet_aton(self.address)],
             )
-            update_thread = Thread(target=self.update_service, daemon=True)
-            update_thread.start()
+            self.update_service()
 
     def update_service(self):
         """Function for update_thread"""
