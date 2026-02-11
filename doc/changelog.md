@@ -128,7 +128,7 @@ Date: Thu, 31 Aug 2023 08:19:10 +0200
 - accept binary commands only if the instrument was reserved before
 
 
-# RegServer 2.2.0_RC09
+# RegServer 2.2.0
 Date: Tue, 05 Dec 2023 15:14:33 +0100
 
 ## Fixed bugs
@@ -145,8 +145,6 @@ Date: Tue, 05 Dec 2023 15:14:33 +0100
 ## Improvements
 - move list of allowed commands to instruments.yaml in data_collector
 - increase tolerance for timestamps comming from instrument servers
-
-
 
 
 # RegServer 2.3.0
@@ -333,19 +331,6 @@ Date: Tue, 10 Jun 2025 14:05:07 +0200
   network.
 
 
-# RegServer 2.5.11
-Date: Wed, 11 Feb 2026 10:16:12 +0100
-
-## Fixed bugs
-
-- Hostnames in LAN backend (regression introduced in 2.5.0)
-- Critical error in the LAN backend, which occasionally causes a restart when
-  a remote device is disconnected.
-- UTC offsets between -12 and +13 are valid. If utc_offset > 13 in the
-  config.toml, the local computer time will be used to set the RTC.
-- Handle LED status during shutdown.
-
-
 # RegServer 2.5.3
 Date: Thu, 21 Aug 2025 15:15:35 +0200
 
@@ -404,6 +389,7 @@ Date: Tue, 10 Feb 2026 16:26:26 +0100
 | --- | --- | --- | --- |
 | blink(0.6, 1) | blink(1, 0.6) | blink(0.5, 0.15) | blink(0.25, 0.07) |
 
+
 # RegServer 2.5.9
 Date: Tue, 10 Feb 2026 15:56:24 +0100
 
@@ -411,3 +397,16 @@ Date: Tue, 10 Feb 2026 15:56:24 +0100
 
 - LED does not start to blink if all instruments are removed and only the LAN
   frontend is active.
+
+
+# RegServer 2.5.11
+Date: Wed, 11 Feb 2026 10:16:12 +0100
+
+## Fixed bugs
+
+- Hostnames in LAN backend (regression introduced in 2.5.0)
+- Critical error in the LAN backend, which occasionally causes a restart when
+  a remote device is disconnected.
+- UTC offsets between -12 and +13 are valid. If utc_offset > 13 in the
+  config.toml, the local computer time will be used to set the RTC.
+- Handle LED status during shutdown.
