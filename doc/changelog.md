@@ -1,3 +1,10 @@
+# RegServer 2.5.12
+Date: Mon, 23 March 2026 09:23:12 +0100
+
+## Fixed bugs
+
+- Accepts virgin DACM instruments without module configuration
+
 # RegServer 2.5.11
 Date: Wed, 11 Feb 2026 10:16:12 +0100
 
