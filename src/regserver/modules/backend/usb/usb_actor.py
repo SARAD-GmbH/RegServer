@@ -286,6 +286,15 @@ class UsbActor(DeviceBaseActor):
 
     @overrides
     def _request_bin_at_is(self, data):
+        self._start_thread(
+            Thread(
+                target=self._tx_binary_proceed,
+                kwargs={"data": data},
+                daemon=True,
+            )
+        )
+
+    def _tx_binary_proceed(self, data):
         logger.debug(data)
         has_reservation_section = self.device_status.get("Reservation", False)
         if has_reservation_section:
