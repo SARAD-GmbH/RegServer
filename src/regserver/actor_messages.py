@@ -533,10 +533,12 @@ class ReservationStatusMsg:
     Args:
         instr_id (str): instrument id
         status: either OK, OK_SKIPPED or OCCUPIED
+        device_status (dict): Dictionary with status information of the instrument.
     """
 
     instr_id: str
     status: Status
+    device_status: dict[str, str]
 
 
 @dataclass

@@ -114,7 +114,9 @@ class ZigBeeDeviceActor(UsbActor):
                 self.request_locks["Reserve"].time = datetime.now()
                 self.request_locks["Reserve"].requester = sender
                 self.return_message = ReservationStatusMsg(
-                    instr_id=self.instr_id, status=Status.OCCUPIED
+                    instr_id=self.instr_id,
+                    status=Status.OCCUPIED,
+                    device_status=self.device_status,
                 )
                 self._update_reservation_status(self.device_status["Reservation"])
                 self._send_reservation_status_msg(sender)
@@ -128,7 +130,9 @@ class ZigBeeDeviceActor(UsbActor):
             self.request_locks["Reserve"].requester = sender
             self.reserve_device_msg = deepcopy(msg)
             self.return_message = ReservationStatusMsg(
-                instr_id=self.instr_id, status=Status.OCCUPIED
+                instr_id=self.instr_id,
+                status=Status.OCCUPIED,
+                device_status=self.device_status,
             )
             reservation = {
                 "Active": True,

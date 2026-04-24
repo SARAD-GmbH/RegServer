@@ -1,3 +1,10 @@
+# RegServer 2.5.13
+Date: Fri, 24 April 2026 20:23:12 +0100
+
+## Fixed bugs
+
+- improve the reliability of device reservation
+
 # RegServer 2.5.12
 Date: Mon, 23 March 2026 09:23:12 +0100
 

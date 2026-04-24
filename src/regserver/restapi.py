@@ -466,19 +466,20 @@ class ReserveDevice(Resource):
             logger.error("Requested service not supported by actor system.")
             status = Status.NOT_SUPPORTED
         else:
-            status = send_reserve_message(
+            reservation_status_msg = send_reserve_message(
                 device_id,
                 REGISTRAR_ACTOR,
                 who,
                 create_redirector,
             )
+            status = reservation_status_msg.status
         if status in (
             Status.OK,
             Status.OK_SKIPPED,
             Status.OK_UPDATED,
             Status.OCCUPIED,
         ):
-            device_status = get_device_status_from_registrar(REGISTRAR_ACTOR, device_id)
+            device_status = reservation_status_msg.device_status
             logger.debug("After RESERVE registrar said: %s", device_status)
             return {
                 "Error code": status.value,

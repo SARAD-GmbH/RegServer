@@ -238,7 +238,9 @@ class DeviceBaseActor(BaseActor):
                 reply_status = Status.OK_UPDATED
             else:
                 reply_status = Status.OCCUPIED
-            self.return_message = ReservationStatusMsg(self.instr_id, reply_status)
+            self.return_message = ReservationStatusMsg(
+                self.instr_id, reply_status, self.device_status
+            )
             self._send_reservation_status_msg(sender)
             return
         if self.on_kill:
@@ -281,7 +283,9 @@ class DeviceBaseActor(BaseActor):
         """Handler for FreeDeviceMsg from REST API."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if not self._is_reserved():
-            self.return_message = ReservationStatusMsg(self.instr_id, Status.OK_SKIPPED)
+            self.return_message = ReservationStatusMsg(
+                self.instr_id, Status.OK_SKIPPED, self.device_status
+            )
             self._handle_free_reply_from_is(Status.OK_SKIPPED, sender)
             return
         self.last_request_id = self.last_request_id + 1
@@ -322,7 +326,9 @@ class DeviceBaseActor(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         requester = self.request_locks["Reserve"].request.sender
         if msg.status not in (Status.OK, Status.OK_SKIPPED):
-            self.return_message = ReservationStatusMsg(self.instr_id, msg.status)
+            self.return_message = ReservationStatusMsg(
+                self.instr_id, msg.status, self.device_status
+            )
             self._send_reservation_status_msg(requester)
             logger.debug("_send_reservation_status_msg case E")
             return
@@ -659,7 +665,7 @@ class DeviceBaseActor(BaseActor):
         if success not in [Status.OCCUPIED]:
             self._release_lock("Reserve")
         self.return_message = ReservationStatusMsg(
-            instr_id=self.instr_id, status=success
+            instr_id=self.instr_id, status=success, device_status=self.device_status
         )
         if success in [Status.OK, Status.OK_UPDATED, Status.OK_SKIPPED]:
             try:
@@ -679,11 +685,11 @@ class DeviceBaseActor(BaseActor):
                         )
                     ):
                         self.return_message = ReservationStatusMsg(
-                            self.instr_id, Status.OK
+                            self.instr_id, Status.OK, self.device_status
                         )
                     else:
                         self.return_message = ReservationStatusMsg(
-                            self.instr_id, Status.OCCUPIED
+                            self.instr_id, Status.OCCUPIED, self.device_status
                         )
                         self._send_reservation_status_msg(requester)
                         logger.debug("_send_reservation_status_msg case A")
@@ -713,7 +719,9 @@ class DeviceBaseActor(BaseActor):
                 self._send_reservation_status_msg(requester)
                 logger.debug("_send_reservation_status_msg case C")
             return
-        self.return_message = ReservationStatusMsg(self.instr_id, success)
+        self.return_message = ReservationStatusMsg(
+            self.instr_id, success, self.device_status
+        )
         if success in [
             Status.BUSY_TIMEOUT,
             Status.NOT_FOUND,
@@ -746,7 +754,9 @@ class DeviceBaseActor(BaseActor):
             except (KeyError, TypeError):
                 logger.debug("Instr. was not reserved before.")
                 success = Status.OK_SKIPPED
-        self.return_message = ReservationStatusMsg(self.instr_id, success)
+        self.return_message = ReservationStatusMsg(
+            self.instr_id, success, self.device_status
+        )
         logger.debug(self.device_status)
         if self.child_actors:
             self._forward_to_children(KillMsg())

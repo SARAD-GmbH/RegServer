@@ -422,7 +422,9 @@ def check_msg(return_message, message_object_type):
     return False
 
 
-def send_reserve_message(device_id, registrar_actor, who, create_redirector) -> Status:
+def send_reserve_message(
+    device_id, registrar_actor, who, create_redirector
+) -> ReservationStatusMsg:
     """Send a reserve message to the Device Actor associated with device_id
     and give back the status.
 
@@ -436,7 +438,11 @@ def send_reserve_message(device_id, registrar_actor, who, create_redirector) -> 
     """
     device_actor = get_actor(registrar_actor, device_id)
     if device_actor is None:
-        return Status.NOT_FOUND
+        return ReservationStatusMsg(
+            instr_id=device_id.split(".")[0],
+            status=Status.NOT_FOUND,
+            device_status={},
+        )
     with ActorSystem().private() as reserve_sys:
         try:
             reserve_return = reserve_sys.ask(
@@ -451,16 +457,28 @@ def send_reserve_message(device_id, registrar_actor, who, create_redirector) -> 
             reserve_return = None
     if reserve_return is None:
         logger.error("No response from Device Actor %s", device_id)
-        return Status.NOT_FOUND
+        return ReservationStatusMsg(
+            instr_id=device_id.split(".")[0],
+            status=Status.NOT_FOUND,
+            device_status={},
+        )
     reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
     if reply_is_corrupted:
-        return reply_is_corrupted
+        return ReservationStatusMsg(
+            instr_id=device_id.split(".")[0],
+            status=reply_is_corrupted,
+            device_status={},
+        )
     if reserve_return.status in [
         Status.RESERVE_PENDING,
         Status.FREE_PENDING,
     ]:
-        return Status.NOT_FOUND
-    return reserve_return.status
+        return ReservationStatusMsg(
+            instr_id=device_id.split(".")[0],
+            status=Status.NOT_FOUND,
+            device_status={},
+        )
+    return reserve_return
 
 
 def send_free_message(device_id, registrar_actor) -> Status:
