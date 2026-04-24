@@ -35,7 +35,8 @@ from regserver.actor_messages import (ActorType, GetDeviceStatusMsg,
                                       SubscribeToDeviceStatusMsg,
                                       UnSubscribeFromActorDictMsg,
                                       UnSubscribeFromDeviceStatusMsg,
-                                      UnsubscribeMsg, UpdateActorDictMsg)
+                                      UnsubscribeMsg, UpdateActorDictMsg,
+                                      UpdateDeviceStatusMsg)
 from regserver.logger import logger
 from regserver.shutdown import is_flag_set, system_shutdown
 
@@ -224,6 +225,7 @@ class BaseActor(ActorTypeDispatcher):
                 SubscribeToDeviceStatusMsg,
                 UnSubscribeFromDeviceStatusMsg,
                 UpdateActorDictMsg,
+                UpdateDeviceStatusMsg,
             ),
         ):
             self.send(self.registrar, UnsubscribeMsg(msg.deadAddress))
