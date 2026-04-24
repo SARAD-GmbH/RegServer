@@ -329,7 +329,8 @@
 ## such ports have to be polled. `poll_serial_ports` can contain a comma
 ## separated list of RS-232 or USB ports that shall be polled for newly
 ## connected SARAD instruments.
-### Default: "COM1" on Windows computers, "/dev/ttyS0" on Linux computers
+### Default: [] as well for Windows as for Linux computers since most computers
+###          don't have a native RS-232 interface anymore
 #poll_serial_ports = ["/dev/ttyS0"]  # example for Linux
 #poll_serial_ports = ["COM1"]  # example for Windows
 

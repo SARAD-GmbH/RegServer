@@ -507,9 +507,9 @@ else:
 
 # Local backend configuration
 if os.name == "nt":
-    DEFAULT_POLL_SERIAL_PORTS = ["COM1"]
+    DEFAULT_POLL_SERIAL_PORTS = []
 else:
-    DEFAULT_POLL_SERIAL_PORTS = ["/dev/ttyS0"]
+    DEFAULT_POLL_SERIAL_PORTS = []
 DEFAULT_IGNORED_SERIAL_PORTS: list[str] = []
 DEFAULT_IGNORED_HWIDS: list[str] = ["BTHENUM", "2c7c"]
 DEFAULT_LOCAL_RETRY_INTERVAL = 30  # in seconds
