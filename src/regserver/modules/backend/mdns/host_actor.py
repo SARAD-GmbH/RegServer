@@ -270,19 +270,20 @@ class HostActor(BaseActor):
             resp = self.http.post(f"{self.base_url}/ping")
             ping_dict = resp.json()
         except Exception as exception1:  # pylint: disable=broad-except
-            logger.warning(
-                "%s/ping to %s is not responding. %s",
-                self.base_url,
-                self.my_id,
-                exception1,
-            )
-            try:
-                resp = self.http.get(f"{self.base_url}/ping")
-                ping_dict = resp.json()
-            except Exception as exception2:  # pylint: disable=broad-except
-                logger.debug("REST API of IS is not responding. %s", exception2)
-                success = Status.IS_NOT_FOUND
-                logger.debug("%s in _ping_function of %s", success, self.my_id)
+            if self.host.state:  # Don't repeat, if the host is known to be offline.
+                logger.warning(
+                    "%s/ping to %s is not responding. %s",
+                    self.base_url,
+                    self.my_id,
+                    exception1,
+                )
+                try:
+                    resp = self.http.get(f"{self.base_url}/ping")
+                    ping_dict = resp.json()
+                except Exception as exception2:  # pylint: disable=broad-except
+                    logger.debug("REST API of IS is not responding. %s", exception2)
+                    success = Status.IS_NOT_FOUND
+                    logger.debug("%s in _ping_function of %s", success, self.my_id)
         if ping_dict:
             updated_host = replace(
                 self.host,
