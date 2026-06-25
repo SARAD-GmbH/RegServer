@@ -1006,6 +1006,7 @@ class GetValues(Resource):
             Status.BUSY_TIMEOUT,
             Status.NOT_FOUND,
             Status.IS_NOT_FOUND,
+            Status.SET_RTC_PENDING,
         ]:
             if value_return.status == Status.OCCUPIED:
                 notification = "The instrument is occupied by somebody else."
@@ -1016,6 +1017,10 @@ class GetValues(Resource):
             elif value_return.status == Status.IS_NOT_FOUND:
                 notification = (
                     "The instrument server hosting the instrument cannot be reached."
+                )
+            elif value_return.status == Status.SET_RTC_PENDING:
+                notification = (
+                    "We have to wait until the clock is set. This can take up to 59 s."
                 )
             else:
                 notification = ""

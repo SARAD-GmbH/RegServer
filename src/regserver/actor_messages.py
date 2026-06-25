@@ -41,6 +41,7 @@ class Status(Enum):
     SUBSCRIBE = 34
     UNSUBSCRIBE = 35
     UNKNOWN_PORT = 40
+    SET_RTC_PENDING = 94
     RESERVE_PENDING = 95
     FREE_PENDING = 96
     INDEX_ERROR = 97
@@ -64,6 +65,9 @@ class Status(Enum):
             34: "Error when subscribing to an MQTT topic",
             35: "Error when unsubscribing from an MQTT topic",
             40: "Port does not exist.",
+            94: "Set RTC pending",
+            95: "Reserve pending",
+            96: "Free pending",
             97: "Index error",
             98: "Unknown error",
             99: "Critical error. Stop and shutdown system.",

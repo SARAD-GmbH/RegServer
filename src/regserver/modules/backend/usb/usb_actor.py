@@ -828,6 +828,8 @@ class UsbActor(DeviceBaseActor):
     def _get_recent_value_inner(
         self, component: int, sensor: int, measurand: int
     ) -> RecentValueMsg:
+        if self._set_rtc_pending:
+            return RecentValueMsg(status=Status.SET_RTC_PENDING, instr_id=self.instr_id)
         if component == 255:
             gps = self.instrument.geopos
             if not gps.valid and not gps.timestamp:
