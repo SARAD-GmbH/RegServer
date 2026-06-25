@@ -26,6 +26,7 @@ from regserver.config import (config, frontend_config, local_backend_config,
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.modules.device_actor import DeviceBaseActor
+from regserver.shutdown import system_shutdown
 from sarad.global_helpers import encode_instr_id  # type: ignore
 from sarad.global_helpers import get_sarad_type
 from sarad.instrument import Gps  # type: ignore
@@ -357,6 +358,12 @@ class UsbActor(DeviceBaseActor):
         RS-232, we have to double-check the availability of the instrument.
 
         """
+        if self.instrument is None:
+            logger.critical(
+                "self.instrument of %s is None -> Emergency shutdown", self.my_id
+            )
+            system_shutdown()
+            return
         if self._set_rtc_pending:
             self.reserve_device_msg = ReserveDeviceMsg(
                 host="localhost", user="self", app="set-rtc"
@@ -419,6 +426,12 @@ class UsbActor(DeviceBaseActor):
 
     @overrides
     def _request_set_rtc_at_is(self, sender, confirm=False):
+        if self.instrument is None:
+            logger.critical(
+                "self.instrument of %s is None -> Emergency shutdown", self.my_id
+            )
+            system_shutdown()
+            return
         if self.instrument.family["family_id"] == 2:
             logger.debug("Features of %s: %s", self.my_id, self.instrument.features)
             rtc_set_seconds = self.instrument.features.get("rtc_set_seconds", False)
@@ -494,6 +507,12 @@ class UsbActor(DeviceBaseActor):
 
     @overrides
     def _request_start_monitoring_at_is(self, sender, start_time=None, confirm=False):
+        if self.instrument is None:
+            logger.critical(
+                "self.instrument of %s is None -> Emergency shutdown", self.my_id
+            )
+            system_shutdown()
+            return
         super()._request_start_monitoring_at_is(
             sender=sender, start_time=start_time, confirm=confirm
         )
@@ -543,6 +562,12 @@ class UsbActor(DeviceBaseActor):
 
     @overrides
     def _request_stop_monitoring_at_is(self, sender):
+        if self.instrument is None:
+            logger.critical(
+                "self.instrument of %s is None -> Emergency shutdown", self.my_id
+            )
+            system_shutdown()
+            return
         super()._request_stop_monitoring_at_is(sender)
         self.mon_state.monitoring_shall_be_active = False
         has_reservation_section = self.device_status.get("Reservation", False)
@@ -828,6 +853,15 @@ class UsbActor(DeviceBaseActor):
     def _get_recent_value_inner(
         self, component: int, sensor: int, measurand: int
     ) -> RecentValueMsg:
+        if self.instrument is None:
+            logger.critical(
+                "self.instrument of %s is None -> Emergency shutdown", self.my_id
+            )
+            system_shutdown()
+            return RecentValueMsg(
+                status=Status.CRITICAL,
+                instr_id=self.instr_id,
+            )
         if self._set_rtc_pending:
             return RecentValueMsg(status=Status.SET_RTC_PENDING, instr_id=self.instr_id)
         if component == 255:
