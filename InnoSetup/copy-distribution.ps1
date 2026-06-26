@@ -9,6 +9,7 @@ $signfile = $source + "regserver-service.exe"
 $accessory = "..\src\*"
 $exclude = @('*.py','*.spec','regserver')
 Copy-Item -Path $accessory -Destination $source -Force -Exclude $exclude
+Copy-Item -Path ..\doc\changelog.md -Destination $source -Force
 $cmd = 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.18362.0\x64\signtool.exe'
 $arg = @('sign', '/tr', 'http://timestamp.comodoca.com', '/td', 'sha256', '/du', 'https://www.sarad.de')
 & $cmd $arg $signfile
