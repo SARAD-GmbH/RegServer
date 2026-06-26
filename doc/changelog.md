@@ -1,9 +1,30 @@
+# RegServer 2.5.14
+Date: Fri, 26 June 2026 10:13:12 +0200
+
+## Fixed bugs
+
+- Improved stability in cases where other applications are competing for access
+  to the serial port.
+- Improved stability in cases where the instrument does not reply to a command.
+
+## Features
+
+- Support for new instruments based on DACM-32.
+
+## Improvements
+
+- Several improvements in internal logging.
+- Remove empty directories from installation.
+- Improved behaviour in cooperation with monitoring system ROOMS. Fewer
+  unnecessary value checks.
+- Add this changelog to the installation dirctory.
+
 # RegServer 2.5.13
 Date: Fri, 24 April 2026 20:23:12 +0100
 
 ## Fixed bugs
 
-- improve the reliability of device reservation
+- Improve the reliability of device reservation
 
 # RegServer 2.5.12
 Date: Mon, 23 March 2026 09:23:12 +0100
