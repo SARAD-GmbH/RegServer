@@ -79,6 +79,7 @@ class Registrar(BaseActor):
         self.hosts = []  # List of Host objects seen since start
         self.rest_api = None  # Address of the Actor System
         self.led = False
+        self.led_steady = False
         self.online = True
 
     @overrides
@@ -762,7 +763,11 @@ class Registrar(BaseActor):
             if self.online:
                 if len(self.device_statuses) == 0:
                     logger.info("led.blink(0.25, 0.07) -- no instrument")
+                    self.led_steady = False
                 else:
-                    logger.info("led.on() -- fully functional")
+                    if not self.led_steady:
+                        logger.info("led.on() -- fully functional")
+                        self.led_steady = True
             else:
                 logger.info("led.blink(0.5, 0.15) -- offline")
+                self.led_steady = False

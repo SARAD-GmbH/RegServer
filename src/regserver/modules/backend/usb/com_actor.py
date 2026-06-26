@@ -46,6 +46,9 @@ class ComActor(BaseActor):
             (r"(?i)monitor", 5),
             (r"(?i)scout|smart", 2),
             (r"(?i)ft232", 4),
+            (r"#2", 2),
+            (r"#5", 5),
+            (r"#6", 6),
         ]
         for mapping in family_mapping:
             for port in list_ports.grep(mapping[0]):
@@ -100,7 +103,7 @@ class ComActor(BaseActor):
 
     def _detect_instr(self) -> None:
         logger.debug("[_detect_instr] %s", self.route)
-        if self.guessed_family in [2, 5]:
+        if self.guessed_family in [2, 5, 6]:
             sleep(2.5)  # Wait for the relay
         elif self.guessed_family == 4:
             sleep(8)  # Wait for ZigBee coordinator to start
@@ -143,7 +146,7 @@ class ComActor(BaseActor):
             self.polling_loop_running = False
 
     def _get_instrument(self, route) -> Union[SI, None]:
-        if self.guessed_family in (2, 4, 5):
+        if self.guessed_family in (2, 4, 5, 6):
             instruments_to_test = (SaradInst(family=sarad_family(0)), DosemanInst())
         else:
             instruments_to_test = (DosemanInst(), SaradInst(family=sarad_family(0)))

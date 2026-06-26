@@ -101,7 +101,13 @@ class DeviceActor(DeviceBaseActor):
             self.response = resp.json()
             self.success = Status.OK
         except Exception as exception:  # pylint: disable=broad-except
-            logger.error("REST API of IS is not responding. %s, %s", exception, purpose)
+            logger.error(
+                "%s: REST API of %s is not responding. %s, %s",
+                self.my_id,
+                self._is_host,
+                exception,
+                purpose,
+            )
             self.response = {}
             self.success = Status.IS_NOT_FOUND
         else:
@@ -116,7 +122,9 @@ class DeviceActor(DeviceBaseActor):
                 else:
                     ident = device_desc.get("Identification")
                     if ident is None:
-                        logger.error("No Identification section available.")
+                        logger.error(
+                            "%s: No Identification section available.", self.my_id
+                        )
                         self.success = Status.NOT_FOUND
         self._handle_http_reply(purpose)
 
@@ -126,7 +134,12 @@ class DeviceActor(DeviceBaseActor):
             self.response = resp.json()
             self.success = Status.OK
         except Exception as exception:  # pylint: disable=broad-except
-            logger.error("REST API of IS is not responding. %s", exception)
+            logger.error(
+                "%s: REST API of %s is not responding. %s",
+                self.my_id,
+                self._is_host,
+                exception,
+            )
             self.response = {}
             self.success = Status.NOT_FOUND
         else:
@@ -185,7 +198,11 @@ class DeviceActor(DeviceBaseActor):
                     status=self.success,
                     instr_id=self.instr_id,
                 )
-                logger.info("Call _handle_recent_value_reply_from_is(%s)", answer)
+                logger.info(
+                    "%s: Call _handle_recent_value_reply_from_is(%s)",
+                    self.my_id,
+                    answer,
+                )
             self._handle_recent_value_reply_from_is(
                 answer=answer,
                 requester=self.request_locks["GetRecentValue"].request.sender,
@@ -305,7 +322,8 @@ class DeviceActor(DeviceBaseActor):
             self._finish_set_device_status({})
         elif self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
             logger.info(
-                "_kill_myself called from _finish_setup_mdns_actor. %s, self.on_kill is %s",
+                "%s: _kill_myself called from _finish_setup_mdns_actor. %s, self.on_kill is %s",
+                self.my_id,
                 self.success,
                 self.on_kill,
             )
@@ -341,7 +359,8 @@ class DeviceActor(DeviceBaseActor):
                 reservation = device_desc.get("Reservation", False)
             else:
                 logger.info(
-                    "_kill_myself called from _finish_update. %s, self.on_kill is %s",
+                    "%s: _kill_myself called from _finish_update. %s, self.on_kill is %s",
+                    self.my_id,
                     self.success,
                     self.on_kill,
                 )
@@ -363,7 +382,8 @@ class DeviceActor(DeviceBaseActor):
                 self.occupied = False
         elif self.success in (Status.NOT_FOUND, Status.IS_NOT_FOUND):
             logger.info(
-                "_kill_myself called from _finish_update. %s, self.on_kill is %s",
+                "%s: _kill_myself called from _finish_update. %s, self.on_kill is %s",
+                self.my_id,
                 self.success,
                 self.on_kill,
             )
@@ -399,7 +419,7 @@ class DeviceActor(DeviceBaseActor):
         if success in (Status.IS_NOT_FOUND, Status.NOT_FOUND) and not self.on_kill:
             logger.debug("_kill_myself called in _finish_free")
             self._kill_myself()
-        logger.info("Doublecheck the reservation status after free")
+        logger.info("%s: Doublecheck the reservation status after free", self.my_id)
         self.wakeupAfter(timedelta(seconds=11), payload="update")
 
     @overrides
@@ -507,7 +527,8 @@ class DeviceActor(DeviceBaseActor):
                 error = True
             if error:
                 logger.info(
-                    "_kill_myself called from _finish_set_device_status. %s, self.on_kill is %s",
+                    "%s, _kill_myself called from _finish_set_device_status. %s, self.on_kill is %s",
+                    self.my_id,
                     self.success,
                     self.on_kill,
                 )
@@ -546,7 +567,8 @@ class DeviceActor(DeviceBaseActor):
             self._publish_status_change()
         else:
             logger.info(
-                "_kill_myself called from _finish_set_device_status. %s, self.on_kill is %s",
+                "%s: _kill_myself called from _finish_set_device_status. %s, self.on_kill is %s",
+                self.my_id,
                 self.success,
                 self.on_kill,
             )
@@ -610,7 +632,7 @@ class DeviceActor(DeviceBaseActor):
             NameError,
             AttributeError,
         ) as exception:
-            logger.error("%s. IS closed or disconnected.", exception)
+            logger.error("%s: %s. IS closed or disconnected.", self.my_id, exception)
             reply = self.RET_TIMEOUT
         self._handle_bin_reply_from_is(RxBinaryMsg(data=reply))
 
@@ -649,7 +671,8 @@ class DeviceActor(DeviceBaseActor):
                 error = True
             if error:
                 logger.info(
-                    "_kill_myself called from _finish_get_status. %s, self.on_kill is %s",
+                    "%s: _kill_myself called from _finish_get_status. %s, self.on_kill is %s",
+                    self.my_id,
                     self.success,
                     self.on_kill,
                 )
@@ -692,7 +715,8 @@ class DeviceActor(DeviceBaseActor):
             )
         else:
             logger.info(
-                "_kill_myself called from _finish_set_device_status. %s, self.on_kill is %s",
+                "%s, _kill_myself called from _finish_set_device_status. %s, self.on_kill is %s",
+                self.my_id,
                 self.success,
                 self.on_kill,
             )
