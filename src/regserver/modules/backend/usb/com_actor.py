@@ -43,9 +43,7 @@ class ComActor(BaseActor):
     def _guess_family(self):
         family_mapping = [
             (r"(?i)irda", 1),
-            (r"(?i)monitor", 5),
-            (r"(?i)scout|smart", 2),
-            (r"(?i)ft232", 4),
+            (r"(?i)scout|(?i)smart", 2),
             (r"#2", 2),
             (r"#5", 5),
             (r"#6", 6),
@@ -54,22 +52,14 @@ class ComActor(BaseActor):
             for port in list_ports.grep(mapping[0]):
                 if self.route.port == port.device:
                     self.guessed_family = mapping[1]
-                    logger.info(
-                        "%s, %s, #%d",
-                        port.device,
-                        port.description,
-                        self.guessed_family,
-                    )
-        if self.guessed_family is None:
-            self.guessed_family = 1  # DOSEman family is the default
-            for port in list_ports.comports():
-                if self.route.port == port.device:
-                    logger.info(
-                        "%s, %s, #%d",
-                        port.device,
-                        port.description,
-                        self.guessed_family,
-                    )
+        for port in list_ports.comports():
+            if self.route.port == port.device:
+                logger.info(
+                    "%s, %s, family %d",
+                    port.device,
+                    port.description,
+                    self.guessed_family,
+                )
 
     def receiveMsg_SetupComActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -105,7 +95,7 @@ class ComActor(BaseActor):
         logger.debug("[_detect_instr] %s", self.route)
         if self.guessed_family in [2, 5, 6]:
             sleep(2.5)  # Wait for the relay
-        elif self.guessed_family == 4:
+        elif self.guessed_family in [0, 4]:
             sleep(8)  # Wait for ZigBee coordinator to start
         if not self.child_actors:
             instrument = self._get_instrument(self.route)
@@ -146,10 +136,11 @@ class ComActor(BaseActor):
             self.polling_loop_running = False
 
     def _get_instrument(self, route) -> Union[SI, None]:
-        if self.guessed_family in (2, 4, 5, 6):
-            instruments_to_test = (SaradInst(family=sarad_family(0)), DosemanInst())
+        test_instrument = SaradInst(family=sarad_family(0))
+        if self.guessed_family:
+            instruments_to_test = [SaradInst(family=sarad_family(self.guessed_family))]
         else:
-            instruments_to_test = (DosemanInst(), SaradInst(family=sarad_family(0)))
+            instruments_to_test = [DosemanInst(), SaradInst(family=sarad_family(0))]
         instr_id = None
         for test_instrument in instruments_to_test:
             try:
