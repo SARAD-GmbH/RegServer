@@ -161,7 +161,9 @@ class ComActor(BaseActor):
                     test_instrument.type_id,
                     test_instrument.serial_number,
                 )
-                if test_instrument.type_id:
+                if test_instrument.type_id or test_instrument.serial_number:
+                    if not test_instrument.type_id:
+                        test_instrument.type_id = 1  # dirty workaround for firmware bug
                     instr_id = encode_instr_id(
                         test_instrument.family["family_id"],
                         test_instrument.type_id,
