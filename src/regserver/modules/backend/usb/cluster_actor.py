@@ -106,7 +106,7 @@ class ClusterActor(BaseActor):
             success = self._add_to_loop(port)
         self.send(sender, ReturnLoopPortsMsg(list(self.loop_ports)))
         if success:
-            self._update()
+            self._rescan()
 
     def receiveMsg_RemovePortFromLoopMsg(self, msg, sender) -> None:
         # pylint: disable=invalid-name
@@ -125,7 +125,7 @@ class ClusterActor(BaseActor):
             success = self._remove_from_loop(port)
         self.send(sender, ReturnLoopPortsMsg(list(self.loop_ports)))
         if success:
-            self._update()
+            self._rescan()
 
     @staticmethod
     def _normalize(serial: str):
