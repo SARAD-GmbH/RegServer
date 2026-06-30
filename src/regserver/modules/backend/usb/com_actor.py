@@ -36,7 +36,8 @@ class ComActor(BaseActor):
         super().__init__()
         self.polling_loop_running = False  # indicates that the polling is active
         self.route = Route()
-        self.polling_interval: float = 0
+        self.temp_polling_interval: float = 0
+        self.permanent_polling_interval: float = 0
         self.detect_instr_thread = Thread(target=self._detect_instr, daemon=True)
         self.guessed_family = 0  # id of instrument family
 
@@ -66,7 +67,7 @@ class ComActor(BaseActor):
         """Handle message to initialize ComActor."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.route = msg.route
-        self.polling_interval = msg.loop_interval
+        self.permanent_polling_interval = msg.loop_interval
         if self.child_actors:
             logger.debug("%s: Update device actor", self.my_id)
             self._forward_to_children(KillMsg())
@@ -74,7 +75,7 @@ class ComActor(BaseActor):
             logger.debug("%s: Update -- no child", self.my_id)
             self._guess_family()
             self._do_loop()
-            if self.polling_interval:
+            if self.permanent_polling_interval:
                 self._start_polling()
 
     @overrides
@@ -104,21 +105,18 @@ class ComActor(BaseActor):
 
     def _start_polling(self):
         if not self.polling_loop_running:
-            if not self.polling_interval:
-                self.polling_interval = 3
+            if not self.permanent_polling_interval:
+                self.temp_polling_interval = 3
+            else:
+                self.temp_polling_interval = self.permanent_polling_interval
             logger.info(
                 "%s: Start polling %s every %d s.",
                 self.my_id,
                 self.route,
-                self.polling_interval,
+                self.temp_polling_interval,
             )
             self.polling_loop_running = True
-            self.wakeupAfter(self.polling_interval)
-            logger.info(
-                "Polling started for %s with interval %f s",
-                self.my_id,
-                self.polling_interval,
-            )
+            self.wakeupAfter(self.temp_polling_interval)
 
     def _stop_polling(self):
         self.polling_loop_running = False
@@ -130,7 +128,7 @@ class ComActor(BaseActor):
         logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
         if (not self.on_kill) and self.polling_loop_running:
             self._do_loop()
-            self.wakeupAfter(self.polling_interval)
+            self.wakeupAfter(self.temp_polling_interval)
             self.polling_loop_running = True
         else:
             self.polling_loop_running = False
@@ -210,13 +208,13 @@ class ComActor(BaseActor):
             SetupUsbActorMsg(
                 instrument.route,
                 instrument.family,
-                bool(self.polling_interval) or poll_doseman,
+                bool(self.permanent_polling_interval) or poll_doseman,
             ),
         )
         self._stop_polling()
 
     def _remove_child_actor(self):
-        logger.debug("%s sending KillMsg to device actor.")
+        logger.debug("%s sending KillMsg to device actor.", self.my_id)
         try:
             actor_id = list(self.child_actors.keys())[0]
             self.send(self.child_actors[actor_id]["actor_address"], KillMsg())

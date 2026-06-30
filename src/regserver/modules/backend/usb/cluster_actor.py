@@ -78,6 +78,12 @@ class ClusterActor(BaseActor):
         self.actor_type = ActorType.HOST
         self.instr_counter = 0  # counting connected instruments
         logger.debug("ClusterActor initialized")
+        logger.debug(
+            "poll_ports = %s, ignore_ports = %s, loop_ports = %s",
+            self.poll_ports,
+            self.ignore_ports,
+            self.loop_ports,
+        )
 
     @overrides
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -198,8 +204,14 @@ class ClusterActor(BaseActor):
         self.send(sender, ReturnNativePortsMsg(ports))
 
     def _create_and_setup_actor(self, route, loop_interval):
-        logger.debug("[_create_and_setup_actor] for route %s", route)
+        logger.debug(
+            "[_create_and_setup_actor] for route %s, loop_interval=%d",
+            route,
+            loop_interval,
+        )
         com_actor = self._create_actor(ComActor, self._route_id(route), None)
+        if route.port in self.loop_ports:
+            loop_interval = local_backend_config["LOCAL_RETRY_INTERVAL"]
         self.send(com_actor, SetupComActorMsg(route, loop_interval))
 
     def _remove_actor(self, route):
