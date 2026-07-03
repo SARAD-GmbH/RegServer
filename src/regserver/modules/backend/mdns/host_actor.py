@@ -15,10 +15,9 @@ from threading import Thread
 
 import requests  # type: ignore
 from overrides import overrides  # type: ignore
-from regserver.actor_messages import (ActorCreatedMsg, ActorType, HostInfoMsg,
-                                      HostObj, KillMsg, SetDeviceStatusMsg,
-                                      SetupMdnsActorMsg, Status,
-                                      TransportTechnology)
+from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj, KillMsg,
+                                      SetDeviceStatusMsg, SetupMdnsActorMsg,
+                                      Status, TransportTechnology)
 from regserver.base_actor import BaseActor
 from regserver.helpers import sarad_protocol, short_id, transport_technology
 from regserver.logger import logger
@@ -66,8 +65,6 @@ class HostActor(BaseActor):
         super().__init__()
         self.base_url = ""
         self.get_updates = True
-        self._virgin = True
-        self._asys = None
         self.http = None
         self.scan_interval = 0
         self.host = HostObj(
@@ -109,27 +106,10 @@ class HostActor(BaseActor):
         adapter = TimeoutHTTPAdapter(max_retries=retry_strategy)
         self.http.mount("https://", adapter)
         self.http.mount("http://", adapter)
-        self._asys = msg.asys_address
         self._subscribe_to_actor_dict_msg()
         self.wakeupAfter(timedelta(seconds=1), payload="ping")
         super().receiveMsg_SetupMsg(msg, sender)
         logger.info("Ping %s every %d minutes.", self.my_id, PING_INTERVAL)
-
-    @overrides
-    def receiveMsg_UpdateActorDictMsg(self, msg, sender):
-        super().receiveMsg_UpdateActorDictMsg(msg, sender)
-        if self.my_id in msg.actor_dict:
-            if self._virgin:
-                self.send(
-                    self._asys,
-                    ActorCreatedMsg(
-                        self.myAddress,
-                        actor_type=self.actor_type,
-                        hostname=self.my_id,
-                        port=self.port,
-                    ),
-                )
-                self._virgin = False
 
     @overrides
     def receiveMsg_ChildActorExited(self, msg, sender):
@@ -149,7 +129,8 @@ class HostActor(BaseActor):
         self.port = msg.port
         if self.scan_interval:
             logger.info("Scan %s every %d seconds", self.base_url, self.scan_interval)
-            self.wakeupAfter(timedelta(seconds=1), payload="scan")
+            self.wakeupAfter(timedelta(seconds=self.scan_interval), payload="scan")
+        self.wakeupAfter(timedelta(seconds=3), payload="scan")
 
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         # pylint: disable=invalid-name

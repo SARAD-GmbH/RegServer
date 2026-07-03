@@ -772,17 +772,6 @@ class CreateActorMsg:
 
 
 @dataclass
-class ActorCreatedMsg:
-    """Message sent by the HostActor to inform the HostCreatorActor about
-    a successfully created HostActor."""
-
-    actor_address: ActorAddress
-    actor_type: Any
-    hostname: str
-    port: int
-
-
-@dataclass
 class GetDeviceActorMsg:
     """Request to the Registrar to send back the address of the Device Actor
     with the given device_id."""

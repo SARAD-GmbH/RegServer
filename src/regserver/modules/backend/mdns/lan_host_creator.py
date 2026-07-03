@@ -9,9 +9,11 @@ Forwards messages to setup Device Actors from the mDNS Listener to the Host Acto
 
 """
 
+from datetime import timedelta
+
 from overrides import overrides  # type: ignore
-from regserver.actor_messages import (SetDeviceStatusMsg, SetupHostActorMsg,
-                                      SetupLanDeviceMsg)
+from regserver.actor_messages import (ActorType, SetDeviceStatusMsg,
+                                      SetupHostActorMsg, SetupLanDeviceMsg)
 from regserver.base_actor import BaseActor
 from regserver.config import config, lan_backend_config
 from regserver.hostname_functions import compare_hostnames
@@ -43,19 +45,34 @@ class HostCreatorActor(BaseActor):
                 device_status={},
             )
 
-    def receiveMsg_ActorCreatedMsg(self, msg, sender):
+    @overrides
+    def receiveMsg_UpdateActorDictMsg(self, msg, sender):
+        super().receiveMsg_UpdateActorDictMsg(msg, sender)
+        for hostname in msg.actor_dict:
+            if msg.actor_dict[hostname]["actor_type"] == ActorType.HOST:
+                if hostname in self.pending:
+                    setup_lan_device_msg = self.pending[hostname]
+                    self.send(
+                        msg.actor_dict[hostname]["address"],
+                        SetupHostActorMsg(
+                            host=setup_lan_device_msg.host,
+                            port=setup_lan_device_msg.port,
+                            scan_interval=setup_lan_device_msg.scan_interval,
+                        ),
+                    )
+                    self.send(
+                        self.actor_dict[hostname]["address"],
+                        SetDeviceStatusMsg(setup_lan_device_msg.device_status),
+                    )
+                    self.pending.pop(hostname)
+                    logger.debug("%s created and setup", hostname)
+
+    def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name
-        """Complete the setup of the HostActor."""
-        setup_lan_device_msg = self.pending[msg.hostname]
-        self.send(
-            sender,
-            SetupHostActorMsg(
-                host=setup_lan_device_msg.host,
-                port=setup_lan_device_msg.port,
-                scan_interval=setup_lan_device_msg.scan_interval,
-            ),
-        )
-        self.pending.pop(msg.hostname)
+        """Handler for WakeupMessage to re-send the SetupLanDeviceMsg to myself."""
+        logger.debug("%s for %s from %s", msg, self.my_id, sender)
+        if isinstance(msg, SetupLanDeviceMsg):
+            self.receiveMessage(msg, self)
 
     def receiveMsg_SetupLanDeviceMsg(self, msg, _sender):
         # pylint: disable=invalid-name
@@ -69,12 +86,15 @@ class HostCreatorActor(BaseActor):
                 SetDeviceStatusMsg(msg.device_status),
             )
             return
+        if msg.host in self.pending:
+            # wait a bit and try again
+            self.wakeupAfter(timedelta(seconds=0.5), payload=msg)
+            return
         # check blacklist
         my_hostname = config["MY_HOSTNAME"]
         hosts_blacklist = lan_backend_config.get("HOSTS_BLACKLIST", [])
         if (msg.host not in hosts_blacklist) and (
             not compare_hostnames(my_hostname, msg.host)
-            and (msg.host not in self.pending)
         ):
             self._create_actor(HostActor, msg.host, self.myAddress)
             self.pending[msg.host] = msg

@@ -174,6 +174,7 @@ class MdnsListener(ServiceListener):
         logger.debug("[Add] Service %s of type %s", name, type_)
         hostname = self._get_hostname(zc, type_, name)
         data = self.convert_properties(zc, type_, name)
+        logger.debug("[Add] Service %s of type %s with data %s", name, type_, data)
         if data is not None and hostname is not None:
             first_key = next(iter(data))
             if data[first_key].get("Remote", False):
