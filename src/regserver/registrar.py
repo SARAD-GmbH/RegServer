@@ -336,7 +336,14 @@ class Registrar(BaseActor):
             "get_updates": msg.get_updates,
             "is_alive": True,
         }
-        logger.info("%s added to actor_dict", msg.actor_id)
+        total, no_of_hosts, no_of_devices = self._count_actors(self.actor_dict)
+        logger.info(
+            "%s added to actor_dict. %d/%d/%d",
+            msg.actor_id,
+            total,
+            no_of_hosts,
+            no_of_devices,
+        )
         if msg.actor_id == "mqtt_scheduler":
             self.send(
                 sender,
@@ -362,6 +369,19 @@ class Registrar(BaseActor):
             self.send(sender, GetHostInfoMsg())
         self._send_updates(self.actor_dict)
         return
+
+    @staticmethod
+    def _count_actors(actor_dict: dict):
+        total = 0
+        no_of_devices = 0
+        no_of_hosts = 0
+        for actor_id in actor_dict:
+            total = total + 1
+            if actor_dict[actor_id]["actor_type"] == ActorType.DEVICE:
+                no_of_devices = no_of_devices + 1
+            if actor_dict[actor_id]["actor_type"] == ActorType.HOST:
+                no_of_hosts = no_of_hosts + 1
+        return total, no_of_hosts, no_of_devices
 
     def receiveMsg_UnsubscribeMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -404,7 +424,14 @@ class Registrar(BaseActor):
             if index is not None:
                 self.hosts[index].state = 0
         removed_actor = self.actor_dict.pop(actor_id, None)
-        logger.info("%s removed from actor_dict", actor_id)
+        total, no_of_hosts, no_of_devices = self._count_actors(self.actor_dict)
+        logger.info(
+            "%s removed from actor_dict. %d/%d/%d",
+            actor_id,
+            total,
+            no_of_hosts,
+            no_of_devices,
+        )
         if removed_actor is not None:
             self._check_persistency(actor_id)
             self._send_updates(self.actor_dict)
