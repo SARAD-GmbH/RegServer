@@ -123,7 +123,7 @@ class Registrar(BaseActor):
 
     def receiveMsg_ControlFunctionalityMsg(self, msg, sender):
         # pylint: disable=invalid-name
-        """Handler for a message to switch frontends of backends on or off."""
+        """Handler for a message to switch frontends or backends on or off."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if msg.actor_id in ACTOR_DICT:
             if msg.on:
