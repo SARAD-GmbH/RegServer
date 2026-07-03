@@ -102,9 +102,10 @@ class DeviceActor(DeviceBaseActor):
             self.success = Status.OK
         except Exception as exception:  # pylint: disable=broad-except
             logger.error(
-                "%s: REST API of %s is not responding. %s, %s",
+                "%s: REST API of %s is not responding at URL: %s. %s, %s",
                 self.my_id,
                 self._is_host,
+                endpoint,
                 exception,
                 purpose,
             )

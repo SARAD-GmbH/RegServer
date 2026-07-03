@@ -168,9 +168,21 @@ class HostActor(BaseActor):
                 device_actor,
                 SetupMdnsActorMsg(is_host, api_port, remote_device_id),
             )
+            logger.debug(
+                "%s: Setup device actor for %s: %s",
+                self.my_id,
+                is_host,
+                remote_device_id,
+            )
             self._get_host_info()
         else:
             device_actor = self.child_actors[device_id]["actor_address"]
+            logger.debug(
+                "%s: Device actor %s exists at %s.",
+                self.my_id,
+                remote_device_id,
+                is_host,
+            )
         data["State"] = 2
         self.send(device_actor, SetDeviceStatusMsg(data))
 
