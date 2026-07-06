@@ -32,7 +32,7 @@ from regserver.config import (CONFIG_FILE, FRMT, PING_FILE_NAME, actor_config,
                               lan_backend_config, rest_frontend_config)
 from regserver.logdef import LOGFILENAME, logcfg
 from regserver.logger import logger
-from regserver.modules.backend.mdns.mdns_listener import MdnsListener
+from regserver.modules.backend.mdns.mdns_listener import ZeroconfWatchdog
 from regserver.modules.frontend.modbus.modbus_rtu import ModbusRtu
 from regserver.registrar import Registrar
 from regserver.restapi import app, set_registrar
@@ -148,8 +148,10 @@ class Main:
             )
             self.usb_listener_thread.start()
         if TransportTechnology.LAN in backend_config:
-            self.lan_backend = MdnsListener(self.registrar_actor)
-            self.lan_backend.start(lan_backend_config["TYPE"])
+            self.lan_backend = ZeroconfWatchdog(
+                self.registrar_actor, lan_backend_config["TYPE"], timeout_seconds=1800
+            )
+            self.lan_backend.start()
         logger.info("The RegServer is up and running now.")
 
     def start_webserver(self):
@@ -177,7 +179,7 @@ class Main:
         if self.lan_backend is not None:
             logger.info("Shutdown MdnsListener")
             try:
-                self.lan_backend.shutdown()
+                self.lan_backend.stop()
             except Exception as exception:  # pylint: disable=broad-except
                 logger.critical(exception)
         if self.modbus_rtu is not None:
@@ -310,7 +312,7 @@ class Main:
         logger.critical("Traceback: %s", formatted_exception)
         if args.exc_type == OSError and ("ServiceBrowser" in args.thread):
             logger.info("[custom_hook] Restart ServiceBrowser")
-            self.lan_backend.browser.run()
+            self.lan_backend.restart()
         else:
             logger.info("[custom_hook] emergency shutdown")
             system_shutdown(with_error=True)

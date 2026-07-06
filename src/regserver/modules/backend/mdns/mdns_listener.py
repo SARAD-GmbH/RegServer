@@ -12,6 +12,8 @@ services (SARAD devices) in the local network.
 
 import ipaddress
 import socket
+import threading
+import time
 
 from regserver.actor_messages import KillMsg, SetupLanDeviceMsg
 from regserver.config import config, lan_backend_config
@@ -151,6 +153,12 @@ class MdnsListener(ServiceListener):
         self.zeroconf = None
         self.browser = None
         self.host_creator_actor = get_actor(self.registrar, "host_creator")
+        self.last_activity = time.time()
+        self.lock = threading.Lock()
+
+    def _update_activity(self):
+        with self.lock:
+            self.last_activity = time.time()
 
     def start(self, service_type):
         """Start the ZeroConf listener thread"""
@@ -166,6 +174,7 @@ class MdnsListener(ServiceListener):
                     "An error occurred while initializing the ServiceBrowser."
                 )
                 system_shutdown()
+        self._update_activity()
 
     def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
@@ -200,6 +209,7 @@ class MdnsListener(ServiceListener):
                 type_,
                 name,
             )
+        self._update_activity()
 
     def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
         # pylint: disable=invalid-name
@@ -224,6 +234,7 @@ class MdnsListener(ServiceListener):
         else:
             logger.debug("Kill device actor %s", device_id)
             ActorSystem().tell(device_actor, KillMsg())
+        self._update_activity()
 
     def shutdown(self) -> None:
         """Cleanup"""
@@ -232,3 +243,65 @@ class MdnsListener(ServiceListener):
         if self.zeroconf is not None:
             self.zeroconf.close()
         logger.info("Zeroconf listener closed")
+
+    def get_last_activity(self) -> float:
+        """Return the timestamp of last activity"""
+        with self.lock:
+            return self.last_activity
+
+
+class ZeroconfWatchdog:
+    """Watchdog for threaded Zeroconf Listener"""
+
+    def __init__(self, registrar_actor, service_type: str, timeout_seconds: int = 60):
+        self.service_type = service_type
+        self.timeout = timeout_seconds
+        self.listener = None
+        self.running = False
+        self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self.registrar = registrar_actor
+
+    def start(self):
+        """Start or restart the Zeroconf Listener"""
+        self.running = True
+        self._bootstrap_zeroconf()
+        self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self.thread.start()
+
+    def restart(self):
+        self._cleanup()
+        self._bootstrap_zeroconf()
+
+    def _bootstrap_zeroconf(self):
+        logger.debug("Start Zeroconf listener...")
+        self.listener = MdnsListener(self.registrar)
+        # Startet das Listening für den spezifischen Service-Typ
+        self.listener.start(self.service_type)
+
+    def _cleanup(self):
+        logger.debug("Clean up old instances...")
+        if self.listener:
+            try:
+                self.listener.shutdown()
+            except Exception as e:
+                logger.error("Error closing service listener: %s", e)
+        self.listener = None
+
+    def _monitor_loop(self):
+        while self.running:
+            time.sleep(1)  # Überprüfungsintervall
+            if not self.listener:
+                continue
+            time_since_last_activity = time.time() - self.listener.get_last_activity()
+            # Wenn das Timeout überschritten wurde, starten wir neu
+            if time_since_last_activity > self.timeout:
+                logger.warning(
+                    "Zeroconf watchdog: No activity since %s s! Restart listener...",
+                    int(time_since_last_activity),
+                )
+                self.restart()
+
+    def stop(self):
+        """Stop the Zeroconf Listener"""
+        self.running = False
+        self._cleanup()
