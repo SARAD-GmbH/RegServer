@@ -298,6 +298,26 @@ def get_device_status_from_registrar(registrar_actor, device_id: str) -> dict:
     return device_statuses.get(device_id, None)
 
 
+def get_instr_status_from_registrar(registrar_actor, instr_id: str) -> dict:
+    """Read the instrument status from the registrar.
+
+    Args:
+        instr_id: The instrument id
+
+    Returns:
+        A dictionary containing additional information
+        for the *Identification* of the instrument and it's *Reservation* state
+
+    """
+    device_statuses = get_device_statuses(registrar_actor)
+    if device_statuses is None:
+        return {}
+    for device_id in device_statuses:
+        if short_id(device_id) == instr_id:
+            return device_statuses.get(device_id, None)
+    return {}
+
+
 def sort_device_statuses_by_hostname(
     device_statuses: dict[str, dict[str, str]],
 ) -> dict[str, dict[str, str]]:
@@ -380,6 +400,18 @@ def get_instr_id_actor_dict(registrar_actor):
     }
 
 
+def get_device_id(registrar_actor, instr_id):
+    """Return a device_id corresponding with the given instr_id."""
+    actor_dict = get_actor_dict(registrar_actor)
+    if actor_dict is None:
+        return ""
+    return {
+        short_id(id): id
+        for id, dict in actor_dict.items()
+        if (dict["actor_type"] == ActorType.DEVICE)
+    }[instr_id]
+
+
 def diff_of_dicts(dict1, dict2):
     """Get difference of two dictionaries."""
     set1 = set(dict1.keys())
@@ -423,23 +455,23 @@ def check_msg(return_message, message_object_type):
 
 
 def send_reserve_message(
-    device_id, registrar_actor, who, create_redirector
+    instr_id, registrar_actor, who, create_redirector
 ) -> ReservationStatusMsg:
-    """Send a reserve message to the Device Actor associated with device_id
+    """Send a reserve message to the Device Actor associated with instr_id
     and give back the status.
 
     Args:
-        device_id: device_id of the device that shall be reserved
+        instr_id: instr_id of the device that shall be reserved
         registrar_actor: Actor address of the Registrar Actor
         who (dict): Requesting hostname, user and app
         create_redirector (bool): True, if a redirector Actor shall be created
 
     Returns: Success status
     """
-    device_actor = get_actor(registrar_actor, device_id)
+    device_actor = get_instr_id_actor_dict(registrar_actor)[instr_id]
     if device_actor is None:
         return ReservationStatusMsg(
-            instr_id=device_id.split(".")[0],
+            instr_id=instr_id,
             status=Status.NOT_FOUND,
             device_status={},
         )
@@ -456,16 +488,16 @@ def send_reserve_message(
             logger.error(exception)
             reserve_return = None
     if reserve_return is None:
-        logger.error("No response from Device Actor %s", device_id)
+        logger.error("No response from Device Actor %s", instr_id)
         return ReservationStatusMsg(
-            instr_id=device_id.split(".")[0],
+            instr_id=instr_id,
             status=Status.NOT_FOUND,
             device_status={},
         )
     reply_is_corrupted = check_msg(reserve_return, ReservationStatusMsg)
     if reply_is_corrupted:
         return ReservationStatusMsg(
-            instr_id=device_id.split(".")[0],
+            instr_id=instr_id,
             status=reply_is_corrupted,
             device_status={},
         )
@@ -474,7 +506,7 @@ def send_reserve_message(
         Status.FREE_PENDING,
     ]:
         return ReservationStatusMsg(
-            instr_id=device_id.split(".")[0],
+            instr_id=instr_id,
             status=Status.NOT_FOUND,
             device_status={},
         )

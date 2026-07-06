@@ -33,9 +33,11 @@ from regserver.actor_messages import (AddPortToLoopMsg, GetLocalPortsMsg,
                                       StopMonitoringAckMsg, StopMonitoringMsg,
                                       TransportTechnology)
 from regserver.config import actor_config, config
-from regserver.helpers import (check_msg, get_actor, get_device_status,
+from regserver.helpers import (check_msg, get_actor, get_device_id,
+                               get_device_status,
                                get_device_status_from_registrar,
                                get_device_statuses, get_hosts,
+                               get_instr_status_from_registrar,
                                send_free_message, send_reserve_message,
                                short_id, transport_technology)
 from regserver.logdef import LOGFILENAME
@@ -141,6 +143,28 @@ reserve_arguments.add_argument(
     + "Consists of application, user, and requesting host. "
     + "All three parts are to be devided by ` - `. \n"
     + "Example: `who=RV8 - mstrey - WS01`",
+    trim=True,
+)
+reserve_instr_arguments = reqparse.RequestParser()
+reserve_instr_arguments.add_argument(
+    "user",
+    type=str,
+    required=True,
+    help="Requires an argument `user` identifying the requesting user.",
+    trim=True,
+)
+reserve_instr_arguments.add_argument(
+    "app",
+    type=str,
+    required=True,
+    help="Requires an argument `app` identifying the application requesting the reservation.",
+    trim=True,
+)
+reserve_instr_arguments.add_argument(
+    "host",
+    type=str,
+    required=True,
+    help="Requires an argument `host` identifying the host from where the reservation is requested.",
     trim=True,
 )
 shutdown_arguments = reqparse.RequestParser()
@@ -353,7 +377,7 @@ class Scan(Resource):
         }
 
 
-# @api.deprecated
+@api.deprecated
 @list_ns.route("/")
 class List(Resource):
     # pylint: disable=too-few-public-methods
@@ -372,7 +396,7 @@ class List(Resource):
         return get_device_statuses(REGISTRAR_ACTOR)
 
 
-# @api.deprecated
+@api.deprecated
 @list_ns.route("/<string:device_id>")
 @list_ns.param(
     "device_id",
@@ -396,7 +420,7 @@ class ListDevice(Resource):
         return {device_id: get_device_status(REGISTRAR_ACTOR, device_id)}
 
 
-# @api.deprecated
+@api.deprecated
 @list_ns.route("/<string:device_id>/reserve")
 @list_ns.param(
     "device_id",
@@ -467,7 +491,7 @@ class ReserveDevice(Resource):
             status = Status.NOT_SUPPORTED
         else:
             reservation_status_msg = send_reserve_message(
-                device_id,
+                short_id(device_id),
                 REGISTRAR_ACTOR,
                 who,
                 create_redirector,
@@ -508,7 +532,7 @@ class ReserveDevice(Resource):
         }
 
 
-# @api.deprecated
+@api.deprecated
 @list_ns.route("/<string:device_id>/free")
 @list_ns.param(
     "device_id",
@@ -905,6 +929,158 @@ class SetRtc(Resource):
                     "Wait": reply.wait,
                 }
         return api.abort(404)
+
+
+@instruments_ns.route("/<string:instr_id>/reserve")
+@instruments_ns.param(
+    "instr_id",
+    "ID of the connected instrument as gathered as key from the `/instruments` endpoint",
+)
+@instruments_ns.param(
+    "user", "String identifying which user requested the reservation."
+)
+@instruments_ns.param(
+    "app", "String identifying from which app the reservation was requested."
+)
+@instruments_ns.param(
+    "host", "String identifying from which host the reservation was requested."
+)
+class ReserveInstrument(Resource):
+    # pylint: disable=too-few-public-methods
+    """Endpoint for reserving an available instrument"""
+
+    @api.expect(reserve_instr_arguments, validate=True)
+    def get(self, instr_id):
+        """Reserve an available instrument so that nobody else can use it."""
+        # Collect information about who sent the request.
+        logger.debug("ReserveInstrument %s", instr_id)
+        if REGISTRAR_ACTOR is None:
+            status = Status.CRITICAL
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                instr_id: {},
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+        arguments = reserve_instr_arguments.parse_args()
+        try:
+            who = {
+                "app": arguments["app"],
+                "user": arguments["user"],
+                "host": arguments["host"],
+            }
+        except (IndexError, AttributeError):
+            logger.warning("Reserve request without proper attributes.")
+            status = Status.ATTRIBUTE_ERROR
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                instr_id: {},
+            }
+        return self.reserve_instr(instr_id, who, True)
+
+    def reserve_instr(self, instr_id, who, create_redirector):
+        """The actual reserve method. It will be called after checking all
+        boundary conditions."""
+        logger.debug(
+            "Request reservation of %s for %s",
+            instr_id,
+            who,
+        )
+        device_state = get_instr_status_from_registrar(REGISTRAR_ACTOR, instr_id)
+        if device_state == {}:
+            logger.error("Requested service not supported by actor system.")
+            status = Status.NOT_SUPPORTED
+        else:
+            reservation_status_msg = send_reserve_message(
+                instr_id,
+                REGISTRAR_ACTOR,
+                who,
+                create_redirector,
+            )
+            status = reservation_status_msg.status
+        if status in (
+            Status.OK,
+            Status.OK_SKIPPED,
+            Status.OK_UPDATED,
+            Status.OCCUPIED,
+        ):
+            device_status = reservation_status_msg.device_status
+            logger.debug("After RESERVE registrar said: %s", device_status)
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                instr_id: device_status,
+            }
+        if status in (
+            Status.NOT_FOUND,
+            Status.IS_NOT_FOUND,
+            Status.UNKNOWN_PORT,
+            Status.BUSY_TIMEOUT,
+        ):
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                instr_id: {},
+            }
+        logger.critical("No response from Device Actor. -> Emergency shutdown")
+        system_shutdown()
+        return {
+            "Error code": status.value,
+            "Error": str(status),
+            instr_id: {},
+            "Notification": "Registration Server going down for restart.",
+            "Requester": "Emergency shutdown",
+        }
+
+
+@instruments_ns.route("/<string:instr_id>/free")
+@instruments_ns.param(
+    "instr_id",
+    "ID of the connected device as gathered as key from the `/list` endpoint",
+)
+class FreeInstrument(Resource):
+    # pylint: disable=too-few-public-methods
+    """Endpoint for freeing a reserved instrument"""
+
+    def get(self, instr_id):
+        """Free/release a device that was reserved before"""
+        logger.debug("FreeInstrument %s", instr_id)
+        if REGISTRAR_ACTOR is None:
+            status = Status.CRITICAL
+        else:
+            device_id = get_device_id(REGISTRAR_ACTOR, instr_id)
+            is_status = send_free_message(device_id, REGISTRAR_ACTOR)
+            if is_status == Status.CRITICAL:
+                status = Status.IS_NOT_FOUND
+            else:
+                status = is_status
+        if status == Status.CRITICAL:
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                "Notification": "Registration Server going down for restart.",
+                "Requester": "Emergency shutdown",
+            }
+        if status in (
+            Status.OK,
+            Status.OK_SKIPPED,
+            Status.OK_UPDATED,
+            Status.OCCUPIED,
+        ):
+            device_status = get_instr_status_from_registrar(REGISTRAR_ACTOR, instr_id)
+            logger.debug("After FREE registrar said: %s", device_status)
+            return {
+                "Error code": status.value,
+                "Error": str(status),
+                instr_id: device_status,
+            }
+        return {
+            "Error code": status.value,
+            "Error": str(status),
+            instr_id: {},
+        }
 
 
 @values_ns.route("/<string:device_id>")
