@@ -290,27 +290,6 @@ class DeviceActor(DeviceBaseActor):
         self.http.mount("https://", adapter)
         self.http.mount("http://", adapter)
 
-    def receiveMsg_SetupMdnsActorMsg(self, msg, sender):
-        # pylint: disable=invalid-name
-        """Handler for SetupMdnsActorMsg containing setup information
-        that is special to the mDNS device actor"""
-        logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        self._is_host = msg.is_host
-        self._api_port = msg.api_port
-        self.device_id = msg.device_id
-        self.base_url = f"http://{self._is_host}:{self._api_port}"
-        self._start_thread(
-            Thread(
-                target=self._http_get_function,
-                kwargs={
-                    "endpoint": f"{self.base_url}/list/{self.device_id}/",
-                    "params": None,
-                    "purpose": Purpose.SETUP,
-                },
-                daemon=True,
-            )
-        )
-
     def _finish_setup_mdns_actor(self):
         """Do everything that is required after receiving the reply to the HTTP request."""
         if self.success == Status.OK:
@@ -502,6 +481,12 @@ class DeviceActor(DeviceBaseActor):
             self.request_locks["Reserve"].locked or self.request_locks["Free"].locked
         ):
             self.occupied = False
+            if not self.base_url:
+                self._is_host = msg.device_status["Remote"]["Address"]
+                self._api_port = msg.device_status["Remote"]["API port"]
+                self.base_url = f"http://{self._is_host}:{self._api_port}"
+            if not self.device_id:
+                self.device_id = msg.device_status["Remote"]["Device Id"]
             self._start_thread(
                 Thread(
                     target=self._http_get_function,

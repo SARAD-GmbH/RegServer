@@ -16,8 +16,8 @@ from threading import Thread
 import requests  # type: ignore
 from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj, KillMsg,
-                                      SetDeviceStatusMsg, SetupMdnsActorMsg,
-                                      Status, TransportTechnology)
+                                      SetDeviceStatusMsg, Status,
+                                      TransportTechnology)
 from regserver.base_actor import BaseActor
 from regserver.helpers import sarad_protocol, short_id, transport_technology
 from regserver.logger import logger
@@ -159,30 +159,11 @@ class HostActor(BaseActor):
                 )
                 return
         data = device_status[device_id]
-        is_host = data["Remote"]["Address"]
-        api_port = data["Remote"]["API port"]
-        remote_device_id = data["Remote"]["Device Id"]
         if device_id not in self.child_actors:
             device_actor = self._create_actor(DeviceActor, device_id, None)
-            self.send(
-                device_actor,
-                SetupMdnsActorMsg(is_host, api_port, remote_device_id),
-            )
-            logger.debug(
-                "%s: Setup device actor for %s: %s",
-                self.my_id,
-                is_host,
-                remote_device_id,
-            )
             self._get_host_info()
         else:
             device_actor = self.child_actors[device_id]["actor_address"]
-            logger.debug(
-                "%s: Device actor %s exists at %s.",
-                self.my_id,
-                remote_device_id,
-                is_host,
-            )
         data["State"] = 2
         self.send(device_actor, SetDeviceStatusMsg(data))
 

@@ -312,22 +312,6 @@ class SetupUsbActorMsg:
 
 
 @dataclass
-class SetupMdnsActorMsg:
-    """Message used to send the special setup information required for mDNS device Actors.
-    The parameters are required to establish the socket connection to the Instrument Server 2.
-
-    Args:
-        is_host (str): IP address of IS2.
-        api_port (int): Port the REST API of IS2 is on.
-        device_id (str): Device ID at the remote host.
-    """
-
-    is_host: str
-    api_port: int
-    device_id: str
-
-
-@dataclass
 class FinishSetupUsbActorMsg:
     """Message from UsbActor indicating that initialization was completed.
 
