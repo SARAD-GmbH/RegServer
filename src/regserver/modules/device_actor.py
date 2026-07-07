@@ -662,6 +662,7 @@ class DeviceBaseActor(BaseActor):
         This function has to be called in the protocol specific modules.
         """
         logger.debug("_handle_reserve_reply_from_is. %s, %s", success, requester)
+        self._fifo(None)
         if success not in [Status.OCCUPIED]:
             self._release_lock("Reserve")
         self.return_message = ReservationStatusMsg(
@@ -742,6 +743,7 @@ class DeviceBaseActor(BaseActor):
         This function has to be called in the protocol specific modules.
         """
         logger.debug("Free command on %s returned %s", self.instr_id, success)
+        self._fifo(None)
         if success not in [Status.OK_SKIPPED]:
             self._release_lock("Free")
         if success in (Status.OK, Status.OK_SKIPPED, Status.OK_UPDATED):
@@ -789,6 +791,7 @@ class DeviceBaseActor(BaseActor):
         This function has to be called in the protocol specific modules.
         """
         logger.debug("Send answer to requester: %s", answer)
+        self._fifo(None)
         client = ""
         for _key, request_lock in self.request_locks.items():
             if request_lock.locked:
@@ -814,6 +817,7 @@ class DeviceBaseActor(BaseActor):
                             False, if it was called during setup of the UsbActor.
             utc_offset (float): UTC offset (time zone). -13 = unknown
         """
+        self._fifo(None)
         if confirm:
             client = ""
             for _key, request_lock in self.request_locks.items():
@@ -838,6 +842,7 @@ class DeviceBaseActor(BaseActor):
             confirm (bool): True, if the ACK shall be forwarded;
                             False, if it was called during setup of the UsbActor.
         """
+        self._fifo(None)
         if confirm:
             client = ""
             for _key, request_lock in self.request_locks.items():
@@ -861,6 +866,7 @@ class DeviceBaseActor(BaseActor):
         Args:
             status (Status): Info about the success of operation.
         """
+        self._fifo(None)
         client = ""
         for _key, request_lock in self.request_locks.items():
             if request_lock.locked:
@@ -925,6 +931,7 @@ class DeviceBaseActor(BaseActor):
         Args:
             status (Status): Info about the success of operation.
         """
+        self._fifo(None)
         self.send(
             requester,
             UpdateDeviceStatusMsg(self.my_id, self.device_status),
@@ -998,6 +1005,7 @@ class DeviceBaseActor(BaseActor):
         """Forward a binary message from the Instrument Server to the redirector.
         This function has to be called in the protocol specific modules.
         """
+        self._fifo(None)
         self.send(self.redirector_actor, answer)
         logger.debug(answer.data)
         if self.bin_locks and self.bin_locks[-1].value:
@@ -1074,8 +1082,17 @@ class DeviceBaseActor(BaseActor):
 
     def _fifo(self, action_request):
         """Puts action_request into the request_queue, takes the first action
-        from the queue and calls its worker."""
-        self.request_queue.append(action_request)
-        logger.debug("%d elements in queue of %s", len(self.request_queue), self.my_id)
-        dequeued_action = self.request_queue[0]
+        from the queue and calls its worker.
+        If action_request is None, it only does the second part of the job."""
+        if action_request is not None:
+            self.request_queue.append(action_request)
+        if len(self.request_queue) > 1:
+            logger.info(
+                "%d elements in queue of %s", len(self.request_queue), self.my_id
+            )
+            logger.debug(self.request_queue)
+        try:
+            dequeued_action = self.request_queue[0]
+        except IndexError:
+            return
         dequeued_action.worker(dequeued_action)
