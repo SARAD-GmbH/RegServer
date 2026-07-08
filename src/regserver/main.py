@@ -118,16 +118,15 @@ class Main:
         self.modbus_rtu = None
         usb_listener = None
         self.lan_backend = None
-        self.api_process = None
         if Frontend.REST in frontend_config:
             if os.name == "posix":
                 self.api_process = Process(
-                    target=self.start_webserver,
+                    target=start_webserver,
                     name="api_process",
                 )
             else:
                 self.api_process = threading.Thread(
-                    target=self.start_webserver,
+                    target=start_webserver,
                     name="api_thread",
                     daemon=True,
                 )
@@ -154,28 +153,12 @@ class Main:
             self.lan_backend.start()
         logger.info("The RegServer is up and running now.")
 
-    def start_webserver(self):
-        """Start the Waitress webserver for the REST API
-
-        This function will never come back and must be started in a separate
-        process.
-
-        """
-        wait_before_restart = rest_frontend_config.get("WAIT_BEFORE_RESTART", 60)
-        port = rest_frontend_config["API_PORT"]
-        while not self.stop_event.is_set():
-            try:
-                logger.info("Starting API at port %d", port)
-                serve(app, listen=f"*:{port}", threads=24, connection_limit=200)
-            except OSError as exception:
-                logger.critical(exception)
-                sleep(wait_before_restart)
-
     def shutdown(self, wait_some_time, registrar_is_down, with_error=True):
         # pylint: disable=too-many-branches
         """Shutdown application"""
         self.stop_event.set()
-        self.usb_listener_thread.join()
+        if TransportTechnology.LOCAL in backend_config:
+            self.usb_listener_thread.join()
         if self.lan_backend is not None:
             logger.info("Shutdown MdnsListener")
             try:
@@ -188,10 +171,16 @@ class Main:
                 self.modbus_rtu.stop()
             except Exception as exception:  # pylint: disable=broad-except
                 logger.critical(exception)
-        if (self.api_process is not None) and (os.name == "posix"):
+        if (
+            (Frontend.REST in frontend_config)
+            and (self.api_process is not None)
+            and (os.name == "posix")
+        ):
             logger.info("Terminate REST-API")
             try:
-                self.api_process.kill()
+                self.api_process.terminate()
+                self.api_process.join(timeout=120)
+                self.api_process.close()
             except Exception as exception:  # pylint: disable=broad-except
                 logger.critical(exception)
         if wait_some_time:
@@ -213,7 +202,6 @@ class Main:
                 logger.error("KillMsg to Registrar returned with %s", response)
         try:
             ActorSystem().shutdown()
-            sleep(3)
         except OSError as exception:
             logger.critical(exception)
         self.kill_residual_processes(end_with_error=with_error)
@@ -226,9 +214,19 @@ class Main:
 
     def kill_residual_processes(self, end_with_error=True):
         """Kill RegServer processes. OS independent."""
-        for thread in threading.enumerate():
-            if thread.name != "MainThread":
-                logger.warning("Thread still alive before killing: %s", thread.name)
+        thread_still_alive = True
+        k = 10
+        while thread_still_alive and k:
+            sleep(0.2)
+            k = k - 1
+            thread_still_alive = False
+            for thread in threading.enumerate():
+                if thread.name != "MainThread":
+                    thread_still_alive = True
+                    if thread_still_alive and not k:
+                        logger.warning(
+                            "Thread still alive before killing: %s", thread.name
+                        )
         if end_with_error:
             logger.info("Trying to kill residual processes. Fingers crossed!")
         if os.name == "posix":
@@ -366,6 +364,23 @@ class Main:
             registrar_is_down,
             with_error=is_flag_set()[1],
         )
+
+
+def start_webserver():
+    """Start the Waitress webserver for the REST API
+
+    This function will never come back and must be started in a separate
+    process.
+
+    """
+    wait_before_restart = rest_frontend_config.get("WAIT_BEFORE_RESTART", 60)
+    port = rest_frontend_config["API_PORT"]
+    try:
+        logger.info("Starting API at port %d", port)
+        serve(app, listen=f"*:{port}", threads=24, connection_limit=200)
+    except OSError as exception:
+        logger.critical(exception)
+        sleep(wait_before_restart)
 
 
 def signal_handler(_sig, _frame):

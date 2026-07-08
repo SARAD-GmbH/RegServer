@@ -42,7 +42,7 @@ class ComActor(BaseActor):
     def _guess_family(self):
         family_mapping = [
             (r"(?i)irda", 1),
-            (r"(?i)scout|(?i)smart", 2),
+            (r"(?i)scout|smart", 2),
             (r"#2", 2),
             (r"#5", 5),
             (r"#6", 6),
