@@ -13,8 +13,8 @@ The associated Redirector will be created by the Device Actor on Reservation.
 
 import socket
 from threading import Thread
+from typing import override
 
-from overrides import overrides  # type: ignore
 from regserver.actor_messages import OnlineStatusMsg
 from regserver.base_actor import BaseActor
 from regserver.config import (config, get_hostname, get_ip,
@@ -31,7 +31,7 @@ class MdnsAdvertiserActor(BaseActor):
     # pylint: disable=too-many-instance-attributes
     """Actor to advertise a listening server socket via mDNS"""
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self.device_actor = None
@@ -91,7 +91,7 @@ class MdnsAdvertiserActor(BaseActor):
                 )
                 self._kill_myself()
 
-    @overrides
+    @override
     def _kill_myself(self, register=True, resurrect=False):
         if self.service is not None:
             try:

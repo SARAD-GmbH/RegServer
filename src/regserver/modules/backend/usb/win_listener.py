@@ -16,10 +16,9 @@ try:
 except ImportError:
     print("Wrong operating system.")
     raise
-from threading import Thread
 from time import sleep
+from typing import override
 
-from overrides import overrides  # type: ignore
 from regserver.actor_messages import InstrAddedMsg, InstrRemovedMsg
 from regserver.logger import logger
 from regserver.modules.backend.usb.base_listener import BaseListener
@@ -75,7 +74,7 @@ class UsbListener(BaseListener):
         0xFFFF: ("DBT_USERDEFINED", "The meaning of this message is user-defined."),
     }
 
-    @overrides
+    @override
     def __init__(self, registrar_actor):
         super().__init__(registrar_actor)
         self.hwnd = None

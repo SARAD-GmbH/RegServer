@@ -11,8 +11,8 @@
 from copy import deepcopy
 from datetime import datetime, timezone
 from threading import Thread
+from typing import override
 
-from overrides import overrides
 from regserver.actor_messages import (FinishSetupUsbActorMsg, FreeDeviceMsg,
                                       ReservationStatusMsg, SetDeviceStatusMsg,
                                       Status)
@@ -29,7 +29,7 @@ SER_TIMEOUT = 10
 class ZigBeeDeviceActor(UsbActor):
     """Device Actor for an instrument connected via NetMonitors Coordinator"""
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self.zigbee_address = 0
@@ -42,7 +42,7 @@ class ZigBeeDeviceActor(UsbActor):
         )
         self.close_channel_thread = Thread(target=self._close_channel, daemon=True)
 
-    @overrides
+    @override
     def _setup(self, family_id=None, route=None):
         self.instrument = id_family_mapping.get(family_id)
         if family_id == 5:
@@ -87,7 +87,7 @@ class ZigBeeDeviceActor(UsbActor):
             self.instrument.release_instrument()
             self.send(self.parent.parent_address, FinishSetupUsbActorMsg(success=True))
 
-    @overrides
+    @override
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         if sender != self.parent.parent_address:
@@ -149,7 +149,7 @@ class ZigBeeDeviceActor(UsbActor):
         self.instrument.release_instrument()
         super().receiveMsg_ReserveDeviceMsg(msg, sender)
 
-    @overrides
+    @override
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         if sender != self.parent.parent_address:
             logger.debug("Forward %s to NetUsbActor", msg)
@@ -167,7 +167,7 @@ class ZigBeeDeviceActor(UsbActor):
         else:
             super().receiveMsg_FreeDeviceMsg(msg, sender)
 
-    @overrides
+    @override
     def _kill_myself(self, register=True, resurrect=False):
         has_reservation_section = self.device_status.get("Reservation", False)
         if has_reservation_section:
@@ -192,7 +192,7 @@ class ZigBeeDeviceActor(UsbActor):
         except (SerialException, TypeError) as exception:
             logger.warning("%s during _close_channel from %s", exception, self.my_id)
 
-    @overrides
+    @override
     def receiveMsg_SetupUsbActorMsg(self, msg, sender):
         logger.debug("Setup ZigBeeDeviceActor %s", self.my_id)
         super().receiveMsg_SetupUsbActorMsg(msg, sender)

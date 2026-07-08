@@ -11,8 +11,8 @@
 from dataclasses import replace
 from datetime import timedelta
 from threading import Thread
+from typing import override
 
-from overrides import overrides
 from regserver.actor_messages import (ActorType, KillMsg, SetDeviceStatusMsg,
                                       SetupUsbActorMsg)
 from regserver.config import config
@@ -34,7 +34,7 @@ SCAN_INTERVAL = 15  # must be longer than SER_TIMEOUT
 class NetUsbActor(UsbActor):
     """Device Actor for a NetMonitors Coordinator"""
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self.actor_type = ActorType.NODE
@@ -42,12 +42,12 @@ class NetUsbActor(UsbActor):
         self.scan_thread = Thread(target=self.scan, daemon=True)
         self.close_channel_thread = Thread(target=self._close_channel, daemon=True)
 
-    @overrides
+    @override
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         self._subscribe_to_actor_dict_msg()
 
-    @overrides
+    @override
     def _setup(self, family_id=None, route=None):
         self.instrument = id_family_mapping.get(family_id)
         if self.instrument is None:
@@ -78,7 +78,7 @@ class NetUsbActor(UsbActor):
         self.wakeupAfter(timedelta(seconds=SCAN_INTERVAL), payload="scan")
         return
 
-    @overrides
+    @override
     def _kill_myself(self, register=True, resurrect=False):
         if not self.close_channel_thread.is_alive():
             self.close_channel_thread = Thread(target=self._close_channel, daemon=True)
@@ -92,7 +92,7 @@ class NetUsbActor(UsbActor):
         except (SerialException, TypeError) as exception:
             logger.warning("%s during _close_channel from %s", exception, self.my_id)
 
-    @overrides
+    @override
     def receiveMsg_WakeupMessage(self, msg, sender):
         super().receiveMsg_WakeupMessage(msg, sender)
         if (msg.payload == "scan") and not self.blocked:
@@ -101,17 +101,17 @@ class NetUsbActor(UsbActor):
                 self.scan_thread.start()
         self.wakeupAfter(timedelta(seconds=SCAN_INTERVAL), payload="scan")
 
-    @overrides
+    @override
     def receiveMsg_ReserveDeviceMsg(self, msg, sender):
         self.blocked = True
         self._forward_to_children(msg)
 
-    @overrides
+    @override
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
         self.blocked = False
         self._forward_to_children(msg)
 
-    @overrides
+    @override
     def receiveMsg_ChildActorExited(self, msg, sender):
         if not self.child_actors:
             self.blocked = False

@@ -14,8 +14,7 @@ import select
 import socket
 from threading import Thread
 from time import sleep
-
-from overrides import overrides  # type: ignore
+from typing import override
 
 from regserver.actor_messages import SocketMsg, Status, TxBinaryMsg
 from regserver.base_actor import BaseActor
@@ -26,7 +25,7 @@ from regserver.logger import logger
 class RedirectorActor(BaseActor):
     """Create listening server socket for binary pakets from a SARAD© Application"""
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self._client_socket = None
@@ -61,7 +60,7 @@ class RedirectorActor(BaseActor):
         self.read_list[0].close()
         logger.debug("Socket at port %d closed.", self._address[1])
 
-    @overrides
+    @override
     def receiveMsg_SetupMsg(self, msg, sender):
         logger.debug("Setup redirector actor")
         super().receiveMsg_SetupMsg(msg, sender)

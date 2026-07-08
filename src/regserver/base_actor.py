@@ -18,8 +18,8 @@ Actors created in the actor system
 """
 
 from copy import deepcopy
+from typing import override
 
-from overrides import overrides  # type: ignore
 from thespian.actors import ActorExitRequest  # type: ignore
 from thespian.actors import ActorAddress, ActorTypeDispatcher, ChildActorExited
 
@@ -62,7 +62,7 @@ class BaseActor(ActorTypeDispatcher):
                 return actor_id
         return None
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self.registrar: ActorAddress = ActorAddress(None)

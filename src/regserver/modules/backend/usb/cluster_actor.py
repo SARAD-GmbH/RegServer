@@ -12,8 +12,8 @@ Covers as well USB ports as native RS-232 ports, addressed RS-485 as ZigBee.
 
 import os
 from datetime import datetime, timezone
+from typing import override
 
-from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj, KillMsg,
                                       ReturnLocalPortsMsg, ReturnLoopPortsMsg,
                                       ReturnNativePortsMsg, ReturnUsbPortsMsg,
@@ -63,7 +63,7 @@ class ClusterActor(BaseActor):
             result.add(actor_id.split("-")[0])
         return result
 
-    @overrides
+    @override
     def __init__(self):
         self.poll_ports = {
             self._normalize(port) for port in local_backend_config["POLL_SERIAL_PORTS"]
@@ -85,7 +85,7 @@ class ClusterActor(BaseActor):
             self.loop_ports,
         )
 
-    @overrides
+    @override
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         self._rescan()

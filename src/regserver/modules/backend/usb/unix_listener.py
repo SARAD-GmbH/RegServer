@@ -11,9 +11,9 @@
 
 import hashlib
 from time import sleep
+from typing import override
 
 import pyudev  # type: ignore
-from overrides import overrides  # type: ignore
 from regserver.actor_messages import InstrAddedMsg, InstrRemovedMsg
 from regserver.logger import logger
 from regserver.modules.backend.usb.base_listener import BaseListener
@@ -35,7 +35,7 @@ class UsbListener(BaseListener):
         identifier_string = id_model + id_vendor + enc_vendor
         return hashlib.sha224(identifier_string.encode("utf-8")).hexdigest()
 
-    @overrides
+    @override
     def __init__(self, registrar_actor):
         super().__init__(registrar_actor)
         context = pyudev.Context()

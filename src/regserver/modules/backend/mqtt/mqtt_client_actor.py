@@ -12,8 +12,8 @@
 import json
 from copy import deepcopy
 from datetime import datetime, timedelta
+from typing import override
 
-from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj, KillMsg,
                                       MqttReceiveMsg, PrepareMqttActorMsg,
                                       ResurrectMsg, SetDeviceStatusMsg,
@@ -114,19 +114,19 @@ class MqttClientActor(MqttBaseActor):
                 return device_id
         return None
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self._hosts = {}
         self.actor_type = ActorType.HOST
         self.resurrect_msg = ResurrectMsg(is_id="")
 
-    @overrides
+    @override
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         self._subscribe_to_actor_dict_msg()
 
-    @overrides
+    @override
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
         self.mqttc.message_callback_add(f"{self.group}/+/meta", self.on_is_meta)
@@ -475,13 +475,13 @@ class MqttClientActor(MqttBaseActor):
                     MqttReceiveMsg(topic=message.topic, payload=message.payload),
                 )
 
-    @overrides
+    @override
     def on_connect(self, client, userdata, flags, reason_code, properties):
         # pylint: disable=[too-many-arguments, too-many-positional-arguments]
         super().on_connect(client, userdata, flags, reason_code, properties)
         self.mqttc.subscribe(f"{self.group}/+/meta", 2)
 
-    @overrides
+    @override
     def on_disconnect(self, client, userdata, flags, reason_code, properties):
         # pylint: disable=[too-many-arguments, too-many-positional-arguments]
         super().on_disconnect(client, userdata, flags, reason_code, properties)
@@ -534,7 +534,7 @@ class MqttClientActor(MqttBaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.resurrect_msg = deepcopy(msg)
 
-    @overrides
+    @override
     def receiveMsg_ChildActorExited(self, msg, sender):
         super().receiveMsg_ChildActorExited(msg, sender)
         if self.resurrect_msg.is_id:
@@ -546,7 +546,7 @@ class MqttClientActor(MqttBaseActor):
             )
             self.resurrect_msg.is_id = ""
 
-    @overrides
+    @override
     def receiveMsg_WakeupMessage(self, msg, sender):
         super().receiveMsg_WakeupMessage(msg, sender)
         key = msg.payload[0]

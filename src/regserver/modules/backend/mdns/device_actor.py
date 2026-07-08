@@ -13,9 +13,9 @@ import socket
 from datetime import datetime, timedelta
 from enum import Enum
 from threading import Thread
+from typing import override
 
 import requests  # type: ignore
-from overrides import overrides  # type: ignore
 from regserver.actor_messages import (RecentValueMsg, RxBinaryMsg,
                                       SetRtcAckMsg, Status)
 from regserver.config import config
@@ -34,7 +34,7 @@ UPDATE_INTERVAL = 10  # seconds, update interval for occupied devices
 class TimeoutHTTPAdapter(HTTPAdapter):
     """Class to unify timeouts for all requests"""
 
-    @overrides
+    @override
     def __init__(self, *args, **kwargs):
         self.timeout = DEFAULT_TIMEOUT
         if "timeout" in kwargs:
@@ -42,7 +42,7 @@ class TimeoutHTTPAdapter(HTTPAdapter):
             del kwargs["timeout"]
         super().__init__(*args, **kwargs)
 
-    @overrides
+    @override
     def send(
         self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None
     ):
@@ -72,7 +72,7 @@ class DeviceActor(DeviceBaseActor):
     # pylint: disable=too-many-instance-attributes
     """Actor for dealing with raw socket connections between App and IS2"""
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self._is_host = ""
@@ -273,7 +273,7 @@ class DeviceActor(DeviceBaseActor):
                 payload=thread,
             )
 
-    @overrides
+    @override
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         self.http = requests.Session()
@@ -309,7 +309,7 @@ class DeviceActor(DeviceBaseActor):
             )
             self._kill_myself()
 
-    @overrides
+    @override
     def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name
         """Handle WakeupMessage for regular updates"""
@@ -369,7 +369,7 @@ class DeviceActor(DeviceBaseActor):
             )
             self._kill_myself()
 
-    @overrides
+    @override
     def _request_free_at_is(self, sender):
         self._start_thread(
             Thread(
@@ -402,7 +402,7 @@ class DeviceActor(DeviceBaseActor):
         logger.info("%s: Doublecheck the reservation status after free", self.my_id)
         self.wakeupAfter(timedelta(seconds=11), payload="update")
 
-    @overrides
+    @override
     def _request_reserve_at_is(self, sender):
         """Reserve the requested instrument at the instrument server."""
         app = self.reserve_device_msg.app
@@ -456,7 +456,7 @@ class DeviceActor(DeviceBaseActor):
             logger.debug("_kill_myself called in _finish_reserve")
             self._kill_myself()
 
-    @overrides
+    @override
     def _request_recent_value_at_is(self, msg, sender):
         super()._request_recent_value_at_is(msg, sender)
         self._start_thread(
@@ -475,7 +475,7 @@ class DeviceActor(DeviceBaseActor):
             )
         )
 
-    @overrides
+    @override
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
         if not (
             self.request_locks["Reserve"].locked or self.request_locks["Free"].locked
@@ -499,7 +499,7 @@ class DeviceActor(DeviceBaseActor):
                 )
             )
 
-    @overrides
+    @override
     def _finish_set_device_status(self, device_status):
         """Finalize SetDeviceStatusMsg handler after receiving HTTP request."""
         if self.success == Status.OK:
@@ -560,7 +560,7 @@ class DeviceActor(DeviceBaseActor):
             )
             self._kill_myself()
 
-    @overrides
+    @override
     def _request_set_rtc_at_is(self, sender, confirm=False):
         self._start_thread(
             Thread(
@@ -574,7 +574,7 @@ class DeviceActor(DeviceBaseActor):
         )
         super()._request_set_rtc_at_is(sender, confirm)
 
-    @overrides
+    @override
     def _request_start_monitoring_at_is(self, sender, start_time=None, confirm=False):
         self._start_thread(
             Thread(
@@ -589,7 +589,7 @@ class DeviceActor(DeviceBaseActor):
         )
         super()._request_start_monitoring_at_is(sender, start_time, confirm)
 
-    @overrides
+    @override
     def _request_stop_monitoring_at_is(self, sender):
         self._start_thread(
             Thread(
@@ -603,7 +603,7 @@ class DeviceActor(DeviceBaseActor):
         )
         super()._request_stop_monitoring_at_is(sender)
 
-    @overrides
+    @override
     def _request_bin_at_is(self, data):
         """Forward cmd data into the direction of the instrument."""
         super()._request_bin_at_is(data)
@@ -622,7 +622,7 @@ class DeviceActor(DeviceBaseActor):
             reply = self.RET_TIMEOUT
         self._handle_bin_reply_from_is(RxBinaryMsg(data=reply))
 
-    @overrides
+    @override
     def _request_status_at_is(self, sender):
         """Send a request to the Instrument Server to get the recent status of
         the device.

@@ -12,9 +12,9 @@ import time
 from dataclasses import replace
 from datetime import datetime, timedelta
 from threading import Thread
+from typing import override
 
 import requests  # type: ignore
-from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj, KillMsg,
                                       SetDeviceStatusMsg, Status,
                                       TransportTechnology)
@@ -33,7 +33,7 @@ RETRY = 0  # number of retries for HTTP requests
 class TimeoutHTTPAdapter(HTTPAdapter):
     """Class to unify timeouts for all requests"""
 
-    @overrides
+    @override
     def __init__(self, *args, **kwargs):
         self.timeout = DEFAULT_TIMEOUT
         if "timeout" in kwargs:
@@ -41,7 +41,7 @@ class TimeoutHTTPAdapter(HTTPAdapter):
             del kwargs["timeout"]
         super().__init__(*args, **kwargs)
 
-    @overrides
+    @override
     def send(
         self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None
     ):  # pylint: disable=too-many-arguments, too-many-positional-arguments
@@ -60,7 +60,7 @@ class HostActor(BaseActor):
             return f"{short_id(local_id, check=False)}.{sarad_protocol(local_id)}.mdns"
         return local_id
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self.base_url = ""
@@ -91,7 +91,7 @@ class HostActor(BaseActor):
         self.actor_type = ActorType.HOST
         self.shutdown_password = ""
 
-    @overrides
+    @override
     def receiveMsg_SetupMsg(self, msg, sender):
         self.http = requests.Session()
         self.http.hooks["response"] = [
@@ -111,7 +111,7 @@ class HostActor(BaseActor):
         super().receiveMsg_SetupMsg(msg, sender)
         logger.info("Ping %s every %d minutes.", self.my_id, PING_INTERVAL)
 
-    @overrides
+    @override
     def receiveMsg_ChildActorExited(self, msg, sender):
         super().receiveMsg_ChildActorExited(msg, sender)
         if not self.child_actors:

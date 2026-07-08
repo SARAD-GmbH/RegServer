@@ -18,8 +18,8 @@ import platform
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from time import sleep
+from typing import override
 
-from overrides import overrides  # type: ignore
 from sarad.global_helpers import decode_instr_id
 
 from regserver.actor_messages import (ActorType, Frontend, GetHostInfoMsg,
@@ -70,7 +70,7 @@ ACTOR_DICT = {
 class Registrar(BaseActor):
     """Actor providing a dictionary of devices"""
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self.device_statuses = {}  # {device_id: {status_dict}}
@@ -82,7 +82,7 @@ class Registrar(BaseActor):
         self.led_steady = False
         self.online = True
 
-    @overrides
+    @override
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         self.handleDeadLetters(startHandling=True)
@@ -109,13 +109,13 @@ class Registrar(BaseActor):
         self._handle_aranea_led()
         self._update_led_state()
 
-    @overrides
+    @override
     def receiveMsg_ChildActorExited(self, msg, sender):
         actor_id = self._get_actor_id(msg.childAddress, self.child_actors)
         self._check_persistency(actor_id)
         super().receiveMsg_ChildActorExited(msg, sender)
 
-    @overrides
+    @override
     def _kill_myself(self, register=True, resurrect=False):
         if self.led and not self.led.closed:
             self.led.close()
@@ -452,7 +452,7 @@ class Registrar(BaseActor):
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         self.send(sender, UpdateActorDictMsg(self.actor_dict))
 
-    @overrides
+    @override
     def receiveMsg_ActorExitRequest(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for ActorExitRequest"""

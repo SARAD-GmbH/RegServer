@@ -12,9 +12,8 @@
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
-from typing import Callable
+from typing import Callable, override
 
-from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, FreeDeviceMsg, Frontend,
                                       GetDeviceStatusMsg, GetRecentValueMsg,
                                       KillMsg, RecentValueMsg,
@@ -110,7 +109,7 @@ class DeviceBaseActor(BaseActor):
 
     RET_TIMEOUT = b"B\x80\x7f\xf0\xf0\x00E"
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self.device_status: dict = {}
@@ -136,7 +135,7 @@ class DeviceBaseActor(BaseActor):
         self.bin_locks: list[Lock] = []
         self.last_request_id: int = 0
 
-    @overrides
+    @override
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         self.instr_id = short_id(self.my_id)
@@ -598,7 +597,7 @@ class DeviceBaseActor(BaseActor):
             requester=action_request.sender,
         )
 
-    @overrides
+    @override
     def receiveMsg_ChildActorExited(self, msg, sender):
         if self.device_status.get("Reservation", False):
             if self.device_status["Reservation"].get("IP", False):
@@ -609,7 +608,7 @@ class DeviceBaseActor(BaseActor):
                 self._send_free_status_msg(self.request_locks["Free"].request.sender)
         super().receiveMsg_ChildActorExited(msg, sender)
 
-    @overrides
+    @override
     def receiveMsg_ActorExitRequest(self, msg, sender):
         super().receiveMsg_ActorExitRequest(msg, sender)
         logger.debug(
@@ -1017,7 +1016,7 @@ class DeviceBaseActor(BaseActor):
         to be implemented (overridden) in the backend Device Actor.
         """
 
-    @overrides
+    @override
     def _kill_myself(self, register=True, resurrect=False):
         if not self.on_kill:
             if self.device_status.get("Reservation", False):

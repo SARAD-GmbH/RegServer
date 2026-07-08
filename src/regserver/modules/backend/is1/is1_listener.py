@@ -12,9 +12,9 @@ import socket
 import time
 from datetime import datetime, timedelta
 from threading import Thread
+from typing import override
 
 import tomlkit
-from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                       Is1Address, SetDeviceStatusMsg,
                                       SetupUsbActorMsg, TransportTechnology)
@@ -116,7 +116,7 @@ class Is1Listener(BaseActor):
     def _deduplicate(list_of_objects: list[Is1Address]):
         return list(set(list_of_objects))
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self._client_socket = None
@@ -151,7 +151,7 @@ class Is1Listener(BaseActor):
         self.last_ip = ""
         self.instrument: SaradInst = None
 
-    @overrides
+    @override
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         hosts = is1_backend_config["IS1_HOSTS"]
@@ -340,13 +340,13 @@ class Is1Listener(BaseActor):
             else:
                 logger.error("Error parsing payload received from instrument")
 
-    @overrides
+    @override
     def receiveMsg_KillMsg(self, msg, sender):
         """Handler to exit the redirector actor."""
         self.read_list[0].close()
         super().receiveMsg_KillMsg(msg, sender)
 
-    @overrides
+    @override
     def receiveMsg_ActorExitRequest(self, msg, sender):
         super().receiveMsg_ActorExitRequest(msg, sender)
         for _actor_id, is1_address in self.active_is1_addresses.items():
@@ -421,7 +421,7 @@ class Is1Listener(BaseActor):
         logger.debug("List of active IS1: %s", self.active_is1_addresses)
         logger.debug("List of IS1 for next scan: %s", self.is1_addresses)
 
-    @overrides
+    @override
     def receiveMsg_ChildActorExited(self, msg, sender):
         if not self.on_kill:
             for actor_id, child_actor in self.child_actors.items():

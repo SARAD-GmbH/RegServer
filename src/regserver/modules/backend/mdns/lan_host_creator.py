@@ -10,8 +10,8 @@ Forwards messages to setup Device Actors from the mDNS Listener to the Host Acto
 """
 
 from datetime import timedelta
+from typing import override
 
-from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, SetDeviceStatusMsg,
                                       SetupHostActorMsg, SetupLanDeviceMsg)
 from regserver.base_actor import BaseActor
@@ -24,13 +24,13 @@ from regserver.modules.backend.mdns.host_actor import HostActor
 class HostCreatorActor(BaseActor):
     """Class handling the creation of a host Actors."""
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self.hosts_whitelist = lan_backend_config.get("HOSTS_WHITELIST", [])
         self.pending = {}
 
-    @overrides
+    @override
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         self._subscribe_to_actor_dict_msg()
@@ -45,7 +45,7 @@ class HostCreatorActor(BaseActor):
                 device_status={},
             )
 
-    @overrides
+    @override
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
         super().receiveMsg_UpdateActorDictMsg(msg, sender)
         for hostname in msg.actor_dict:

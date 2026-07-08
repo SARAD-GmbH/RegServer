@@ -14,9 +14,9 @@ import ssl
 import time
 from datetime import datetime, timedelta
 from threading import Thread
+from typing import override
 
 import paho.mqtt.client as MQTT  # type: ignore
-from overrides import overrides  # type: ignore
 from regserver.actor_messages import Frontend, TransportTechnology
 from regserver.base_actor import BaseActor
 from regserver.config import (FRMT, PING_FILE_NAME, backend_config,
@@ -30,7 +30,7 @@ class MqttBaseActor(BaseActor):
     # pylint: disable=too-many-instance-attributes
     """Actor interacting with a new device"""
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self.mqttc: MQTT.Client
@@ -45,7 +45,7 @@ class MqttBaseActor(BaseActor):
         self.last_pingresp = datetime.now()
         self.is_id = ""
 
-    @overrides
+    @override
     def _kill_myself(self, register=True, resurrect=False):
         if self.is_connected:
             logger.debug("Disconnect from MQTT broker")

@@ -10,12 +10,10 @@
 
 from threading import Thread
 from time import sleep
-from typing import Union
+from typing import Union, override
 
-from overrides import overrides
 from regserver.actor_messages import KillMsg, SetupUsbActorMsg
 from regserver.base_actor import BaseActor
-from regserver.config import local_backend_config
 from regserver.logger import logger
 from regserver.modules.backend.usb.net_usb_actor import NetUsbActor
 from regserver.modules.backend.usb.usb_actor import UsbActor
@@ -31,7 +29,7 @@ from serial.tools import list_ports  # type: ignore
 class ComActor(BaseActor):
     """Actor representing a usable serial connections via USB, RS-232, RS-485 or ZigBee"""
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self.polling_loop_running = False  # indicates that the polling is active
@@ -78,7 +76,7 @@ class ComActor(BaseActor):
             if self.permanent_polling_interval:
                 self._start_polling()
 
-    @overrides
+    @override
     def receiveMsg_ChildActorExited(self, msg, sender):
         super().receiveMsg_ChildActorExited(msg, sender)
         if not self.on_kill:

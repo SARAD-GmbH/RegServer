@@ -15,8 +15,8 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from threading import Thread
 from time import sleep
+from typing import override
 
-from overrides import overrides
 from regserver.actor_messages import (ControlFunctionalityMsg, Frontend,
                                       MqttPublishMsg, RecentValueMsg,
                                       ReserveDeviceMsg, RxBinaryMsg,
@@ -78,7 +78,7 @@ class Parameter:
 class UsbActor(DeviceBaseActor):
     """Actor for dealing with direct serial connections via USB or RS-232"""
 
-    @overrides
+    @override
     def __init__(self):
         logger.debug("Initialize a new USB actor.")
         super().__init__()
@@ -188,7 +188,7 @@ class UsbActor(DeviceBaseActor):
         logger.debug("Instrument with Id %s detected.", self.instr_id)
         return
 
-    @overrides
+    @override
     def receiveMsg_WakeupMessage(self, msg, sender):
         # pylint: disable=invalid-name, disable=too-many-branches
         """Handler for WakeupMessage"""
@@ -284,7 +284,7 @@ class UsbActor(DeviceBaseActor):
             return tx_rx[data]
         return b""
 
-    @overrides
+    @override
     def _request_bin_at_is(self, data):
         self._start_thread(
             Thread(
@@ -348,7 +348,7 @@ class UsbActor(DeviceBaseActor):
                 self._handle_bin_reply_from_is(RxBinaryMsg(self.RET_TIMEOUT))
                 return
 
-    @overrides
+    @override
     def _request_reserve_at_is(self, sender):
         """Reserve the requested instrument.
 
@@ -404,7 +404,7 @@ class UsbActor(DeviceBaseActor):
             logger.info("Killing myself")
             self._kill_myself()
 
-    @overrides
+    @override
     def _request_free_at_is(self, sender):
         """Free the instrument
 
@@ -423,7 +423,7 @@ class UsbActor(DeviceBaseActor):
                 logger.info("Suspend monitoring mode at %s", self.my_id)
                 self.mon_state.monitoring_active = False
 
-    @overrides
+    @override
     def _request_set_rtc_at_is(self, sender, confirm=False):
         if self.instrument is None:
             logger.critical(
@@ -504,7 +504,7 @@ class UsbActor(DeviceBaseActor):
                 return False
         return True
 
-    @overrides
+    @override
     def _request_start_monitoring_at_is(self, sender, start_time=None, confirm=False):
         if self.instrument is None:
             logger.critical(
@@ -559,7 +559,7 @@ class UsbActor(DeviceBaseActor):
             self.mon_state.monitoring_shall_be_active = False
             self._request_free_at_is(sender=sender)
 
-    @overrides
+    @override
     def _request_stop_monitoring_at_is(self, sender):
         if self.instrument is None:
             logger.critical(
@@ -784,7 +784,7 @@ class UsbActor(DeviceBaseActor):
                 ),
             )
 
-    @overrides
+    @override
     def _request_recent_value_at_is(self, msg, sender):
         super()._request_recent_value_at_is(msg, sender)
         answer = self._get_recent_value_inner(msg.component, msg.sensor, msg.measurand)
@@ -958,11 +958,11 @@ class UsbActor(DeviceBaseActor):
             instr_id=self.instr_id,
         )
 
-    @overrides
+    @override
     def receiveMsg_ChildActorExited(self, msg, sender):
         super().receiveMsg_ChildActorExited(msg, sender)
 
-    @overrides
+    @override
     def _kill_myself(self, register=True, resurrect=False):
         if self.mon_state.monitoring_active:
             self._stop_monitoring()

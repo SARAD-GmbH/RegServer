@@ -13,8 +13,8 @@ import time
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from threading import Condition, Thread
+from typing import override
 
-from overrides import overrides  # type: ignore
 from regserver.actor_messages import (ActorType, FreeDeviceMsg,
                                       GetDeviceStatusesMsg, GetRecentValueMsg,
                                       OnlineStatusMsg, RescanMsg,
@@ -81,7 +81,7 @@ class MqttSchedulerActor(MqttBaseActor):
                 active_device_actor_dict[actor_id] = description
         return active_device_actor_dict
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
         self.reservations = {}  # {device_id: <reservation object>}
@@ -106,14 +106,14 @@ class MqttSchedulerActor(MqttBaseActor):
         self.last_update = datetime(year=1970, month=1, day=1)
         self.cached_replies = {}  # {instr_id: CachedReply}
 
-    @overrides
+    @override
     def _clean_session(self) -> bool:
         """We always want a persistent session, since in the frontend we don't
         have the problem of message storms like in the MQTT backend. That's why
         we do not check the ping file."""
         return False
 
-    @overrides
+    @override
     def receiveMsg_PrepareMqttActorMsg(self, msg, sender):
         super().receiveMsg_PrepareMqttActorMsg(msg, sender)
         # callbacks for host
@@ -137,13 +137,13 @@ class MqttSchedulerActor(MqttBaseActor):
             retain=True,
         )
 
-    @overrides
+    @override
     def on_disconnect(self, client, userdata, flags, reason_code, properties):
         # pylint: disable=too-many-positional-arguments, too-many-arguments
         super().on_disconnect(client, userdata, flags, reason_code, properties)
         self.send(self.registrar, OnlineStatusMsg(online=False))
 
-    @overrides
+    @override
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
         if not self.is_connected:
             return
@@ -351,7 +351,7 @@ class MqttSchedulerActor(MqttBaseActor):
             )
         self._instruments_connected()
 
-    @overrides
+    @override
     def receiveMsg_KillMsg(self, msg, sender):
         for actor_id, description in self.actor_dict.items():
             if description["actor_type"] == ActorType.DEVICE:
@@ -373,7 +373,7 @@ class MqttSchedulerActor(MqttBaseActor):
             )
         super().receiveMsg_KillMsg(msg, sender)
 
-    @overrides
+    @override
     def on_connect(self, client, userdata, flags, reason_code, properties):
         # pylint: disable=too-many-arguments, too-many-positional-arguments
         """Will be carried out when the client connected to the MQTT broker."""

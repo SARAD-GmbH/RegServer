@@ -12,7 +12,8 @@ Author
 
 """
 
-from overrides import overrides  # type: ignore
+from typing import override
+
 from regserver.actor_messages import (ActorType, KillMsg,
                                       SetupMdnsAdvertiserActorMsg)
 from regserver.base_actor import BaseActor
@@ -38,16 +39,16 @@ class MdnsSchedulerActor(BaseActor):
                 active_device_actor_dict[actor_id] = description
         return active_device_actor_dict
 
-    @overrides
+    @override
     def __init__(self):
         super().__init__()
 
-    @overrides
+    @override
     def receiveMsg_SetupMsg(self, msg, sender):
         super().receiveMsg_SetupMsg(msg, sender)
         self._subscribe_to_actor_dict_msg()
 
-    @overrides
+    @override
     def receiveMsg_UpdateActorDictMsg(self, msg, sender):
         old_actor_dict = self._active_device_actors(self.actor_dict)
         super().receiveMsg_UpdateActorDictMsg(msg, sender)
