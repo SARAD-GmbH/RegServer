@@ -1,15 +1,18 @@
 # RegServer 2.5.14
-Date: Fri, 26 June 2026 10:13:12 +0200
+Date: Wed, 8 July 2026 10:13:12 +0200
 
 ## Fixed bugs
 
 - Improved stability in cases where other applications are competing for access
   to the serial port.
 - Improved stability in cases where the instrument does not reply to a command.
+- Improve reliability of freeing of an instrument that was reserved before.
+- Improve instrument discovery with ZeroConf.
 
 ## Features
 
 - Support for new instruments based on DACM-32.
+- Reservation and freeing is possible via the `/instruments/` endpoint.
 
 ## Improvements
 
@@ -18,6 +21,7 @@ Date: Fri, 26 June 2026 10:13:12 +0200
 - Improved behaviour in cooperation with monitoring system ROOMS. Fewer
   unnecessary value checks.
 - Add this changelog to the installation dirctory.
+- Add watchdog for ZeroConf listener and restart it in the case of failure.
 
 # RegServer 2.5.13
 Date: Fri, 24 April 2026 20:23:12 +0100

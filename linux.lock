@@ -889,7 +889,7 @@ files = [
 
 [[package]]
 name = "sarad"
-version = "1.0.26"
+version = "1.0.27"
 requires_python = ">=3.9"
 editable = true
 git = "https://github.com/SARAD-GmbH/sarad.git"
