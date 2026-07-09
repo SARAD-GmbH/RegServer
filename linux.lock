@@ -5,7 +5,7 @@
 groups = ["default", "dev", "lint"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:4f3fb48d226403c418aaf603b6880612836fbf888c04648f7679f7bee2e38e67"
+content_hash = "sha256:91967fb61010c57a943bcb7b522612dea7578312e0b89b8885ce641b473ed670"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.15"
@@ -98,7 +98,7 @@ files = [
 name = "bitvector"
 version = "3.5.0"
 summary = "A memory-efficient packed representation for bit arrays in pure Python"
-groups = ["dev"]
+groups = ["default"]
 files = [
     {file = "BitVector-3.5.0.tar.gz", hash = "sha256:cac2fbccf11e325115827ed7be03e5fd62615227b0bbf3fa5a18a842a221839c"},
 ]
@@ -249,7 +249,7 @@ name = "hashids"
 version = "1.3.1"
 requires_python = ">=2.7"
 summary = "Implements the hashids algorithm in python. For more information, visit http://hashids.org/"
-groups = ["default", "dev"]
+groups = ["default"]
 files = [
     {file = "hashids-1.3.1-py2.py3-none-any.whl", hash = "sha256:8bddd1acba501bfc9306e7e5a99a1667f4f2cacdc20cbd70bcc5ddfa5147c94c"},
     {file = "hashids-1.3.1.tar.gz", hash = "sha256:6c3dc775e65efc2ce2c157a65acb776d634cb814598f406469abef00ae3f635c"},
@@ -541,20 +541,6 @@ files = [
 ]
 
 [[package]]
-name = "overrides"
-version = "7.7.0"
-requires_python = ">=3.6"
-summary = "A decorator to automatically detect mismatch when overriding a method."
-groups = ["dev"]
-dependencies = [
-    "typing; python_version < \"3.5\"",
-]
-files = [
-    {file = "overrides-7.7.0-py3-none-any.whl", hash = "sha256:c7ed9d062f78b8e4c1a7b70bd8796b35ead4d9f510227ef9c5dc7626c60d7e49"},
-    {file = "overrides-7.7.0.tar.gz", hash = "sha256:55158fa3d93b98cc75299b1e67078ad9003ca27945c76162c1c0766d6f91820a"},
-]
-
-[[package]]
 name = "packaging"
 version = "25.0"
 requires_python = ">=3.8"
@@ -661,7 +647,7 @@ files = [
 name = "pyserial"
 version = "3.5"
 summary = "Python Serial Port Extension"
-groups = ["default", "dev"]
+groups = ["default"]
 files = [
     {file = "pyserial-3.5-py2.py3-none-any.whl", hash = "sha256:c4451db6ba391ca6ca299fb3ec7bae67a5c55dde170964c7a14ceefec02f2cf0"},
     {file = "pyserial-3.5.tar.gz", hash = "sha256:3c77e014170dfffbd816e6ffc205e9842efb10be9f58ec16d3e8675b4925cddb"},
@@ -857,17 +843,16 @@ files = [
 
 [[package]]
 name = "sarad"
-version = "1.0.27"
-requires_python = ">=3.9"
-editable = true
+version = "1.0.28"
+requires_python = ">=3.12"
 git = "https://github.com/SARAD-GmbH/sarad.git"
 ref = "master"
+revision = "c2127a198c44193287bf8acefc3667136e985a3d"
 summary = "Library and sample application to collect data from SARAD instruments."
-groups = ["dev"]
+groups = ["default"]
 dependencies = [
     "bitvector>=3.5.0",
     "hashids>=1.3.1",
-    "overrides>=7.7.0",
     "pyserial>=3.5",
     "pyyaml>=6.0.1",
 ]
