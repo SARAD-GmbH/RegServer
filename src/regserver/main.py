@@ -17,13 +17,13 @@ import sys
 import threading
 import traceback
 from datetime import datetime, timedelta
-from multiprocessing import Process, freeze_support
+from multiprocessing import Process, freeze_support, set_start_method
 from time import sleep
+from typing import override
 
 from serial.serialutil import SerialException  # type: ignore
 from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
-from waitress import serve  # type: ignore
 
 from regserver.actor_messages import (Frontend, KillMsg, SetupMsg,
                                       TransportTechnology)
@@ -35,14 +35,18 @@ from regserver.logger import logger
 from regserver.modules.backend.mdns.mdns_listener import ZeroconfWatchdog
 from regserver.modules.frontend.modbus.modbus_rtu import ModbusRtu
 from regserver.registrar import Registrar
-from regserver.restapi import app, set_registrar
+from regserver.restapi import create_api_app
 from regserver.shutdown import (is_flag_set, kill_processes, set_file_flag,
                                 system_shutdown, write_ping_file)
 from regserver.version import VERSION
 
 if os.name == "posix":
+    from gunicorn.app.base import BaseApplication
+
     from regserver.modules.backend.usb.unix_listener import UsbListener
 else:
+    from waitress import serve  # type: ignore
+
     from regserver.modules.backend.usb.win_listener import UsbListener
 
 RETRY_DELAY = 2  # in seconds
@@ -71,7 +75,7 @@ class Main:
         self.stop_event = threading.Event()
         self.stop_event.clear()
         try:
-            system = ActorSystem(
+            self.system = ActorSystem(
                 systemBase=actor_config["systemBase"],
                 capabilities=actor_config["capabilities"],
                 logDefs=logcfg,
@@ -81,7 +85,7 @@ class Main:
             logger.info("Retry to start Actor System after %d s.", RETRY_DELAY)
             sleep(RETRY_DELAY)
             try:
-                system = ActorSystem(
+                self.system = ActorSystem(
                     systemBase=actor_config["systemBase"],
                     capabilities=actor_config["capabilities"],
                     logDefs=logcfg,
@@ -96,7 +100,7 @@ class Main:
                 }
                 actor_config["systemBase"] = "multiprocQueueBase"
                 try:
-                    system = ActorSystem(
+                    self.system = ActorSystem(
                         systemBase=actor_config["systemBase"],
                         capabilities=capabilities,
                         logDefs=logcfg,
@@ -107,9 +111,11 @@ class Main:
             except Exception as inner_exception:  # pylint: disable=broad-except
                 logger.critical(inner_exception)
                 return
-        self.registrar_actor = system.createActor(Registrar, globalName="registrar")
-        set_registrar(self.registrar_actor)
-        system.tell(
+        self.registrar_actor = self.system.createActor(
+            Registrar, globalName="registrar"
+        )
+        logger.info("Registrar actor = %s", self.registrar_actor)
+        self.system.tell(
             self.registrar_actor,
             SetupMsg("registrar", "actor_system", None, None),
         )
@@ -120,13 +126,21 @@ class Main:
         self.lan_backend = None
         if Frontend.REST in frontend_config:
             if os.name == "posix":
+                options = {
+                    "bind": f"0.0.0.0:{rest_frontend_config['API_PORT']}",
+                    "workers": 4,
+                    "worker_class": "sync",
+                    "loglevel": "info",
+                }
                 self.api_process = Process(
-                    target=start_webserver,
+                    target=start_gunicorn,
+                    args=(create_api_app, self.system, self.registrar_actor, options),
                     name="api_process",
                 )
             else:
                 self.api_process = threading.Thread(
-                    target=start_webserver,
+                    target=start_waitress,
+                    args=(self.system, self.registrar_actor),
                     name="api_thread",
                     daemon=True,
                 )
@@ -191,7 +205,7 @@ class Main:
             logger.debug("Registrar actor already died from emergency shutdown")
         else:
             try:
-                response = ActorSystem().ask(
+                response = self.system.ask(
                     self.registrar_actor, KillMsg(), timeout=timedelta(seconds=10)
                 )
             except ConnectionResetError:
@@ -201,7 +215,7 @@ class Main:
             else:
                 logger.error("KillMsg to Registrar returned with %s", response)
         try:
-            ActorSystem().shutdown()
+            self.system.shutdown()
         except OSError as exception:
             logger.critical(exception)
         self.kill_residual_processes(end_with_error=with_error)
@@ -262,7 +276,7 @@ class Main:
         while attempts_left:
             logger.debug("Run outer watchdog")
             registrar_is_down = False
-            with ActorSystem().private() as registrar_status:
+            with self.system.private() as registrar_status:
                 try:
                     # logger.debug("Noch da John Maynard?")
                     reply = registrar_status.ask(
@@ -366,18 +380,59 @@ class Main:
         )
 
 
-def start_webserver():
-    """Start the Waitress webserver for the REST API
+class StandaloneApplication(BaseApplication):
+    """Create a Gunicorn class."""
+
+    @override
+    def __init__(self, app_factory, actor_system, registrar, options=None):
+        self.options = options or {}
+        self.app_factory = app_factory
+        self.registrar = registrar
+        self.actor_system = actor_system
+        super().__init__()
+
+    def load_config(self):
+        """Load configuration into Gunicorn format"""
+        gunicorn_config = {
+            key: value
+            for key, value in self.options.items()
+            if key in self.cfg.settings and value is not None
+        }
+        for key, value in gunicorn_config.items():
+            self.cfg.set(key.lower(), value)
+
+    def load(self):
+        """Returns the Flask app to the Gunicorn worker."""
+        return self.app_factory(self.actor_system, self.registrar)
+
+
+def start_gunicorn(app_factory, actor_system, registrar, options):
+    """Start the Gunicorn webserver for the REST API
 
     This function will never come back and must be started in a separate
     process.
+
+    """
+    StandaloneApplication(app_factory, actor_system, registrar, options).run()
+
+
+def start_waitress(actor_system, registrar):
+    """Start the Waitress webserver for the REST API
+
+    This function will never come back and must be started in a separate
+    thread.
 
     """
     wait_before_restart = rest_frontend_config.get("WAIT_BEFORE_RESTART", 60)
     port = rest_frontend_config["API_PORT"]
     try:
         logger.info("Starting API at port %d", port)
-        serve(app, listen=f"*:{port}", threads=24, connection_limit=200)
+        serve(
+            create_api_app(actor_system, registrar),
+            listen=f"*:{port}",
+            threads=24,
+            connection_limit=200,
+        )
     except OSError as exception:
         logger.critical(exception)
         sleep(wait_before_restart)
@@ -441,6 +496,8 @@ def wait_for_termination():
 
 def main():
     """Starting the RegServer"""
+    if os.name == "posix":
+        set_start_method("fork")
     # Pyinstaller fix
     freeze_support()
     signal.signal(signal.SIGINT, signal_handler)

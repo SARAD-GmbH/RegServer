@@ -5,7 +5,7 @@
 groups = ["default", "dev", "lint"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:91967fb61010c57a943bcb7b522612dea7578312e0b89b8885ce641b473ed670"
+content_hash = "sha256:bd2c78508259954fcdc1fa907f1dba22f9a47c6f8320d894f0790a7dd2c44f86"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.15"
@@ -242,6 +242,21 @@ dependencies = [
 files = [
     {file = "flask-restx-1.3.2.tar.gz", hash = "sha256:0ae13d77e7d7e4dce513970cfa9db45364aef210e99022de26d2b73eb4dbced5"},
     {file = "flask_restx-1.3.2-py2.py3-none-any.whl", hash = "sha256:6e035496e8223668044fc45bf769e526352fd648d9e159bd631d94fd645a687b"},
+]
+
+[[package]]
+name = "gunicorn"
+version = "26.0.0"
+requires_python = ">=3.10"
+summary = "WSGI HTTP Server for UNIX"
+groups = ["default"]
+marker = "sys_platform == \"linux\""
+dependencies = [
+    "packaging",
+]
+files = [
+    {file = "gunicorn-26.0.0-py3-none-any.whl", hash = "sha256:40233d26a5f0d1872916188c276e21641155111c2853f0c2cd55260aec0d24fc"},
+    {file = "gunicorn-26.0.0.tar.gz", hash = "sha256:ca9346f85e3a4aeeb64d491045c16b9a35647abd37ea15efe53080eb8b090baf"},
 ]
 
 [[package]]
@@ -545,7 +560,7 @@ name = "packaging"
 version = "25.0"
 requires_python = ">=3.8"
 summary = "Core utilities for Python packages"
-groups = ["dev"]
+groups = ["default", "dev"]
 files = [
     {file = "packaging-25.0-py3-none-any.whl", hash = "sha256:29572ef2b1f17581046b3a2227d5c611fb25ec70ca1ba8554b24b0e69331a484"},
     {file = "packaging-25.0.tar.gz", hash = "sha256:d443872c98d677bf60f6a1f2f8c1cb748e8fe762d2bf9d3148b5599295b0fc4f"},
@@ -845,6 +860,7 @@ files = [
 name = "sarad"
 version = "1.0.28"
 requires_python = ">=3.12"
+editable = true
 git = "https://github.com/SARAD-GmbH/sarad.git"
 ref = "master"
 revision = "c2127a198c44193287bf8acefc3667136e985a3d"
@@ -1159,6 +1175,7 @@ version = "3.0.2"
 requires_python = ">=3.9.0"
 summary = "Waitress WSGI server"
 groups = ["default"]
+marker = "sys_platform == \"linux\""
 files = [
     {file = "waitress-3.0.2-py3-none-any.whl", hash = "sha256:c56d67fd6e87c2ee598b76abdd4e96cfad1f24cacdea5078d382b1f9d7b5ed2e"},
     {file = "waitress-3.0.2.tar.gz", hash = "sha256:682aaaf2af0c44ada4abfb70ded36393f0e307f4ab9456a215ce0020baefc31f"},
