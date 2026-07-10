@@ -50,7 +50,7 @@ PASSWORD = "Diev5Pw."
 TIMEOUT = timedelta(seconds=21)
 
 
-def create_api_app(registrar):
+def create_api_app(actor_system, registrar):
     """Factory function to create the API app."""
     app = Flask(__name__)
     app.url_map.strict_slashes = False
@@ -59,7 +59,6 @@ def create_api_app(registrar):
         version="2.2",
         title="RegServer API",
         description="API to get data from and to control the SARAD Registration Server service",
-        doc=False,
     )
     api.namespaces.clear()
     root_ns = api.namespace("/", description="Administrative functions")
@@ -110,7 +109,7 @@ def create_api_app(registrar):
                 + "of the SARAD Registration Server service.",
                 dt_format="iso8601",
             ),
-            "link": fields.Url("hosts_host", absolute=True),
+            "link": fields.Url("host_details", absolute=True),
         },
     )
     instruments_ns = api.namespace(
@@ -127,7 +126,7 @@ def create_api_app(registrar):
             "host": fields.String(
                 description="The FQDN of the host the instrument is connected to"
             ),
-            "link": fields.Url("instruments_instrument", absolute=True),
+            "link": fields.Url("instrument_details", absolute=True),
         },
     )
     ports_ns = api.namespace(
@@ -224,7 +223,7 @@ def create_api_app(registrar):
         trim=True,
     )
 
-    @root_ns.route("/ping")
+    @root_ns.route("/ping", endpoint="ping")
     class Ping(Resource):
         # pylint: disable=too-few-public-methods
         """Request a sign of life to confirm that the host is online."""
@@ -239,7 +238,7 @@ def create_api_app(registrar):
                 "system_base": actor_config["systemBase"],
             }
 
-    @root_ns.route("/log")
+    @root_ns.route("/log", endpoint="log")
     @root_ns.param(
         "age",
         "May be 0 for the current log or 1 for the backup of the log "
@@ -266,7 +265,7 @@ def create_api_app(registrar):
                 return resp
             return f"{log_file_name} doesn't exist."
 
-    @root_ns.route("/restart")
+    @root_ns.route("/restart", endpoint="restart")
     @root_ns.param(
         "password",
         "This is not really a password since it is given here. "
@@ -303,7 +302,7 @@ def create_api_app(registrar):
                     "Notification": "Registration Server going down for restart.",
                     "Requester": "Emergency shutdown",
                 }
-            with ActorSystem().private() as restart_sys:
+            with actor_system.private() as restart_sys:
                 try:
                     reply = restart_sys.ask(
                         registrar,
@@ -324,7 +323,7 @@ def create_api_app(registrar):
                 "Requesting user": remote_user,
             }
 
-    @root_ns.route("/scan")
+    @root_ns.route("/scan", endpoint="scan")
     class Scan(Resource):
         # pylint: disable=too-few-public-methods
         """Refresh the list of active devices"""
@@ -350,7 +349,7 @@ def create_api_app(registrar):
                     "Notification": "Registration Server going down for restart.",
                     "Requester": "Emergency shutdown",
                 }
-            with ActorSystem().private() as scan_sys:
+            with actor_system.private() as scan_sys:
                 try:
                     reply = scan_sys.ask(
                         registrar, RescanMsg(), timeout=timedelta(seconds=60)
@@ -573,7 +572,6 @@ def create_api_app(registrar):
         @api.marshal_list_with(host_model)
         def get(self):
             """List available hosts"""
-            logger.warning(registrar)
             if registrar is None:
                 status = Status.CRITICAL
                 return {
@@ -640,7 +638,7 @@ def create_api_app(registrar):
                 }
             for host_object in get_hosts(registrar):
                 if host_object.host == host:
-                    with ActorSystem().private() as restart_sys:
+                    with actor_system.private() as restart_sys:
                         try:
                             reply = restart_sys.ask(
                                 registrar,
@@ -686,7 +684,7 @@ def create_api_app(registrar):
                 }
             for host_object in get_hosts(registrar):
                 if host_object.host == host:
-                    with ActorSystem().private() as scan_sys:
+                    with actor_system.private() as scan_sys:
                         try:
                             reply = scan_sys.ask(
                                 registrar,
@@ -705,7 +703,7 @@ def create_api_app(registrar):
                     }
             return api.abort(404)
 
-    @instruments_ns.route("/")
+    @instruments_ns.route("/", endpoint="instruments")
     class Instruments(Resource):
         # pylint: disable=too-few-public-methods
         """Endpoint for getting the list of active devices"""
@@ -743,7 +741,7 @@ def create_api_app(registrar):
                 response.append(self._instrument(device_id, device_status))
             return response
 
-    @instruments_ns.route("/<string:instr_id>")
+    @instruments_ns.route("/<string:instr_id>", endpoint="instrument_details")
     @instruments_ns.param(
         "instr_id",
         "Id of the instrument",
@@ -780,7 +778,9 @@ def create_api_app(registrar):
                     return self._instrument(device_id, device_status)
             return api.abort(404)
 
-    @instruments_ns.route("/<string:instr_id>/start-monitoring")
+    @instruments_ns.route(
+        "/<string:instr_id>/start-monitoring", endpoint="instrument_start_monitoring"
+    )
     @instruments_ns.param(
         "start_time",
         "UTC to start the measurement.",
@@ -809,7 +809,7 @@ def create_api_app(registrar):
                 return api.abort(404)
             for device_id in get_device_statuses(registrar):
                 if short_id(device_id) == instr_id:
-                    with ActorSystem().private() as start_sys:
+                    with actor_system.private() as start_sys:
                         try:
                             reply = start_sys.ask(
                                 registrar,
@@ -831,7 +831,9 @@ def create_api_app(registrar):
                     }
             return api.abort(404)
 
-    @instruments_ns.route("/<string:instr_id>/stop-monitoring")
+    @instruments_ns.route(
+        "/<string:instr_id>/stop-monitoring", endpoint="instrument_stop_monitoring"
+    )
     class StopMonitoring(Resource):
         # pylint: disable=too-few-public-methods
         """Stop the monitoring mode at the given instrument."""
@@ -850,7 +852,7 @@ def create_api_app(registrar):
                 return api.abort(404)
             for device_id in get_device_statuses(registrar):
                 if short_id(device_id) == instr_id:
-                    with ActorSystem().private() as stop_sys:
+                    with actor_system.private() as stop_sys:
                         try:
                             reply = stop_sys.ask(
                                 registrar,
@@ -869,7 +871,7 @@ def create_api_app(registrar):
                     }
             return api.abort(404)
 
-    @instruments_ns.route("/<string:instr_id>/set-rtc")
+    @instruments_ns.route("/<string:instr_id>/set-rtc", endpoint="instrument_set_rtc")
     class SetRtc(Resource):
         # pylint: disable=too-few-public-methods
         """Set the realtime clock on the given instrument."""
@@ -887,7 +889,7 @@ def create_api_app(registrar):
                 return api.abort(404)
             for device_id in get_device_statuses(registrar):
                 if short_id(device_id) == instr_id:
-                    with ActorSystem().private() as rtc_sys:
+                    with actor_system.private() as rtc_sys:
                         try:
                             reply = rtc_sys.ask(
                                 registrar,
@@ -908,7 +910,7 @@ def create_api_app(registrar):
                     }
             return api.abort(404)
 
-    @instruments_ns.route("/<string:instr_id>/reserve")
+    @instruments_ns.route("/<string:instr_id>/reserve", endpoint="instrument_reserve")
     @instruments_ns.param(
         "instr_id",
         "ID of the connected instrument as gathered as key from the `/instruments` endpoint",
@@ -1011,7 +1013,7 @@ def create_api_app(registrar):
                 "Requester": "Emergency shutdown",
             }
 
-    @instruments_ns.route("/<string:instr_id>/free")
+    @instruments_ns.route("/<string:instr_id>/free", endpoint="instrumen_free")
     @instruments_ns.param(
         "instr_id",
         "ID of the connected device as gathered as key from the `/list` endpoint",
@@ -1058,7 +1060,7 @@ def create_api_app(registrar):
                 instr_id: {},
             }
 
-    @values_ns.route("/<string:device_id>")
+    @values_ns.route("/<string:device_id>", endpoint="values")
     @list_ns.param(
         "device_id",
         "ID of the connected device as gathered as key from the `/list` endpoint",
@@ -1108,7 +1110,7 @@ def create_api_app(registrar):
                     "Error code": status.value,
                     "Error": str(status),
                 }
-            with ActorSystem().private() as value_sys:
+            with actor_system.private() as value_sys:
                 try:
                     value_return = value_sys.ask(
                         device_actor,
@@ -1207,7 +1209,7 @@ def create_api_app(registrar):
                 "GPS": gps_dict,
             }
 
-    @ports_ns.route("/")
+    @ports_ns.route("/", endpoint="ports")
     class GetLocalPorts(Resource):
         # pylint: disable=too-few-public-methods
         """Lists local serial ports"""
@@ -1223,7 +1225,7 @@ def create_api_app(registrar):
                     "Requester": "Emergency shutdown",
                 }
             cluster_actor = get_actor(registrar, "cluster")
-            with ActorSystem().private() as get_local_ports:
+            with actor_system.private() as get_local_ports:
                 try:
                     reply = get_local_ports.ask(
                         cluster_actor, GetLocalPortsMsg(), timeout=TIMEOUT
@@ -1235,7 +1237,7 @@ def create_api_app(registrar):
                 return reply_is_corrupted
             return reply.ports
 
-    @ports_ns.route("/list-usb")
+    @ports_ns.route("/list-usb", endpoint="ports_list_usb")
     class GetUsbPorts(Resource):
         # pylint: disable=too-few-public-methods
         """List local USB devices with virtual serial ports"""
@@ -1251,7 +1253,7 @@ def create_api_app(registrar):
                     "Requester": "Emergency shutdown",
                 }
             cluster_actor = get_actor(registrar, "cluster")
-            with ActorSystem().private() as get_usb_ports:
+            with actor_system.private() as get_usb_ports:
                 try:
                     reply = get_usb_ports.ask(
                         cluster_actor, GetUsbPortsMsg(), timeout=TIMEOUT
@@ -1263,7 +1265,7 @@ def create_api_app(registrar):
                 return reply_is_corrupted
             return reply.ports
 
-    @ports_ns.route("/list-native")
+    @ports_ns.route("/list-native", endpoint="ports_list_native")
     class GetNativePorts(Resource):
         # pylint: disable=too-few-public-methods
         """List local RS-232 ports"""
@@ -1279,7 +1281,7 @@ def create_api_app(registrar):
                     "Requester": "Emergency shutdown",
                 }
             cluster_actor = get_actor(registrar, "cluster")
-            with ActorSystem().private() as get_native_ports:
+            with actor_system.private() as get_native_ports:
                 try:
                     reply = get_native_ports.ask(
                         cluster_actor,
@@ -1293,7 +1295,7 @@ def create_api_app(registrar):
                 return reply_is_corrupted
             return reply.ports
 
-    @ports_ns.route("/loop")
+    @ports_ns.route("/loop", endpoint="ports_loop")
     @ports_ns.param(
         "port", "ID of the serial port as gathered from the `/ports` endpoint"
     )
@@ -1324,7 +1326,7 @@ def create_api_app(registrar):
                 status = Status.ATTRIBUTE_ERROR
             else:
                 status = Status.OK
-            with ActorSystem().private() as get_loop_port:
+            with actor_system.private() as get_loop_port:
                 try:
                     reply = get_loop_port.ask(
                         cluster_actor,
@@ -1338,7 +1340,7 @@ def create_api_app(registrar):
                 return reply_is_corrupted
             return reply.ports
 
-    @ports_ns.route("/stop")
+    @ports_ns.route("/stop", endpoint="ports_stop")
     @ports_ns.param(
         "port", "ID of the serial port as gathered from the `/ports` endpoint"
     )
@@ -1368,7 +1370,7 @@ def create_api_app(registrar):
                 status = Status.ATTRIBUTE_ERROR
             else:
                 status = Status.OK
-            with ActorSystem().private() as get_stop_port:
+            with actor_system.private() as get_stop_port:
                 try:
                     reply = get_stop_port.ask(
                         cluster_actor,
@@ -1382,7 +1384,7 @@ def create_api_app(registrar):
                 return reply_is_corrupted
             return reply.ports
 
-    @status_ns.route("/<string:actor_id>")
+    @status_ns.route("/<string:actor_id>", endpoint="status")
     @status_ns.param(
         "actor_id",
         "ID of an Actor existing in the Thespian Actor System of the Registration Server",
@@ -1402,7 +1404,7 @@ def create_api_app(registrar):
                     "Requester": "Emergency shutdown",
                 }
             actor_address = get_actor(registrar, actor_id)
-            with ActorSystem().private() as get_status:
+            with actor_system.private() as get_status:
                 try:
                     reply = get_status.ask(
                         actorAddr=actor_address,
