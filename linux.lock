@@ -5,7 +5,7 @@
 groups = ["default", "dev", "lint"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:bd2c78508259954fcdc1fa907f1dba22f9a47c6f8320d894f0790a7dd2c44f86"
+content_hash = "sha256:6b3a34f31c71ae6bfff33df9bab9af1913898c558f9893783524ad2ffbc4537a"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.15"
@@ -98,7 +98,7 @@ files = [
 name = "bitvector"
 version = "3.5.0"
 summary = "A memory-efficient packed representation for bit arrays in pure Python"
-groups = ["default"]
+groups = ["default", "dev"]
 files = [
     {file = "BitVector-3.5.0.tar.gz", hash = "sha256:cac2fbccf11e325115827ed7be03e5fd62615227b0bbf3fa5a18a842a221839c"},
 ]
@@ -264,7 +264,7 @@ name = "hashids"
 version = "1.3.1"
 requires_python = ">=2.7"
 summary = "Implements the hashids algorithm in python. For more information, visit http://hashids.org/"
-groups = ["default"]
+groups = ["default", "dev"]
 files = [
     {file = "hashids-1.3.1-py2.py3-none-any.whl", hash = "sha256:8bddd1acba501bfc9306e7e5a99a1667f4f2cacdc20cbd70bcc5ddfa5147c94c"},
     {file = "hashids-1.3.1.tar.gz", hash = "sha256:6c3dc775e65efc2ce2c157a65acb776d634cb814598f406469abef00ae3f635c"},
@@ -662,7 +662,7 @@ files = [
 name = "pyserial"
 version = "3.5"
 summary = "Python Serial Port Extension"
-groups = ["default"]
+groups = ["default", "dev"]
 files = [
     {file = "pyserial-3.5-py2.py3-none-any.whl", hash = "sha256:c4451db6ba391ca6ca299fb3ec7bae67a5c55dde170964c7a14ceefec02f2cf0"},
     {file = "pyserial-3.5.tar.gz", hash = "sha256:3c77e014170dfffbd816e6ffc205e9842efb10be9f58ec16d3e8675b4925cddb"},
@@ -847,13 +847,13 @@ files = [
 
 [[package]]
 name = "ruff"
-version = "0.15.20"
+version = "0.15.21"
 requires_python = ">=3.7"
 summary = "An extremely fast Python linter and code formatter, written in Rust."
 groups = ["lint"]
 files = [
-    {file = "ruff-0.15.20-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:309809086c2acb67624950a3c8133e80f32d0d3e27106c0cd60ff26657c9f24b"},
-    {file = "ruff-0.15.20.tar.gz", hash = "sha256:1416eb04349192646b54de98f146c4f59afe37d0decfc02c3cbbf396f3a28566"},
+    {file = "ruff-0.15.21-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bab0905d2f29e0d9fbc3c373ed23db0095edaa3f71f1f4f519ec15134d9e85c8"},
+    {file = "ruff-0.15.21.tar.gz", hash = "sha256:d0cfc841c572283c36548f82664a54ce6565567f1b0d5b4cf2caac693d8b7500"},
 ]
 
 [[package]]
@@ -863,9 +863,8 @@ requires_python = ">=3.12"
 editable = true
 git = "https://github.com/SARAD-GmbH/sarad.git"
 ref = "master"
-revision = "c2127a198c44193287bf8acefc3667136e985a3d"
 summary = "Library and sample application to collect data from SARAD instruments."
-groups = ["default"]
+groups = ["default", "dev"]
 dependencies = [
     "bitvector>=3.5.0",
     "hashids>=1.3.1",
