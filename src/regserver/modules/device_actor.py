@@ -244,7 +244,7 @@ class DeviceBaseActor(BaseActor):
             return
         if self.on_kill:
             self._handle_reserve_reply_from_is(
-                success=Status.NOT_FOUND, requester=sender
+                success=Status.NOT_FOUND, requester=sender, on_kill=True
             )
             return
         self.last_request_id = self.last_request_id + 1
@@ -274,7 +274,7 @@ class DeviceBaseActor(BaseActor):
 
     def _reserve_device_on_kill(self, action_request):
         self._handle_reserve_reply_from_is(
-            success=Status.NOT_FOUND, requester=action_request.sender
+            success=Status.NOT_FOUND, requester=action_request.sender, on_kill=True
         )
 
     def receiveMsg_FreeDeviceMsg(self, msg, sender):
@@ -316,7 +316,7 @@ class DeviceBaseActor(BaseActor):
 
     def _free_device_on_kill(self, action_request):
         self._handle_free_reply_from_is(
-            success=Status.NOT_FOUND, requester=action_request.sender
+            success=Status.NOT_FOUND, requester=action_request.sender, on_kill=True
         )
 
     def receiveMsg_SocketMsg(self, msg, sender):
@@ -416,6 +416,7 @@ class DeviceBaseActor(BaseActor):
                 client=action_request.msg.client,
             ),
             requester=action_request.sender,
+            on_kill=True,
         )
 
     def receiveMsg_GetDeviceStatusMsg(self, msg, sender):
@@ -458,7 +459,7 @@ class DeviceBaseActor(BaseActor):
 
     def _get_device_status_on_kill(self, action_request):
         self._handle_status_reply_from_is(
-            status=Status.NOT_FOUND, requester=action_request.sender
+            status=Status.NOT_FOUND, requester=action_request.sender, on_kill=True
         )
 
     def receiveMsg_StartMonitoringMsg(self, msg, sender):
@@ -507,7 +508,10 @@ class DeviceBaseActor(BaseActor):
 
     def _start_monitoring_on_kill(self, action_request):
         self._handle_start_monitoring_reply_from_is(
-            status=Status.NOT_FOUND, confirm=True, requester=action_request.sender
+            status=Status.NOT_FOUND,
+            confirm=True,
+            requester=action_request.sender,
+            on_kill=True,
         )
 
     def receiveMsg_StopMonitoringMsg(self, msg, sender):
@@ -551,7 +555,7 @@ class DeviceBaseActor(BaseActor):
 
     def _stop_monitoring_on_kill(self, action_request):
         self._handle_stop_monitoring_reply_from_is(
-            status=Status.NOT_FOUND, requester=action_request.sender
+            status=Status.NOT_FOUND, requester=action_request.sender, on_kill=True
         )
 
     def receiveMsg_SetRtcMsg(self, msg, sender):
@@ -595,6 +599,7 @@ class DeviceBaseActor(BaseActor):
             answer=SetRtcAckMsg(self.instr_id, Status.NOT_FOUND),
             confirm=True,
             requester=action_request.sender,
+            on_kill=True,
         )
 
     @override
@@ -654,14 +659,17 @@ class DeviceBaseActor(BaseActor):
         to be implemented (overridden) in the protocol specific modules.
         """
 
-    def _handle_reserve_reply_from_is(self, success: Status, requester):
+    def _handle_reserve_reply_from_is(
+        self, success: Status, requester, on_kill: bool = False
+    ):
         # pylint: disable=unused-argument
         """Create redirector.
         Forward the reservation state from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
         logger.debug("_handle_reserve_reply_from_is. %s, %s", success, requester)
-        self._fifo(None)
+        if not on_kill:
+            self._fifo(None)
         if success not in [Status.OCCUPIED]:
             self._release_lock("Reserve")
         self.return_message = ReservationStatusMsg(
@@ -735,14 +743,17 @@ class DeviceBaseActor(BaseActor):
             )
             self._send_reservation_status_msg(requester)
 
-    def _handle_free_reply_from_is(self, success: Status, requester):
+    def _handle_free_reply_from_is(
+        self, success: Status, requester, on_kill: bool = False
+    ):
         # pylint: disable=unused-argument
         """Inform all interested parties that the instrument is free.
         Forward the reservation state from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
         logger.debug("Free command on %s returned %s", self.instr_id, success)
-        self._fifo(None)
+        if not on_kill:
+            self._fifo(None)
         if success not in [Status.OK_SKIPPED]:
             self._release_lock("Free")
         if success in (Status.OK, Status.OK_SKIPPED, Status.OK_UPDATED):
@@ -784,13 +795,16 @@ class DeviceBaseActor(BaseActor):
             self.my_id,
         )
 
-    def _handle_recent_value_reply_from_is(self, answer: RecentValueMsg, requester):
+    def _handle_recent_value_reply_from_is(
+        self, answer: RecentValueMsg, requester, on_kill: bool = False
+    ):
         # pylint: disable=unused-argument
         """Forward the recent value from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
         """
         logger.debug("Send answer to requester: %s", answer)
-        self._fifo(None)
+        if not on_kill:
+            self._fifo(None)
         client = ""
         for _key, request_lock in self.request_locks.items():
             if request_lock.locked:
@@ -804,7 +818,7 @@ class DeviceBaseActor(BaseActor):
             self._release_lock("GetRecentValue")
 
     def _handle_set_rtc_reply_from_is(
-        self, answer: SetRtcAckMsg, requester, confirm: bool
+        self, answer: SetRtcAckMsg, requester, confirm: bool, on_kill: bool = False
     ):
         # pylint: disable=unused-argument
         """Forward the acknowledgement received from the Instrument Server to the REST API.
@@ -816,7 +830,8 @@ class DeviceBaseActor(BaseActor):
                             False, if it was called during setup of the UsbActor.
             utc_offset (float): UTC offset (time zone). -13 = unknown
         """
-        self._fifo(None)
+        if not on_kill:
+            self._fifo(None)
         if confirm:
             client = ""
             for _key, request_lock in self.request_locks.items():
@@ -830,7 +845,12 @@ class DeviceBaseActor(BaseActor):
             self._release_lock("SetRtc")
 
     def _handle_start_monitoring_reply_from_is(
-        self, status: Status, requester, confirm: bool, offset: timedelta = timedelta(0)
+        self,
+        status: Status,
+        requester,
+        confirm: bool,
+        offset: timedelta = timedelta(0),
+        on_kill: bool = False,
     ):
         # pylint: disable=unused-argument
         """Forward the acknowledgement received from the Instrument Server to the REST API.
@@ -841,7 +861,8 @@ class DeviceBaseActor(BaseActor):
             confirm (bool): True, if the ACK shall be forwarded;
                             False, if it was called during setup of the UsbActor.
         """
-        self._fifo(None)
+        if not on_kill:
+            self._fifo(None)
         if confirm:
             client = ""
             for _key, request_lock in self.request_locks.items():
@@ -857,7 +878,9 @@ class DeviceBaseActor(BaseActor):
         if status not in [Status.OCCUPIED]:
             self._release_lock("StartMonitoring")
 
-    def _handle_stop_monitoring_reply_from_is(self, status: Status, requester):
+    def _handle_stop_monitoring_reply_from_is(
+        self, status: Status, requester, on_kill: bool = False
+    ):
         # pylint: disable=unused-argument
         """Forward the acknowledgement received from the Instrument Server to the REST API.
         This function has to be called in the protocol specific modules.
@@ -865,7 +888,8 @@ class DeviceBaseActor(BaseActor):
         Args:
             status (Status): Info about the success of operation.
         """
-        self._fifo(None)
+        if not on_kill:
+            self._fifo(None)
         client = ""
         for _key, request_lock in self.request_locks.items():
             if request_lock.locked:
@@ -921,7 +945,9 @@ class DeviceBaseActor(BaseActor):
         This has to be overriden in the backend specific implementation."""
         self._handle_status_reply_from_is(Status.OK, sender)
 
-    def _handle_status_reply_from_is(self, status: Status, requester):
+    def _handle_status_reply_from_is(
+        self, status: Status, requester, on_kill: bool = False
+    ):
         # pylint: disable=unused-argument
         """Forward the status received from the Instrument Server to the sender
         requesting status information. This function has to be called in the
@@ -930,7 +956,8 @@ class DeviceBaseActor(BaseActor):
         Args:
             status (Status): Info about the success of operation.
         """
-        self._fifo(None)
+        if not on_kill:
+            self._fifo(None)
         self.send(
             requester,
             UpdateDeviceStatusMsg(self.my_id, self.device_status),
@@ -999,12 +1026,13 @@ class DeviceBaseActor(BaseActor):
             TimeoutMsg(type="bin_timeout", counter=len(self.bin_locks) - 1),
         )
 
-    def _handle_bin_reply_from_is(self, answer: RxBinaryMsg):
+    def _handle_bin_reply_from_is(self, answer: RxBinaryMsg, on_kill: bool = False):
         # pylint: disable=unused-argument
         """Forward a binary message from the Instrument Server to the redirector.
         This function has to be called in the protocol specific modules.
         """
-        self._fifo(None)
+        if not on_kill:
+            self._fifo(None)
         self.send(self.redirector_actor, answer)
         logger.debug(answer.data)
         if self.bin_locks and self.bin_locks[-1].value:
@@ -1025,7 +1053,9 @@ class DeviceBaseActor(BaseActor):
                     and self.child_actors
                     and self.redirector_actor is not None
                 ):
-                    self._handle_bin_reply_from_is(answer=RxBinaryMsg(self.RET_TIMEOUT))
+                    self._handle_bin_reply_from_is(
+                        answer=RxBinaryMsg(self.RET_TIMEOUT), on_kill=True
+                    )
             self.device_status["State"] = 1
             if self.child_actors:
                 logger.info("%s has children: %s", self.my_id, self.child_actors)
