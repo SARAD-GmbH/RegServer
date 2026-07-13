@@ -17,7 +17,8 @@ import sys
 import threading
 import traceback
 from datetime import datetime, timedelta
-from multiprocessing import Process, freeze_support, set_start_method
+from multiprocessing import (Process, cpu_count, freeze_support,
+                             set_start_method)
 from time import sleep
 from typing import override
 
@@ -128,7 +129,7 @@ class Main:
             if os.name == "posix":
                 options = {
                     "bind": f"0.0.0.0:{rest_frontend_config['API_PORT']}",
-                    "workers": 4,
+                    "workers": cpu_count() * 2 + 1,
                     "worker_class": "sync",
                     "loglevel": "info",
                 }
