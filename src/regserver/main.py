@@ -381,40 +381,41 @@ class Main:
         )
 
 
-class StandaloneApplication(BaseApplication):
-    """Create a Gunicorn class."""
+if os.name == "posix":
 
-    @override
-    def __init__(self, app_factory, actor_system, registrar, options=None):
-        self.options = options or {}
-        self.app_factory = app_factory
-        self.registrar = registrar
-        self.actor_system = actor_system
-        super().__init__()
+    class StandaloneApplication(BaseApplication):
+        """Create a Gunicorn class."""
 
-    def load_config(self):
-        """Load configuration into Gunicorn format"""
-        gunicorn_config = {
-            key: value
-            for key, value in self.options.items()
-            if key in self.cfg.settings and value is not None
-        }
-        for key, value in gunicorn_config.items():
-            self.cfg.set(key.lower(), value)
+        @override
+        def __init__(self, app_factory, actor_system, registrar, options=None):
+            self.options = options or {}
+            self.app_factory = app_factory
+            self.registrar = registrar
+            self.actor_system = actor_system
+            super().__init__()
 
-    def load(self):
-        """Returns the Flask app to the Gunicorn worker."""
-        return self.app_factory(self.actor_system, self.registrar)
+        def load_config(self):
+            """Load configuration into Gunicorn format"""
+            gunicorn_config = {
+                key: value
+                for key, value in self.options.items()
+                if key in self.cfg.settings and value is not None
+            }
+            for key, value in gunicorn_config.items():
+                self.cfg.set(key.lower(), value)
 
+        def load(self):
+            """Returns the Flask app to the Gunicorn worker."""
+            return self.app_factory(self.actor_system, self.registrar)
 
-def start_gunicorn(app_factory, actor_system, registrar, options):
-    """Start the Gunicorn webserver for the REST API
+    def start_gunicorn(app_factory, actor_system, registrar, options):
+        """Start the Gunicorn webserver for the REST API
 
-    This function will never come back and must be started in a separate
-    process.
+        This function will never come back and must be started in a separate
+        process.
 
-    """
-    StandaloneApplication(app_factory, actor_system, registrar, options).run()
+        """
+        StandaloneApplication(app_factory, actor_system, registrar, options).run()
 
 
 def start_waitress(actor_system, registrar):
