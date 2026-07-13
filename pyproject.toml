@@ -16,7 +16,7 @@ dependencies = [
     "pyyaml",
     "appdirs",
     "requests",
-    "waitress; sys_platform == 'linux'",
+    "waitress; sys_platform == 'win32'",
     "modbus-tk",
     "flask-restx",
     "rpi-gpio; platform_machine == 'aarch64'",
