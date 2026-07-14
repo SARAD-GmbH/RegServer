@@ -13,7 +13,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from threading import Thread
+from threading import Lock, Thread
 from time import sleep
 from typing import override
 
@@ -89,6 +89,7 @@ class UsbActor(DeviceBaseActor):
             kwargs={"family_id": None, "poll": False, "route": None},
             daemon=True,
         )
+        self.inner_thread_lock = Lock()
         self.mon_state = MonitoringState(
             monitoring_shall_be_active=False,
             monitoring_active=False,
@@ -120,19 +121,20 @@ class UsbActor(DeviceBaseActor):
             self.wakeupAfter(timedelta(seconds=0.5), payload=thread)
 
     def _check_connection(self, purpose: Purpose = Purpose.WAKEUP):
-        logger.debug("Check if %s is still connected", self.my_id)
-        if self.instrument is not None:
-            try:
-                self.is_connected = self.instrument.get_description()
-            except TypeError:
-                logger.error("Cannot get instrument description of %s", self.my_id)
-                self.is_connected = False
-            finally:
-                self.instrument.release_instrument()
-        if purpose == Purpose.WAKEUP:
-            self._finish_poll()
-        elif purpose == Purpose.RESERVE:
-            self._finish_reserve()
+        with self.inner_thread_lock:
+            logger.debug("Check if %s is still connected", self.my_id)
+            if self.instrument is not None:
+                try:
+                    self.is_connected = self.instrument.get_description()
+                except TypeError:
+                    logger.error("Cannot get instrument description of %s", self.my_id)
+                    self.is_connected = False
+                finally:
+                    self.instrument.release_instrument()
+            if purpose == Purpose.WAKEUP:
+                self._finish_poll()
+            elif purpose == Purpose.RESERVE:
+                self._finish_reserve()
 
     def receiveMsg_SetupUsbActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -156,37 +158,42 @@ class UsbActor(DeviceBaseActor):
         )
 
     def _setup(self, family_id=None, route=None):
-        self.instrument = id_family_mapping.get(family_id)
-        if self.instrument is None:
-            logger.critical("Family %s not supported", family_id)
-            self.is_connected = False
+        with self.inner_thread_lock:
+            self.instrument = id_family_mapping.get(family_id)
+            if self.instrument is None:
+                logger.critical("Family %s not supported", family_id)
+                self.is_connected = False
+                return
+            self.instrument.route = route
+            self.instrument.device_id = self.my_id
+            device_status = {
+                "Identification": {
+                    "Name": self.instrument.type_name,
+                    "Family": family_id,
+                    "Type": self.instrument.type_id,
+                    "Serial number": self.instrument.serial_number,
+                    "Firmware version": self.instrument.software_version,
+                    "Host": "127.0.0.1",
+                    "Protocol": get_sarad_type(self.instr_id),
+                },
+                "Serial": self.instrument.route.port,
+                "State": 2,
+            }
+            self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
+            monitoring_conf = monitoring_config.get(self.instr_id, {})
+            self.mon_state.monitoring_shall_be_active = monitoring_conf.get(
+                "active", False
+            )
+            if local_backend_config["SET_RTC"]:
+                self._request_set_rtc_at_is(confirm=False, sender=self.myAddress)
+            if self.mon_state.monitoring_shall_be_active:
+                logger.debug("Monitoring mode for %s shall be active", self.instr_id)
+                self._request_start_monitoring_at_is(
+                    confirm=False, sender=self.myAddress
+                )
+            self.instrument.release_instrument()
+            logger.debug("Instrument with Id %s detected.", self.instr_id)
             return
-        self.instrument.route = route
-        self.instrument.device_id = self.my_id
-        device_status = {
-            "Identification": {
-                "Name": self.instrument.type_name,
-                "Family": family_id,
-                "Type": self.instrument.type_id,
-                "Serial number": self.instrument.serial_number,
-                "Firmware version": self.instrument.software_version,
-                "Host": "127.0.0.1",
-                "Protocol": get_sarad_type(self.instr_id),
-            },
-            "Serial": self.instrument.route.port,
-            "State": 2,
-        }
-        self.receiveMsg_SetDeviceStatusMsg(SetDeviceStatusMsg(device_status), self)
-        monitoring_conf = monitoring_config.get(self.instr_id, {})
-        self.mon_state.monitoring_shall_be_active = monitoring_conf.get("active", False)
-        if local_backend_config["SET_RTC"]:
-            self._request_set_rtc_at_is(confirm=False, sender=self.myAddress)
-        if self.mon_state.monitoring_shall_be_active:
-            logger.debug("Monitoring mode for %s shall be active", self.instr_id)
-            self._request_start_monitoring_at_is(confirm=False, sender=self.myAddress)
-        self.instrument.release_instrument()
-        logger.debug("Instrument with Id %s detected.", self.instr_id)
-        return
 
     @override
     def receiveMsg_WakeupMessage(self, msg, sender):
@@ -296,57 +303,60 @@ class UsbActor(DeviceBaseActor):
 
     def _tx_binary_proceed(self, data):
         logger.debug(data)
-        has_reservation_section = self.device_status.get("Reservation", False)
-        if has_reservation_section:
-            is_reserved = self.device_status["Reservation"].get("Active", False)
-        else:
-            is_reserved = False
-        if is_reserved:
-            dummy_reply = self.dummy_reply(data)
-            if dummy_reply:
-                self._handle_bin_reply_from_is(RxBinaryMsg(dummy_reply))
-                return
-            if not self.instrument.check_cmd(data):
-                logger.error("Command %s from app is invalid", data)
-                self._handle_bin_reply_from_is(RxBinaryMsg(b""))
-                return
-            emergency = False
-            read_next = True
-            while read_next:
-                try:
-                    start_time = datetime.now()
-                    reply = self.instrument.get_message_payload(
-                        data, timeout=self.instrument.ext_ser_timeout
-                    )
-                    stop_time = datetime.now()
-                except (SerialException, OSError, TypeError) as exception:
-                    logger.error(
-                        "Connection to %s lost: %s", self.instrument, exception
-                    )
-                    emergency = True
-                if emergency:
-                    logger.info("Killing myself")
-                    self._kill_myself()
+        with self.inner_thread_lock:
+            has_reservation_section = self.device_status.get("Reservation", False)
+            if has_reservation_section:
+                is_reserved = self.device_status["Reservation"].get("Active", False)
+            else:
+                is_reserved = False
+            if is_reserved:
+                dummy_reply = self.dummy_reply(data)
+                if dummy_reply:
+                    self._handle_bin_reply_from_is(RxBinaryMsg(dummy_reply))
                     return
-                logger.debug("Instrument replied %s", reply)
-                if reply["is_valid"]:
-                    self._handle_bin_reply_from_is(RxBinaryMsg(reply["standard_frame"]))
-                    read_next = not reply["is_last_frame"]
-                    data = b""
-                    continue
-                logger.warning(
-                    "Invalid binary message from %s after %s: %s",
-                    self.my_id,
-                    stop_time - start_time,
-                    reply,
-                )
-                logger.error(
-                    "Timeout in %s on binary command %s",
-                    self.my_id,
-                    data,
-                )
-                self._handle_bin_reply_from_is(RxBinaryMsg(self.RET_TIMEOUT))
-                return
+                if not self.instrument.check_cmd(data):
+                    logger.error("Command %s from app is invalid", data)
+                    self._handle_bin_reply_from_is(RxBinaryMsg(b""))
+                    return
+                emergency = False
+                read_next = True
+                while read_next:
+                    try:
+                        start_time = datetime.now()
+                        reply = self.instrument.get_message_payload(
+                            data, timeout=self.instrument.ext_ser_timeout
+                        )
+                        stop_time = datetime.now()
+                    except (SerialException, OSError, TypeError) as exception:
+                        logger.error(
+                            "Connection to %s lost: %s", self.instrument, exception
+                        )
+                        emergency = True
+                    if emergency:
+                        logger.info("Killing myself")
+                        self._kill_myself()
+                        return
+                    logger.debug("Instrument replied %s", reply)
+                    if reply["is_valid"]:
+                        self._handle_bin_reply_from_is(
+                            RxBinaryMsg(reply["standard_frame"])
+                        )
+                        read_next = not reply["is_last_frame"]
+                        data = b""
+                        continue
+                    logger.warning(
+                        "Invalid binary message from %s after %s: %s",
+                        self.my_id,
+                        stop_time - start_time,
+                        reply,
+                    )
+                    logger.error(
+                        "Timeout in %s on binary command %s",
+                        self.my_id,
+                        data,
+                    )
+                    self._handle_bin_reply_from_is(RxBinaryMsg(self.RET_TIMEOUT))
+                    return
 
     @override
     def _request_reserve_at_is(self, sender):
@@ -605,62 +615,63 @@ class UsbActor(DeviceBaseActor):
             )
 
     def _start_monitoring_function(self):
-        monitoring_conf = monitoring_config.get(self.instr_id, {})
-        self.instrument.set_real_time_clock(local_backend_config["UTC_OFFSET"])
-        cycle = monitoring_conf.get("cycle", 0)
-        if cycle:
-            success = False
-            try:
-                success = self.instrument.start_cycle(cycle)
-                logger.info(
-                    "Device %s started with cycle %d",
-                    self.instrument.device_id,
-                    cycle,
-                )
-                sleep(3)  # DACM needs some time to wakeup from standby
-            except Exception as exception:  # pylint: disable=broad-except
-                logger.error(
-                    "Failed to start cycle on %s. Exception: %s",
-                    self.my_id,
-                    exception,
-                )
-            finally:
-                self.instrument.release_instrument()
-            if not success:
-                logger.error("Start/Stop not supported by %s", self.my_id)
-        else:
-            logger.error("Error in config.toml. Cycle not configured.")
-            self.mon_state.monitoring_active = False
-            self._request_free_at_is(self.myAddress)
-            return
-        self.mon_state.monitoring_active = True
-        self.mon_state.start_timestamp = int(
-            datetime.now(timezone.utc).replace(microsecond=0).timestamp()
-        )
-        logger.info("Monitoring mode started at %s", self.my_id)
-        self._publish_instr_meta()
-        for value in monitoring_conf.get("values", []):
-            parameter = Parameter(
-                component=value.get("component", 0),
-                sensor=value.get("sensor", 0),
-                measurand=value.get("measurand", 0),
-                interval=value.get("interval", 0),
+        with self.inner_thread_lock:
+            monitoring_conf = monitoring_config.get(self.instr_id, {})
+            self.instrument.set_real_time_clock(local_backend_config["UTC_OFFSET"])
+            cycle = monitoring_conf.get("cycle", 0)
+            if cycle:
+                success = False
+                try:
+                    success = self.instrument.start_cycle(cycle)
+                    logger.info(
+                        "Device %s started with cycle %d",
+                        self.instrument.device_id,
+                        cycle,
+                    )
+                    sleep(3)  # DACM needs some time to wakeup from standby
+                except Exception as exception:  # pylint: disable=broad-except
+                    logger.error(
+                        "Failed to start cycle on %s. Exception: %s",
+                        self.my_id,
+                        exception,
+                    )
+                finally:
+                    self.instrument.release_instrument()
+                if not success:
+                    logger.error("Start/Stop not supported by %s", self.my_id)
+            else:
+                logger.error("Error in config.toml. Cycle not configured.")
+                self.mon_state.monitoring_active = False
+                self._request_free_at_is(self.myAddress)
+                return
+            self.mon_state.monitoring_active = True
+            self.mon_state.start_timestamp = int(
+                datetime.now(timezone.utc).replace(microsecond=0).timestamp()
             )
-            self._get_meta_data(
-                parameter.component, parameter.sensor, parameter.measurand
-            )
-            if parameter.interval and self.mon_state.monitoring_active:
-                self.wakeupAfter(
-                    timedelta(seconds=parameter.interval + 2),
-                    Thread(
-                        target=self._get_recent_value_for_monitoring,
-                        kwargs={
-                            "parameter": parameter,
-                            "wakeup": True,
-                        },
-                        daemon=True,
-                    ),
+            logger.info("Monitoring mode started at %s", self.my_id)
+            self._publish_instr_meta()
+            for value in monitoring_conf.get("values", []):
+                parameter = Parameter(
+                    component=value.get("component", 0),
+                    sensor=value.get("sensor", 0),
+                    measurand=value.get("measurand", 0),
+                    interval=value.get("interval", 0),
                 )
+                self._get_meta_data(
+                    parameter.component, parameter.sensor, parameter.measurand
+                )
+                if parameter.interval and self.mon_state.monitoring_active:
+                    self.wakeupAfter(
+                        timedelta(seconds=parameter.interval + 2),
+                        Thread(
+                            target=self._get_recent_value_for_monitoring,
+                            kwargs={
+                                "parameter": parameter,
+                                "wakeup": True,
+                            },
+                            daemon=True,
+                        ),
+                    )
 
     def _publish_value(
         self,
@@ -794,52 +805,53 @@ class UsbActor(DeviceBaseActor):
         )
 
     def _get_recent_value_for_monitoring(self, parameter: Parameter, wakeup: bool):
-        next_wakeup = self._calc_next_wakeup(
-            start=self.mon_state.start_timestamp,
-            margin=2,
-            interval=parameter.interval,
-            fetched=datetime.now(timezone.utc).timestamp(),
-        )
-        logger.info("Next wakeup in %f s", next_wakeup)
-        if wakeup:
-            self.wakeupAfter(
-                timedelta(seconds=next_wakeup),
-                Thread(
-                    target=self._get_recent_value_for_monitoring,
-                    kwargs={
-                        "parameter": parameter,
-                        "wakeup": True,
-                    },
-                    daemon=True,
-                ),
+        with self.inner_thread_lock:
+            next_wakeup = self._calc_next_wakeup(
+                start=self.mon_state.start_timestamp,
+                margin=2,
+                interval=parameter.interval,
+                fetched=datetime.now(timezone.utc).timestamp(),
             )
-        if self.mon_state.monitoring_active:
-            answer = self._get_recent_value_inner(
-                parameter.component, parameter.sensor, parameter.measurand
-            )
-            if answer.status == Status.CRITICAL:
-                logger.error("Connection lost to %s", self.my_id)
-                self._kill_myself()
-                return
-            self._publish_value(
-                answer, parameter.component, parameter.sensor, parameter.measurand
-            )
-        else:
-            parameter_is_already_listed = False
-            for missed_parameter in self._missed_monitoring_values:
-                if (
-                    parameter.component == missed_parameter.component
-                    and parameter.sensor == missed_parameter.sensor
-                    and parameter.measurand == missed_parameter.measurand
-                ):
-                    logger.warning(
-                        "We have lost at least one value of %s on %s",
-                        parameter,
-                        self.my_id,
-                    )
-                    parameter_is_already_listed = True
-            if not parameter_is_already_listed:
-                self._missed_monitoring_values.append(parameter)
+            logger.info("Next wakeup in %f s", next_wakeup)
+            if wakeup:
+                self.wakeupAfter(
+                    timedelta(seconds=next_wakeup),
+                    Thread(
+                        target=self._get_recent_value_for_monitoring,
+                        kwargs={
+                            "parameter": parameter,
+                            "wakeup": True,
+                        },
+                        daemon=True,
+                    ),
+                )
+            if self.mon_state.monitoring_active:
+                answer = self._get_recent_value_inner(
+                    parameter.component, parameter.sensor, parameter.measurand
+                )
+                if answer.status == Status.CRITICAL:
+                    logger.error("Connection lost to %s", self.my_id)
+                    self._kill_myself()
+                    return
+                self._publish_value(
+                    answer, parameter.component, parameter.sensor, parameter.measurand
+                )
+            else:
+                parameter_is_already_listed = False
+                for missed_parameter in self._missed_monitoring_values:
+                    if (
+                        parameter.component == missed_parameter.component
+                        and parameter.sensor == missed_parameter.sensor
+                        and parameter.measurand == missed_parameter.measurand
+                    ):
+                        logger.warning(
+                            "We have lost at least one value of %s on %s",
+                            parameter,
+                            self.my_id,
+                        )
+                        parameter_is_already_listed = True
+                if not parameter_is_already_listed:
+                    self._missed_monitoring_values.append(parameter)
 
     def _get_meta_data(self, component, sensor, measurand):
         answer = self._get_recent_value_inner(component, sensor, measurand)
