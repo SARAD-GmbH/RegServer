@@ -22,6 +22,7 @@ Date: Wed, 8 July 2026 10:13:12 +0200
   unnecessary value checks.
 - Add this changelog to the installation dirctory.
 - Add watchdog for ZeroConf listener and restart it in the case of failure.
+- Use Gunicorn as webserver under Linux
 
 # RegServer 2.5.13
 Date: Fri, 24 April 2026 20:23:12 +0100
