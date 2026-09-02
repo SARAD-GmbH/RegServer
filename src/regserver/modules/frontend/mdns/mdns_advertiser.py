@@ -12,16 +12,16 @@ The associated Redirector will be created by the Device Actor on Reservation.
 """
 
 import socket
-from threading import Thread
+import time
 from typing import override
 
 from regserver.actor_messages import OnlineStatusMsg
 from regserver.base_actor import BaseActor
-from regserver.config import (config, get_hostname, get_ip,
-                              lan_frontend_config, rest_frontend_config)
+from regserver.config import (get_hostname, get_ip, lan_frontend_config,
+                              rest_frontend_config)
 from regserver.helpers import short_id
 from regserver.logger import logger
-from regserver.shutdown import system_shutdown
+from regserver.shutdown import is_flag_set, system_shutdown
 from zeroconf import ServiceInfo, Zeroconf
 from zeroconf._exceptions import (EventLoopBlocked, NonUniqueNameException,
                                   ServiceNameAlreadyRegistered)
@@ -36,7 +36,6 @@ class MdnsAdvertiserActor(BaseActor):
         super().__init__()
         self.device_actor = None
         self.tcp_port = rest_frontend_config["API_PORT"]
-        self.address = config["MY_IP"]
         self.service = None
         self.service_name = ""
         self.instr_name = ""
@@ -44,6 +43,12 @@ class MdnsAdvertiserActor(BaseActor):
         self.occupied = False
         self.virgin = True
         self.zeroconf = None
+        retry_interval = 3
+        self.my_ip = get_ip(ipv6=False)
+        while is_flag_set()[0] and self.my_ip == "127.0.0.1":
+            logger.warning("Waiting for network interface to come up...")
+            time.sleep(retry_interval)
+            self.my_ip = get_ip(ipv6=False)
 
     def receiveMsg_SetupMdnsAdvertiserActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -52,7 +57,7 @@ class MdnsAdvertiserActor(BaseActor):
         try:
             self.zeroconf = Zeroconf(
                 ip_version=lan_frontend_config["IP_VERSION"],
-                interfaces=[config["MY_IP"], "127.0.0.1"],
+                interfaces=[self.my_ip, "127.0.0.1"],
             )
         except OSError:
             logger.error("No network -- %s", self.my_id)
@@ -121,8 +126,8 @@ class MdnsAdvertiserActor(BaseActor):
             weight=0,
             priority=0,
             properties=properties,
-            server=get_hostname(get_ip(False)),
-            addresses=[socket.inet_aton(self.address)],
+            server=get_hostname(self.my_ip),
+            addresses=[socket.inet_aton(self.my_ip)],
         )
         self.register_service()
 
@@ -173,8 +178,8 @@ class MdnsAdvertiserActor(BaseActor):
                 weight=0,
                 priority=0,
                 properties=properties,
-                server=get_hostname(get_ip(False)),
-                addresses=[socket.inet_aton(self.address)],
+                server=get_hostname(self.my_ip),
+                addresses=[socket.inet_aton(self.my_ip)],
             )
             self.update_service()
 

@@ -16,10 +16,10 @@ import threading
 import time
 
 from regserver.actor_messages import KillMsg, SetupLanDeviceMsg
-from regserver.config import config, lan_backend_config
+from regserver.config import get_ip, lan_backend_config
 from regserver.helpers import get_actor, sarad_protocol, short_id
 from regserver.logger import logger
-from regserver.shutdown import system_shutdown
+from regserver.shutdown import is_flag_set, system_shutdown
 from sarad.global_helpers import decode_instr_id  # type: ignore
 from thespian.actors import ActorSystem  # type: ignore
 from zeroconf import (BadTypeInNameException, NonUniqueNameException,
@@ -166,7 +166,7 @@ class MdnsListener(ServiceListener):
             try:
                 self.zeroconf = Zeroconf(
                     ip_version=lan_backend_config["IP_VERSION"],
-                    interfaces=[config["MY_IP"], "127.0.0.1"],
+                    interfaces=[get_ip(ipv6=False), "127.0.0.1"],
                 )
                 self.browser = ServiceBrowser(self.zeroconf, service_type, self)
             except (OSError, BadTypeInNameException, NonUniqueNameException):
@@ -260,15 +260,22 @@ class ZeroconfWatchdog:
         self.running = False
         self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.registrar = registrar_actor
+        retry_interval = 3
+        my_ip = get_ip(ipv6=False)
+        while is_flag_set()[0] and my_ip == "127.0.0.1":
+            logger.warning("Waiting for network interface to come up...")
+            time.sleep(retry_interval)
+            my_ip = get_ip(ipv6=False)
 
     def start(self):
-        """Start or restart the Zeroconf Listener"""
+        """Start the Zeroconf Listener"""
         self.running = True
         self._bootstrap_zeroconf()
         self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.thread.start()
 
     def restart(self):
+        """Restart the Zeroconf Listener after cleanup"""
         self._cleanup()
         self._bootstrap_zeroconf()
 
