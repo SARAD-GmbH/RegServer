@@ -90,6 +90,12 @@ class ClusterActor(BaseActor):
         super().receiveMsg_SetupMsg(msg, sender)
         self._rescan()
 
+    @override
+    def receiveMsg_ChildActorExited(self, msg, sender):
+        super().receiveMsg_ChildActorExited(msg, sender)
+        self._rescan()
+        logger.info("Rescan serial interfaces")
+
     def receiveMsg_AddPortToLoopMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for AddPortToLoopMsg from REST API.
