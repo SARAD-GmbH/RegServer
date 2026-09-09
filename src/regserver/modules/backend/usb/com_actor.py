@@ -43,9 +43,9 @@ class ComActor(BaseActor):
         family_mapping = [
             (r"(?i)irda", 1),
             (r"(?i)scout|smart", 2),
-            (r"#2", 2),
-            (r"#5", 5),
-            (r"#6", 6),
+            (r"\#2", 2),
+            (r"\#5", 5),
+            (r"\#6", 6),
         ]
         for mapping in family_mapping:
             for port in list_ports.grep(mapping[0]):
