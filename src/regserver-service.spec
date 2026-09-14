@@ -7,10 +7,11 @@ datas = [
     ("eula.txt", "."),
     ("*.toml", "."),
     ("*.ps1", "."),
-	("messages.res", "."),
+    ("messages.res", "."),
 ]
 binaries = []
 hiddenimports = [
+    "psutil",
     "thespian.system.multiprocTCPBase",
     "thespian.system.multiprocUDPBase",
     "thespian.system.multiprocQueueBase",
