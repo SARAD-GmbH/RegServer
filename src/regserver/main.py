@@ -486,7 +486,7 @@ def wait_for_termination():
                     if index and (fields != [""]):  # omit header and bottom lines
                         process = fields[0]
                         pid = int(fields[1])
-                        if (pid != my_pid) and (process == "process_regex"):
+                        if (pid != my_pid) and (process == process_regex):
                             pids.append(pid)
                     index = index + 1
                 still_alive = bool(pids)
