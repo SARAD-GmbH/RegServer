@@ -134,7 +134,7 @@ def kill_processes(regex):
                 logger.warning("Could not kill pid %d: %s", pid, exception)
             except Exception as exception:  # pylint: disable=broad-except
                 return exception
-            return None
+        return None
     else:
         return None
 
