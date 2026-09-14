@@ -507,7 +507,7 @@ else:
 
 # Local backend configuration
 if os.name == "nt":
-    DEFAULT_POLL_SERIAL_PORTS = []
+    DEFAULT_POLL_SERIAL_PORTS: list[str] = []
 else:
     DEFAULT_POLL_SERIAL_PORTS = []
 DEFAULT_IGNORED_SERIAL_PORTS: list[str] = []
