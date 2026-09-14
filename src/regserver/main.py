@@ -23,7 +23,8 @@ from time import sleep
 from typing import override
 
 from serial.serialutil import SerialException  # type: ignore
-from thespian.actors import ActorSystem, Thespian_ActorStatus  # type: ignore
+from thespian.actors import ActorSystem  # type: ignore
+from thespian.actors import ActorSystemRequestTimeout, Thespian_ActorStatus
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
 
 from regserver.actor_messages import (Frontend, KillMsg, SetupMsg,
@@ -121,9 +122,20 @@ class Main:
                 raise RuntimeError(
                     "Actor system could not be started"
                 ) from inner_exception
-        self.registrar_actor = self.system.createActor(
-            Registrar, globalName="registrar"
-        )
+        try:
+            self.registrar_actor = self.system.createActor(
+                Registrar, globalName="registrar"
+            )
+        except ActorSystemRequestTimeout as exception:
+            logger.critical("Error creating the Registrar Actor: %s", exception)
+            try:
+                self.system.shutdown()
+            except Exception as inner_exception:  # pylint: disable=broad-except
+                logger.critical(
+                    "Error when trying to shutdown the Actor system: %s",
+                    inner_exception,
+                )
+            raise RuntimeError("Actor system could not be started") from exception
         logger.info("Registrar actor = %s", self.registrar_actor)
         self.system.tell(
             self.registrar_actor,
