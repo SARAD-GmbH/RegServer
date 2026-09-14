@@ -122,13 +122,18 @@ def kill_processes(regex):
             return exception
     elif os.name == "nt":
         my_pid = os.getpid()
+        logger.info("My pid is %s", my_pid)
         pids = []
-        for proc in psutil.process_iter(["pid", "name"]):
-            if (proc.info["name"] == regex) and (proc.info["pid"] != my_pid):
-                pids.append(proc.info["pid"])
+        try:
+            for proc in psutil.process_iter(["pid", "name"]):
+                if (proc.info["name"] == regex) and (proc.info["pid"] != my_pid):
+                    pids.append(proc.info["pid"])
+        except Exception as exception:  # pylint: disable=broad-except
+            return exception
         pids.sort(reverse=True)
         for pid in pids:
             try:
+                logger.info("Killing pid %s", pid)
                 os.kill(pid, signal.SIGTERM)
             except OSError as exception:
                 logger.warning("Could not kill pid %d: %s", pid, exception)
