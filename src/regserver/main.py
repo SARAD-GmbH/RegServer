@@ -412,6 +412,11 @@ if os.name == "posix":
             self.actor_system = actor_system
             super().__init__()
 
+        @override
+        def init(self, parser, opts, args):
+            """Do nothing"""
+
+        @override
         def load_config(self):
             """Load configuration into Gunicorn format"""
             gunicorn_config = {
@@ -422,6 +427,7 @@ if os.name == "posix":
             for key, value in gunicorn_config.items():
                 self.cfg.set(key.lower(), value)
 
+        @override
         def load(self):
             """Returns the Flask app to the Gunicorn worker."""
             return self.app_factory(self.actor_system, self.registrar)

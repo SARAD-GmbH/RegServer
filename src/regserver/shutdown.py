@@ -12,6 +12,8 @@ import re
 import signal
 from datetime import datetime
 
+import psutil
+
 from regserver.config import actor_config, home
 from regserver.logger import logger
 
@@ -123,17 +125,9 @@ def kill_processes(regex):
         try:
             my_pid = os.getpid()
             pids = []
-            index = 0
-            for line in (
-                os.popen("wmic process get description, processid").read().split("\n\n")
-            ):
-                fields = re.split(r"\s{2,}", line)
-                if index and (fields != [""]):  # omit header and bottom lines
-                    process = fields[0]
-                    pid = int(fields[1])
-                    if (pid != my_pid) and (process == "regserver-service.exe"):
-                        pids.append(pid)
-                index = index + 1
+            for proc in psutil.process_iter(["pid", "name"]):
+                if proc.info["name"] == regex:
+                    pids.append(proc.info["pid"])
             pids.sort(reverse=True)
             for pid in pids:
                 os.kill(pid, signal.SIGTERM)
