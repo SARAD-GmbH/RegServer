@@ -184,7 +184,7 @@ class Main:
         if (TransportTechnology.LOCAL in backend_config) and (
             self.usb_listener_thread is not None
         ):
-            self.usb_listener_thread.join(timeout=120)
+            self.usb_listener_thread.join(timeout=20)
         if self.lan_backend is not None:
             logger.info("Shutdown MdnsListener")
             try:
@@ -205,7 +205,7 @@ class Main:
             logger.info("Terminate REST-API")
             try:
                 self.api_process.terminate()
-                self.api_process.join(timeout=120)
+                self.api_process.join(timeout=20)
                 self.api_process.close()
             except Exception as exception:  # pylint: disable=broad-except
                 logger.critical(exception)
