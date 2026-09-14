@@ -68,8 +68,13 @@ class Main:
         # Initialization of the actor system,
         # can be changed to a distributed system here.
         # =======================
+        self.system = None
+        self.usb_listener_thread = None
+        self.api_process = None
+        self.modbus_rtu = None
+        self.lan_backend = None
+        self._initialized = False
         self.init_log_file()
-        threading.excepthook = self.custom_hook
         # maybe there are processes left from last run
         self.kill_residual_processes(end_with_error=False)
         set_file_flag(True)
@@ -108,10 +113,14 @@ class Main:
                     )
                 except Exception as second_exception:  # pylint: disable=broad-except
                     logger.critical(second_exception)
-                    return
+                    raise RuntimeError(
+                        "Actor system could not be started"
+                    ) from second_exception
             except Exception as inner_exception:  # pylint: disable=broad-except
                 logger.critical(inner_exception)
-                return
+                raise RuntimeError(
+                    "Actor system could not be started"
+                ) from inner_exception
         self.registrar_actor = self.system.createActor(
             Registrar, globalName="registrar"
         )
@@ -122,9 +131,7 @@ class Main:
         )
         logger.debug("Actor system started.")
         # The Actor System must be started *before* the RestApi
-        self.modbus_rtu = None
         usb_listener = None
-        self.lan_backend = None
         if Frontend.REST in frontend_config:
             if os.name == "posix":
                 options = {
@@ -167,13 +174,17 @@ class Main:
             )
             self.lan_backend.start()
         logger.info("The RegServer is up and running now.")
+        self._initialized = True
+        threading.excepthook = self.custom_hook
 
     def shutdown(self, wait_some_time, registrar_is_down, with_error=True):
         # pylint: disable=too-many-branches
         """Shutdown application"""
         self.stop_event.set()
-        if TransportTechnology.LOCAL in backend_config:
-            self.usb_listener_thread.join()
+        if (TransportTechnology.LOCAL in backend_config) and (
+            self.usb_listener_thread is not None
+        ):
+            self.usb_listener_thread.join(timeout=120)
         if self.lan_backend is not None:
             logger.info("Shutdown MdnsListener")
             try:
@@ -272,6 +283,8 @@ class Main:
         Returns:
         True if the Registrar is alive.
         """
+        if self.system is None:
+            return False
         registrar_is_down = False
         attempts_left = number_of_trials
         while attempts_left:
@@ -323,10 +336,15 @@ class Main:
             args.exc_type, args.exc_value, args.exc_traceback
         )
         logger.critical("Traceback: %s", formatted_exception)
-        if args.exc_type == OSError and ("ServiceBrowser" in args.thread):
+        if (
+            args.exc_type == OSError
+            and ("ServiceBrowser" in args.thread)
+            and getattr(self, "lan_backend", None)
+            and self._initialized
+        ):
             logger.info("[custom_hook] Restart ServiceBrowser")
             self.lan_backend.restart()
-        else:
+        elif self._initialized:
             logger.info("[custom_hook] emergency shutdown")
             system_shutdown(with_error=True)
 
