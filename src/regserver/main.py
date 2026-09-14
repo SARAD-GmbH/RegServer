@@ -74,6 +74,7 @@ class Main:
         self.api_process = None
         self.modbus_rtu = None
         self.lan_backend = None
+        self.registrar_actor = None
         self._initialized = False
         self.init_log_file()
         # maybe there are processes left from last run
@@ -225,7 +226,7 @@ class Main:
             logger.debug("Wait for 10 sec before shutting down RegServer.")
             sleep(10)
         logger.info("Terminate the actor system")
-        if registrar_is_down:
+        if registrar_is_down or self.system is None or self.registrar_actor is None:
             logger.debug("Registrar actor already died from emergency shutdown")
         else:
             try:
@@ -238,10 +239,11 @@ class Main:
                 logger.debug("Registrar actor terminated successfully")
             else:
                 logger.error("KillMsg to Registrar returned with %s", response)
-        try:
-            self.system.shutdown()
-        except OSError as exception:
-            logger.critical(exception)
+        if self.system is not None:
+            try:
+                self.system.shutdown()
+            except OSError as exception:
+                logger.critical(exception)
         self.kill_residual_processes(end_with_error=with_error)
         if (not wait_some_time) and (TransportTechnology.MQTT in backend_config):
             write_ping_file(PING_FILE_NAME, FRMT)
