@@ -8,7 +8,6 @@ Authors
 """
 
 import os
-import re
 import signal
 from datetime import datetime
 
@@ -122,18 +121,20 @@ def kill_processes(regex):
         except Exception as exception:  # pylint: disable=broad-except
             return exception
     elif os.name == "nt":
-        try:
-            my_pid = os.getpid()
-            pids = []
-            for proc in psutil.process_iter(["pid", "name"]):
-                if proc.info["name"] == regex:
-                    pids.append(proc.info["pid"])
-            pids.sort(reverse=True)
-            for pid in pids:
+        my_pid = os.getpid()
+        pids = []
+        for proc in psutil.process_iter(["pid", "name"]):
+            if (proc.info["name"] == regex) and (proc.info["pid"] != my_pid):
+                pids.append(proc.info["pid"])
+        pids.sort(reverse=True)
+        for pid in pids:
+            try:
                 os.kill(pid, signal.SIGTERM)
+            except OSError as exception:
+                logger.warning("Could not kill pid %d: %s", pid, exception)
+            except Exception as exception:  # pylint: disable=broad-except
+                return exception
             return None
-        except Exception as exception:  # pylint: disable=broad-except
-            return exception
     else:
         return None
 
