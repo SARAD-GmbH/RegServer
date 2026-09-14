@@ -13,6 +13,7 @@ import os
 import re
 import shutil
 import signal
+import socket
 import sys
 import threading
 import traceback
@@ -24,7 +25,7 @@ from typing import override
 
 from serial.serialutil import SerialException  # type: ignore
 from thespian.actors import ActorSystem  # type: ignore
-from thespian.actors import ActorSystemRequestTimeout, Thespian_ActorStatus
+from thespian.actors import Thespian_ActorStatus
 from thespian.system.messages.status import Thespian_StatusReq  # type: ignore
 
 from regserver.actor_messages import (Frontend, KillMsg, SetupMsg,
@@ -127,7 +128,12 @@ class Main:
             self.registrar_actor = self.system.createActor(
                 Registrar, globalName="registrar"
             )
-        except ActorSystemRequestTimeout as exception:
+            logger.info("Registrar actor = %s", self.registrar_actor)
+            self.system.tell(
+                self.registrar_actor,
+                SetupMsg("registrar", "actor_system", None, None),
+            )
+        except Exception as exception:  # pylint: disable=broad-except
             logger.critical("Error creating the Registrar Actor: %s", exception)
             try:
                 self.system.shutdown()
@@ -136,12 +142,12 @@ class Main:
                     "Error when trying to shutdown the Actor system: %s",
                     inner_exception,
                 )
+                self.kill_residual_processes(end_with_error=False)
+                port = int(actor_config["capabilities"]["Admin Port"])
+                with socket.socket() as probe:
+                    if probe.connect_ex(("127.0.0.1", port)) == 0:
+                        logger.critical("Admin port %d still occupied", port)
             raise RuntimeError("Actor system could not be started") from exception
-        logger.info("Registrar actor = %s", self.registrar_actor)
-        self.system.tell(
-            self.registrar_actor,
-            SetupMsg("registrar", "actor_system", None, None),
-        )
         logger.debug("Actor system started.")
         # The Actor System must be started *before* the RestApi
         usb_listener = None
