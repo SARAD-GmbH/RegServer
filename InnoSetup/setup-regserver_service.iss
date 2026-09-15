@@ -66,7 +66,7 @@ Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 Name: "ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
 
 [Files]
-Source: "{#Source}\*"; DestDir: "{#Destination}"; Flags: createallsubdirs recursesubdirs promptifolder restartreplace uninsrestartdelete
+Source: "{#Source}\*"; DestDir: "{#Destination}"; Flags: createallsubdirs recursesubdirs promptifolder
 Source: "{#Source}\config.example.toml"; DestDir: "{#Config}"
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
