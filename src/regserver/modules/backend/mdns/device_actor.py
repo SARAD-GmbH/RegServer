@@ -19,6 +19,7 @@ import requests  # type: ignore
 from regserver.actor_messages import (RecentValueMsg, RxBinaryMsg,
                                       SetRtcAckMsg, Status)
 from regserver.config import config
+from regserver.helpers import get_hostname, get_ip
 from regserver.hostname_functions import compare_hostnames
 from regserver.logger import logger
 from regserver.modules.device_actor import REQUEST_TIMEOUT, DeviceBaseActor
@@ -94,6 +95,9 @@ class DeviceActor(DeviceBaseActor):
         )
         self._client_socket = None
         self.last_update = datetime.now()
+        self._my_host = config["MY_HOSTNAME"]
+        if not self._my_host:
+            self._my_host = get_hostname(get_ip(ipv6=False))
 
     def _http_get_function(self, endpoint="", params=None, purpose=Purpose.SETUP):
         try:
@@ -533,7 +537,7 @@ class DeviceActor(DeviceBaseActor):
                 if self.reserve_device_msg is not None:
                     my_host = self.reserve_device_msg.host
                 else:
-                    my_host = config["MY_HOSTNAME"]
+                    my_host = self._my_host
                 if compare_hostnames(using_host, my_host):
                     logger.debug(
                         "Occupied by me. Using host is %s, my host is %s",
@@ -677,7 +681,7 @@ class DeviceActor(DeviceBaseActor):
                 if self.reserve_device_msg is not None:
                     my_host = self.reserve_device_msg.host
                 else:
-                    my_host = config["MY_HOSTNAME"]
+                    my_host = self._my_host
                 if compare_hostnames(using_host, my_host):
                     logger.debug(
                         "Occupied by me. Using host is %s, my host is %s",

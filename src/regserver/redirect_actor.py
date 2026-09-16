@@ -18,7 +18,8 @@ from typing import override
 
 from regserver.actor_messages import SocketMsg, Status, TxBinaryMsg
 from regserver.base_actor import BaseActor
-from regserver.config import config, rest_frontend_config
+from regserver.config import rest_frontend_config
+from regserver.helpers import get_ip
 from regserver.logger import logger
 
 
@@ -31,7 +32,8 @@ class RedirectorActor(BaseActor):
         self._client_socket = None
         self._socket_info = None
         self.conn: socket.socket = socket.socket()
-        self._address = (config["MY_IP"], 0)
+        my_ip = get_ip(ipv6=False)
+        self._address = (my_ip, 0)
         self.read_list = []
         self.socket_loop_thread = Thread(
             target=self._loop,

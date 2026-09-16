@@ -16,7 +16,7 @@ from typing import override
 from regserver.actor_messages import (FinishSetupUsbActorMsg, FreeDeviceMsg,
                                       ReservationStatusMsg, SetDeviceStatusMsg,
                                       Status)
-from regserver.config import config, local_backend_config
+from regserver.config import local_backend_config
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
 from sarad.global_helpers import get_sarad_type  # type: ignore
@@ -76,7 +76,7 @@ class ZigBeeDeviceActor(UsbActor):
                     "Firmware version": self.instrument.software_version,
                     "Host": "127.0.0.1",
                     "Protocol": get_sarad_type(self.instr_id),
-                    "IS Id": config["IS_ID"],
+                    "IS Id": self.is_id,
                 },
                 "Serial": self.instrument.route.port,
                 "State": 2,

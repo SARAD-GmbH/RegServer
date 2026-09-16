@@ -20,6 +20,7 @@ from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj, KillMsg,
                                       SetupComActorMsg, TransportTechnology)
 from regserver.base_actor import BaseActor
 from regserver.config import config, local_backend_config, rs485_backend_config
+from regserver.helpers import get_is_id
 from regserver.logger import logger
 from regserver.modules.backend.usb.com_actor import ComActor
 from regserver.version import VERSION
@@ -302,7 +303,7 @@ class ClusterActor(BaseActor):
                     HostObj(
                         host="127.0.0.1",
                         transport_technology=TransportTechnology.LOCAL,
-                        is_id=config["IS_ID"],
+                        is_id=get_is_id(),
                         description=config["DESCRIPTION"],
                         place=config["PLACE"],
                         latitude=config["LATITUDE"],

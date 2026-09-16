@@ -9,6 +9,7 @@ Authors
 
 import fnmatch
 import os
+import socket
 from collections.abc import MutableMapping
 from contextlib import suppress
 from datetime import timedelta
@@ -318,22 +319,30 @@ def get_instr_status_from_registrar(registrar_actor, instr_id: str) -> dict:
     return {}
 
 
+def get_is_id() -> str:
+    """Find an ID for the Instrument Server with fallback."""
+    if config["IS_ID"]:
+        return config["IS_ID"]
+    if config["MY_HOSTNAME"]:
+        return config["MY_HOSTNAME"]
+    return get_hostname(get_ip(ipv6=False))
+
+
 def sort_device_statuses_by_hostname(
     device_statuses: dict[str, dict[str, str]],
 ) -> dict[str, dict[str, str]]:
     """Return a dictionary sorted by hostname."""
 
-    def get_hostname_from_status(status: dict[int, Any]):
+    def get_hostname_from_status(status: tuple[str, Any]):
         return status[1]["Identification"]["IS Id"]
 
     sorted_statuses = dict(
         sorted(device_statuses.items(), key=get_hostname_from_status)
     )
-    my_hostname = config["IS_ID"]
     local_statuses = {}
     remote_statuses = {}
     for key, value in sorted_statuses.items():
-        if value["Identification"]["IS Id"] == my_hostname:
+        if value["Identification"]["IS Id"] == get_is_id():
             local_statuses.update({key: value})
         else:
             remote_statuses.update({key: value})
@@ -554,3 +563,44 @@ def send_free_message(device_id, registrar_actor) -> Status:
     ]:
         return Status.NOT_FOUND
     return free_return.status
+
+
+def get_ip(ipv6=False):
+    """Find the external IP address of the computer running the RegServer.
+    TODO: The IPv6 part of this function is not yet functional!
+    https://pypi.org/project/netifaces/ might help
+
+    Returns:
+        string: IP address
+    """
+    if ipv6:
+        my_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        my_socket.settimeout(0)
+        try:
+            # doesn't even have to be reachable
+            my_socket.connect(("fe80::b630:531e:1381:33a3", 1))
+            ipv6_address = my_socket.getsockname()[0]
+        except Exception:  # pylint: disable=broad-except
+            ipv6_address = "::1"
+        finally:
+            my_socket.close()
+        return ipv6_address
+    my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    my_socket.settimeout(0)
+    try:
+        # doesn't even have to be reachable
+        my_socket.connect(("10.255.255.255", 1))
+        ipv4_address = my_socket.getsockname()[0]
+    except Exception:  # pylint: disable=broad-except
+        ipv4_address = "127.0.0.1"
+    finally:
+        my_socket.close()
+    return ipv4_address
+
+
+def get_hostname(ip_address):
+    """Find the host name for the given IP address"""
+    try:
+        return socket.gethostbyaddr(ip_address)[0]
+    except Exception:  # pylint: disable=broad-except
+        return "unknown host"

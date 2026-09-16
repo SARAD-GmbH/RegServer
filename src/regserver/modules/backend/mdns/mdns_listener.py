@@ -16,8 +16,8 @@ import threading
 import time
 
 from regserver.actor_messages import KillMsg, SetupLanDeviceMsg
-from regserver.config import get_ip, lan_backend_config
-from regserver.helpers import get_actor, sarad_protocol, short_id
+from regserver.config import lan_backend_config
+from regserver.helpers import get_actor, get_ip, sarad_protocol, short_id
 from regserver.logger import logger
 from regserver.shutdown import is_flag_set, system_shutdown
 from sarad.global_helpers import decode_instr_id  # type: ignore

@@ -34,9 +34,9 @@ from regserver.actor_messages import (ActorType, Frontend, GetHostInfoMsg,
                                       TransportTechnology, UpdateActorDictMsg,
                                       UpdateDeviceStatusesMsg)
 from regserver.base_actor import BaseActor
-from regserver.config import (actor_config, backend_config, config,
-                              frontend_config, mqtt_config, unique_id)
-from regserver.helpers import short_id, transport_technology
+from regserver.config import (actor_config, backend_config, frontend_config,
+                              mqtt_config, unique_id)
+from regserver.helpers import get_is_id, short_id, transport_technology
 from regserver.logger import logger
 from regserver.modules.backend.is1.is1_listener import Is1Listener
 from regserver.modules.backend.mdns.lan_host_creator import HostCreatorActor
@@ -348,7 +348,7 @@ class Registrar(BaseActor):
             self.send(
                 sender,
                 PrepareMqttActorMsg(
-                    client_id=unique_id(config["IS_ID"]),
+                    client_id=unique_id(get_is_id()),
                     group=mqtt_config["GROUP"],
                 ),
             )

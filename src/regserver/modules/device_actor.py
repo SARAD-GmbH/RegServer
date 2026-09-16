@@ -24,8 +24,8 @@ from regserver.actor_messages import (ActorType, FreeDeviceMsg, Frontend,
                                       StopMonitoringAckMsg, StopMonitoringMsg,
                                       UpdateDeviceStatusMsg)
 from regserver.base_actor import BaseActor
-from regserver.config import config, frontend_config
-from regserver.helpers import short_id
+from regserver.config import frontend_config
+from regserver.helpers import get_is_id, short_id
 from regserver.logger import logger
 from regserver.redirect_actor import RedirectorActor
 from thespian.actors import Actor, ActorSystem  # type: ignore
@@ -134,6 +134,7 @@ class DeviceBaseActor(BaseActor):
         self.request_queue: list[ActionRequest] = []
         self.bin_locks: list[Lock] = []
         self.last_request_id: int = 0
+        self.is_id = get_is_id()
 
     @override
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -971,7 +972,7 @@ class DeviceBaseActor(BaseActor):
             if self.device_status.get("Identification", False):
                 self.device_status["Identification"]["IS Id"] = self.device_status[
                     "Identification"
-                ].get("IS Id", config["IS_ID"])
+                ].get("IS Id", self.is_id)
                 for actor_address in self.subscribers.values():
                     self.send(
                         actor_address,
@@ -985,7 +986,7 @@ class DeviceBaseActor(BaseActor):
         if self.device_status.get("Identification", False):
             self.device_status["Identification"]["IS Id"] = self.device_status[
                 "Identification"
-            ].get("IS Id", config["IS_ID"])
+            ].get("IS Id", self.is_id)
             for actor_address in new_subscribers:
                 self.send(
                     actor_address,

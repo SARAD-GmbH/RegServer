@@ -97,6 +97,7 @@ class UsbActor(DeviceBaseActor):
         )
         self._set_rtc_pending: bool = False
         self._missed_monitoring_values: list[Parameter] = []
+        self.client_id = unique_id(self.is_id)
 
     @staticmethod
     def _calc_next_wakeup(
@@ -688,8 +689,7 @@ class UsbActor(DeviceBaseActor):
 
         qos = mqtt_config["QOS"]
         group = mqtt_config["GROUP"]
-        client_id = unique_id(config["IS_ID"])
-        topic = f"{group}/{client_id}/{self.instr_id}/{component}/{sensor}/{measurand}/value"
+        topic = f"{group}/{self.client_id}/{self.instr_id}/{component}/{sensor}/{measurand}/value"
         timestamp = int(answer.timestamp)
         if component == 255:
             if answer.gps and answer.gps.valid:
@@ -719,8 +719,7 @@ class UsbActor(DeviceBaseActor):
 
         qos = mqtt_config["QOS"]
         group = mqtt_config["GROUP"]
-        client_id = unique_id(config["IS_ID"])
-        topic = f"{group}/{client_id}/{self.instr_id}/meta"
+        topic = f"{group}/{self.client_id}/{self.instr_id}/meta"
         payload = {
             "State": 2,
             "start_timestamp": self.mon_state.start_timestamp,
@@ -749,10 +748,7 @@ class UsbActor(DeviceBaseActor):
 
         qos = mqtt_config["QOS"]
         group = mqtt_config["GROUP"]
-        client_id = unique_id(config["IS_ID"])
-        topic = (
-            f"{group}/{client_id}/{self.instr_id}/{component}/{sensor}/{measurand}/meta"
-        )
+        topic = f"{group}/{self.client_id}/{self.instr_id}/{component}/{sensor}/{measurand}/meta"
         payload = {
             "component_name": answer.component_name,
             "sensor_name": answer.sensor_name,
@@ -777,8 +773,7 @@ class UsbActor(DeviceBaseActor):
 
         qos = mqtt_config["QOS"]
         group = mqtt_config["GROUP"]
-        client_id = unique_id(config["IS_ID"])
-        topic = f"{group}/{client_id}/{self.instr_id}/meta"
+        topic = f"{group}/{self.client_id}/{self.instr_id}/meta"
         payload = {
             "State": 2,
             "start_timestamp": self.mon_state.start_timestamp,

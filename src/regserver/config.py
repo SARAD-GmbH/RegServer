@@ -12,7 +12,6 @@ import copy
 import logging
 import os
 import re
-import socket
 from typing import TypedDict
 from uuid import getnode as get_mac
 
@@ -117,47 +116,6 @@ class MqttFrontendConfigDict(TypedDict):
     GATEWAY: list[TransportTechnology]
 
 
-def get_ip(ipv6=False):
-    """Find the external IP address of the computer running the RegServer.
-    TODO: The IPv6 part of this function is not yet functional!
-    https://pypi.org/project/netifaces/ might help
-
-    Returns:
-        string: IP address
-    """
-    if ipv6:
-        my_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        my_socket.settimeout(0)
-        try:
-            # doesn't even have to be reachable
-            my_socket.connect(("fe80::b630:531e:1381:33a3", 1))
-            ipv6_address = my_socket.getsockname()[0]
-        except Exception:  # pylint: disable=broad-except
-            ipv6_address = "::1"
-        finally:
-            my_socket.close()
-        return ipv6_address
-    my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    my_socket.settimeout(0)
-    try:
-        # doesn't even have to be reachable
-        my_socket.connect(("10.255.255.255", 1))
-        ipv4_address = my_socket.getsockname()[0]
-    except Exception:  # pylint: disable=broad-except
-        ipv4_address = "127.0.0.1"
-    finally:
-        my_socket.close()
-    return ipv4_address
-
-
-def get_hostname(ip_address):
-    """Find the host name for the given IP address"""
-    try:
-        return socket.gethostbyaddr(ip_address)[0]
-    except Exception:  # pylint: disable=broad-except
-        return "unknown host"
-
-
 def unique_id(ambiguous_id):
     """Create a unique id out of given id and MAC address of computer"""
     return f"{ambiguous_id}-{hex(get_mac())}"
@@ -216,12 +174,6 @@ else:
     DEFAULT_LOG_FOLDER = "/var/log/"
 DEFAULT_LOG_FILE = "regserver.log"
 DEFAULT_NR_OF_LOG_FILES = 10
-try:
-    DEFAULT_IS_ID = socket.gethostname()
-except Exception:  # pylint: disable=broad-except
-    DEFAULT_IS_ID = "Instrument Server"
-DEFAULT_MY_IP = get_ip(ipv6=False)
-DEFAULT_MY_HOSTNAME = get_hostname(DEFAULT_MY_IP)
 
 # Compatibility to versions older than 2.5.0
 if cust_dict.get("frontends", False):
@@ -260,14 +212,13 @@ config = {
     "LOG_FOLDER": cust_dict.get("log_folder", DEFAULT_LOG_FOLDER),
     "LOG_FILE": cust_dict.get("log_file", DEFAULT_LOG_FILE),
     "NR_OF_LOG_FILES": cust_dict.get("nr_of_log_files", DEFAULT_NR_OF_LOG_FILES),
-    "IS_ID": cust_dict.get("is_id", DEFAULT_IS_ID),
+    "IS_ID": cust_dict.get("is_id", ""),
     "DESCRIPTION": cust_dict.get("description", DEFAULT_DESCRIPTION),
     "PLACE": cust_dict.get("place", DEFAULT_PLACE),
     "LATITUDE": cust_dict.get("latitude", DEFAULT_LATITUDE),
     "LONGITUDE": cust_dict.get("longitude", DEFAULT_LONGITUDE),
     "ALTITUDE": cust_dict.get("altitude", DEFAULT_ALTITUDE),
-    "MY_IP": cust_dict.get("my_ip", DEFAULT_MY_IP),
-    "MY_HOSTNAME": cust_dict.get("my_hostname", DEFAULT_MY_HOSTNAME),
+    "MY_HOSTNAME": cust_dict.get("my_hostname", ""),
 }
 
 # Frontend configuration

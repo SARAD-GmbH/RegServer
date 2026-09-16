@@ -19,8 +19,8 @@ from regserver.actor_messages import (ActorType, HostInfoMsg, HostObj,
                                       Is1Address, SetDeviceStatusMsg,
                                       SetupUsbActorMsg, TransportTechnology)
 from regserver.base_actor import BaseActor
-from regserver.config import CONFIG_FILE, config, is1_backend_config
-from regserver.helpers import check_message, make_command_msg
+from regserver.config import CONFIG_FILE, is1_backend_config
+from regserver.helpers import check_message, get_ip, make_command_msg
 from regserver.hostname_functions import get_fqdn_from_pqdn
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
@@ -121,7 +121,7 @@ class Is1Listener(BaseActor):
         super().__init__()
         self._client_socket = None
         self.conn = None
-        my_ip = config["MY_IP"]
+        my_ip = get_ip(ipv6=False)
         logger.debug("IP address of Registration Server: %s", my_ip)
         for my_port in self.PORTS:
             try:
@@ -136,10 +136,10 @@ class Is1Listener(BaseActor):
         try:
             server_socket.listen()  # listen(5) maybe???
         except OSError:
-            my_port = None
+            my_port = 0
         logger.debug("Server socket: %s", server_socket)
         self.read_list = [server_socket]
-        if my_port is not None:
+        if my_port:
             logger.info("Socket listening on %s:%d", my_ip, my_port)
         self.is1_addresses = []  # List of Is1Address
         self.active_is1_addresses = (

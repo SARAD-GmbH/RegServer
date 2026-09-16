@@ -15,7 +15,6 @@ from typing import override
 
 from regserver.actor_messages import (ActorType, KillMsg, SetDeviceStatusMsg,
                                       SetupUsbActorMsg)
-from regserver.config import config
 from regserver.helpers import short_id
 from regserver.logger import logger
 from regserver.modules.backend.usb.usb_actor import UsbActor
@@ -66,7 +65,7 @@ class NetUsbActor(UsbActor):
                 "Firmware version": self.instrument.software_version,
                 "Host": "127.0.0.1",
                 "Protocol": get_sarad_type(self.instr_id),
-                "IS Id": config["IS_ID"],
+                "IS Id": self.is_id,
             },
             "Serial": self.instrument.route.port,
             "State": 2,

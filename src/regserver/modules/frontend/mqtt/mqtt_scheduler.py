@@ -22,7 +22,8 @@ from regserver.actor_messages import (ActorType, FreeDeviceMsg,
                                       StartMonitoringMsg, Status,
                                       StopMonitoringMsg, TxBinaryMsg)
 from regserver.config import config, mqtt_frontend_config
-from regserver.helpers import diff_of_dicts, short_id, transport_technology
+from regserver.helpers import (diff_of_dicts, get_hostname, get_ip, get_is_id,
+                               short_id, transport_technology)
 from regserver.logger import logger
 from regserver.modules.backend.mqtt.mqtt_base_actor import MqttBaseActor
 from regserver.modules.ismqtt_messages import (Control, ControlType,
@@ -87,10 +88,13 @@ class MqttSchedulerActor(MqttBaseActor):
         self.reservations = {}  # {device_id: <reservation object>}
         # cmd_id to check the correct order of messages
         self.cmd_ids = {}  # {instr_id: <command id>}
+        my_hostname = config["MY_HOSTNAME"]
+        if not my_hostname:
+            my_hostname = get_hostname(get_ip(ipv6=False))
         self.is_meta = InstrumentServerMeta(
             state=0,
-            host=config["MY_HOSTNAME"],
-            is_id=config["IS_ID"],
+            host=my_hostname,
+            is_id=get_is_id(),
             description=config["DESCRIPTION"],
             place=config["PLACE"],
             latitude=config["LATITUDE"],

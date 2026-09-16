@@ -16,6 +16,7 @@ from regserver.actor_messages import (ActorType, SetDeviceStatusMsg,
                                       SetupHostActorMsg, SetupLanDeviceMsg)
 from regserver.base_actor import BaseActor
 from regserver.config import config, lan_backend_config
+from regserver.helpers import get_hostname, get_ip
 from regserver.hostname_functions import compare_hostnames
 from regserver.logger import logger
 from regserver.modules.backend.mdns.host_actor import HostActor
@@ -92,6 +93,8 @@ class HostCreatorActor(BaseActor):
             return
         # check blacklist
         my_hostname = config["MY_HOSTNAME"]
+        if not my_hostname:
+            my_hostname = get_hostname(get_ip(ipv6=False))
         hosts_blacklist = lan_backend_config.get("HOSTS_BLACKLIST", [])
         if (msg.host not in hosts_blacklist) and (
             not compare_hostnames(my_hostname, msg.host)

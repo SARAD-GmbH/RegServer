@@ -17,9 +17,8 @@ from typing import override
 
 from regserver.actor_messages import OnlineStatusMsg
 from regserver.base_actor import BaseActor
-from regserver.config import (get_hostname, get_ip, lan_frontend_config,
-                              rest_frontend_config)
-from regserver.helpers import short_id
+from regserver.config import lan_frontend_config, rest_frontend_config
+from regserver.helpers import get_hostname, get_ip, short_id
 from regserver.logger import logger
 from regserver.shutdown import is_flag_set, system_shutdown
 from zeroconf import ServiceInfo, Zeroconf
