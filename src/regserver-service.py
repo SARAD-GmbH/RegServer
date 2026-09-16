@@ -7,6 +7,7 @@
 :Author:
     | Michael Strey <strey@sarad.de>
 """
+
 import multiprocessing
 import socket
 import sys
@@ -52,11 +53,11 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         )
         return rc
 
-    def service_shutdown(self, with_error):
+    def service_shutdown(self, with_error, fast):
         """Shutdown of the Windows service"""
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.stop_event)
-        system_shutdown(with_error=with_error)
+        system_shutdown(with_error=with_error, fast=fast)
 
     def SvcOtherEx(self, control, event_type, data):
         """All extra events are sent via SvcOtherEx (SvcOther remains as a
@@ -67,14 +68,18 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         """
         if control == win32service.SERVICE_CONTROL_PRESHUTDOWN:
             servicemanager.LogInfoMsg("Preshutdown event: Trying to shutdown service")
-            self.service_shutdown(False)
+            self.service_shutdown(with_error=False, fast=False)
         elif control == win32service.SERVICE_CONTROL_POWEREVENT:
             servicemanager.LogInfoMsg(
                 f"Power event: code={control}, type={event_type}, data={data}"
             )
-            if event_type in (6, 7):  # PBT_APMRESUMECRITICAL, PBT_APMRESUMESUSPEND
+            if event_type == 4:  # PBT_APMSUSPEND
+                servicemanager.LogInfoMsg("Suspending: shutting down service")
+                self.service_shutdown(with_error=True, fast=True)
+            elif event_type in (7, 18):
+                # PBT_APMRESUMESUSPEND, PBT_APMRESUMEAUTOMATIC
                 servicemanager.LogInfoMsg("Resumed: Shutting down service for restart")
-                self.service_shutdown(True)
+                self.service_shutdown(with_error=True, fast=False)
         else:
             servicemanager.LogInfoMsg(
                 f"Other event: code={control}, type={event_type}, data={data}"

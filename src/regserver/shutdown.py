@@ -19,7 +19,7 @@ from regserver.logger import logger
 FLAGFILENAME = f"{home}{os.path.sep}stop.file"
 
 
-def set_file_flag(running, with_error=False):
+def set_file_flag(running, with_error=False, fast=False):
     """Function to create a file that is used as flag in order to detect that the
     Instrument Server should be stopped.
 
@@ -28,6 +28,7 @@ def set_file_flag(running, with_error=False):
                         shut down.
         with_error (bool): If True, the system shall be shut down with error
                            in order to restart the service automatically.
+        fast (bool): If True, the system shall be shut down in the fastest possible way.
 
     Returns:
         None
@@ -44,9 +45,11 @@ def set_file_flag(running, with_error=False):
                 pass
     elif not os.path.exists(FLAGFILENAME):
         with open(FLAGFILENAME, "w", encoding="utf8") as flag_file:
-            flag_file.write(str(with_error))
+            flag_file.write(f"{with_error},{fast}")
         if with_error:
-            logger.info("Write %s, with_error = %s", FLAGFILENAME, with_error)
+            logger.info(
+                "Write %s, with_error = %s, fast = %s", FLAGFILENAME, with_error, fast
+            )
 
 
 def is_flag_set():
@@ -54,31 +57,43 @@ def is_flag_set():
     be stopped was set.
 
     Returns:
-        {bool, bool}: 1st: True if the programm was started and shall stay running.
+        {bool, bool, bool}: 1st: True if the programm was started and shall stay running.
               False if the system shall be stopped by the main program.
-              2nd: True if the system shall be terminated with error
+              2nd: True if the system shall be terminated with error.
+              3rd: True if the system shall be terminated in the fastest way.
     """
     stop_file_exists = os.path.isfile(FLAGFILENAME)
     if stop_file_exists:
         try:
             with open(FLAGFILENAME, mode="r", encoding="utf8") as flag_file:
-                with_error_str = flag_file.read(4)
+                file_content = flag_file.read()
+                with_error_str = file_content.split(",")[0]
+                fast_str = file_content.split(",")[1]
                 if with_error_str == "True":
                     with_error = True
-                elif with_error_str == "Fals":  # sic! We read only 4 characters.
+                elif with_error_str == "False":
                     with_error = False
                 else:
                     logger.error("Stop file corrupted: %s", with_error_str)
                     with_error = True
+                if fast_str == "True":
+                    fast = True
+                elif fast_str == "False":
+                    fast = False
+                else:
+                    logger.error("Stop file corrupted: %s", fast_str)
+                    fast = False
         except IOError:
             stop_file_exists = False
             with_error = False
+            fast = False
     else:
         with_error = False
-    return not stop_file_exists, with_error
+        fast = False
+    return not stop_file_exists, with_error, fast
 
 
-def system_shutdown(with_error=True):
+def system_shutdown(with_error=True, fast=False):
     """Initiate the shutdown process
 
     This is only a wrapper for set_file_flag()
@@ -89,7 +104,7 @@ def system_shutdown(with_error=True):
     """
     actor_config["OUTER_WATCHDOG_TRIALS"] = 0
     actor_config["KEEPALIVE_INTERVAL"] = 0
-    set_file_flag(running=False, with_error=with_error)
+    set_file_flag(running=False, with_error=with_error, fast=fast)
 
 
 def kill_processes(regex):

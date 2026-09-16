@@ -196,6 +196,35 @@ class Main:
         self._initialized = True
         threading.excepthook = self.custom_hook
 
+    def fast_shutdown(self):
+        """Shutdown the application in the fastest possible way."""
+        self.stop_event.set()
+        if (TransportTechnology.LOCAL in backend_config) and (
+            self.usb_listener_thread is not None
+        ):
+            self.usb_listener_thread.join(timeout=20)
+        if self.lan_backend is not None:
+            logger.info("Shutdown MdnsListener")
+            try:
+                self.lan_backend.stop()
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.critical(exception)
+        if self.modbus_rtu is not None:
+            logger.info("Terminate ModbusRtu")
+            try:
+                self.modbus_rtu.stop()
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.critical(exception)
+        if self.system is not None:
+            try:
+                self.system.shutdown()
+            except OSError as exception:
+                logger.critical(exception)
+        self.kill_residual_processes(end_with_error=False)
+        if TransportTechnology.MQTT in backend_config:
+            write_ping_file(PING_FILE_NAME, FRMT)
+        logger.info("RegServer ended")
+
     def shutdown(self, wait_some_time, registrar_is_down, with_error=True):
         # pylint: disable=too-many-branches
         """Shutdown application"""
@@ -203,7 +232,7 @@ class Main:
         if (TransportTechnology.LOCAL in backend_config) and (
             self.usb_listener_thread is not None
         ):
-            self.usb_listener_thread.join(timeout=20)
+            self.usb_listener_thread.join(timeout=10)
         if self.lan_backend is not None:
             logger.info("Shutdown MdnsListener")
             try:
@@ -224,7 +253,7 @@ class Main:
             logger.info("Terminate REST-API")
             try:
                 self.api_process.terminate()
-                self.api_process.join(timeout=20)
+                self.api_process.join(timeout=10)
                 self.api_process.close()
             except Exception as exception:  # pylint: disable=broad-except
                 logger.critical(exception)
@@ -412,11 +441,14 @@ class Main:
                 logger.info("Wakeup from suspension.")
                 wait_some_time = True
                 system_shutdown()
-        self.shutdown(
-            wait_some_time,
-            registrar_is_down,
-            with_error=is_flag_set()[1],
-        )
+        if is_flag_set()[2]:
+            self.fast_shutdown()
+        else:
+            self.shutdown(
+                wait_some_time,
+                registrar_is_down,
+                with_error=is_flag_set()[1],
+            )
 
 
 if os.name == "posix":
@@ -554,7 +586,11 @@ def main():
     else:
         start_stop = sys.argv[1]
     if start_stop == "stop":
-        system_shutdown(with_error=False)
+        system_shutdown(with_error=False, fast=False)
+        wait_for_termination()
+        return
+    if start_stop == "kill":
+        system_shutdown(with_error=False, fast=True)
         wait_for_termination()
         return
     if start_stop == "start":
