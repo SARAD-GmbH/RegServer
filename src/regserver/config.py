@@ -129,10 +129,11 @@ else:
 APP_VENDOR = "SARAD"
 dirs = PlatformDirs(APP_NAME, APP_VENDOR)
 if os.name == "nt":
-    home = os.environ.get("LOCALAPPDATA")
+    home = os.environ.get("LOCALAPPDATA") or f"{dirs.site_data_dir}"
 else:
     home = os.environ.get("HOME") or f"{dirs.site_cache_dir}"
     os.makedirs(home, exist_ok=True)
+assert home
 CONFIG_FOLDER = f"{dirs.site_config_dir}{os.path.sep}"
 CONFIG_FILE = f"{CONFIG_FOLDER}config.toml"
 if os.name == "nt":

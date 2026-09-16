@@ -41,6 +41,7 @@ class Status(Enum):
     SUBSCRIBE = 34
     UNSUBSCRIBE = 35
     UNKNOWN_PORT = 40
+    NOT_ALLOWED = 93
     SET_RTC_PENDING = 94
     RESERVE_PENDING = 95
     FREE_PENDING = 96
@@ -65,6 +66,7 @@ class Status(Enum):
             34: "Error when subscribing to an MQTT topic",
             35: "Error when unsubscribing from an MQTT topic",
             40: "Port does not exist.",
+            93: "Access to instrument not allowed. Higher access level required.",
             94: "Set RTC pending",
             95: "Reserve pending",
             96: "Free pending",
