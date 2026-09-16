@@ -17,6 +17,7 @@ Date: Wed, 16 September 2026 17:21:41 +0200
 ## Improvements
 - The setup file now contains the version number.
 - Add an MSI file as alternative to the setup EXE.
+- Faster detection of new DACM-32-based instruments.
 
 # RegServer 2.5.14
 Date: Wed, 8 July 2026 10:13:12 +0200
