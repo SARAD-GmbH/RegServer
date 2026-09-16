@@ -11,7 +11,7 @@
     <Registration Value="Hidden" />
     <RegistrationWrapped Value="Visible" />
     <Manufacturer Detect="executable" Value="SARAD GmbH" />
-    <ProductVersion Detect="registry" Value="2.5.14.0" />
+    <ProductVersion Detect="registry" Value="2.5.15.0" />
     <ProductName Detect="executable" Value="SARAD Registration Server Service" />
     <Comments Detect="executable" Value="This installation was built with Inno Setup." />
     <Contact Detect="" Value="" />

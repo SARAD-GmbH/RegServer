@@ -1,3 +1,23 @@
+# RegServer 2.5.15
+Date: Wed, 16 September 2026 17:21:41 +0200
+
+## Fixed bugs
+
+- Correct display of host states.
+- Improved stability in the context of Windows updates, restarts and various
+  power saving modes.
+- Preventing a reboot loop that occurs in rare cases.
+- Workaround for the August 2026 Windows Update that removes the WMCI tool from
+  Windows 11.
+- Resolving a rare issue in which a connected device suddenly disappears from
+  the device list after a long period of time.
+- Unexpected restart of the service due to a connection failure with a SARAD
+  device equipped with a Wi-Fi module.
+
+## Improvements
+- The setup file now contains the version number.
+- Add an MSI file as alternative to the setup EXE.
+
 # RegServer 2.5.14
 Date: Wed, 8 July 2026 10:13:12 +0200
 
