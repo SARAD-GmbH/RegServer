@@ -78,13 +78,8 @@
 ### Default: 0 (m)
 #altitude = 102
 
-# `my_ip` is the IPv4 address of the host. `my_hostname` is the unique name of
-# the host within your network. Only change these parameters, if the
-# automatically detected values do not work.
-
-### Key: my_ip
-### Default: external IPv4 address of this computer
-#my_ip = "127.0.0.1"
+# `my_hostname` is the unique name of # the host within your network. Only
+# change this parameter, if the automatically detected value does not work.
 
 ### Key: my_hostname
 ### Default: hostname of this computer

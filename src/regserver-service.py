@@ -69,17 +69,6 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         if control == win32service.SERVICE_CONTROL_PRESHUTDOWN:
             servicemanager.LogInfoMsg("Preshutdown event: Trying to shutdown service")
             self.service_shutdown(with_error=False, fast=False)
-        elif control == win32service.SERVICE_CONTROL_POWEREVENT:
-            servicemanager.LogInfoMsg(
-                f"Power event: code={control}, type={event_type}, data={data}"
-            )
-            if event_type == 4:  # PBT_APMSUSPEND
-                servicemanager.LogInfoMsg("Suspending: shutting down service")
-                self.service_shutdown(with_error=True, fast=True)
-            elif event_type in (7, 18):
-                # PBT_APMRESUMESUSPEND, PBT_APMRESUMEAUTOMATIC
-                servicemanager.LogInfoMsg("Resumed: Shutting down service for restart")
-                self.service_shutdown(with_error=True, fast=False)
         else:
             servicemanager.LogInfoMsg(
                 f"Other event: code={control}, type={event_type}, data={data}"
@@ -89,7 +78,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         """Function that will be performed on 'service stop'.
 
         Removes the flag file to cause the main loop to stop."""
-        self.service_shutdown(False)
+        self.service_shutdown(with_error=False, fast=False)
 
     def SvcDoRun(self):
         """Function that will be performed on 'service start'.

@@ -46,10 +46,9 @@ def set_file_flag(running, with_error=False, fast=False):
     elif not os.path.exists(FLAGFILENAME):
         with open(FLAGFILENAME, "w", encoding="utf8") as flag_file:
             flag_file.write(f"{with_error},{fast}")
-        if with_error:
-            logger.info(
-                "Write %s, with_error = %s, fast = %s", FLAGFILENAME, with_error, fast
-            )
+        logger.info(
+            "Write %s, with_error = %s, fast = %s", FLAGFILENAME, with_error, fast
+        )
 
 
 def is_flag_set():
