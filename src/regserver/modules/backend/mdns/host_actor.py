@@ -400,6 +400,7 @@ class HostActor(BaseActor):
             if self.host.state == 0:
                 self.host.state = 1
                 logger.info("%s is back", self.host.host)
+                self.send(self.registrar, HostInfoMsg([self.host]))
         else:
             self.host.state = 0
             logger.debug("Update host info in _no_host_info()")

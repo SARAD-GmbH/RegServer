@@ -325,7 +325,7 @@ def get_is_id() -> str:
         return config["IS_ID"]
     if config["MY_HOSTNAME"]:
         return config["MY_HOSTNAME"]
-    return get_hostname(get_ip(ipv6=False))
+    return socket.gethostname()
 
 
 def sort_device_statuses_by_hostname(

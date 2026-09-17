@@ -142,11 +142,12 @@ class Main:
                     "Error when trying to shutdown the Actor system: %s",
                     inner_exception,
                 )
-                self.kill_residual_processes(end_with_error=False)
-                port = int(actor_config["capabilities"]["Admin Port"])
-                with socket.socket() as probe:
-                    if probe.connect_ex(("127.0.0.1", port)) == 0:
-                        logger.critical("Admin port %d still occupied", port)
+            self.kill_residual_processes(end_with_error=False)
+            port = int(actor_config["capabilities"]["Admin Port"])
+            with socket.socket() as probe:
+                probe.settimeout(1)
+                if probe.connect_ex(("127.0.0.1", port)) == 0:
+                    logger.critical("Admin port %d still occupied", port)
             raise RuntimeError("Actor system could not be started") from exception
         logger.debug("Actor system started.")
         # The Actor System must be started *before* the RestApi
@@ -202,7 +203,7 @@ class Main:
         if (TransportTechnology.LOCAL in backend_config) and (
             self.usb_listener_thread is not None
         ):
-            self.usb_listener_thread.join(timeout=20)
+            self.usb_listener_thread.join(timeout=1)
         if self.lan_backend is not None:
             logger.info("Shutdown MdnsListener")
             try:
@@ -215,15 +216,28 @@ class Main:
                 self.modbus_rtu.stop()
             except Exception as exception:  # pylint: disable=broad-except
                 logger.critical(exception)
+        if (
+            (Frontend.REST in frontend_config)
+            and (self.api_process is not None)
+            and (os.name == "posix")
+        ):
+            logger.info("Terminate REST-API")
+            try:
+                self.api_process.terminate()
+                self.api_process.join(timeout=1)
+                self.api_process.close()
+            except Exception as exception:  # pylint: disable=broad-except
+                logger.critical(exception)
         if self.system is not None:
             try:
                 self.system.shutdown()
             except OSError as exception:
                 logger.critical(exception)
-        self.kill_residual_processes(end_with_error=False)
+        self.kill_residual_processes(end_with_error=True)
         if TransportTechnology.MQTT in backend_config:
             write_ping_file(PING_FILE_NAME, FRMT)
         logger.info("RegServer ended")
+        raise SystemExit("Exit with error for automatic restart.")
 
     def shutdown(self, wait_some_time, registrar_is_down, with_error=True):
         # pylint: disable=too-many-branches
@@ -596,7 +610,7 @@ def main():
     if start_stop == "start":
         Main().main()
     else:
-        print("Usage: <program> start|stop")
+        print("Usage: <program> start|stop|kill")
 
 
 if __name__ == "__main__":

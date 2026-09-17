@@ -67,8 +67,9 @@ def is_flag_set():
         try:
             with open(FLAGFILENAME, mode="r", encoding="utf8") as flag_file:
                 file_content = flag_file.read()
-                with_error_str = file_content.split(",")[0]
-                fast_str = file_content.split(",")[1]
+                parts = file_content.split(",")
+                with_error_str = parts[0] if len(parts) > 0 else "False"
+                fast_str = parts[1] if len(parts) > 1 else "False"
                 if with_error_str == "True":
                     with_error = True
                 elif with_error_str == "False":

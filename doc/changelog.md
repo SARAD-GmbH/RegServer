@@ -7,7 +7,7 @@ Date: Wed, 16 September 2026 17:21:41 +0200
 - Improved stability in the context of Windows updates, restarts and various
   power saving modes.
 - Preventing a reboot loop that occurs in rare cases.
-- Workaround for the August 2026 Windows Update that removes the WMCI tool from
+- Workaround for the August 2026 Windows Update that removes the WMIC tool from
   Windows 11.
 - Resolving a rare issue in which a connected device suddenly disappears from
   the device list after a long period of time.
