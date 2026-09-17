@@ -39,18 +39,9 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         socket.setdefaulttimeout(60)
 
     def GetAcceptedControls(self):
-        """Override the base class so we can accept additional events.
-
-        say we accept them all.
-
-        """
+        """Override the base class so we can accept additional events."""
         rc = win32serviceutil.ServiceFramework.GetAcceptedControls(self)
-        rc = (
-            rc
-            | win32service.SERVICE_ACCEPT_PRESHUTDOWN
-            | win32service.SERVICE_ACCEPT_SHUTDOWN
-            | win32service.SERVICE_ACCEPT_POWEREVENT
-        )
+        rc = rc | win32service.SERVICE_ACCEPT_PRESHUTDOWN
         return rc
 
     def service_shutdown(self, with_error, fast):
@@ -69,10 +60,6 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         if control == win32service.SERVICE_CONTROL_PRESHUTDOWN:
             servicemanager.LogInfoMsg("Preshutdown event: Trying to shutdown service")
             self.service_shutdown(with_error=False, fast=False)
-        else:
-            servicemanager.LogInfoMsg(
-                f"Other event: code={control}, type={event_type}, data={data}"
-            )
 
     def SvcStop(self):
         """Function that will be performed on 'service stop'.
@@ -84,11 +71,6 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         """Function that will be performed on 'service start'.
 
         Starts the main function of the Registration Server"""
-        servicemanager.LogMsg(
-            servicemanager.EVENTLOG_INFORMATION_TYPE,
-            servicemanager.PYS_SERVICE_STARTED,
-            (self._svc_name_, ""),
-        )
         regserver.main.Main().main()
 
 
