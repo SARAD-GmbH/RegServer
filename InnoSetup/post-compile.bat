@@ -8,4 +8,4 @@ set "NewName=%NewestFile:.exe=.msi%"
 ren "..\dist\setup-regserver_service.msi" "%NewName%"
 del "..\dist\setup-regserver_service.exe"
 xcopy /Y ..\dist\setup-regserver_service-* Z:\GERÄTESOFTWARE\RegServer_Service\
-scp ..\dist\setup-regserver_service-* sarad.de/home/strey/
+scp ..\dist\setup-regserver_service-* sarad.de:/home/strey/
