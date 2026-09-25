@@ -71,6 +71,11 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         """Function that will be performed on 'service start'.
 
         Starts the main function of the Registration Server"""
+        servicemanager.LogMsg(
+            servicemanager.EVENTLOG_INFORMATION_TYPE,
+            servicemanager.PYS_SERVICE_STARTED,
+            (self._svc_name_, ""),
+        )
         regserver.main.Main().main()
 
 
