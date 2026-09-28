@@ -17,6 +17,7 @@ from regserver.base_actor import BaseActor
 from regserver.logger import logger
 from regserver.modules.backend.usb.net_usb_actor import NetUsbActor
 from regserver.modules.backend.usb.usb_actor import UsbActor
+from regserver.shutdown import is_flag_set
 from sarad.doseman import DosemanInst  # type: ignore
 from sarad.global_helpers import (encode_instr_id,  # type: ignore
                                   get_sarad_type)
@@ -102,7 +103,7 @@ class ComActor(BaseActor):
                 self._create_and_setup_actor(instrument)
 
     def _start_polling(self):
-        if not self.polling_loop_running:
+        if not self.polling_loop_running and is_flag_set()[0]:
             if not self.permanent_polling_interval:
                 self.temp_polling_interval = 3
             else:

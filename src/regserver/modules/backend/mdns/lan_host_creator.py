@@ -61,10 +61,11 @@ class HostCreatorActor(BaseActor):
                             scan_interval=setup_lan_device_msg.scan_interval,
                         ),
                     )
-                    self.send(
-                        self.actor_dict[hostname]["address"],
-                        SetDeviceStatusMsg(setup_lan_device_msg.device_status),
-                    )
+                    if not self.hosts_whitelist:
+                        self.send(
+                            self.actor_dict[hostname]["address"],
+                            SetDeviceStatusMsg(setup_lan_device_msg.device_status),
+                        )
                     self.pending.pop(hostname)
                     logger.debug("%s created and setup", hostname)
 

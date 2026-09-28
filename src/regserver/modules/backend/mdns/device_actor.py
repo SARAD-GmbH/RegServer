@@ -481,12 +481,13 @@ class DeviceActor(DeviceBaseActor):
 
     @override
     def receiveMsg_SetDeviceStatusMsg(self, msg, sender):
+        logger.debug("%s: SetDeviceStatusMsg %s", self.my_id, msg)
         if not (
             self.request_locks["Reserve"].locked or self.request_locks["Free"].locked
         ):
             self.occupied = False
             if not self.base_url:
-                self._is_host = msg.device_status["Remote"]["Address"]
+                self._is_host = msg.device_status["Identification"]["Host"]
                 self._api_port = msg.device_status["Remote"]["API port"]
                 self.base_url = f"http://{self._is_host}:{self._api_port}"
             if not self.device_id:

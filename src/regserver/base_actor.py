@@ -162,7 +162,7 @@ class BaseActor(ActorTypeDispatcher):
         if actor_id is None:
             return
         if self.my_id in ("registrar"):
-            logger.info("%s for %s from %s (%s)", msg, self.my_id, actor_id, sender)
+            logger.debug("%s for %s from %s (%s)", msg, self.my_id, actor_id, sender)
         else:
             logger.debug("%s for %s from %s (%s)", msg, self.my_id, actor_id, sender)
         child_actor = self.child_actors.pop(actor_id, None)

@@ -23,6 +23,7 @@ from regserver.config import config, local_backend_config, rs485_backend_config
 from regserver.helpers import get_is_id
 from regserver.logger import logger
 from regserver.modules.backend.usb.com_actor import ComActor
+from regserver.shutdown import is_flag_set
 from regserver.version import VERSION
 from sarad.sari import Route  # type: ignore
 from serial.tools.list_ports import comports, grep  # type: ignore
@@ -94,8 +95,9 @@ class ClusterActor(BaseActor):
     @override
     def receiveMsg_ChildActorExited(self, msg, sender):
         super().receiveMsg_ChildActorExited(msg, sender)
-        self._rescan()
-        logger.info("Rescan serial interfaces")
+        if is_flag_set()[0]:
+            self._rescan()
+            logger.info("Rescan serial interfaces")
 
     def receiveMsg_AddPortToLoopMsg(self, msg, sender):
         # pylint: disable=invalid-name

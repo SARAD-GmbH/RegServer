@@ -153,6 +153,17 @@ class MdnsListener(ServiceListener):
         self.zeroconf = None
         self.browser = None
         self.host_creator_actor = get_actor(self.registrar, "host_creator")
+        counter = 10  #  wait max. 2 s for host_creator_actor to come up
+        while (self.host_creator_actor is None) and counter:
+            self.host_creator_actor = get_actor(self.registrar, "host_creator")
+            logger.info("Waiting for the host_creator_actor...")
+            time.sleep(0.2)
+            counter = counter - 1
+        if not counter and self.host_creator_actor is None:
+            logger.critical(
+                "Actor system does't provide the host_creator_actor. -> Emergency shutdown."
+            )
+            system_shutdown()
         self.last_activity = time.time()
         self.lock = threading.Lock()
 

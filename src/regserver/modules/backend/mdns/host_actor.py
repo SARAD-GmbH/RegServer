@@ -136,7 +136,10 @@ class HostActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for SetDeviceStatusMsg initialising the device status information."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
-        device_id = list(msg.device_status)[0]
+        try:
+            device_id = list(msg.device_status)[0]
+        except IndexError:
+            return
         if transport_technology(device_id) == TransportTechnology.LAN:
             self._set_device_status(msg.device_status)
 

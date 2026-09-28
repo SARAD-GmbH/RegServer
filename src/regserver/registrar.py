@@ -44,7 +44,7 @@ from regserver.modules.backend.mqtt.mqtt_client_actor import MqttClientActor
 from regserver.modules.backend.usb.cluster_actor import ClusterActor
 from regserver.modules.frontend.mdns.mdns_scheduler import MdnsSchedulerActor
 from regserver.modules.frontend.mqtt.mqtt_scheduler import MqttSchedulerActor
-from regserver.shutdown import system_shutdown
+from regserver.shutdown import is_flag_set, system_shutdown
 
 if os.name == "posix":
     import select
@@ -712,6 +712,7 @@ class Registrar(BaseActor):
                 "is1_listener",
             ]
             and not self.on_kill
+            and is_flag_set()[0]
         ):
             logger.critical("%s was killed. This should never happen.", actor_id)
             system_shutdown(with_error=True)
@@ -719,6 +720,7 @@ class Registrar(BaseActor):
         if (
             (actor_id == "mqtt_scheduler")
             and not self.on_kill
+            and is_flag_set()[0]
             and (Frontend.MQTT in frontend_config)
         ):
             logger.critical("%s was killed. This should never happen.", actor_id)
@@ -786,7 +788,7 @@ class Registrar(BaseActor):
                     self.led.on()
             else:
                 self.led.blink(0.5, 0.15)
-        else:
+        elif is_flag_set()[0]:
             if self.online:
                 if len(self.device_statuses) == 0:
                     logger.info("led.blink(0.25, 0.07) -- no instrument")
