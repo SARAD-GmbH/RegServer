@@ -9,8 +9,8 @@
 """
 
 import multiprocessing
-import socket
 import sys
+import threading
 
 import servicemanager
 import win32event
@@ -36,7 +36,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
         self.stop_event = win32event.CreateEvent(None, 0, 0, None)
-        socket.setdefaulttimeout(60)
+        self.worker_thread = threading.Thread(target=regserver.main.Main().main)
 
     def GetAcceptedControls(self):
         """Override the base class so we can accept additional events."""
@@ -66,6 +66,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
 
         Removes the flag file to cause the main loop to stop."""
         self.service_shutdown(with_error=False, fast=False)
+        win32event.SetEvent(self.hWaitStop)
 
     def SvcDoRun(self):
         """Function that will be performed on 'service start'.
@@ -76,7 +77,9 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
             servicemanager.PYS_SERVICE_STARTED,
             (self._svc_name_, ""),
         )
-        regserver.main.Main().main()
+        self.worker_thread.start()
+        win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE)
+        self.worker_thread.join(timeout=5)
 
 
 def main():
