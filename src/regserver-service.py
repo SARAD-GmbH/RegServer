@@ -78,7 +78,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
             (self._svc_name_, ""),
         )
         self.worker_thread.start()
-        win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE)
+        win32event.WaitForSingleObject(self.stop_event, win32event.INFINITE)
         self.worker_thread.join(timeout=5)
 
 
