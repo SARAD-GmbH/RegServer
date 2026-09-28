@@ -27,7 +27,7 @@ from regserver.actor_messages import (TT_TRANSLATOR, ActorType, FreeDeviceMsg,
                                       UpdateDeviceStatusMsg)
 from regserver.config import config
 from regserver.logger import logger
-from regserver.shutdown import system_shutdown
+from regserver.shutdown import is_flag_set, system_shutdown
 
 
 def make_command_msg(cmd_data: list[bytes]) -> bytes:
@@ -208,13 +208,13 @@ def get_actor_dict(registrar_actor):
         except ConnectionResetError as exception:
             logger.debug(exception)
             result = None
-        if result is None:
+        if result is None and is_flag_set()[0]:
             logger.critical(
                 "Emergency shutdown. Ask to Registrar took more than 5 sec."
             )
             system_shutdown()
             return None
-        if not isinstance(result, UpdateActorDictMsg):
+        if not isinstance(result, UpdateActorDictMsg) and is_flag_set()[0]:
             logger.critical(
                 "UpdateActorDictMsg expected but % received. -> Emergency shutdown.",
                 result,
@@ -269,7 +269,7 @@ def get_device_status(registrar_actor, device_id: str) -> dict:
     if result is None:
         logger.debug("Timeout at GetDeviceStatusMsg.")
         return {}
-    if not isinstance(result, UpdateDeviceStatusMsg):
+    if not isinstance(result, UpdateDeviceStatusMsg) and is_flag_set()[0]:
         logger.critical(
             "Emergency shutdown. Request to %s delivered: %s instead of UpdateDeviceStatusMsg",
             device_id,
@@ -364,7 +364,7 @@ def get_device_statuses(registrar_actor):
         if result is None:
             logger.debug("Timeout at GetDeviceStatusesMsg.")
             return None
-        if not isinstance(result, UpdateDeviceStatusesMsg):
+        if not isinstance(result, UpdateDeviceStatusesMsg) and is_flag_set()[0]:
             logger.critical(
                 "Emergency shutdown. Registrar replied %s instead of UpdateDeviceStatusesMsg",
                 result,
@@ -387,7 +387,7 @@ def get_hosts(registrar_actor):
         if result is None:
             logger.debug("Timeout at GetHostInfoMsg.")
             return []
-        if not isinstance(result, HostInfoMsg):
+        if not isinstance(result, HostInfoMsg) and is_flag_set()[0]:
             logger.critical(
                 "Emergency shutdown. Registrar replied %s instead of HostInfoMsg",
                 result,
