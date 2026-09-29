@@ -37,6 +37,11 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         win32serviceutil.ServiceFramework.__init__(self, args)
         self.stop_event = win32event.CreateEvent(None, 0, 0, None)
         self.worker_thread = threading.Thread(target=regserver.main.Main().main)
+        threading.excepthook = self.custom_hook
+
+    def custom_hook(self, args):
+        """Custom exception hook to handle exceptions that occured within threads."""
+        self.service_shutdown(with_error=True, fast=False)
 
     def GetAcceptedControls(self):
         """Override the base class so we can accept additional events."""
@@ -66,7 +71,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
 
         Removes the flag file to cause the main loop to stop."""
         self.service_shutdown(with_error=False, fast=False)
-        win32event.SetEvent(self.hWaitStop)
+        win32event.SetEvent(self.stop_event)
 
     def SvcDoRun(self):
         """Function that will be performed on 'service start'.

@@ -146,7 +146,7 @@ class MdnsListener(ServiceListener):
 
     def __init__(self, registrar_actor):
         """
-        Initialize a mdns Listener for a specific device group
+        Initialize an mdns Listener for a specific device group
         """
         logger.info("Init mDNS listener")
         self.registrar = registrar_actor

@@ -195,7 +195,8 @@ class Main:
             self.lan_backend.start()
         logger.info("The RegServer is up and running now.")
         self._initialized = True
-        threading.excepthook = self.custom_hook
+        if os.name == "posix":
+            threading.excepthook = self.custom_hook
 
     def fast_shutdown(self):
         """Shutdown the application in the fastest possible way."""

@@ -136,7 +136,7 @@ class MqttBaseActor(BaseActor):
             else:
                 self.next_method()
                 self.next_method = None
-        if msg.payload == "watchdog":
+        if msg.payload == "watchdog" and is_flag_set()[0]:
             if mqtt_frontend_config["REBOOT_AFTER"]:
                 if (datetime.now() - self.last_pingresp) > (
                     timedelta(minutes=mqtt_frontend_config["REBOOT_AFTER"])
