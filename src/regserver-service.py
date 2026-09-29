@@ -54,6 +54,8 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.stop_event)
         system_shutdown(with_error=with_error, fast=fast)
+        if with_error:
+            self.SvcRun()
 
     def SvcOtherEx(self, control, event_type, data):
         """All extra events are sent via SvcOtherEx (SvcOther remains as a
@@ -71,7 +73,6 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
 
         Removes the flag file to cause the main loop to stop."""
         self.service_shutdown(with_error=False, fast=False)
-        win32event.SetEvent(self.stop_event)
 
     def SvcDoRun(self):
         """Function that will be performed on 'service start'.
