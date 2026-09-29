@@ -55,7 +55,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         win32event.SetEvent(self.stop_event)
         system_shutdown(with_error=with_error, fast=fast)
         if with_error:
-            self.SvcRun()
+            self.SvcDoRun()
 
     def SvcOtherEx(self, control, event_type, data):
         """All extra events are sent via SvcOtherEx (SvcOther remains as a
