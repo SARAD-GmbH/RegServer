@@ -299,7 +299,9 @@ class Main:
             write_ping_file(PING_FILE_NAME, FRMT)
         if with_error:
             logger.info("RegServer will exit with error to be restarted automatically")
-            raise SystemExit("Exit with error for automatic restart.")
+            if os.name == "posix":
+                raise SystemExit("Exit with error for automatic restart.")
+            os.kill(os.getpid(), signal.SIGABRT)
         logger.info("RegServer ended gracefully")
 
     def kill_residual_processes(self, end_with_error=True):
