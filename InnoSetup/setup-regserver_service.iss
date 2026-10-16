@@ -67,6 +67,7 @@ Name: "ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
 
 [Files]
 Source: "{#Source}\*"; DestDir: "{#Destination}"; Flags: createallsubdirs recursesubdirs promptifolder
+Source: "{#Source}\README.html"; DestDir: "{#Destination}"; Flags: ignoreversion isreadme
 Source: "{#Source}\config.example.toml"; DestDir: "{#Config}"
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
