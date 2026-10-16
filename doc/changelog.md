@@ -9,6 +9,7 @@ Date: Fri, 16 October 2026 10:02:00 +0200
 
 ## Features
 - Basic support for usage as Docker container.
+- Show README after setup.
 
 ## Known bugs
 - The RegServer still cannot handle the Modern Suspend (S0 Low Power Idle). The
