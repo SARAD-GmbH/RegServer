@@ -1,3 +1,19 @@
+# RegServer 2.5.16
+Date: Fri, 16 October 2026 10:02:00 +0200
+
+## Fixed bugs
+- Timeout during service startup.
+- Wakeup from suspend didn't work as expected.
+- Blacklist and Whitelist in LAN backend didn't work as expected.
+- Cleaner shutdown.
+
+## Features
+- Basic support for usage as Docker container.
+
+## Known bugs
+- The RegServer still cannot handle the Modern Suspend (S0 Low Power Idle). The
+  service might be off and needs to be restartet after wakeup from suspend.
+
 # RegServer 2.5.15
 Date: Wed, 16 September 2026 17:21:41 +0200
 

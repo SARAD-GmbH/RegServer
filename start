@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+docker run --network host \
+	--volume ~/.regserver.config.toml:/etc/regserver/config.toml \
+	--volume  ~/.regserver.log:/var/log/regserverx.log \
+	regserver
