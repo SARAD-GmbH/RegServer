@@ -1,6 +1,6 @@
 ---
 
-name: "Neue Version veröffentlichen"
+name: "Release"
 about: "Vorlage für die Arbeitsschritte beim Release"
 title: "Release von Version "
 ref: "master"
