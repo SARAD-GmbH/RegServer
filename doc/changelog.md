@@ -1,3 +1,9 @@
+# RegServer 2.5.17
+Date: Mon, 26 October 2026 16:11:00 +0200
+
+## Fixed bugs
+- Timeout during service startup.
+
 # RegServer 2.5.16
 Date: Fri, 16 October 2026 10:02:00 +0200
 
