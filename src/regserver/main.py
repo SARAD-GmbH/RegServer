@@ -81,8 +81,8 @@ class Main:
         # maybe there are processes left from last run
         self.kill_residual_processes(end_with_error=False)
         set_file_flag(True)
-        self.stop_event = threading.Event()
-        self.stop_event.clear()
+        self.hWaitStop = threading.Event()
+        self.hWaitStop.clear()
         try:
             self.system = ActorSystem(
                 systemBase=actor_config["systemBase"],
@@ -184,7 +184,7 @@ class Main:
             self.usb_listener_thread = threading.Thread(
                 target=usb_listener.run,
                 name="usb_listener_thread",
-                args=(self.stop_event,),
+                args=(self.hWaitStop,),
                 daemon=True,
             )
             self.usb_listener_thread.start()
@@ -200,7 +200,7 @@ class Main:
 
     def fast_shutdown(self):
         """Shutdown the application in the fastest possible way."""
-        self.stop_event.set()
+        self.hWaitStop.set()
         if (TransportTechnology.LOCAL in backend_config) and (
             self.usb_listener_thread is not None
         ):
@@ -243,7 +243,7 @@ class Main:
     def shutdown(self, wait_some_time, registrar_is_down, with_error=True):
         # pylint: disable=too-many-branches
         """Shutdown application"""
-        self.stop_event.set()
+        self.hWaitStop.set()
         if (TransportTechnology.LOCAL in backend_config) and (
             self.usb_listener_thread is not None
         ):
