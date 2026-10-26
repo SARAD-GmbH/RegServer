@@ -11,6 +11,7 @@
 import multiprocessing
 import os
 import signal
+import socket
 import sys
 import threading
 
@@ -40,6 +41,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
         self.worker_thread = threading.Thread(target=regserver.main.Main().main)
         threading.excepthook = self.custom_hook
+        socket.setdefaulttimeout(60)
 
     def custom_hook(self, args):
         """Custom exception hook to handle exceptions that occured within threads."""
