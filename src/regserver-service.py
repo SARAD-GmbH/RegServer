@@ -37,7 +37,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
 
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
-        self.stop_event = win32event.CreateEvent(None, 0, 0, None)
+        self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
         self.worker_thread = threading.Thread(target=regserver.main.Main().main)
         threading.excepthook = self.custom_hook
 
@@ -54,7 +54,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
     def service_shutdown(self, with_error, fast):
         """Shutdown of the Windows service"""
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
-        win32event.SetEvent(self.stop_event)
+        win32event.SetEvent(self.hWaitStop)
         system_shutdown(with_error=with_error, fast=fast)
         if with_error:
             os.kill(os.getpid(), signal.SIGABRT)
@@ -86,7 +86,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
             (self._svc_name_, ""),
         )
         self.worker_thread.start()
-        win32event.WaitForSingleObject(self.stop_event, win32event.INFINITE)
+        win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE)
         self.worker_thread.join(timeout=5)
 
 
