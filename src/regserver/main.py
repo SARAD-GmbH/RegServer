@@ -83,6 +83,8 @@ class Main:
         set_file_flag(True)
         self.hWaitStop = threading.Event()
         self.hWaitStop.clear()
+
+    def start(self):
         try:
             self.system = ActorSystem(
                 systemBase=actor_config["systemBase"],
@@ -431,6 +433,7 @@ class Main:
 
     def main(self):
         """Main function of the Registration Server"""
+        self.start()
         logger.debug("Starting the main loop")
         wait_some_time = False
         interval = actor_config["OUTER_WATCHDOG_INTERVAL"]
