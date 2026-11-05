@@ -159,7 +159,8 @@ class Main:
                 options = {
                     "bind": f"0.0.0.0:{rest_frontend_config['API_PORT']}",
                     "workers": cpu_count() * 2 + 1,
-                    "worker_class": "sync",
+                    "worker_class": "gevent",
+                    "timeout": 60,
                     "loglevel": "info",
                 }
                 self.api_process = Process(
