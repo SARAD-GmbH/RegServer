@@ -44,6 +44,7 @@ class MqttBaseActor(BaseActor):
         self.qos = mqtt_config["QOS"]
         self.last_pingresp = datetime.now()
         self.is_id = ""
+        self._tls_configured = False
 
     @override
     def _kill_myself(self, register=True, resurrect=False):
@@ -170,7 +171,7 @@ class MqttBaseActor(BaseActor):
                     mqtt_broker,
                     port,
                 )
-                if mqtt_config["TLS_USE_TLS"] and self.mqttc._ssl_context is None:
+                if mqtt_config["TLS_USE_TLS"] and not self._tls_configured:
                     ca_certs = os.path.expanduser(mqtt_config["TLS_CA_FILE"])
                     certfile = os.path.expanduser(mqtt_config["TLS_CERT_FILE"])
                     keyfile = os.path.expanduser(mqtt_config["TLS_KEY_FILE"])
@@ -181,12 +182,17 @@ class MqttBaseActor(BaseActor):
                         certfile,
                         keyfile,
                     )
-                    self.mqttc.tls_set(
-                        ca_certs=ca_certs,
-                        certfile=certfile,
-                        keyfile=keyfile,
-                        cert_reqs=ssl.CERT_REQUIRED,
+                    context = ssl.create_default_context(
+                        ssl.Purpose.SERVER_AUTH, cafile=ca_certs
                     )
+                    context.minimum_version = ssl.TLSVersion.TLSv1_2
+                    context.verify_flags &= ~ssl.VERIFY_X509_STRICT
+                    context.verify_mode = ssl.CERT_REQUIRED
+                    context.load_cert_chain(certfile=certfile, keyfile=keyfile)
+
+                    self.mqttc.tls_set_context(context)
+                    self._tls_configured = True
+
                 self.mqttc.connect(
                     mqtt_broker, port=int(port), keepalive=mqtt_config["KEEPALIVE"]
                 )
@@ -267,6 +273,8 @@ class MqttBaseActor(BaseActor):
                         pass
                     except OSError:
                         pass
+                if isinstance(mqtt_socket, ssl.SSLSocket):
+                    logger.info("Reuse TLS session: %s", mqtt_socket.session_reused)
         else:
             self.is_connected = False
             logger.critical(
