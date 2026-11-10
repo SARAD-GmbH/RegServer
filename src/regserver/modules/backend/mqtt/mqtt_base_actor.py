@@ -245,7 +245,28 @@ class MqttBaseActor(BaseActor):
         """Will be carried out when the client connected to the MQTT broker."""
         if reason_code == "Success":
             self.is_connected = True
+            self.last_pingresp = datetime.now()
             logger.info("%s connected to MQTT broker", self.my_id)
+            mqtt_socket = client.socket()
+            if mqtt_socket:
+                if os.name == "posix":
+                    try:
+                        mqtt_socket.setsockopt(
+                            socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1
+                        )
+                        mqtt_socket.setsockopt(
+                            socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 180
+                        )
+                        mqtt_socket.setsockopt(
+                            socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10
+                        )
+                        mqtt_socket.setsockopt(
+                            socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3
+                        )
+                    except AttributeError:
+                        pass
+                    except OSError:
+                        pass
         else:
             self.is_connected = False
             logger.critical(
