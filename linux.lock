@@ -5,10 +5,10 @@
 groups = ["default", "dev", "lint"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:914ef4dc168eaa1aae97d06ed49aaff12392becc1283860b6b974360b3626110"
+content_hash = "sha256:a0efa449c9c12c42c0a3504764d11630655acf4b7e746219edfafaeddb8131b2"
 
 [[metadata.targets]]
-requires_python = ">=3.12,<3.15"
+requires_python = ">=3.14,<3.15"
 platform = "manylinux_2_17_x86_64"
 
 [[package]]
@@ -17,7 +17,7 @@ version = "1.0.0"
 requires_python = ">=3.10"
 summary = "A light, configurable Sphinx theme"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 files = [
     {file = "alabaster-1.0.0-py3-none-any.whl", hash = "sha256:fc6786402dc3fcb2de3cabd5fe455a2db534b371124f1f21de8731783dec828b"},
     {file = "alabaster-1.0.0.tar.gz", hash = "sha256:c00dca57bca26fa62a6d7d0a9fcce65f3e026e9bfe33e9c538fd3fbb2144fd9e"},
@@ -28,6 +28,7 @@ name = "altgraph"
 version = "0.17.5"
 summary = "Python graph (network) package"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "altgraph-0.17.5-py2.py3-none-any.whl", hash = "sha256:f3a22400bce1b0c701683820ac4f3b159cd301acab067c51c653e06961600597"},
     {file = "altgraph-0.17.5.tar.gz", hash = "sha256:c87b395dd12fabde9c99573a9749d67da8d29ef9de0125c7f536699b4a9bc9e7"},
@@ -38,6 +39,7 @@ name = "aniso8601"
 version = "10.0.1"
 summary = "A library for parsing ISO 8601 strings."
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "aniso8601-10.0.1-py2.py3-none-any.whl", hash = "sha256:eb19717fd4e0db6de1aab06f12450ab92144246b257423fe020af5748c0cb89e"},
     {file = "aniso8601-10.0.1.tar.gz", hash = "sha256:25488f8663dd1528ae1f54f94ac1ea51ae25b4d531539b8bc707fed184d16845"},
@@ -48,6 +50,7 @@ name = "appdirs"
 version = "1.4.4"
 summary = "A small Python module for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "appdirs-1.4.4-py2.py3-none-any.whl", hash = "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128"},
     {file = "appdirs-1.4.4.tar.gz", hash = "sha256:7d5d0167b2b1ba821647616af46a749d1c653740dd0d2415100fe26e27afdf41"},
@@ -59,7 +62,7 @@ version = "4.0.3"
 requires_python = ">=3.10.0"
 summary = "An abstract syntax tree for Python with inference support."
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 dependencies = [
     "typing-extensions>=4; python_version < \"3.11\"",
 ]
@@ -74,6 +77,7 @@ version = "25.4.0"
 requires_python = ">=3.9"
 summary = "Classes Without Boilerplate"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "attrs-25.4.0-py3-none-any.whl", hash = "sha256:adcf7e2a1fb3b36ac48d97835bb6d8ade15b8dcce26aba8bf1d14847b57a3373"},
     {file = "attrs-25.4.0.tar.gz", hash = "sha256:16d5969b87f0859ef33a48b35d55ac1be6e42ae49d5e853b597db70c35c57e11"},
@@ -81,17 +85,17 @@ files = [
 
 [[package]]
 name = "babel"
-version = "2.17.0"
+version = "2.18.0"
 requires_python = ">=3.8"
 summary = "Internationalization utilities"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\" and platform_machine == \"x86_64\""
 dependencies = [
     "pytz>=2015.7; python_version < \"3.9\"",
 ]
 files = [
-    {file = "babel-2.17.0-py3-none-any.whl", hash = "sha256:4d0b53093fdfb4b21c92b5213dba5a1b23885afa8383709427046b21c366e5f2"},
-    {file = "babel-2.17.0.tar.gz", hash = "sha256:0c54cffb19f690cdcc52a3b50bcbf71e07a808d1c80d549f2459b9d2cf0afb9d"},
+    {file = "babel-2.18.0-py3-none-any.whl", hash = "sha256:e2b422b277c2b9a9630c1d7903c2a00d0830c409c59ac8cae9081c92f1aeba35"},
+    {file = "babel-2.18.0.tar.gz", hash = "sha256:b80b99a14bd085fcacfa15c9165f651fbb3406e66cc603abf11c5750937c992d"},
 ]
 
 [[package]]
@@ -99,6 +103,7 @@ name = "bitvector"
 version = "3.5.0"
 summary = "A memory-efficient packed representation for bit arrays in pure Python"
 groups = ["default", "dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "BitVector-3.5.0.tar.gz", hash = "sha256:cac2fbccf11e325115827ed7be03e5fd62615227b0bbf3fa5a18a842a221839c"},
 ]
@@ -109,6 +114,7 @@ version = "1.9.0"
 requires_python = ">=3.9"
 summary = "Fast, simple object-to-object and broadcast signaling"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "blinker-1.9.0-py3-none-any.whl", hash = "sha256:ba0efaa9080b619ff2f3459d1d500c57bddea4a6b424b60a91141db6fd2f08bc"},
     {file = "blinker-1.9.0.tar.gz", hash = "sha256:b4ce2265a7abece45e7cc896e98dbebe6cead56bcf805a3d23136d145f5445bf"},
@@ -120,6 +126,7 @@ version = "2026.1.4"
 requires_python = ">=3.7"
 summary = "Python package for providing Mozilla's CA Bundle."
 groups = ["default", "dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "certifi-2026.1.4-py3-none-any.whl", hash = "sha256:9943707519e4add1115f44c2bc244f782c0249876bf51b6599fee1ffbedd685c"},
     {file = "certifi-2026.1.4.tar.gz", hash = "sha256:ac726dd470482006e014ad384921ed6438c457018f4b3d204aea4281258b2120"},
@@ -131,7 +138,7 @@ version = "2.0.0"
 requires_python = ">=3.9"
 summary = "Foreign Function Interface for Python calling C code."
 groups = ["dev"]
-marker = "python_full_version >= \"3.9\" and platform_python_implementation != \"PyPy\" and (platform_machine != \"ppc64le\" and platform_machine != \"s390x\") and sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and platform_python_implementation != \"PyPy\" and (platform_machine != \"ppc64le\" and platform_machine != \"s390x\") and sys_platform == \"linux\" and python_version < \"3.15\""
 dependencies = [
     "pycparser; implementation_name != \"PyPy\"",
 ]
@@ -151,6 +158,7 @@ version = "3.4.4"
 requires_python = ">=3.7"
 summary = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
 groups = ["default", "dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "charset_normalizer-3.4.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9d1bb833febdff5c8927f922386db610b49db6e0d4f4ee29601d71e7c2694313"},
     {file = "charset_normalizer-3.4.4-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:840c25fb618a231545cbab0564a799f101b63b9901f2569faecd6b222ac72381"},
@@ -167,6 +175,7 @@ version = "8.3.1"
 requires_python = ">=3.10"
 summary = "Composable command line interface toolkit"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "colorama; platform_system == \"Windows\"",
 ]
@@ -181,7 +190,7 @@ version = "46.0.3"
 requires_python = "!=3.9.0,!=3.9.1,>=3.8"
 summary = "cryptography is a package which provides cryptographic recipes and primitives to Python developers."
 groups = ["dev"]
-marker = "(platform_machine != \"ppc64le\" and platform_machine != \"s390x\") and sys_platform == \"linux\""
+marker = "(platform_machine != \"ppc64le\" and platform_machine != \"s390x\") and sys_platform == \"linux\" and python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "cffi>=1.14; python_full_version == \"3.8.*\" and platform_python_implementation != \"PyPy\"",
     "cffi>=2.0.0; python_full_version >= \"3.9\" and platform_python_implementation != \"PyPy\"",
@@ -200,6 +209,7 @@ version = "0.21.2"
 requires_python = ">=3.9"
 summary = "Docutils -- Python Documentation Utilities"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "docutils-0.21.2-py3-none-any.whl", hash = "sha256:dafca5b9e384f0e419294eb4d2ff9fa826435bf15f15b7bd45723e8ad76811b2"},
     {file = "docutils-0.21.2.tar.gz", hash = "sha256:3a6b18732edf182daa3cd12775bbb338cf5691468f91eeeb109deff6ebfa986f"},
@@ -211,6 +221,7 @@ version = "3.1.3"
 requires_python = ">=3.9"
 summary = "A simple framework for building complex web applications."
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "blinker>=1.9.0",
     "click>=8.1.3",
@@ -231,6 +242,7 @@ version = "1.3.2"
 requires_python = ">=3.9"
 summary = "Fully featured framework for fast, easy and documented API development with Flask"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "Flask!=2.0.0,>=0.8",
     "aniso8601>=0.82",
@@ -250,6 +262,7 @@ version = "1.3.8"
 requires_python = ">=3.8"
 summary = "Python interface to ftd2xx.dll from FTDI using ctypes based on d2xx by Pablo Bleyer"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "pywin32; platform_system == \"Windows\"",
 ]
@@ -264,7 +277,7 @@ version = "26.9.0"
 requires_python = ">=3.10"
 summary = "Coroutine-based network library"
 groups = ["default"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 dependencies = [
     "cffi>=2.1.1; platform_python_implementation == \"CPython\" and sys_platform == \"win32\"",
     "greenlet>=3.2.2; platform_python_implementation == \"CPython\"",
@@ -281,7 +294,7 @@ version = "3.5.6"
 requires_python = ">=3.10"
 summary = "Lightweight in-process concurrent programming"
 groups = ["default"]
-marker = "platform_python_implementation == \"CPython\" and sys_platform == \"linux\""
+marker = "platform_python_implementation == \"CPython\" and sys_platform == \"linux\" and python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "greenlet-3.5.6.tar.gz", hash = "sha256:8e67c43bdfc88d5fee6db0d3e40175b362fc95fb85f0412d233b9b203c53a575"},
 ]
@@ -292,7 +305,7 @@ version = "26.2.0"
 requires_python = ">=3.10"
 summary = "WSGI HTTP Server for UNIX"
 groups = ["default"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 files = [
     {file = "gunicorn-26.2.0-py3-none-any.whl", hash = "sha256:bd249d0b3f7972f7432f0a6b6ff3b3ee2d129f70cd1ff6c09a9dd9e29a2b88e3"},
     {file = "gunicorn-26.2.0.tar.gz", hash = "sha256:62b864895d9ebff0b2f9867ba04fe811c93121596540830c9c916d0769668447"},
@@ -304,6 +317,7 @@ version = "1.3.1"
 requires_python = ">=2.7"
 summary = "Implements the hashids algorithm in python. For more information, visit http://hashids.org/"
 groups = ["default", "dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "hashids-1.3.1-py2.py3-none-any.whl", hash = "sha256:8bddd1acba501bfc9306e7e5a99a1667f4f2cacdc20cbd70bcc5ddfa5147c94c"},
     {file = "hashids-1.3.1.tar.gz", hash = "sha256:6c3dc775e65efc2ce2c157a65acb776d634cb814598f406469abef00ae3f635c"},
@@ -315,6 +329,7 @@ version = "1.5.0"
 requires_python = ">=3.8"
 summary = "A tool for generating OIDC identities"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "requests",
 ]
@@ -329,6 +344,7 @@ version = "3.11"
 requires_python = ">=3.8"
 summary = "Internationalized Domain Names in Applications (IDNA)"
 groups = ["default", "dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "idna-3.11-py3-none-any.whl", hash = "sha256:771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea"},
     {file = "idna-3.11.tar.gz", hash = "sha256:795dafcc9c04ed0c1fb032c2aa73654d8e8c5023a7df64a53f39190ada629902"},
@@ -339,6 +355,7 @@ name = "ifaddr"
 version = "0.2.0"
 summary = "Cross-platform network interface and IP address enumeration library"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "ifaddr-0.2.0-py3-none-any.whl", hash = "sha256:085e0305cfe6f16ab12d72e2024030f5d52674afad6911bb1eee207177b8a748"},
     {file = "ifaddr-0.2.0.tar.gz", hash = "sha256:cc0cbfcaabf765d44595825fb96a99bb12c79716b73b44330ea38ee2b0c4aed4"},
@@ -350,7 +367,7 @@ version = "1.4.1"
 requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 summary = "Getting image size from png/jpeg/jpeg2000/gif file"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 files = [
     {file = "imagesize-1.4.1-py2.py3-none-any.whl", hash = "sha256:0d8d18d08f840c19d0ee7ca1fd82490fdc3729b7ac93f49870406ddde8ef8d8b"},
     {file = "imagesize-1.4.1.tar.gz", hash = "sha256:69150444affb9cb0d5cc5a92b3676f0b2fb7cd9ae39e947a5e11a36b4497cd4a"},
@@ -362,6 +379,7 @@ version = "6.5.2"
 requires_python = ">=3.9"
 summary = "Read resources from Python packages"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "zipp>=3.1.0; python_version < \"3.10\"",
 ]
@@ -376,6 +394,7 @@ version = "2.3.0"
 requires_python = ">=3.10"
 summary = "brain-dead simple config-ini parsing"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "iniconfig-2.3.0-py3-none-any.whl", hash = "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12"},
     {file = "iniconfig-2.3.0.tar.gz", hash = "sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730"},
@@ -387,6 +406,7 @@ version = "2.2.0"
 requires_python = ">=3.8"
 summary = "Safely pass data to untrusted environments and back."
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "itsdangerous-2.2.0-py3-none-any.whl", hash = "sha256:c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef"},
     {file = "itsdangerous-2.2.0.tar.gz", hash = "sha256:e0050c0b7da1eea53ffaf149c0cfbb5c6e2e2b69c4bef22c81fa6eb73e5f6173"},
@@ -398,7 +418,7 @@ version = "3.4.0"
 requires_python = ">=3.8"
 summary = "Utility functions for Python class constructs"
 groups = ["dev"]
-marker = "platform_machine != \"ppc64le\" and platform_machine != \"s390x\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and (platform_machine != \"ppc64le\" and platform_machine != \"s390x\")"
 dependencies = [
     "more-itertools",
 ]
@@ -413,7 +433,7 @@ version = "6.1.0"
 requires_python = ">=3.9"
 summary = "Useful decorators and context managers"
 groups = ["dev"]
-marker = "platform_machine != \"ppc64le\" and platform_machine != \"s390x\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and (platform_machine != \"ppc64le\" and platform_machine != \"s390x\")"
 dependencies = [
     "backports-tarfile; python_version < \"3.12\"",
 ]
@@ -428,7 +448,7 @@ version = "4.4.0"
 requires_python = ">=3.9"
 summary = "Functools like those found in stdlib"
 groups = ["dev"]
-marker = "platform_machine != \"ppc64le\" and platform_machine != \"s390x\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and (platform_machine != \"ppc64le\" and platform_machine != \"s390x\")"
 dependencies = [
     "more-itertools",
 ]
@@ -443,7 +463,7 @@ version = "0.9.0"
 requires_python = ">=3.7"
 summary = "Low-level, pure Python DBus protocol wrapper."
 groups = ["dev"]
-marker = "(platform_machine != \"ppc64le\" and platform_machine != \"s390x\") and sys_platform == \"linux\""
+marker = "(platform_machine != \"ppc64le\" and platform_machine != \"s390x\") and sys_platform == \"linux\" and python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "jeepney-0.9.0-py3-none-any.whl", hash = "sha256:97e5714520c16fc0a45695e5365a2e11b81ea79bba796e26f9f1d178cb182683"},
     {file = "jeepney-0.9.0.tar.gz", hash = "sha256:cf0e9e845622b81e4a28df94c40345400256ec608d0e55bb8a3feaa9163f5732"},
@@ -455,6 +475,7 @@ version = "3.1.6"
 requires_python = ">=3.7"
 summary = "A very fast and expressive template engine."
 groups = ["default", "dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "MarkupSafe>=2.0",
 ]
@@ -469,6 +490,7 @@ version = "4.26.0"
 requires_python = ">=3.10"
 summary = "An implementation of JSON Schema validation for Python"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "attrs>=22.2.0",
     "jsonschema-specifications>=2023.03.6",
@@ -486,6 +508,7 @@ version = "2025.9.1"
 requires_python = ">=3.9"
 summary = "The JSON Schema meta-schemas and vocabularies, exposed as a Registry"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "referencing>=0.31.0",
 ]
@@ -500,7 +523,7 @@ version = "25.7.0"
 requires_python = ">=3.9"
 summary = "Store and access your passwords safely."
 groups = ["dev"]
-marker = "platform_machine != \"ppc64le\" and platform_machine != \"s390x\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and (platform_machine != \"ppc64le\" and platform_machine != \"s390x\")"
 dependencies = [
     "SecretStorage>=3.2; sys_platform == \"linux\"",
     "importlib-metadata>=4.11.4; python_version < \"3.12\"",
@@ -521,6 +544,7 @@ version = "4.0.0"
 requires_python = ">=3.10"
 summary = "Python port of markdown-it. Markdown parsing, done right!"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "mdurl~=0.1",
 ]
@@ -535,6 +559,7 @@ version = "3.0.3"
 requires_python = ">=3.9"
 summary = "Safely add untrusted strings to HTML/XML markup."
 groups = ["default", "dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f42d0984e947b8adf7dd6dde396e720934d12c506ce84eea8476409563607591"},
     {file = "markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:0bf2a864d67e76e5c9a34dc26ec616a66b9888e25e7b9460e1c76d3293bd9dbf"},
@@ -552,6 +577,7 @@ version = "0.1.2"
 requires_python = ">=3.7"
 summary = "Markdown URL utilities"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8"},
     {file = "mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba"},
@@ -562,6 +588,7 @@ name = "modbus-tk"
 version = "1.1.5"
 summary = "Implementation of modbus protocol in python"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "pyserial>=3.1",
 ]
@@ -576,7 +603,7 @@ version = "10.8.0"
 requires_python = ">=3.9"
 summary = "More routines for operating on iterables, beyond itertools"
 groups = ["dev"]
-marker = "platform_machine != \"ppc64le\" and platform_machine != \"s390x\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and (platform_machine != \"ppc64le\" and platform_machine != \"s390x\")"
 files = [
     {file = "more_itertools-10.8.0-py3-none-any.whl", hash = "sha256:52d4362373dcf7c52546bc4af9a86ee7c4579df9a8dc268be0a2f949d376cc9b"},
     {file = "more_itertools-10.8.0.tar.gz", hash = "sha256:f638ddf8a1a0d134181275fb5d58b086ead7c6a72429ad725c67503f13ba30bd"},
@@ -588,6 +615,7 @@ version = "0.3.2"
 requires_python = ">=3.8"
 summary = "Python binding to Ammonia HTML sanitizer Rust crate"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "nh3-0.3.2-cp314-cp314t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:45c953e57028c31d473d6b648552d9cab1efe20a42ad139d78e11d8f42a36130"},
     {file = "nh3-0.3.2-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7bb18403f02b655a1bbe4e3a4696c2ae1d6ae8f5991f7cacb684b1ae27e6c9f7"},
@@ -600,6 +628,7 @@ version = "26.3"
 requires_python = ">=3.9"
 summary = "Core utilities for Python packages"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "packaging-26.3-py3-none-any.whl", hash = "sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"},
     {file = "packaging-26.3.tar.gz", hash = "sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79"},
@@ -611,6 +640,7 @@ version = "2.2.0"
 requires_python = ">=3.9"
 summary = "MQTT version 5.0/3.1.1 client class"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "paho_mqtt-2.2.0-py3-none-any.whl", hash = "sha256:3243630f7c2b05f71d1de8c6f59865eb04d3a59ae8c866e92377faed6753db4d"},
     {file = "paho_mqtt-2.2.0.tar.gz", hash = "sha256:bcf706f03f1f49e0fc3ae166dc7b67ee35463496f8bdfd7c9c36181f6ba635c9"},
@@ -622,6 +652,7 @@ version = "4.14.5"
 requires_python = ">=3.11"
 summary = "A small Python package for determining appropriate platform-specific dirs, e.g. a `user data dir`."
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "platformdirs-4.14.5-py3-none-any.whl", hash = "sha256:8e778c6fa421516f4d3369449f8df3b0e1b72c0e0005fe88e3ec772d0a14e750"},
     {file = "platformdirs-4.14.5.tar.gz", hash = "sha256:32e9921db7385aa8169bee4fe9501923e5715ba9fb7ea3b9c69b0d8e0639f7a1"},
@@ -633,6 +664,7 @@ version = "1.6.0"
 requires_python = ">=3.9"
 summary = "plugin and hook calling mechanisms for python"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746"},
     {file = "pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3"},
@@ -644,8 +676,8 @@ version = "7.2.2"
 requires_python = ">=3.6"
 summary = "Cross-platform lib for process and system monitoring."
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
-    {file = "psutil-7.2.2-cp313-cp313t-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:1a571f2330c966c62aeda00dd24620425d4b0cc86881c89861fbc04549e5dc63"},
     {file = "psutil-7.2.2-cp314-cp314t-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:1fa4ecf83bcdf6e6c8f4449aff98eefb5d0604bf88cb883d7da3d8d2d909546a"},
     {file = "psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:076a2d2f923fd4821644f5ba89f059523da90dc9014e85f8e45a5774ca5bc6f9"},
     {file = "psutil-7.2.2.tar.gz", hash = "sha256:0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372"},
@@ -657,7 +689,7 @@ version = "2.23"
 requires_python = ">=3.8"
 summary = "C parser in Python"
 groups = ["dev"]
-marker = "python_full_version >= \"3.9\" and platform_python_implementation != \"PyPy\" and (platform_machine != \"ppc64le\" and platform_machine != \"s390x\") and sys_platform == \"linux\" and implementation_name != \"PyPy\""
+marker = "python_version >= \"3.14\" and platform_python_implementation != \"PyPy\" and (platform_machine != \"ppc64le\" and platform_machine != \"s390x\") and sys_platform == \"linux\" and implementation_name != \"PyPy\" and python_version < \"3.15\""
 files = [
     {file = "pycparser-2.23-py3-none-any.whl", hash = "sha256:e5c6e8d3fbad53479cab09ac03729e0a9faf2bee3db8208a550daf5af81a5934"},
     {file = "pycparser-2.23.tar.gz", hash = "sha256:78816d4f24add8f10a06d6f05b4d424ad9e96cfebf68a4ddc99c65c0720d00c2"},
@@ -669,6 +701,7 @@ version = "2.19.2"
 requires_python = ">=3.8"
 summary = "Pygments is a syntax highlighting package written in Python."
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "pygments-2.19.2-py3-none-any.whl", hash = "sha256:86540386c03d588bb81d44bc3928634ff26449851e99741617ecb9037ee5ec0b"},
     {file = "pygments-2.19.2.tar.gz", hash = "sha256:636cb2477cec7f8952536970bc533bc43743542f70392ae026374600add5b887"},
@@ -680,6 +713,7 @@ version = "6.22.3"
 requires_python = "<3.16,>=3.8"
 summary = "PyInstaller bundles a Python application and all its dependencies into a single package."
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "altgraph",
     "importlib-metadata>=4.6; python_version < \"3.10\"",
@@ -701,6 +735,7 @@ version = "2026.7"
 requires_python = ">=3.8"
 summary = "Community maintained hooks for PyInstaller"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "importlib-metadata>=4.6; python_version < \"3.10\"",
     "packaging>=22.0",
@@ -715,6 +750,7 @@ name = "pyserial"
 version = "3.5"
 summary = "Python Serial Port Extension"
 groups = ["default", "dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "pyserial-3.5-py2.py3-none-any.whl", hash = "sha256:c4451db6ba391ca6ca299fb3ec7bae67a5c55dde170964c7a14ceefec02f2cf0"},
     {file = "pyserial-3.5.tar.gz", hash = "sha256:3c77e014170dfffbd816e6ffc205e9842efb10be9f58ec16d3e8675b4925cddb"},
@@ -725,6 +761,7 @@ name = "pyserial-asyncio"
 version = "0.6"
 summary = "Python Serial Port Extension - Asynchronous I/O support"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "pyserial",
 ]
@@ -739,6 +776,7 @@ version = "9.2.0"
 requires_python = ">=3.10"
 summary = "pytest: simple powerful testing with Python"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "colorama>=0.4; sys_platform == \"win32\"",
     "exceptiongroup>=1; python_version < \"3.11\"",
@@ -759,6 +797,7 @@ version = "0.24.5"
 requires_python = ">=3.10"
 summary = "A libudev binding"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "pyudev-0.24.5-py3-none-any.whl", hash = "sha256:a9c62d04a83472fb05ad5e014ef85933e5cf2fef193caf8b77bb7a9e8ded4812"},
     {file = "pyudev-0.24.5.tar.gz", hash = "sha256:4e7faaec419b81a902d057568101819f448972c0cf448bb9c22203e4fc6a8eb9"},
@@ -770,9 +809,8 @@ version = "6.0.3"
 requires_python = ">=3.8"
 summary = "YAML parser and emitter for Python"
 groups = ["default", "dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
-    {file = "pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:ba1cc08a7ccde2d2ec775841541641e4548226580ab850948cbfda66a1befcdc"},
-    {file = "pyyaml-6.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:0f29edc409a6392443abf94b9cf89ce99889a1dd5376d94316ae5145dfedd5d6"},
     {file = "pyyaml-6.0.3-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c458b6d084f9b935061bc36216e8a69a7e293a2f1e68bf956dcd9e6cbcd143f5"},
     {file = "pyyaml-6.0.3-cp314-cp314t-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:00c4bdeba853cc34e7dd471f16b4114f4162dc03e6b7afcc2128711f0eca823c"},
     {file = "pyyaml-6.0.3.tar.gz", hash = "sha256:d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f"},
@@ -784,6 +822,7 @@ version = "44.0"
 requires_python = ">=3.9"
 summary = "readme_renderer is a library for rendering readme descriptions for Warehouse"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "Pygments>=2.5.1",
     "docutils>=0.21.2",
@@ -800,6 +839,7 @@ version = "0.37.0"
 requires_python = ">=3.10"
 summary = "JSON Referencing + Python"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "attrs>=22.2.0",
     "rpds-py>=0.7.0",
@@ -816,6 +856,7 @@ version = "2.34.2"
 requires_python = ">=3.10"
 summary = "Python HTTP for Humans."
 groups = ["default", "dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "certifi>=2023.5.7",
     "charset-normalizer<4,>=2",
@@ -833,6 +874,7 @@ version = "1.0.0"
 requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 summary = "A utility belt for advanced users of python-requests"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "requests<3.0.0,>=2.0.1",
 ]
@@ -847,6 +889,7 @@ version = "2.0.0"
 requires_python = ">=3.7"
 summary = "Validating URI References per RFC 3986"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "rfc3986-2.0.0-py2.py3-none-any.whl", hash = "sha256:50b1502b60e289cb37883f3dfd34532b8873c7de9f49bb546641ce9cbd256ebd"},
     {file = "rfc3986-2.0.0.tar.gz", hash = "sha256:97aacf9dbd4bfd829baad6e6309fa6573aaf1be3f6fa735c8ab05e46cecb261c"},
@@ -858,6 +901,7 @@ version = "15.0.0"
 requires_python = ">=3.9.0"
 summary = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "markdown-it-py>=2.2.0",
     "pygments<3.0.0,>=2.13.0",
@@ -873,7 +917,7 @@ version = "4.1.0"
 requires_python = ">=3.10"
 summary = "Manipulate well-formed Roman numerals"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 files = [
     {file = "roman_numerals-4.1.0-py3-none-any.whl", hash = "sha256:647ba99caddc2cc1e55a51e4360689115551bf4476d90e8162cf8c345fe233c7"},
     {file = "roman_numerals-4.1.0.tar.gz", hash = "sha256:1af8b147eb1405d5839e78aeb93131690495fe9da5c91856cb33ad55a7f1e5b2"},
@@ -885,6 +929,7 @@ version = "0.30.0"
 requires_python = ">=3.10"
 summary = "Python bindings to Rust's persistent data structures (rpds)"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "rpds_py-0.30.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0c0e95f6819a19965ff420f65578bacb0b00f251fefe2c8b23347c37174271f3"},
     {file = "rpds_py-0.30.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:33f559f3104504506a44bb666b93a33f5d33133765b0c216a5bf2f1e1503af89"},
@@ -899,13 +944,14 @@ files = [
 
 [[package]]
 name = "ruff"
-version = "0.17.3"
+version = "0.17.4"
 requires_python = ">=3.7"
 summary = "An extremely fast Python linter and code formatter, written in Rust."
 groups = ["lint"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\" and platform_machine == \"x86_64\""
 files = [
-    {file = "ruff-0.17.3-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7fa4b0f931cdbcb8a52044f370a3eb429fb42eb88807b0e800fcaa98dd42b24e"},
-    {file = "ruff-0.17.3.tar.gz", hash = "sha256:a57049c8addb3662073859bb55a7ad35aa54f8a7c9ed268911d1333c5aadaaa9"},
+    {file = "ruff-0.17.4-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2cd025509b2e15721b426fc70fd946d71f43b3db3b08e946dfec2d696d911690"},
+    {file = "ruff-0.17.4.tar.gz", hash = "sha256:f32d178b50e826e00f6c6c1be3f56333068acb9b67fe167143527fa9b81e890d"},
 ]
 
 [[package]]
@@ -917,6 +963,7 @@ git = "https://github.com/SARAD-GmbH/sarad.git"
 ref = "master"
 summary = "Library and sample application to collect data from SARAD instruments."
 groups = ["default", "dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "bitvector>=3.5.0",
     "hashids>=1.3.1",
@@ -930,7 +977,7 @@ version = "3.5.0"
 requires_python = ">=3.10"
 summary = "Python bindings to FreeDesktop.org Secret Service API"
 groups = ["dev"]
-marker = "(platform_machine != \"ppc64le\" and platform_machine != \"s390x\") and sys_platform == \"linux\""
+marker = "(platform_machine != \"ppc64le\" and platform_machine != \"s390x\") and sys_platform == \"linux\" and python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "cryptography>=2.0",
     "jeepney>=0.6",
@@ -946,6 +993,7 @@ version = "80.9.0"
 requires_python = ">=3.9"
 summary = "Easily download, build, install, upgrade, and uninstall Python packages"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "setuptools-80.9.0-py3-none-any.whl", hash = "sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922"},
     {file = "setuptools-80.9.0.tar.gz", hash = "sha256:f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c"},
@@ -957,7 +1005,7 @@ version = "3.0.1"
 requires_python = "!=3.0.*,!=3.1.*,!=3.2.*"
 summary = "This package provides 32 stemmers for 30 languages generated from Snowball algorithms."
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 files = [
     {file = "snowballstemmer-3.0.1-py3-none-any.whl", hash = "sha256:6cd7b3897da8d6c9ffb968a6781fa6532dce9c3618a4b127d920dab764a19064"},
     {file = "snowballstemmer-3.0.1.tar.gz", hash = "sha256:6d5eeeec8e9f84d4d56b847692bacf79bc2c8e90c7f80ca4444ff8b6f2e52895"},
@@ -965,23 +1013,23 @@ files = [
 
 [[package]]
 name = "sphinx"
-version = "9.1.1"
-requires_python = ">=3.12"
+version = "9.2.0"
+requires_python = ">=3.13"
 summary = "Python documentation generator"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\" and platform_machine == \"x86_64\""
 dependencies = [
     "Jinja2>=3.1",
-    "Pygments>=2.17",
-    "alabaster>=0.7.14",
-    "babel>=2.13",
+    "Pygments>=2.19",
+    "alabaster>=1.0",
+    "babel>=2.18",
     "colorama>=0.4.6; sys_platform == \"win32\"",
-    "docutils<0.23,>=0.21",
+    "docutils<0.24,>=0.21",
     "imagesize>=1.3",
-    "packaging>=23.0",
-    "requests>=2.30.0",
-    "roman-numerals>=1.0.0",
-    "snowballstemmer>=2.2",
+    "packaging>=25.0",
+    "requests>=2.32.5",
+    "roman-numerals>=3.0",
+    "snowballstemmer>=3.0.1",
     "sphinxcontrib-applehelp>=1.0.7",
     "sphinxcontrib-devhelp>=1.0.6",
     "sphinxcontrib-htmlhelp>=2.0.6",
@@ -990,8 +1038,8 @@ dependencies = [
     "sphinxcontrib-serializinghtml>=1.1.9",
 ]
 files = [
-    {file = "sphinx-9.1.1-py3-none-any.whl", hash = "sha256:f8b60013ce25017be41a509e5c2d265bc1918410061315c36b809c7f335646c0"},
-    {file = "sphinx-9.1.1.tar.gz", hash = "sha256:48b627f02908f22c601b3ba9c7b17265b4f315dd05c8bc64cd4da41183f44fbc"},
+    {file = "sphinx-9.2.0-py3-none-any.whl", hash = "sha256:4c3ec13b612712c0d3ce4cbdd9e3eb91e68577e07a8e31f32f21cf178453578c"},
+    {file = "sphinx-9.2.0.tar.gz", hash = "sha256:90470459f3cab15d9dfed146c71cf77694b0445df17b2e0e69059cb9f7fc9ee4"},
 ]
 
 [[package]]
@@ -1000,7 +1048,7 @@ version = "3.9.0"
 requires_python = ">=3.10"
 summary = "Sphinx API documentation generator"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 dependencies = [
     "Jinja2",
     "PyYAML",
@@ -1018,7 +1066,7 @@ version = "3.17.5"
 requires_python = ">=3.12"
 summary = "Render Python type hints in Sphinx autodoc documentation"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 dependencies = [
     "sphinx>=9.1",
     "typing-extensions>=4.16; python_version < \"3.15\"",
@@ -1034,7 +1082,7 @@ version = "3.1.0"
 requires_python = ">=3.8"
 summary = "Read the Docs theme for Sphinx"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 dependencies = [
     "docutils<0.23,>0.18",
     "sphinx<10,>=6",
@@ -1051,7 +1099,7 @@ version = "2.0.0"
 requires_python = ">=3.9"
 summary = "sphinxcontrib-applehelp is a Sphinx extension which outputs Apple help books"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 files = [
     {file = "sphinxcontrib_applehelp-2.0.0-py3-none-any.whl", hash = "sha256:4cd3f0ec4ac5dd9c17ec65e9ab272c9b867ea77425228e68ecf08d6b28ddbdb5"},
     {file = "sphinxcontrib_applehelp-2.0.0.tar.gz", hash = "sha256:2f29ef331735ce958efa4734873f084941970894c6090408b079c61b2e1c06d1"},
@@ -1063,7 +1111,7 @@ version = "2.0.0"
 requires_python = ">=3.9"
 summary = "sphinxcontrib-devhelp is a sphinx extension which outputs Devhelp documents"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 files = [
     {file = "sphinxcontrib_devhelp-2.0.0-py3-none-any.whl", hash = "sha256:aefb8b83854e4b0998877524d1029fd3e6879210422ee3780459e28a1f03a8a2"},
     {file = "sphinxcontrib_devhelp-2.0.0.tar.gz", hash = "sha256:411f5d96d445d1d73bb5d52133377b4248ec79db5c793ce7dbe59e074b4dd1ad"},
@@ -1075,7 +1123,7 @@ version = "2.1.0"
 requires_python = ">=3.9"
 summary = "sphinxcontrib-htmlhelp is a sphinx extension which renders HTML help files"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 files = [
     {file = "sphinxcontrib_htmlhelp-2.1.0-py3-none-any.whl", hash = "sha256:166759820b47002d22914d64a075ce08f4c46818e17cfc9470a9786b759b19f8"},
     {file = "sphinxcontrib_htmlhelp-2.1.0.tar.gz", hash = "sha256:c9e2916ace8aad64cc13a0d233ee22317f2b9025b9cf3295249fa985cc7082e9"},
@@ -1087,7 +1135,7 @@ version = "4.1"
 requires_python = ">=2.7"
 summary = "Extension to include jQuery on newer Sphinx releases"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 dependencies = [
     "Sphinx>=1.8",
 ]
@@ -1102,7 +1150,7 @@ version = "1.0.1"
 requires_python = ">=3.5"
 summary = "A sphinx extension which renders display math in HTML via JavaScript"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 files = [
     {file = "sphinxcontrib-jsmath-1.0.1.tar.gz", hash = "sha256:a9925e4a4587247ed2191a22df5f6970656cb8ca2bd6284309578f2153e0c4b8"},
     {file = "sphinxcontrib_jsmath-1.0.1-py2.py3-none-any.whl", hash = "sha256:2ec2eaebfb78f3f2078e73666b1415417a116cc848b72e5172e596c871103178"},
@@ -1113,7 +1161,7 @@ name = "sphinxcontrib-plantuml"
 version = "0.31"
 summary = "Sphinx \"plantuml\" extension"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 dependencies = [
     "Sphinx>=1.6",
 ]
@@ -1127,7 +1175,7 @@ version = "2.0.0"
 requires_python = ">=3.9"
 summary = "sphinxcontrib-qthelp is a sphinx extension which outputs QtHelp documents"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 files = [
     {file = "sphinxcontrib_qthelp-2.0.0-py3-none-any.whl", hash = "sha256:b18a828cdba941ccd6ee8445dbe72ffa3ef8cbe7505d8cd1fa0d42d3f2d5f3eb"},
     {file = "sphinxcontrib_qthelp-2.0.0.tar.gz", hash = "sha256:4fe7d0ac8fc171045be623aba3e2a8f613f8682731f9153bb2e40ece16b9bbab"},
@@ -1139,7 +1187,7 @@ version = "2.0.0"
 requires_python = ">=3.9"
 summary = "sphinxcontrib-serializinghtml is a sphinx extension which outputs \"serialized\" HTML files (json and pickle)"
 groups = ["dev"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 files = [
     {file = "sphinxcontrib_serializinghtml-2.0.0-py3-none-any.whl", hash = "sha256:6e2cb0eef194e10c27ec0023bfeb25badbbb5868244cf5bc5bdc04e4464bf331"},
     {file = "sphinxcontrib_serializinghtml-2.0.0.tar.gz", hash = "sha256:e9d912827f872c029017a53f0ef2180b327c3f7fd23c87229f7a8e8b70031d4d"},
@@ -1150,7 +1198,7 @@ name = "systemd-python"
 version = "235"
 summary = "Python interface for libsystemd"
 groups = ["default"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 files = [
     {file = "systemd-python-235.tar.gz", hash = "sha256:4e57f39797fd5d9e2d22b8806a252d7c0106c936039d1e71c8c6b8008e695c0a"},
 ]
@@ -1160,6 +1208,7 @@ name = "thespian"
 version = "4.0.1"
 summary = "Python Actor concurrency library"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "thespian-4.0.1.tar.gz", hash = "sha256:a4ae87849ca24d4545555a7fa45c500e2cae0ce03cba0ddf863cfb576d76a819"},
 ]
@@ -1170,6 +1219,7 @@ version = "0.15.2"
 requires_python = ">=3.9"
 summary = "Style preserving TOML library"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "tomlkit-0.15.2-py3-none-any.whl", hash = "sha256:05562412163a3037b94497385fb7f9204c637bc605af7a48199e41cf2272f437"},
     {file = "tomlkit-0.15.2.tar.gz", hash = "sha256:83e32755ba1d20d9340bd069ee97e9f6232ba2346b63ffcba425de01f7e327a6"},
@@ -1181,6 +1231,7 @@ version = "7.0.0"
 requires_python = ">=3.10"
 summary = "Collection of utilities for publishing packages on PyPI"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "id",
     "keyring>=21.2.0; platform_machine != \"ppc64le\" and platform_machine != \"s390x\"",
@@ -1202,8 +1253,8 @@ name = "typing-extensions"
 version = "4.16.0"
 requires_python = ">=3.9"
 summary = "Backported and Experimental Type Hints for Python 3.9+"
-groups = ["default", "dev"]
-marker = "python_version < \"3.15\" and sys_platform == \"linux\" or python_version < \"3.13\""
+groups = ["dev"]
+marker = "python_version < \"3.15\" and sys_platform == \"linux\" and python_version >= \"3.14\""
 files = [
     {file = "typing_extensions-4.16.0-py3-none-any.whl", hash = "sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"},
     {file = "typing_extensions-4.16.0.tar.gz", hash = "sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5"},
@@ -1215,6 +1266,7 @@ version = "2.6.3"
 requires_python = ">=3.9"
 summary = "HTTP library with thread-safe connection pooling, file post, and more."
 groups = ["default", "dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 files = [
     {file = "urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4"},
     {file = "urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed"},
@@ -1226,6 +1278,7 @@ version = "3.1.5"
 requires_python = ">=3.9"
 summary = "The comprehensive WSGI web application library."
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "markupsafe>=2.1.1",
 ]
@@ -1240,6 +1293,7 @@ version = "0.48.0"
 requires_python = ">=3.9"
 summary = "Command line tool for manipulating wheel files"
 groups = ["dev"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\""
 dependencies = [
     "packaging>=24.0",
 ]
@@ -1250,19 +1304,18 @@ files = [
 
 [[package]]
 name = "zeroconf"
-version = "0.153.0"
+version = "0.154.0"
 requires_python = ">=3.11"
 summary = "A pure python implementation of multicast DNS service discovery"
 groups = ["default"]
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\" and platform_machine == \"x86_64\""
 dependencies = [
     "ifaddr>=0.1.7",
 ]
 files = [
-    {file = "zeroconf-0.153.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:57a3ea9967ce4f41c9c2b44211629d03d63ab78ad1b48f64bb77c0a6ef8bc3e3"},
-    {file = "zeroconf-0.153.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:eee35a9893de37cddd1a47cec0c55decb574fd1987f163581d33f0cac88bcbe5"},
-    {file = "zeroconf-0.153.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:32608c3ffd977f6c31b1f39201fdeda2d18c939fded953a1e75c7ceffa43634c"},
-    {file = "zeroconf-0.153.0-cp314-cp314t-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:838502af9d6c483dac98f19533b43af1933c6f8650e87cc78c6446a7cbeea39a"},
-    {file = "zeroconf-0.153.0.tar.gz", hash = "sha256:28bd0baa208f4ea481a386e9eefdd3a65663fada34233432301a0c221d741d1d"},
+    {file = "zeroconf-0.154.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:6d381533c64def2117928dd275343d74292ca0d4af0df7a5d38e62c1ed30e20e"},
+    {file = "zeroconf-0.154.0-cp314-cp314t-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:7e7c91da1f63e66a05854fad01555dfbb8dc9c4e84a1844c4d1c17614d07b638"},
+    {file = "zeroconf-0.154.0.tar.gz", hash = "sha256:830315497af9bbd75924c2218cd3b64f0bde0e808ee316aabb5d9288836c0c43"},
 ]
 
 [[package]]
@@ -1271,7 +1324,7 @@ version = "6.2"
 requires_python = ">=3.10"
 summary = "Very basic event publishing system"
 groups = ["default"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 files = [
     {file = "zope_event-6.2-py3-none-any.whl", hash = "sha256:5e755153ac4faf64c10a4b6dd3307680166a3edf65b38df22df592610f8fa874"},
     {file = "zope_event-6.2.tar.gz", hash = "sha256:b97d5d6327067ee6b9dfcbdf606ade9ade70991e19c162e808ea39e5fcf0f8d3"},
@@ -1283,7 +1336,7 @@ version = "8.7"
 requires_python = ">=3.11"
 summary = "Interfaces for Python"
 groups = ["default"]
-marker = "sys_platform == \"linux\""
+marker = "python_version >= \"3.14\" and python_version < \"3.15\" and sys_platform == \"linux\""
 files = [
     {file = "zope_interface-8.7-cp312-cp312-manylinux1_x86_64.manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:90aef6e0a9924af18f60528895f2fc50cb634191939d65b10a96d9ced05030b5"},
     {file = "zope_interface-8.7-cp313-cp313-manylinux1_x86_64.manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:d30ed06ef78e9e1b41a50683b7d01727a3c363143c5bda09017e33f19827afc2"},
