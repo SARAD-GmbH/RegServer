@@ -164,9 +164,14 @@ class Registrar(BaseActor):
             for actor_id in self.actor_dict:
                 if not self.actor_dict[actor_id]["is_alive"]:
                     if (
-                        self.actor_dict[actor_id].get("actor_type", ActorType.NONE)
-                        == ActorType.DEVICE
-                        and transport_technology(actor_id) == TransportTechnology.IS1
+                        (
+                            self.actor_dict[actor_id].get("actor_type", ActorType.NONE)
+                            == ActorType.DEVICE
+                            and transport_technology(actor_id)
+                            == TransportTechnology.IS1
+                        )
+                        or (actor_id == "registrar")
+                        or self.on_kill
                     ):
                         logger.error(
                             "Actor %s did not respond to KeepAliveMsg.", actor_id
