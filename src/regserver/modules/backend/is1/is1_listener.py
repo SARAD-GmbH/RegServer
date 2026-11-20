@@ -343,12 +343,15 @@ class Is1Listener(BaseActor):
     @override
     def receiveMsg_KillMsg(self, msg, sender):
         """Handler to exit the redirector actor."""
+        if self.scan_is_thread.is_alive():
+            self.scan_is_thread.join(timeout=3)
+        if self.cmd_thread.is_alive():
+            self.cmd_thread.join(timeout=3)
         self.read_list[0].close()
         super().receiveMsg_KillMsg(msg, sender)
 
     @override
     def receiveMsg_ActorExitRequest(self, msg, sender):
-        super().receiveMsg_ActorExitRequest(msg, sender)
         for _actor_id, is1_address in self.active_is1_addresses.items():
             self.is1_addresses.append(is1_address)
         logger.info("is1_addresses = %s", self.is1_addresses)
@@ -364,6 +367,7 @@ class Is1Listener(BaseActor):
         customization["is1_backend"]["hosts"] = list(set(is1_hosts))
         with open(CONFIG_FILE, "w", encoding="utf8") as custom_file:
             tomlkit.dump(customization, custom_file)
+        super().receiveMsg_ActorExitRequest(msg, sender)
 
     def _create_and_setup_actor(
         self, instr_id, is1_address: Is1Address, firmware_version: int
