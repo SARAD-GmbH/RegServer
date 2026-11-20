@@ -77,6 +77,7 @@ class UsbListener(BaseListener):
     @override
     def __init__(self, registrar_actor):
         super().__init__(registrar_actor)
+        self.hwnd = None
         self.class_atom = None
         self.hinstance = win32api.GetModuleName(None)
 
@@ -102,8 +103,8 @@ class UsbListener(BaseListener):
 
     def run(self, stop_event):
         """Start listening for new devices"""
-        hwnd = self._create_listener()
-        logger.debug("Created listener window with hwnd=%s", hwnd)
+        self.hwnd = self._create_listener()
+        logger.debug("Created listener window with self.hwnd=%s", self.hwnd)
         logger.info("[Start] Windows USB Listener")
         while not stop_event.is_set():
             try:
@@ -118,13 +119,16 @@ class UsbListener(BaseListener):
                 else:
                     raise
             sleep(0.1)
-        # Stop listening
-        if hwnd:
+        self.stop()
+
+    def stop(self):
+        """Stop listening."""
+        if self.hwnd:
             try:
-                win32gui.DestroyWindow(hwnd)
+                win32gui.DestroyWindow(self.hwnd)
             except win32gui.error as exception:
                 logger.warning("Error destrying window: %s", exception)
-            hwnd = None
+            self.hwnd = None
         if self.class_atom:
             try:
                 win32gui.UnregisterClass(self.class_atom, self.hinstance)
