@@ -77,16 +77,17 @@ class UsbListener(BaseListener):
     @override
     def __init__(self, registrar_actor):
         super().__init__(registrar_actor)
-        self.hwnd = None
+        self.class_atom = None
+        self.hinstance = win32api.GetModuleName(None)
 
     def _create_listener(self):
         win_class = win32gui.WNDCLASS()
         win_class.lpfnWndProc = self._on_message
         win_class.lpszClassName = self.__class__.__name__
-        win_class.hInstance = win32api.GetModuleHandle(None)
-        class_atom = win32gui.RegisterClass(win_class)
+        win_class.hInstance = self.hinstance
+        self.class_atom = win32gui.RegisterClass(win_class)
         return win32gui.CreateWindow(
-            class_atom,
+            self.class_atom,
             self.__class__.__name__,
             0,
             0,
@@ -95,33 +96,42 @@ class UsbListener(BaseListener):
             0,
             0,
             0,
-            win_class.hInstance,
+            self.hinstance,
             None,
         )
 
     def run(self, stop_event):
         """Start listening for new devices"""
-        self.hwnd = self._create_listener()
-        logger.debug("Created listener window with hwnd=%s", self.hwnd)
+        hwnd = self._create_listener()
+        logger.debug("Created listener window with hwnd=%s", hwnd)
         logger.info("[Start] Windows USB Listener")
         while not stop_event.is_set():
-            win32gui.PumpWaitingMessages()
-            sleep(0.5)
-        self.stop()
-
-    def stop(self):
-        """Stop listening."""
-        win32gui.PostQuitMessage(self.hwnd)
-        win32gui.PostMessage(self.hwnd, win32con.WM_CLOSE, 0, 0)
-        logger.debug("Ask window nicely to close and wait for 3 s")
-        sleep(3)
-        try:
-            win32api.TerminateProcess(self.hwnd, 0)
-            win32api.CloseHandle(self.hwnd)
-        except Exception as exception:  # pylint: disable=broad-exception-caught
-            logger.debug("Trying to kill the WinListener: %s", exception)
+            try:
+                win32gui.PumpWaitingMessages()
+            except win32gui.error as exception:
+                if exception.winerror == 1450:
+                    logger.warning(
+                        "Windows system resources temporarily exhausted in message loop: %s",
+                        exception,
+                    )
+                    sleep(1.0)
+                else:
+                    raise
+            sleep(0.1)
+        # Stop listening
+        if hwnd:
+            try:
+                win32gui.DestroyWindow(hwnd)
+            except win32gui.error as exception:
+                logger.warning("Error destrying window: %s", exception)
+            hwnd = None
+        if self.class_atom:
+            try:
+                win32gui.UnregisterClass(self.class_atom, self.hinstance)
+            except win32gui.error as exception:
+                logger.warning("Error unregistering class: %s", exception)
+            self.class_atom = None
         logger.info("Stop listening for USB devices.")
-        return 0
 
     def _on_message(self, _hwnd: int, msg: int, wparam: int, _lparam: int):
         if msg == win32con.WM_DEVICECHANGE:
