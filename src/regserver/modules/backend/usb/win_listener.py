@@ -79,7 +79,7 @@ class UsbListener(BaseListener):
         super().__init__(registrar_actor)
         self.hwnd = None
         self.class_atom = None
-        self.hinstance = win32api.GetModuleName(None)
+        self.hinstance = win32api.GetModuleHandle(None)
 
     def _create_listener(self):
         win_class = win32gui.WNDCLASS()
