@@ -280,7 +280,7 @@ class Main:
             sleep(10)
         logger.info("Terminate the actor system")
         if registrar_is_down or self.system is None or self.registrar_actor is None:
-            logger.debug("Registrar actor already died from emergency shutdown")
+            logger.warning("Registrar actor already died from emergency shutdown")
         else:
             try:
                 response = self.system.ask(
@@ -289,7 +289,7 @@ class Main:
             except ConnectionResetError:
                 response = None
             if response:
-                logger.debug("Registrar actor terminated successfully")
+                logger.info("Registrar actor terminated successfully")
             else:
                 logger.error("KillMsg to Registrar returned with %s", response)
         if self.system is not None:

@@ -141,7 +141,7 @@ class Registrar(BaseActor):
         """Handler for WakeupMessage to send the KeepAliveMsg to all children."""
         logger.debug("%s for %s from %s", msg, self.my_id, sender)
         CHECK = actor_config["CHECK"]
-        if msg.payload == "keep alive":
+        if msg.payload == "keep alive" and not self.on_kill:
             logger.debug("Watchdog: start health check")
             if CHECK:
                 for actor_id in self.actor_dict:
@@ -159,7 +159,7 @@ class Registrar(BaseActor):
                 self.send(
                     self.actor_dict[actor_id]["address"], KeepAliveMsg(report=CHECK)
                 )
-        elif msg.payload == "check":
+        elif msg.payload == "check" and not self.on_kill:
             success = True
             for actor_id in self.actor_dict:
                 if not self.actor_dict[actor_id]["is_alive"]:
