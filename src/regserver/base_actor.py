@@ -128,13 +128,11 @@ class BaseActor(ActorTypeDispatcher):
                 self._unsubscribe_from_actor_dict_msg()
             if self.child_actors:
                 self._forward_to_children(KillMsg(register=register))
-            else:
-                if register:
-                    self.send(
-                        self.registrar, UnsubscribeMsg(actor_address=self.myAddress)
-                    )
-                self.send(self.parent.parent_address, ChildActorExited(self.myAddress))
-                self.send(self.myAddress, ActorExitRequest())
+        if not self.child_actors:
+            if register:
+                self.send(self.registrar, UnsubscribeMsg(actor_address=self.myAddress))
+            self.send(self.parent.parent_address, ChildActorExited(self.myAddress))
+            self.send(self.myAddress, ActorExitRequest())
 
     def receiveMsg_KeepAliveMsg(self, msg, sender):
         # pylint: disable=invalid-name, unused-argument
@@ -176,13 +174,12 @@ class BaseActor(ActorTypeDispatcher):
         if (not self.child_actors) and self.on_kill:
             if self.my_id == "registrar":
                 logger.info("Last man (%s) standing!", self.my_id)
+                self._kill_myself(register=False, resurrect=False)
             else:
                 logger.debug(
                     "Unsubscribe from Registrar and send ActorExitRequest to myself"
                 )
-                self.send(self.registrar, UnsubscribeMsg(actor_address=self.myAddress))
-            self.send(self.parent.parent_address, ChildActorExited(self.myAddress))
-            self.send(self.myAddress, ActorExitRequest())
+                self._kill_myself(register=True, resurrect=False)
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
         # pylint: disable=invalid-name
