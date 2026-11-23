@@ -89,7 +89,7 @@ class SaradRegistrationServer(win32serviceutil.ServiceFramework):
         )
         self.worker_thread.start()
         win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE)
-        self.worker_thread.join(timeout=5)
+        self.worker_thread.join(timeout=10)
 
 
 def main():
