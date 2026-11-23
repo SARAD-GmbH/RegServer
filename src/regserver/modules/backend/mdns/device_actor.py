@@ -103,6 +103,7 @@ class DeviceActor(DeviceBaseActor):
     def _kill_myself(self, register=True, resurrect=False):
         if self.request_thread.is_alive():
             self.request_thread.join(timeout=3)
+        super()._kill_myself(register, resurrect)
 
     def _http_get_function(self, endpoint="", params=None, purpose=Purpose.SETUP):
         try:

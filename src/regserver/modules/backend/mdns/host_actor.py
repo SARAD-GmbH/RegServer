@@ -130,7 +130,7 @@ class HostActor(BaseActor):
             self.shutdown_thread.join(timeout=3)
         if self.get_host_info_thread.is_alive():
             self.get_host_info_thread.join(timeout=3)
-        super()._kill_myself()
+        super()._kill_myself(register, resurrect)
 
     def receiveMsg_SetupHostActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
