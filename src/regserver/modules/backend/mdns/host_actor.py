@@ -118,6 +118,20 @@ class HostActor(BaseActor):
             self.host.state = self.host.state and 1
             self.send(self.registrar, HostInfoMsg([self.host]))
 
+    @override
+    def _kill_myself(self, register=True, resurrect=False):
+        if self.ping_thread.is_alive():
+            self.ping_thread.join(timeout=3)
+        if self.scan_thread.is_alive():
+            self.scan_thread.join(timeout=3)
+        if self.rescan_thread.is_alive():
+            self.rescan_thread.join(timeout=3)
+        if self.shutdown_thread.is_alive():
+            self.shutdown_thread.join(timeout=3)
+        if self.get_host_info_thread.is_alive():
+            self.get_host_info_thread.join(timeout=3)
+        super()._kill_myself()
+
     def receiveMsg_SetupHostActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SetupHostActorMsg initialising the host status information."""

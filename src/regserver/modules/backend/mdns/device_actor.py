@@ -99,6 +99,11 @@ class DeviceActor(DeviceBaseActor):
         if not self._my_host:
             self._my_host = get_hostname(get_ip(ipv6=False))
 
+    @override
+    def _kill_myself(self, register=True, resurrect=False):
+        if self.request_thread.is_alive():
+            self.request_thread.join(timeout=3)
+
     def _http_get_function(self, endpoint="", params=None, purpose=Purpose.SETUP):
         try:
             resp = self.http.get(endpoint, params=params)
