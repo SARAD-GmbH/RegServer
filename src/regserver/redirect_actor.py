@@ -12,6 +12,7 @@ socket as actor messages to the device actor.
 
 import select
 import socket
+from datetime import timedelta
 from threading import Thread
 from time import sleep
 from typing import override
@@ -61,6 +62,15 @@ class RedirectorActor(BaseActor):
                 logger.error("%s in _loop function of redirector", exception)
         self.read_list[0].close()
         logger.debug("Socket at port %d closed.", self._address[1])
+
+    @override
+    def _kill_myself(self, register=True, resurrect=False):
+        try:
+            if self.socket_loop_thread.is_alive():
+                self.socket_loop_thread.join(timeout=0.5)
+        except RuntimeError:
+            pass
+        super()._kill_myself(register, resurrect)
 
     @override
     def receiveMsg_SetupMsg(self, msg, sender):
@@ -140,10 +150,16 @@ class RedirectorActor(BaseActor):
                 logger.error("%s in _sendall function", exception)
         if data is None:
             logger.critical("Application software seems to be dead.")
-            self._kill_myself()
+            self.wakeupAfter(
+                timedelta(seconds=0.1),
+                payload="kill",
+            )
         elif data == b"":
             logger.debug("The application closed the socket.")
-            self._kill_myself()
+            self.wakeupAfter(
+                timedelta(seconds=0.1),
+                payload="kill",
+            )
         else:
             logger.debug(
                 "Redirect %s from app, socket %s to device actor %s",

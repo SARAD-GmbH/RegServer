@@ -259,12 +259,17 @@ class UsbActor(DeviceBaseActor):
                     self.wakeupAfter(timedelta(seconds=10), "resume_monitoring")
         elif msg.payload == "request_set_rtc_at_is":
             self._request_set_rtc_at_is(sender=self.myAddress, confirm=False)
+        elif msg.payload == "kill":
+            self._kill_myself(register=True, resurrect=False)
 
     def _finish_poll(self):
         """Finalize the handling of WakeupMessage for regular rescan"""
         if not self.is_connected and not self.on_kill:
             logger.info("Nothing connected -> Killing %s", self.my_id)
-            self._kill_myself()
+            self.wakeupAfter(
+                timedelta(seconds=0.1),
+                payload="kill",
+            )
         elif self.instrument.family.get("family_id", False):
             instr_id = encode_instr_id(
                 self.instrument.family["family_id"],
@@ -278,7 +283,10 @@ class UsbActor(DeviceBaseActor):
                     old_instr_id,
                     instr_id,
                 )
-                self._kill_myself()
+                self.wakeupAfter(
+                    timedelta(seconds=0.1),
+                    payload="kill",
+                )
 
     def dummy_reply(self, data) -> bytes:
         """Filter TX message and give a dummy reply.
@@ -335,7 +343,10 @@ class UsbActor(DeviceBaseActor):
                         emergency = True
                     if emergency:
                         logger.info("Killing myself")
-                        self._kill_myself()
+                        self.wakeupAfter(
+                            timedelta(seconds=0.1),
+                            payload="kill",
+                        )
                         return
                     logger.debug("Instrument replied %s", reply)
                     if reply["is_valid"]:
@@ -413,7 +424,10 @@ class UsbActor(DeviceBaseActor):
         )
         if (success == Status.NOT_FOUND) and not self.on_kill:
             logger.info("Killing myself")
-            self._kill_myself()
+            self.wakeupAfter(
+                timedelta(seconds=0.1),
+                payload="kill",
+            )
 
     @override
     def _request_free_at_is(self, sender):
@@ -826,7 +840,10 @@ class UsbActor(DeviceBaseActor):
                 )
                 if answer.status == Status.CRITICAL:
                     logger.error("Connection lost to %s", self.my_id)
-                    self._kill_myself()
+                    self.wakeupAfter(
+                        timedelta(seconds=0.1),
+                        payload="kill",
+                    )
                     return
                 self._publish_value(
                     answer, parameter.component, parameter.sensor, parameter.measurand
@@ -852,7 +869,10 @@ class UsbActor(DeviceBaseActor):
         answer = self._get_recent_value_inner(component, sensor, measurand)
         if answer.status == Status.CRITICAL:
             logger.error("Connection lost to %s in _get_meta_data", self.my_id)
-            self._kill_myself()
+            self.wakeupAfter(
+                timedelta(seconds=0.1),
+                payload="kill",
+            )
             return
         self._publish_meta(answer, component, sensor, measurand)
 
@@ -971,6 +991,11 @@ class UsbActor(DeviceBaseActor):
 
     @override
     def _kill_myself(self, register=True, resurrect=False):
+        try:
+            if self.inner_thread.is_alive():
+                self.inner_thread.join(timeout=0.5)
+        except RuntimeError:
+            pass
         if self.mon_state.monitoring_active:
             self._stop_monitoring()
         try:

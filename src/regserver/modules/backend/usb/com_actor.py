@@ -8,6 +8,7 @@
 
 """
 
+from datetime import timedelta
 from threading import Thread
 from time import sleep
 from typing import Union, override
@@ -39,6 +40,15 @@ class ComActor(BaseActor):
         self.permanent_polling_interval: float = 0
         self.detect_instr_thread = Thread(target=self._detect_instr, daemon=True)
         self.guessed_family = 0  # id of instrument family
+
+    @override
+    def _kill_myself(self, register=True, resurrect=False):
+        try:
+            if self.detect_instr_thread.is_alive():
+                self.detect_instr_thread.join(timeout=0.5)
+        except RuntimeError:
+            pass
+        super()._kill_myself(register, resurrect)
 
     def _guess_family(self):
         family_mapping = [
@@ -125,7 +135,9 @@ class ComActor(BaseActor):
         # pylint: disable=invalid-name
         """Handler for WakeupMessage"""
         logger.debug("Wakeup %s, payload = %s", self.my_id, msg.payload)
-        if (not self.on_kill) and self.polling_loop_running:
+        if msg.payload == "kill":
+            self._kill_myself(register=True, resurrect=False)
+        elif (not self.on_kill) and self.polling_loop_running:
             self._do_loop()
             self.wakeupAfter(self.temp_polling_interval)
             self.polling_loop_running = True
@@ -177,7 +189,10 @@ class ComActor(BaseActor):
                 test_instrument.release_instrument()
             except (SerialException, OSError) as exception:
                 logger.error("%s: %s not accessible: %s", self.my_id, route, exception)
-                self._kill_myself()
+                self.wakeupAfter(
+                    timedelta(seconds=0.1),
+                    payload="kill",
+                )
                 break
         if instr_id is not None:
             return test_instrument

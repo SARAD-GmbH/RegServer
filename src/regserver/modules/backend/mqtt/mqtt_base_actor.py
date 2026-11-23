@@ -48,6 +48,11 @@ class MqttBaseActor(BaseActor):
 
     @override
     def _kill_myself(self, register=True, resurrect=False):
+        try:
+            if self.connect_thread.is_alive():
+                self.connect_thread.join(timeout=0.5)
+        except RuntimeError:
+            pass
         if self.is_connected:
             logger.debug("Disconnect from MQTT broker")
             self.mqttc.disconnect()

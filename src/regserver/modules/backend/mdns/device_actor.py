@@ -101,8 +101,11 @@ class DeviceActor(DeviceBaseActor):
 
     @override
     def _kill_myself(self, register=True, resurrect=False):
-        if self.request_thread.is_alive():
-            self.request_thread.join(timeout=3)
+        try:
+            if self.request_thread.is_alive():
+                self.request_thread.join(timeout=3)
+        except RuntimeError:
+            pass
         super()._kill_myself(register, resurrect)
 
     def _http_get_function(self, endpoint="", params=None, purpose=Purpose.SETUP):
@@ -317,7 +320,10 @@ class DeviceActor(DeviceBaseActor):
                 self.success,
                 self.on_kill,
             )
-            self._kill_myself()
+            self.wakeupAfter(
+                timedelta(seconds=0.1),
+                payload="kill",
+            )
 
     @override
     def receiveMsg_WakeupMessage(self, msg, sender):
@@ -338,6 +344,8 @@ class DeviceActor(DeviceBaseActor):
                         daemon=True,
                     )
                 )
+        elif msg.payload == "kill":
+            self._kill_myself(register=True, resurrect=False)
         elif isinstance(msg.payload, Thread):
             self._start_thread(msg.payload)
 
@@ -354,7 +362,10 @@ class DeviceActor(DeviceBaseActor):
                     self.success,
                     self.on_kill,
                 )
-                self._kill_myself()
+                self.wakeupAfter(
+                    timedelta(seconds=0.1),
+                    payload="kill",
+                )
                 return
             if reservation:
                 active = reservation.get("Active", False)
@@ -377,7 +388,10 @@ class DeviceActor(DeviceBaseActor):
                 self.success,
                 self.on_kill,
             )
-            self._kill_myself()
+            self.wakeupAfter(
+                timedelta(seconds=0.1),
+                payload="kill",
+            )
 
     @override
     def _request_free_at_is(self, sender):
@@ -408,7 +422,10 @@ class DeviceActor(DeviceBaseActor):
         )
         if success in (Status.IS_NOT_FOUND, Status.NOT_FOUND) and not self.on_kill:
             logger.debug("_kill_myself called in _finish_free")
-            self._kill_myself()
+            self.wakeupAfter(
+                timedelta(seconds=0.1),
+                payload="kill",
+            )
         logger.info("%s: Doublecheck the reservation status after free", self.my_id)
         self.wakeupAfter(timedelta(seconds=11), payload="update")
 
@@ -464,7 +481,10 @@ class DeviceActor(DeviceBaseActor):
         )
         if success in (Status.IS_NOT_FOUND, Status.NOT_FOUND) and not self.on_kill:
             logger.debug("_kill_myself called in _finish_reserve")
-            self._kill_myself()
+            self.wakeupAfter(
+                timedelta(seconds=0.1),
+                payload="kill",
+            )
 
     @override
     def _request_recent_value_at_is(self, msg, sender):
@@ -529,7 +549,10 @@ class DeviceActor(DeviceBaseActor):
                     self.success,
                     self.on_kill,
                 )
-                self._kill_myself()
+                self.wakeupAfter(
+                    timedelta(seconds=0.1),
+                    payload="kill",
+                )
                 return
             identification["Host"] = self._is_host
             self.device_status["Identification"] = identification
@@ -569,7 +592,10 @@ class DeviceActor(DeviceBaseActor):
                 self.success,
                 self.on_kill,
             )
-            self._kill_myself()
+            self.wakeupAfter(
+                timedelta(seconds=0.1),
+                payload="kill",
+            )
 
     @override
     def _request_set_rtc_at_is(self, sender, confirm=False):
@@ -673,7 +699,10 @@ class DeviceActor(DeviceBaseActor):
                     self.success,
                     self.on_kill,
                 )
-                self._kill_myself()
+                self.wakeupAfter(
+                    timedelta(seconds=0.1),
+                    payload="kill",
+                )
                 return
             identification["Host"] = self._is_host
             self.device_status["Identification"] = identification
@@ -717,4 +746,7 @@ class DeviceActor(DeviceBaseActor):
                 self.success,
                 self.on_kill,
             )
-            self._kill_myself()
+            self.wakeupAfter(
+                timedelta(seconds=0.1),
+                payload="kill",
+            )

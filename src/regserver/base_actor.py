@@ -74,6 +74,12 @@ class BaseActor(ActorTypeDispatcher):
         self.actor_dict: dict = {}
         self.on_kill: bool = False
 
+    def receiveMsg_WakeupMessage(self, msg, sender):
+        # pylint: disable=invalid-name, unused-argument
+        """Handle WakeupMessage"""
+        if msg.payload == "kill":
+            self._kill_myself(register=True, resurrect=False)
+
     def receiveMsg_SetupMsg(self, msg, sender):
         # pylint: disable=invalid-name
         """Handler for SetupMsg to set essential attributs after initialization"""
