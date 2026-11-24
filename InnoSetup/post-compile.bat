@@ -1,4 +1,5 @@
 chcp 1252
+del "..\dist\*.msi"
 FOR /F "delims=" %%I IN ('DIR "..\dist\*.exe" /A-D /B /O:D') DO SET "NewestFile=%%I"
 echo %NewestFile%
 copy "..\dist\%NewestFile%" "..\dist\setup-regserver_service.exe"
@@ -6,5 +7,5 @@ copy "..\dist\%NewestFile%" "..\dist\setup-regserver_service.exe"
 "C:\Program Files (x86)\Windows Kits\10\bin\10.0.18362.0\x64\signtool.exe" sign /sha1 85810a6da374be452b5c766a8e439385280bb42a /fd SHA256 /t http://timestamp.sectigo.com ..\dist\setup-regserver_service.msi"
 set "NewName=%NewestFile:.exe=.msi%"
 ren "..\dist\setup-regserver_service.msi" "%NewName%"
-del "..\dist\setup-regserver_service.exe"
+del "..\dist\setup-regserver_service.*"
 xcopy /Y ..\dist\setup-regserver_service-* Z:\GERÄTESOFTWARE\RegServer_Service\
