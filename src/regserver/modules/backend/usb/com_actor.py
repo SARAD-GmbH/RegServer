@@ -8,6 +8,7 @@
 
 """
 
+import os
 from datetime import timedelta
 from threading import Thread
 from time import sleep
@@ -50,7 +51,8 @@ class ComActor(BaseActor):
             pass
         super()._kill_myself(register, resurrect)
 
-    def _guess_family(self):
+    @staticmethod
+    def _guess_family_linux(com_port: str) -> int:
         family_mapping = [
             (r"(?i)irda", 1),
             (r"(?i)scout|smart", 2),
@@ -60,16 +62,19 @@ class ComActor(BaseActor):
         ]
         for mapping in family_mapping:
             for port in list_ports.grep(mapping[0]):
-                if self.route.port == port.device:
-                    self.guessed_family = mapping[1]
-        for port in list_ports.comports():
-            if self.route.port == port.device:
-                logger.info(
-                    "%s, %s, family %d",
-                    port.device,
-                    port.description,
-                    self.guessed_family,
-                )
+                if com_port == port.device:
+                    logger.info(
+                        "%s, %s, family %d",
+                        port.device,
+                        port.description,
+                        mapping[1],
+                    )
+                    return mapping[1]
+        return 0
+
+    @staticmethod
+    def _guess_family_windows(com_port: str) -> int:
+        return 0
 
     def receiveMsg_SetupComActorMsg(self, msg, sender):
         # pylint: disable=invalid-name
@@ -82,7 +87,10 @@ class ComActor(BaseActor):
             self._forward_to_children(KillMsg())
         else:
             logger.debug("%s: Update -- no child", self.my_id)
-            self._guess_family()
+            if os.name == "posix":
+                self.guessed_family = self._guess_family_linux(self.route.port)
+            else:
+                self.guessed_family = self._guess_family_windows(self.route.port)
             self._do_loop()
             if self.permanent_polling_interval:
                 self._start_polling()
