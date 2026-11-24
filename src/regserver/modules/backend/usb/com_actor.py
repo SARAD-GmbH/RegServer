@@ -28,6 +28,12 @@ from sarad.sari import SI, SaradInst, sarad_family  # type: ignore
 from serial import SerialException  # type: ignore
 from serial.tools import list_ports  # type: ignore
 
+if os.name == "nt":
+    import re
+
+    import ftd2xx as ftdi
+    import ftd2xx.defines as constants
+
 
 class ComActor(BaseActor):
     """Actor representing a usable serial connections via USB, RS-232, RS-485 or ZigBee"""
@@ -74,6 +80,60 @@ class ComActor(BaseActor):
 
     @staticmethod
     def _guess_family_windows(com_port: str) -> int:
+        def get_com_port_by_location(loc_id: int) -> str | None:
+            dev = ftdi.openEx(loc_id, constants.OPEN_BY_LOCATION)
+            try:
+                com_num = dev.getComPortNumber()
+            finally:
+                dev.close()
+            if com_num == -1:
+                # Kein VCP (Virtual COM Port) im Treiber aktiviert
+                return None
+            return f"COM{com_num}"
+
+        def find_com_port_by_description(regex: str) -> list[str]:
+            """
+            Sucht ein FTDI-Gerät anhand seiner konfigurierten Description im EEPROM
+            und gibt den zugehörigen Windows COM-Port zurück.
+            """
+            com_ports: list[str] = []
+            try:
+                num_devices = ftdi.createDeviceInfoList()
+            except Exception as e:
+                logger.error("Error loading FTDI driver library: %s", e)
+                return com_ports
+            if not num_devices:
+                logger.warning("No FTDI device found.")
+                return com_ports
+            for i in range(num_devices):
+                try:
+                    device_info = ftdi.getDeviceInfoDetail(i)
+                    description = device_info["description"].decode(
+                        "utf-8", errors="ignore"
+                    )
+                    location = device_info["location"]
+                    if bool(re.search(regex, description)):
+                        com_port = get_com_port_by_location(location)
+                        if com_port is not None:
+                            com_ports.append(com_port)
+                except Exception as exception:
+                    logger.error(exception)
+            return com_ports
+
+        family_mapping = [
+            (r"(?i)irda", 1),
+            (r"(?i)scout|smart", 2),
+            (r"#2", 2),
+            (r"#5", 5),
+            (r"#6", 6),
+        ]
+        for mapping in family_mapping:
+            found_com_ports = find_com_port_by_description(mapping[0])
+            for port in found_com_ports:
+                if port == com_port:
+                    logger.info("%s, family %d", com_port, mapping[1])
+                    return mapping[1]
+        logger.info("%s, family %d", com_port, 0)
         return 0
 
     def receiveMsg_SetupComActorMsg(self, msg, sender):
@@ -89,8 +149,10 @@ class ComActor(BaseActor):
             logger.debug("%s: Update -- no child", self.my_id)
             if os.name == "posix":
                 self.guessed_family = self._guess_family_linux(self.route.port)
-            else:
+            elif os.name == "nt":
                 self.guessed_family = self._guess_family_windows(self.route.port)
+            else:
+                self.guessed_family = 0
             self._do_loop()
             if self.permanent_polling_interval:
                 self._start_polling()
